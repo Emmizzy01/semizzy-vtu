@@ -602,7 +602,10 @@ class VtuOrderWorkflowTest extends TestCase
             correlationId: $order->public_id,
         );
 
-        $order->forceFill(['wallet_transaction_id' => $debit->getKey()])->save();
+        $order->forceFill([
+            'wallet_transaction_id' => $debit->getKey(),
+            'updated_at' => now()->subMinutes(10),
+        ])->save();
 
         // Simulate the scheduled worker finding a persisted order after the
         // original application process stopped before saving a provider result.
