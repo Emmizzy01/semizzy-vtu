@@ -168,3 +168,52 @@ Artisan::command('payments:reconcile-refunds {--limit=100}', function (
 Schedule::command('payments:reconcile-refunds --limit=100')
     ->everyFiveMinutes()
     ->withoutOverlapping();
+
+
+Artisan::command('vtu:reconcile-orders {--limit=100}', function (
+    \App\Services\Vtu\VtuOrderService $orders,
+) {
+    $limit = (int) $this->option('limit');
+    if ($limit < 1 || $limit > 500) {
+        $this->error('The limit must be between 1 and 500.');
+
+        return 1;
+    }
+
+    if (! config('services.vtu.endpoint') || ! config('services.vtu.token')) {
+        $this->warn('VTU provider is not configured; no orders were queried.');
+        return 0;
+    }
+
+    $candidates = \App\Models\VtuOrder::query()
+        ->whereIn('status', ['processing', 'awaiting_reconciliation'])
+        ->whereNotNull('dispatch_started_at')
+        ->where('dispatch_started_at', '<=', now()->subMinute())
+        ->orderBy('dispatch_started_at')
+        ->limit($limit)
+        ->get();
+
+    $changed = 0;
+    foreach ($candidates as $order) {
+        $before = $order->status;
+        try {
+            $after = $orders->reconcile($order);
+            if ($after->status !== $before) {
+                $changed++;
+            }
+        } catch (\Throwable $exception) {
+            report($exception);
+        }
+    }
+
+    $this->table(
+        ['Checked', 'Status changed', 'Still unresolved'],
+        [[$candidates->count(), $changed, $candidates->count() - $changed]],
+    );
+
+    return 0;
+})->purpose('Reconcile pending or ambiguous VTU provider orders');
+
+Schedule::command('vtu:reconcile-orders --limit=100')
+    ->everyMinute()
+    ->withoutOverlapping();
