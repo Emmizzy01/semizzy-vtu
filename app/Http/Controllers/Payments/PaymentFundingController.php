@@ -12,7 +12,6 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
-use RuntimeException;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 
 class PaymentFundingController extends Controller
@@ -65,7 +64,7 @@ class PaymentFundingController extends Controller
         abort_unless(preg_match('/^[a-z0-9_-]{2,40}$/', $provider) === 1, 404);
 
         try {
-            $verifier->verify($request);
+            $verifier->verify($request, $provider);
         } catch (\\LogicException $exception) {
             report($exception);
 
