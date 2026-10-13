@@ -67,7 +67,9 @@ class VtuOrderWorkflowTest extends TestCase
 
     public function test_timeout_marks_order_for_reconciliation_and_retry_does_not_resubmit(): void
     {
-        Http::fake(function () {
+        $attempts = 0;
+        Http::fake(function () use (&$attempts) {
+            $attempts++;
             throw new ConnectionException('Simulated provider timeout');
         });
 
@@ -82,7 +84,7 @@ class VtuOrderWorkflowTest extends TestCase
         $this->assertSame(500, (int) $wallet->fresh()->available_balance_minor);
         $this->assertDatabaseCount('vtu_orders', 1);
         $this->assertDatabaseCount('wallet_transactions', 2);
-        Http::assertSentCount(1);
+        $this->assertSame(1, $attempts, 'A duplicate request must not resubmit the timed-out purchase.');
     }
 
     public function test_pending_provider_order_can_be_reconciled_without_resubmitting(): void
