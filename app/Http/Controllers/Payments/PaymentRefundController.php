@@ -3,14 +3,50 @@
 namespace App\Http\Controllers\Payments;
 
 use App\Http\Controllers\Controller;
+use App\Models\PaymentRefund;
 use App\Services\Payments\PaymentRefundService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use InvalidArgumentException;
-use Symfony\Component\HttpKernel\Exception\HttpException;
 
 class PaymentRefundController extends Controller
 {
+    public function index(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'status' => ['nullable', 'string', 'in:requested,processing,provider_pending,succeeded,failed,blocked_insufficient_wallet_funds,review_required'],
+            'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
+        ]);
+
+        $query = PaymentRefund::query()->with(['paymentIntent', 'requester'])->latest('id');
+        if (isset($validated['status'])) {
+            $query->where('status', $validated['status']);
+        }
+
+        $page = $query->paginate((int) ($validated['per_page'] ?? 25));
+
+        return response()->json([
+            'data' => $page->getCollection()->map(fn (PaymentRefund $refund): array => $this->present($refund))->values(),
+            'meta' => [
+                'current_page' => $page->currentPage(),
+                'last_page' => $page->lastPage(),
+                'per_page' => $page->perPage(),
+                'total' => $page->total(),
+            ],
+        ]);
+    }
+
+    public function show(Request $request, string $refund): JsonResponse
+    {
+        $record = PaymentRefund::query()
+            ->with('paymentIntent')
+            ->where('public_id', $refund)
+            ->whereHas('paymentIntent.wallet', fn ($query) => $query->where('user_id', $request->user()->id))
+            ->firstOrFail();
+
+        return response()->json(['data' => $this->present($record)]);
+    }
+
     public function requestRefund(Request $request, PaymentRefundService $refunds): JsonResponse
     {
         $validated = $request->validate([
