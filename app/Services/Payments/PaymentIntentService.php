@@ -10,7 +10,7 @@ use InvalidArgumentException;
 
 class PaymentIntentService
 {
-    public function create(Wallet $wallet, int $amountMinor, string $provider = 'semizzy'): PaymentIntent
+    public function create(Wallet $wallet, int $amountMinor, string $provider = 'paystack'): PaymentIntent
     {
         if ($amountMinor < 100 || $amountMinor > 500_000_000) {
             throw new InvalidArgumentException('Funding amount must be between 100 and 500000000 minor units.');
