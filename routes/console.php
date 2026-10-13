@@ -193,6 +193,10 @@ Artisan::command('vtu:reconcile-orders {--limit=100}', function (
         ->whereIn('status', ['processing', 'awaiting_reconciliation'])
         ->whereNotNull('dispatch_started_at')
         ->where('dispatch_started_at', '<=', now()->subMinute())
+        // Back off unresolved orders based on their last update to avoid querying
+        // the provider every minute while it continues to report pending.
+        ->where('updated_at', '<=', now()->subMinutes(5))
+        ->orderBy('updated_at')
         ->orderBy('dispatch_started_at')
         ->limit($limit)
         ->get();
@@ -219,5 +223,5 @@ Artisan::command('vtu:reconcile-orders {--limit=100}', function (
 })->purpose('Reconcile pending or ambiguous VTU provider orders');
 
 Schedule::command('vtu:reconcile-orders --limit=100')
-    ->everyMinute()
+    ->everyFiveMinutes()
     ->withoutOverlapping();
