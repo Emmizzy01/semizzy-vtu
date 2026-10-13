@@ -83,8 +83,6 @@ class PaymentFundingController extends Controller
     ): JsonResponse {
         abort_unless(in_array($provider, ['paystack', 'semizzy'], true), 404);
 
-        $payload = $request->json()->all();
-
         if ($provider === 'paystack') {
             try {
                 if (! $paystack->verifyWebhookSignature(
@@ -99,6 +97,7 @@ class PaymentFundingController extends Controller
                 return response()->json(['message' => 'Paystack verification is not configured.'], 503);
             }
 
+            $payload = $request->json()->all();
             if (($payload['event'] ?? null) !== 'charge.success' || ! is_array($payload['data'] ?? null)) {
                 return response()->json(['received' => true, 'outcome' => 'ignored', 'duplicate' => false]);
             }
@@ -150,6 +149,7 @@ class PaymentFundingController extends Controller
                 return response()->json(['message' => 'Webhook verification is not configured.'], 503);
             }
 
+            $payload = $request->json()->all();
             $result = $funding->processVerifiedEvent($provider, $payload);
         }
 
