@@ -208,9 +208,13 @@ class VtuOrderService
     /** @param array<string, mixed> $result */
     private function applyProviderResult(VtuOrder $order, array $result): VtuOrder
     {
-        $providerStatus = $result['status'] ?? 'unknown';
+        $providerStatus = $result['status'] ?? null;
 
-        if ($providerStatus === 'unknown') {
+        // Defense in depth: never interpret an unrecognized status as a
+        // definitive failure, because that would incorrectly refund a possibly
+        // fulfilled order. Only explicit allowlisted states may be applied.
+        if (! is_string($providerStatus)
+            || ! in_array($providerStatus, ['success', 'failed', 'pending'], true)) {
             return $this->markAwaitingReconciliation($order, 'provider_result_unknown', $result);
         }
 
