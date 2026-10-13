@@ -2,6 +2,10 @@
 
 return [
     // Keep each provider's secret separate; never commit secret values.
+    'paystack' => [
+        'secret_key' => env('PAYSTACK_SECRET_KEY'),
+        'callback_url' => env('PAYSTACK_CALLBACK_URL'),
+    ],
     'semizzy_payments' => [
         'webhook_secrets' => [
             'semizzy' => env('SEMIZZY_WEBHOOK_SECRET'),
