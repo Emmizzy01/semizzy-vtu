@@ -457,6 +457,62 @@ class VtuOrderWorkflowTest extends TestCase
         }
     }
 
+    public function test_reconciliation_command_only_checks_orders_past_the_backoff_window(): void
+    {
+        config([
+            'services.vtu.driver' => 'configured',
+            'services.vtu.endpoint' => 'https://provider.example.test/api',
+            'services.vtu.token' => 'test-secret-token',
+        ]);
+
+        Http::fake(function ($request) {
+            if ($request->method() === 'POST') {
+                return Http::response(['status' => 'pending'], 200);
+            }
+
+            return Http::response([
+                'status' => 'success',
+                'provider_reference' => 'provider-order-recovered',
+            ], 200);
+        });
+
+        [$oldUser, , $oldProduct] = $this->preparedCustomer(1000, 1500);
+        [$recentUser, , $recentProduct] = $this->preparedCustomer(1000, 1500);
+        $service = app(VtuOrderService::class);
+
+        $oldOrder = $service->purchase(
+            $oldUser,
+            $oldProduct->code,
+            '08012345678',
+            'reconcile-backoff-old',
+        );
+        $recentOrder = $service->purchase(
+            $recentUser,
+            $recentProduct->code,
+            '08012345678',
+            'reconcile-backoff-recent',
+        );
+
+        $oldTimestamp = now()->subMinutes(6);
+        $recentTimestamp = now()->subMinutes(2);
+
+        // Use query-builder updates so Eloquent does not replace updated_at with now().
+        VtuOrder::query()->whereKey($oldOrder->getKey())->update([
+            'dispatch_started_at' => $oldTimestamp,
+            'updated_at' => $oldTimestamp,
+        ]);
+        VtuOrder::query()->whereKey($recentOrder->getKey())->update([
+            'dispatch_started_at' => $recentTimestamp,
+            'updated_at' => $recentTimestamp,
+        ]);
+
+        $this->artisan('vtu:reconcile-orders --limit=100')->assertExitCode(0);
+
+        $this->assertSame('successful', $oldOrder->fresh()->status);
+        $this->assertSame('processing', $recentOrder->fresh()->status);
+        Http::assertSentCount(3);
+    }
+
     /** @return array{User, \App\Models\Wallet, VtuProduct} */
     private function preparedCustomer(int $productPriceMinor, int $initialBalanceMinor): array
     {
