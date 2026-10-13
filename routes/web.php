@@ -22,7 +22,10 @@ Route::middleware(['auth', 'throttle:10,1'])->post('/wallet/refund-requests', [P
 Route::middleware(['auth', 'throttle:30,1'])->get('/wallet/refund-requests/{refund}', [PaymentRefundController::class, 'show'])
     ->name('wallet.refund-requests.show');
 
-Route::middleware(['auth', 'can:refunds.approve'])->get('/admin/refunds', [PaymentRefundController::class, 'dashboard'])\n    ->name('admin.refunds.dashboard');\n\nRoute::middleware(['auth', 'can:refunds.approve', 'throttle:30,1'])->get('/admin/payment-refunds', [PaymentRefundController::class, 'index'])
+Route::middleware(['auth', 'can:refunds.approve'])->get('/admin/refunds', [PaymentRefundController::class, 'dashboard'])
+    ->name('admin.refunds.dashboard');
+
+Route::middleware(['auth', 'can:refunds.approve', 'throttle:30,1'])->get('/admin/payment-refunds', [PaymentRefundController::class, 'index'])
     ->name('admin.payment-refunds.index');
 
 Route::middleware(['auth', 'can:refunds.approve', 'throttle:20,1'])->post('/admin/payment-refunds/{refund}/approve', [PaymentRefundController::class, 'approveRefund'])
