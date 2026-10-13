@@ -1,6 +1,7 @@
 <?php
 
-use App\Http\Controllers\Payments\PaymentFundingController;\nuse App\Http\Controllers\Payments\PaymentRefundController;
+use App\Http\Controllers\Payments\PaymentFundingController;
+use App\Http\Controllers\Payments\PaymentRefundController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -14,3 +15,9 @@ Route::get('/wallet/funding/return', [PaymentFundingController::class, 'returnFr
 Route::middleware('auth')->post('/wallet/funding-intents', [PaymentFundingController::class, 'createIntent'])
     ->middleware('throttle:10,1')
     ->name('wallet.funding-intents.create');
+
+Route::middleware(['auth', 'throttle:10,1'])->post('/wallet/refund-requests', [PaymentRefundController::class, 'requestRefund'])
+    ->name('wallet.refund-requests.create');
+
+Route::middleware(['auth', 'can:refunds.approve', 'throttle:20,1'])->post('/admin/payment-refunds/{refund}/approve', [PaymentRefundController::class, 'approveRefund'])
+    ->name('admin.payment-refunds.approve');
