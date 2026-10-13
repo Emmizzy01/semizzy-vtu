@@ -12,6 +12,40 @@ type Product = {
   currency: string;
 };
 
+type PendingPurchase = {
+  serviceType: 'airtime' | 'data';
+  productCode: string;
+  recipient: string;
+  requestKey: string;
+  uncertain: boolean;
+};
+
+const PENDING_PURCHASE_KEY = 'semizzy-vtu-pending-purchase';
+
+function readPendingPurchase(): PendingPurchase | null {
+  try {
+    const raw = window.sessionStorage.getItem(PENDING_PURCHASE_KEY);
+    if (!raw) return null;
+    const value = JSON.parse(raw) as Partial<PendingPurchase>;
+    if ((value.serviceType !== 'airtime' && value.serviceType !== 'data')
+      || typeof value.productCode !== 'string'
+      || typeof value.recipient !== 'string'
+      || typeof value.requestKey !== 'string'
+      || typeof value.uncertain !== 'boolean') return null;
+    return value as PendingPurchase;
+  } catch {
+    return null;
+  }
+}
+
+function savePendingPurchase(value: PendingPurchase) {
+  try { window.sessionStorage.setItem(PENDING_PURCHASE_KEY, JSON.stringify(value)); } catch { /* optional browser storage */ }
+}
+
+function clearPendingPurchase() {
+  try { window.sessionStorage.removeItem(PENDING_PURCHASE_KEY); } catch { /* optional browser storage */ }
+}
+
 type Order = {
   id: string;
   service_type: string;
@@ -48,17 +82,18 @@ async function readMessage(response: Response) {
 }
 
 export default function VtuPurchase() {
-  const [serviceType, setServiceType] = useState<'airtime' | 'data'>('airtime');
+  const [restoredPending] = useState(readPendingPurchase);
+  const [serviceType, setServiceType] = useState<'airtime' | 'data'>(restoredPending?.serviceType ?? 'airtime');
   const [products, setProducts] = useState<Product[]>([]);
-  const [productCode, setProductCode] = useState('');
-  const [recipient, setRecipient] = useState('');
-  const [requestKey, setRequestKey] = useState(newRequestKey);
+  const [productCode, setProductCode] = useState(restoredPending?.productCode ?? '');
+  const [recipient, setRecipient] = useState(restoredPending?.recipient ?? '');
+  const [requestKey, setRequestKey] = useState(restoredPending?.requestKey ?? newRequestKey);
   const [order, setOrder] = useState<Order | null>(null);
   const [loadingProducts, setLoadingProducts] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
-  const [submissionUncertain, setSubmissionUncertain] = useState(false);
+  const [submissionUncertain, setSubmissionUncertain] = useState(restoredPending?.uncertain ?? false);
 
   useEffect(() => {
     let cancelled = false;
@@ -78,7 +113,7 @@ export default function VtuPurchase() {
         if (cancelled) return;
         const list = Array.isArray(body.data) ? body.data as Product[] : [];
         setProducts(list);
-        setProductCode(list[0]?.code ?? '');
+        setProductCode((current) => current && list.some((product) => product.code === current) ? current : (list[0]?.code ?? ''));
       })
       .catch((cause: unknown) => {
         if (!cancelled) setError(cause instanceof Error ? cause.message : 'Products could not be loaded.');
@@ -104,6 +139,7 @@ export default function VtuPurchase() {
     setError('');
 
     let receivedResponse = false;
+    savePendingPurchase({ serviceType, productCode: selectedProduct.code, recipient, requestKey, uncertain: false });
     try {
       const csrf = document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ?? '';
       const response = await fetch('/wallet/vtu/orders', {
@@ -125,12 +161,23 @@ export default function VtuPurchase() {
       receivedResponse = true;
       const body = await response.json().catch(() => ({}));
       if (!response.ok) {
+        if (response.status >= 500) {
+          setSubmissionUncertain(true);
+          savePendingPurchase({ serviceType, productCode: selectedProduct.code, recipient, requestKey, uncertain: true });
+        } else {
+          clearPendingPurchase();
+          setSubmissionUncertain(false);
+        }
         throw new Error(typeof body.message === 'string' ? body.message : 'Purchase could not be submitted.');
       }
+      clearPendingPurchase();
       setSubmissionUncertain(false);
       setOrder(body.data as Order);
     } catch (cause: unknown) {
-      if (!receivedResponse) setSubmissionUncertain(true);
+      if (!receivedResponse) {
+        setSubmissionUncertain(true);
+        savePendingPurchase({ serviceType, productCode: selectedProduct.code, recipient, requestKey, uncertain: true });
+      }
       setError(cause instanceof Error ? cause.message : 'The result is unknown. Keep this form unchanged and retry safely.');
     } finally {
       setSubmitting(false);
@@ -234,6 +281,8 @@ export default function VtuPurchase() {
                   onClick={() => {
                     setOrder(null);
                     setError('');
+                    clearPendingPurchase();
+                    setSubmissionUncertain(false);
                     setRequestKey(newRequestKey());
                     setSubmissionUncertain(false);
                   }}
