@@ -110,6 +110,34 @@ class PaystackClient
         return $response->json('data');
     }
 
+    /**
+     * Fetch an existing Paystack refund by its provider-issued refund ID.
+     *
+     * @return array<string, mixed>
+     */
+    public function fetchRefund(string $refundId): array
+    {
+        if ($refundId === '' || ! ctype_digit($refundId)) {
+            throw new \\InvalidArgumentException('Paystack refund ID must be numeric.');
+        }
+
+        try {
+            $response = Http::withToken($this->secretKey())
+                ->acceptJson()
+                ->timeout(15)
+                ->get('https://api.paystack.co/refund/'.rawurlencode($refundId));
+        } catch (ConnectionException $exception) {
+            throw new LogicException('Paystack refund status is currently unavailable.', previous: $exception);
+        }
+
+        if (! $response->successful() || $response->json('status') !== true
+            || ! is_array($response->json('data'))) {
+            throw new LogicException('Paystack did not return the requested refund.');
+        }
+
+        return $response->json('data');
+    }
+
     public function verifyWebhookSignature(string $rawBody, string $signature): bool
     {
         $expected = hash_hmac('sha512', $rawBody, $this->secretKey());
