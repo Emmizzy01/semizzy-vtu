@@ -35,7 +35,7 @@ class PaymentRefundService
                 ->lockForUpdate()
                 ->first();
 
-            if ($intent === null || $intent->wallet()->value('user_id') !== $customer->id) {
+            if ($intent === null || (int) $intent->wallet()->value('user_id') !== (int) $customer->id) {
                 throw new UnprocessableEntityHttpException('Paid payment intent was not found.');
             }
             if ($intent->provider !== 'paystack' || $intent->status !== 'paid') {
@@ -127,11 +127,15 @@ class PaymentRefundService
                 return $refund->fresh();
             }, attempts: 3);
         } catch (InsufficientWalletFunds $exception) {
-            PaymentRefund::query()->where('public_id', $publicId)->where('status', 'requested')->update([
-                'status' => 'blocked_insufficient_wallet_funds',
-                'metadata' => DB::raw("JSON_SET(COALESCE(metadata, JSON_OBJECT()), '$.settlement_block', 'insufficient_available_balance')"),
-                'updated_at' => now(),
-            ]);
+            $blocked = PaymentRefund::query()->where('public_id', $publicId)->where('status', 'requested')->first();
+            if ($blocked !== null) {
+                $metadata = $blocked->metadata ?? [];
+                $metadata['settlement_block'] = 'insufficient_available_balance';
+                $blocked->forceFill([
+                    'status' => 'blocked_insufficient_wallet_funds',
+                    'metadata' => $metadata,
+                ])->save();
+            }
 
             return PaymentRefund::query()->where('public_id', $publicId)->firstOrFail();
         }
