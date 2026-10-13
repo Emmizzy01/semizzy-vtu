@@ -118,7 +118,7 @@ class PaystackClient
     public function fetchRefund(string $refundId): array
     {
         if ($refundId === '' || ! ctype_digit($refundId)) {
-            throw new \\InvalidArgumentException('Paystack refund ID must be numeric.');
+            throw new \InvalidArgumentException('Paystack refund ID must be numeric.');
         }
 
         try {
