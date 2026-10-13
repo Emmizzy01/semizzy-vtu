@@ -220,7 +220,7 @@ export default function VtuPurchase() {
                     <p className="mt-3 text-sm leading-6 text-[var(--muted)]">The provider is still processing this order. Refresh the status instead of submitting another purchase.</p>
                   )}
                   {order.status === 'failed' && (
-                    <p className="mt-3 text-sm leading-6 text-[var(--muted)]">The provider reported a definitive failure. Semizzy has recorded the order for a ledger-based refund.</p>
+                    <p className="mt-3 text-sm leading-6 text-[var(--muted)]">The provider reported a definitive failure. The wallet refund has been recorded through Semizzy’s ledger.</p>
                   )}
                 </div>
                 {!terminal && (
