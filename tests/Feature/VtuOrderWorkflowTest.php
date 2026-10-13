@@ -210,7 +210,7 @@ class VtuOrderWorkflowTest extends TestCase
                 'insufficient-funds-1',
             );
             $this->fail('The purchase should be rejected when the wallet balance is insufficient.');
-        } catch (\\App\\Exceptions\\Wallet\\InsufficientWalletFunds) {
+        } catch (\App\Exceptions\Wallet\InsufficientWalletFunds) {
             $this->assertSame(1000, (int) $wallet->fresh()->available_balance_minor);
             $this->assertDatabaseCount('vtu_orders', 0);
             $this->assertDatabaseCount('wallet_transactions', 1);
@@ -218,7 +218,7 @@ class VtuOrderWorkflowTest extends TestCase
         }
     }
 
-    /** @return array{User, \\App\\Models\\Wallet, VtuProduct} */
+    /** @return array{User, \App\Models\Wallet, VtuProduct} */
     private function preparedCustomer(int $productPriceMinor, int $initialBalanceMinor): array
     {
         $user = User::query()->create([
