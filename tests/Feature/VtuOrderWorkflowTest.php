@@ -206,6 +206,41 @@ class VtuOrderWorkflowTest extends TestCase
         $this->assertSame(2, $requests, 'A terminal order must not be queried or refunded again.');
     }
 
+    public function test_late_pending_reconciliation_cannot_regress_a_terminal_order(): void
+    {
+        $lookups = 0;
+        Http::fake(function ($request) use (&$lookups) {
+            if ($request->method() === 'POST') {
+                return Http::response(['status' => 'pending'], 200);
+            }
+
+            $lookups++;
+
+            return Http::response([
+                'status' => $lookups === 1 ? 'success' : 'pending',
+                'provider_reference' => 'provider-order-race-safe',
+            ], 200);
+        });
+
+        [$user, $wallet, $product] = $this->preparedCustomer(1000, 1500);
+        $service = app(VtuOrderService::class);
+        $staleOrder = $service->purchase(
+            $user,
+            $product->code,
+            '08012345678',
+            'late-pending-must-not-regress',
+        );
+
+        $successful = $service->reconcile($staleOrder);
+        $latePending = $service->reconcile($staleOrder);
+
+        $this->assertSame('successful', $successful->status);
+        $this->assertSame('successful', $latePending->status);
+        $this->assertSame(500, (int) $wallet->fresh()->available_balance_minor);
+        $this->assertDatabaseCount('wallet_transactions', 2);
+        $this->assertSame(3, $lookups + 1, 'One submit and two reconciliation lookups should occur.');
+    }
+
     public function test_reusing_idempotency_key_for_different_purchase_is_rejected(): void
     {
         Http::fake(fn () => Http::response(['status' => 'pending'], 200));
