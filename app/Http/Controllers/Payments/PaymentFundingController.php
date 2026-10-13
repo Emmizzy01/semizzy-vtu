@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\PaymentIntent;
 use App\Models\Wallet;
 use App\Services\Payments\PaymentFundingService;
+use App\Services\Payments\PaymentProviderExceptionService;
 use App\Services\Payments\PaymentIntentService;
 use App\Services\Payments\PaystackClient;
 use App\Services\Payments\WebhookSignatureVerifier;
@@ -79,6 +80,7 @@ class PaymentFundingController extends Controller
         WebhookSignatureVerifier $verifier,
         PaystackClient $paystack,
         PaymentFundingService $funding,
+        PaymentProviderExceptionService $providerExceptions,
     ): JsonResponse {
         abort_unless(in_array($provider, ['paystack', 'semizzy'], true), 404);
 
