@@ -2,6 +2,7 @@
 
 use App\Models\User;
 use App\Models\UserPermission;
+use App\Models\StaffPermissionAudit;
 use App\Services\Payments\PaymentReconciliationService;
 use App\Services\Payments\PaymentRefundMonitoringService;
 use App\Services\Payments\PaymentRefundReconciliationService;
@@ -38,6 +39,16 @@ Artisan::command('semizzy:permission:grant {email} {permission} {--force}', func
         'permission' => $permission,
     ]);
 
+    if ($record->wasRecentlyCreated) {
+        StaffPermissionAudit::query()->create([
+            'actor_user_id' => null,
+            'target_user_id' => $user->id,
+            'permission' => $permission,
+            'action' => 'granted',
+            'reason' => 'Server CLI provisioning; authorized operator verified the account.',
+        ]);
+    }
+
     $this->info($record->wasRecentlyCreated
         ? "Granted {$permission} to user ID {$user->id}."
         : "User ID {$user->id} already has {$permission}.");
@@ -70,6 +81,16 @@ Artisan::command('semizzy:permission:revoke {email} {permission} {--force}', fun
         ->where('user_id', $user->id)
         ->where('permission', $permission)
         ->delete();
+
+    if ($deleted > 0) {
+        StaffPermissionAudit::query()->create([
+            'actor_user_id' => null,
+            'target_user_id' => $user->id,
+            'permission' => $permission,
+            'action' => 'revoked',
+            'reason' => 'Server CLI revocation; authorized operator verified the account.',
+        ]);
+    }
 
     $this->info($deleted > 0
         ? "Revoked {$permission} from user ID {$user->id}."
