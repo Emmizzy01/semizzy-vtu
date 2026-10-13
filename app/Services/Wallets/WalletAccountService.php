@@ -40,9 +40,14 @@ class WalletAccountService
                 ]);
             }, attempts: 3);
         } catch (QueryException $exception) {
-            // Concurrent first-time creation may win the unique index race.
-            // Recover only if the intended wallet now exists; otherwise preserve
-            // the original database exception for diagnostics.
+            $sqlState = $exception->errorInfo[0] ?? null;
+
+            // Only inspect for a concurrent insert after a likely uniqueness or
+            // integrity conflict. Preserve unrelated database failures unchanged.
+            if (! in_array($sqlState, ['23000', '23505'], true)) {
+                throw $exception;
+            }
+
             $existing = Wallet::query()
                 ->where('user_id', $user->getKey())
                 ->where('currency', $currency)
