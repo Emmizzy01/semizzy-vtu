@@ -113,6 +113,36 @@ class VtuOrderWorkflowTest extends TestCase
         $this->assertSame(1, $attempts, 'A duplicate request must not resubmit the timed-out purchase.');
     }
 
+    public function test_provider_authentication_errors_remain_ambiguous_without_refund(): void
+    {
+        Http::fake(fn () => Http::response(['error' => 'unauthorized'], 401));
+
+        [$user, $wallet, $product] = $this->preparedCustomer(1000, 1500);
+        $service = app(VtuOrderService::class);
+
+        $order = $service->purchase(
+            $user,
+            $product->code,
+            '08012345678',
+            'provider-auth-error-1',
+        );
+
+        $this->assertSame('awaiting_reconciliation', $order->status);
+        $this->assertSame(500, (int) $wallet->fresh()->available_balance_minor);
+        $this->assertDatabaseCount('wallet_transactions', 2);
+
+        $reconciled = $service->reconcile($order->fresh());
+
+        $this->assertSame('awaiting_reconciliation', $reconciled->status);
+        $this->assertSame(500, (int) $wallet->fresh()->available_balance_minor);
+        $this->assertDatabaseCount('wallet_transactions', 2);
+        Http::assertSentCount(2);
+        Http::assertSent(function ($request) {
+            return $request->hasHeader('Authorization', 'Bearer test-secret-token')
+                && str_starts_with($request->url(), 'https://provider.example.test/');
+        });
+    }
+
     public function test_pending_provider_order_can_be_reconciled_without_resubmitting(): void
     {
         Http::fake(function ($request) {
