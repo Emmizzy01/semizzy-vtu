@@ -7,10 +7,18 @@ use App\Models\PaymentRefund;
 use App\Services\Payments\PaymentRefundService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use Inertia\Inertia;
+use Inertia\Response as InertiaResponse;
 use InvalidArgumentException;
 
 class PaymentRefundController extends Controller
 {
+    public function dashboard(): InertiaResponse
+    {
+        return Inertia::render('Admin/Refunds/Index');
+    }
+
     public function index(Request $request): JsonResponse
     {
         $validated = $request->validate([
