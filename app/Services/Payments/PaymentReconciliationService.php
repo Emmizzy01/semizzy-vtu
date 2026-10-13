@@ -44,7 +44,7 @@ class PaymentReconciliationService
                             'reference' => $intent->reference,
                             'exception' => $exception::class,
                         ]);
-                        continue;
+                        return;
                     }
 
                     $providerStatus = is_string($transaction['status'] ?? null)
@@ -62,7 +62,7 @@ class PaymentReconciliationService
                                 'reason' => 'Verified provider success does not match the payment intent.',
                             ]);
                             $stats['exceptions']++;
-                            continue;
+                            return;
                         }
 
                         if ($intent->status !== 'pending' || ($intent->expires_at && $intent->expires_at->isPast())) {
@@ -70,7 +70,7 @@ class PaymentReconciliationService
                                 'reason' => 'Provider reports success after the intent was no longer eligible for automatic settlement.',
                             ]);
                             $stats['exceptions']++;
-                            continue;
+                            return;
                         }
 
                         try {
@@ -106,7 +106,7 @@ class PaymentReconciliationService
                             $stats['exceptions']++;
                         }
 
-                        continue;
+                        return;
                     }
 
                     if (in_array($providerStatus, ['failed', 'abandoned'], true)) {
@@ -120,7 +120,7 @@ class PaymentReconciliationService
                             'reason' => 'Provider verification reports a failed or abandoned transaction.',
                         ]);
                         $stats['failed']++;
-                        continue;
+                        return;
                     }
 
                     $this->recordCase($intent, 'provider_pending', $transaction, [
