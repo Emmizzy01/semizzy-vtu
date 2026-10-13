@@ -19,5 +19,11 @@ Route::middleware('auth')->post('/wallet/funding-intents', [PaymentFundingContro
 Route::middleware(['auth', 'throttle:10,1'])->post('/wallet/refund-requests', [PaymentRefundController::class, 'requestRefund'])
     ->name('wallet.refund-requests.create');
 
+Route::middleware(['auth', 'throttle:30,1'])->get('/wallet/refund-requests/{refund}', [PaymentRefundController::class, 'show'])
+    ->name('wallet.refund-requests.show');
+
+Route::middleware(['auth', 'can:refunds.approve', 'throttle:30,1'])->get('/admin/payment-refunds', [PaymentRefundController::class, 'index'])
+    ->name('admin.payment-refunds.index');
+
 Route::middleware(['auth', 'can:refunds.approve', 'throttle:20,1'])->post('/admin/payment-refunds/{refund}/approve', [PaymentRefundController::class, 'approveRefund'])
     ->name('admin.payment-refunds.approve');
