@@ -41,7 +41,7 @@ Before live money is enabled:
 - Run the full Laravel test suite against the configured test database.
 - Use Paystack test keys and the provider dashboard/webhook tooling to test real sandbox events.
 - Confirm the deployed callback and webhook URLs are HTTPS and reachable.
-- Add monitoring and reconciliation for pending, failed, mismatched, and late payments.
+- Configure the scheduled reconciliation command and monitor open pending, failed, mismatched, and late-payment cases. See [payment reconciliation](payment-reconciliation.md).
 - Implement refund/reversal processing and operational alerts.
 - Keep MySQL/MariaDB InnoDB in production for row locks and uniqueness constraints.
 
