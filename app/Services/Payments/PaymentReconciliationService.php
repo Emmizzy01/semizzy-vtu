@@ -32,8 +32,8 @@ class PaymentReconciliationService
             ->where('created_at', '<=', now()->subMinutes($graceMinutes))
             ->orderBy('id')
             ->limit(max(1, min(500, $limit)))
-            ->chunkById(50, function ($intents) use (&$stats): void {
-                foreach ($intents as $intent) {
+            ->get()
+            ->each(function (PaymentIntent $intent) use (&$stats): void {
                     $stats['checked']++;
 
                     try {
@@ -127,7 +127,6 @@ class PaymentReconciliationService
                         'reason' => 'Provider verification has not confirmed a final successful payment.',
                     ]);
                     $stats['exceptions']++;
-                }
             });
 
         return $stats;
@@ -142,23 +141,25 @@ class PaymentReconciliationService
             'paystack', $intent->reference, $type, $transactionId ?? 'no-transaction-id',
         ]));
 
-        PaymentReconciliationCase::query()->updateOrCreate(
-            ['case_key' => $key],
-            [
-                'provider' => 'paystack',
-                'reference' => $intent->reference,
-                'payment_intent_id' => $intent->id,
-                'case_type' => $type,
-                'provider_status' => is_string($transaction['status'] ?? null) ? $transaction['status'] : null,
-                'provider_transaction_id' => $transactionId,
-                'expected_amount_minor' => $intent->amount_minor,
-                'observed_amount_minor' => is_int($transaction['amount'] ?? null) ? $transaction['amount'] : null,
-                'expected_currency' => $intent->currency,
-                'observed_currency' => is_string($transaction['currency'] ?? null) ? strtoupper($transaction['currency']) : null,
-                'details' => $details,
-                'status' => 'open',
-                'last_checked_at' => now(),
-            ],
-        );
+        $case = PaymentReconciliationCase::query()->firstOrNew(['case_key' => $key]);
+        $isNew = ! $case->exists;
+        $case->fill([
+            'provider' => 'paystack',
+            'reference' => $intent->reference,
+            'payment_intent_id' => $intent->id,
+            'case_type' => $type,
+            'provider_status' => is_string($transaction['status'] ?? null) ? $transaction['status'] : null,
+            'provider_transaction_id' => $transactionId,
+            'expected_amount_minor' => $intent->amount_minor,
+            'observed_amount_minor' => is_int($transaction['amount'] ?? null) ? $transaction['amount'] : null,
+            'expected_currency' => $intent->currency,
+            'observed_currency' => is_string($transaction['currency'] ?? null) ? strtoupper($transaction['currency']) : null,
+            'details' => $details,
+            'last_checked_at' => now(),
+        ]);
+        if ($isNew) {
+            $case->status = 'open';
+        }
+        $case->save();
     }
 }
