@@ -30,11 +30,15 @@ class PaymentReconciliationService
             ->where('provider', 'paystack')
             ->whereIn('status', ['pending', 'failed'])
             ->where('created_at', '<=', now()->subMinutes($graceMinutes))
+            ->orderBy('updated_at')
             ->orderBy('id')
             ->limit(max(1, min(500, $limit)))
             ->get()
             ->each(function (PaymentIntent $intent) use (&$stats): void {
                     $stats['checked']++;
+                    // Rotate attempted intents so a repeatedly pending or unavailable provider
+                    // reference cannot monopolize every scheduled batch.
+                    PaymentIntent::query()->whereKey($intent->id)->update(['updated_at' => now()]);
 
                     try {
                         $transaction = $this->paystack->verifyTransaction($intent->reference);
