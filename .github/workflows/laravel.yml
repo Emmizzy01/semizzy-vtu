@@ -47,6 +47,13 @@ jobs:
           DB_DATABASE: semizzy_test
           DB_USERNAME: root
           DB_PASSWORD: root
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Build Vite assets for HTTP feature tests
+        run: |
+          npm install
+          npm run build
       - name: Run Laravel tests
         run: php artisan test
         env:
