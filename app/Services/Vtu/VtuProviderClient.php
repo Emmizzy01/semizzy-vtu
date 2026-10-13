@@ -7,7 +7,7 @@ use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
 use LogicException;
 
-class VtuProviderClient
+class VtuProviderClient implements VtuProvider
 {
     public function assertConfigured(): void
     {
