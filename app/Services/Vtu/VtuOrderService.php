@@ -218,7 +218,7 @@ class VtuOrderService
             return $order->fresh();
         }
 
-        return DB::transaction(function () use ($order, $providerStatus, $result): VtuOrder {
+        $updated = DB::transaction(function () use ($order, $providerStatus, $result): VtuOrder {
             /** @var VtuOrder $locked */
             $locked = VtuOrder::query()->whereKey($order->getKey())->lockForUpdate()->firstOrFail();
             if (in_array($locked->status, [
@@ -269,6 +269,12 @@ class VtuOrderService
 
             return $locked->fresh();
         }, attempts: 3);
+
+        // Preserve whether this request created the order so the controller can
+        // return 201 for a new purchase even when the provider completed it immediately.
+        $updated->wasRecentlyCreated = $order->wasRecentlyCreated;
+
+        return $updated;
     }
 
     /** @param array<string, mixed> $result */
