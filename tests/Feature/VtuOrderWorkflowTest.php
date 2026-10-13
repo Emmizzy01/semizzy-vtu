@@ -136,6 +136,41 @@ class VtuOrderWorkflowTest extends TestCase
         Http::assertSentCount(2);
     }
 
+    public function test_unrecognized_provider_status_stays_unresolved_without_refund(): void
+    {
+        $requests = 0;
+        Http::fake(function ($request) use (&$requests) {
+            $requests++;
+
+            if ($request->method() === 'POST') {
+                return Http::response([
+                    'status' => 'completed-ish',
+                    'provider_reference' => 'provider-order-unknown-status',
+                ], 200);
+            }
+
+            return Http::response([
+                'status' => 'completed-ish',
+                'provider_reference' => 'provider-order-unknown-status',
+            ], 200);
+        });
+
+        [$user, $wallet, $product] = $this->preparedCustomer(1000, 1500);
+        $service = app(VtuOrderService::class);
+        $order = $service->purchase($user, $product->code, '08012345678', 'unknown-provider-status-1');
+
+        $this->assertSame('awaiting_reconciliation', $order->status);
+        $this->assertSame(500, (int) $wallet->fresh()->available_balance_minor);
+        $this->assertDatabaseCount('wallet_transactions', 2);
+
+        $reconciled = $service->reconcile($order->fresh());
+
+        $this->assertSame('awaiting_reconciliation', $reconciled->status);
+        $this->assertSame(500, (int) $wallet->fresh()->available_balance_minor);
+        $this->assertDatabaseCount('wallet_transactions', 2, 'Unrecognized provider status must never trigger a refund.');
+        $this->assertSame(2, $requests);
+    }
+
     public function test_reconciliation_failure_refunds_once_and_terminal_order_is_not_queried_again(): void
     {
         $requests = 0;
