@@ -14,14 +14,12 @@ class VtpassProviderClient implements VtuProvider
     public function assertConfigured(): void
     {
         $baseUrl = rtrim((string) config('services.vtu.vtpass.base_url', ''), '/');
-        $host = parse_url($baseUrl, PHP_URL_HOST);
-        $scheme = parse_url($baseUrl, PHP_URL_SCHEME);
-        $path = parse_url($baseUrl, PHP_URL_PATH);
 
         if (
-            $scheme !== 'https'
-            || ! in_array($host, ['vtpass.com', 'sandbox.vtpass.com'], true)
-            || $path !== '/api'
+            ! in_array($baseUrl, [
+                'https://vtpass.com/api',
+                'https://sandbox.vtpass.com/api',
+            ], true)
             || ! config('services.vtu.vtpass.api_key')
             || ! config('services.vtu.vtpass.secret_key')
         ) {
