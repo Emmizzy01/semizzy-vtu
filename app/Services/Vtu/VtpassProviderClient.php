@@ -27,6 +27,27 @@ class VtpassProviderClient implements VtuProvider
         }
     }
 
+    public function assertProductConfigured(VtuProduct $product): void
+    {
+        if (! in_array($product->service_type, ['airtime', 'data'], true)) {
+            throw new LogicException('VTpass only supports configured airtime and data products in this adapter.');
+        }
+
+        $this->serviceId($product);
+
+        if ($product->service_type === 'data') {
+            $variationCode = $product->metadata['provider_variation_code'] ?? null;
+            if (! is_string($variationCode) || $variationCode === '') {
+                throw new LogicException('VTpass data product is missing its verified variation code.');
+            }
+        } else {
+            $faceValueMinor = (int) ($product->face_value_minor ?? $product->price_minor);
+            if ($faceValueMinor < 1 || $faceValueMinor % 100 !== 0) {
+                throw new LogicException('VTpass airtime face value must be a positive whole amount in NGN.');
+            }
+        }
+    }
+
     public function submit(VtuOrder $order): array
     {
         $this->assertConfigured();
@@ -38,25 +59,16 @@ class VtpassProviderClient implements VtuProvider
 
         $payload = [
             'request_id' => $this->requestId($order),
-            'serviceID' => $this->serviceId($order, $product),
+            'serviceID' => $this->serviceId($product),
             'phone' => $order->recipient,
         ];
 
         if ($order->service_type === 'airtime') {
             $faceValueMinor = (int) ($product->face_value_minor ?? $order->amount_minor);
-            if ($faceValueMinor < 1 || $faceValueMinor % 100 !== 0) {
-                throw new LogicException('VTpass airtime face value must be a positive whole amount in NGN.');
-            }
             $payload['amount'] = intdiv($faceValueMinor, 100);
-        } elseif ($order->service_type === 'data') {
-            $variationCode = $product->metadata['provider_variation_code'] ?? null;
-            if (! is_string($variationCode) || $variationCode === '') {
-                throw new LogicException('VTpass data product is missing its verified variation code.');
-            }
-            $payload['billersCode'] = $order->recipient;
-            $payload['variation_code'] = $variationCode;
         } else {
-            throw new LogicException('VTpass only supports configured airtime and data products in this adapter.');
+            $payload['billersCode'] = $order->recipient;
+            $payload['variation_code'] = (string) $product->metadata['provider_variation_code'];
         }
 
         try {
@@ -170,14 +182,14 @@ class VtpassProviderClient implements VtuProvider
         return $createdAt->format('YmdHi').str_replace('-', '', (string) $order->public_id);
     }
 
-    private function serviceId(VtuOrder $order, VtuProduct $product): string
+    private function serviceId(VtuProduct $product): string
     {
         $metadataServiceId = $product->metadata['provider_service_id'] ?? null;
         if (is_string($metadataServiceId) && preg_match('/^[a-z0-9-]{2,80}$/', $metadataServiceId)) {
             return $metadataServiceId;
         }
 
-        $network = strtolower(trim($order->network));
+        $network = strtolower(trim($product->network));
         $airtime = [
             'mtn' => 'mtn',
             'glo' => 'glo',
@@ -193,7 +205,7 @@ class VtpassProviderClient implements VtuProvider
             'etisalat' => 'etisalat-data',
         ];
 
-        $serviceId = $order->service_type === 'airtime'
+        $serviceId = $product->service_type === 'airtime'
             ? ($airtime[$network] ?? null)
             : ($data[$network] ?? null);
 
