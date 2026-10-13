@@ -22,7 +22,7 @@ class VtuOrderService
     public function __construct(
         private readonly WalletAccountService $walletAccounts,
         private readonly WalletLedgerService $ledger,
-        private readonly VtuProviderClient $provider,
+        private readonly VtuProvider $provider,
     ) {
     }
 
