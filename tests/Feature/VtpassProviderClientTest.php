@@ -1,13 +1,13 @@
 <?php
 
-namespace Tests\\Feature;
+namespace Tests\Feature;
 
-use App\\Models\\VtuOrder;
-use App\\Models\\VtuProduct;
-use App\\Services\\Vtu\\VtpassProviderClient;
-use Illuminate\\Support\\Carbon;
-use Illuminate\\Support\\Facades\\Http;
-use Tests\\TestCase;
+use App\Models\VtuOrder;
+use App\Models\VtuProduct;
+use App\Services\Vtu\VtpassProviderClient;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Http;
+use Tests\TestCase;
 
 class VtpassProviderClientTest extends TestCase
 {
