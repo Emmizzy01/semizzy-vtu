@@ -209,8 +209,14 @@ class VtuOrderService
         }
 
         if ($providerStatus === 'pending') {
+            // A confirmed pending result from a reconciliation lookup must not
+            // erase the fact that the original submission had an ambiguous outcome.
+            $status = $order->status === VtuOrderStatus::AwaitingReconciliation->value
+                ? VtuOrderStatus::AwaitingReconciliation->value
+                : VtuOrderStatus::Processing->value;
+
             $order->forceFill([
-                'status' => VtuOrderStatus::Processing->value,
+                'status' => $status,
                 'provider_reference' => $result['provider_reference'] ?? $order->provider_reference,
                 'safe_provider_response' => $this->safeResponse($result),
             ])->save();
