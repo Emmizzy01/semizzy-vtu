@@ -105,7 +105,7 @@ class VtpassProviderClientTest extends TestCase
         ], 200));
 
         $order = $this->order('airtime', 'mtn');
-        $order->created_at = Carbon::parse('2026-10-13 11:34:00', 'UTC');
+        $order->created_at = Carbon::parse('2026-10-13 12:34:00', 'Africa/Lagos');
         $order->public_id = '12345678-1234-1234-1234-123456789abc';
 
         $result = app(VtpassProviderClient::class)->lookup($order);
