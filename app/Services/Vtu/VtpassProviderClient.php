@@ -56,6 +56,7 @@ class VtpassProviderClient implements VtuProvider
         if (! $product instanceof VtuProduct) {
             throw new LogicException('VTpass order product metadata is unavailable.');
         }
+        $this->assertProductConfigured($product);
 
         $payload = [
             'request_id' => $this->requestId($order),
