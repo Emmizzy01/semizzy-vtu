@@ -116,7 +116,7 @@ class PaymentFundingService
                     walletId: $intent->wallet_id,
                     type: 'credit',
                     amountMinor: $intent->amount_minor,
-                    idempotencyKey: 'funding:'.$provider.':'.$providerTransactionId,
+                    idempotencyKey: 'funding:'.hash('sha256', $provider.':'.$providerTransactionId),
                     reference: $intent->reference,
                     description: 'Verified wallet funding',
                     metadata: [
