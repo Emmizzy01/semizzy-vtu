@@ -37,8 +37,6 @@ class VtuOrderService
         string $recipient,
         string $idempotencyKey,
     ): VtuOrder {
-        $this->provider->assertConfigured();
-
         if ($idempotencyKey === '' || strlen($idempotencyKey) > 128) {
             throw new InvalidArgumentException('Idempotency key must contain 1 to 128 characters.');
         }
@@ -51,7 +49,6 @@ class VtuOrderService
         /** @var VtuProduct $product */
         $product = VtuProduct::query()
             ->where('code', $productCode)
-            ->where('is_active', true)
             ->whereIn('service_type', ['airtime', 'data'])
             ->where('currency', 'NGN')
             ->firstOrFail();
@@ -60,8 +57,6 @@ class VtuOrderService
             'user_id' => $user->getKey(),
             'product_code' => $product->code,
             'recipient' => $recipient,
-            'amount_minor' => $product->price_minor,
-            'currency' => $product->currency,
         ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES));
 
         $existing = VtuOrder::query()
@@ -72,6 +67,12 @@ class VtuOrderService
         if ($existing !== null) {
             return $this->returnExisting($existing, $requestHash);
         }
+
+        if (! $product->is_active) {
+            throw new InvalidArgumentException('This product is no longer available.');
+        }
+
+        $this->provider->assertConfigured();
 
         $wallet = Wallet::query()
             ->where('user_id', $user->getKey())
