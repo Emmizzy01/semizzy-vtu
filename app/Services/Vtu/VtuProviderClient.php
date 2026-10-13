@@ -20,6 +20,13 @@ class VtuProviderClient implements VtuProvider
         }
     }
 
+    public function assertProductConfigured(VtuProduct $product): void
+    {
+        if ($product->code === '') {
+            throw new LogicException('VTU product code is required.');
+        }
+    }
+
     /**
      * Provider contract: POST {endpoint}/orders accepts client_reference,
      * product_code, recipient, amount_minor and currency. It returns a JSON
