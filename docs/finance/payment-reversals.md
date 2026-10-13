@@ -29,3 +29,5 @@ Review open cases in `payment_reconciliation_cases` and cross-check provider tra
 - Keep the secret key server-side only.
 - Run the feature test suite in a configured Laravel environment.
 - Verify with Paystack test mode before production.
+
+For customer refund requests, authorized approval, wallet balance reservation, and compensating ledger entries, follow [payment refund approval](payment-refund-approval.md). Provider refund/dispute webhooks remain evidence and status inputs; they are not permission to perform arbitrary wallet mutations.
