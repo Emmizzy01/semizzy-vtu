@@ -16,7 +16,7 @@ This is a provider-neutral, signed-webhook foundation. It does **not** initiate 
 
 Set these only in the deployment environment (never commit secrets):
 
-- `SEMIZZY_WEBHOOK_SECRET`: high-entropy secret shared with the webhook sender.
+- `SEMIZZY_WEBHOOK_SECRET`: high-entropy secret for the `semizzy` webhook provider; add separate configuration entries for each additional provider rather than reusing one secret.
 - `SEMIZZY_WEBHOOK_TOLERANCE_SECONDS`: accepted timestamp skew, default 300 seconds.
 - `SEMIZZY_PAYMENT_INTENT_TTL_MINUTES`: pending intent lifetime, default 30 minutes.
 
