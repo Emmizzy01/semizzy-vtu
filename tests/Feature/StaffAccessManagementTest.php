@@ -128,4 +128,74 @@ class StaffAccessManagementTest extends TestCase
 
         $this->assertDatabaseCount('staff_permission_audits', 0);
     }
+
+    public function test_user_directory_search_and_pagination_are_bounded(): void
+    {
+        $manager = $this->account('manager@example.test');
+        $this->grant($manager, 'staff.permissions.manage');
+
+        for ($i = 1; $i <= 24; $i++) {
+            $this->account(sprintf('customer%02d@example.test', $i));
+        }
+
+        $firstPage = $this->actingAs($manager)->getJson('/admin/staff/users?per_page=20');
+        $firstPage->assertOk()
+            ->assertJsonCount(20, 'data')
+            ->assertJsonPath('meta.current_page', 1)
+            ->assertJsonPath('meta.last_page', 2)
+            ->assertJsonPath('meta.total', 25);
+
+        $secondPage = $this->actingAs($manager)->getJson('/admin/staff/users?per_page=20&page=2');
+        $secondPage->assertOk()
+            ->assertJsonCount(5, 'data')
+            ->assertJsonPath('meta.current_page', 2);
+
+        $search = $this->actingAs($manager)->getJson('/admin/staff/users?search=customer17%40example.test');
+        $search->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.email', 'customer17@example.test')
+            ->assertJsonPath('meta.total', 1);
+
+        $this->actingAs($manager)->getJson('/admin/staff/users?per_page=51')->assertUnprocessable();
+    }
+
+    public function test_duplicate_permission_changes_are_idempotent_and_do_not_create_audits(): void
+    {
+        $manager = $this->account('manager@example.test');
+        $target = $this->account('operator@example.test');
+        $this->grant($manager, 'staff.permissions.manage');
+
+        $payload = [
+            'permission' => 'refunds.approve',
+            'reason' => 'Assigned to the finance approval rotation.',
+        ];
+
+        $this->actingAs($manager)->postJson('/admin/staff/users/'.$target->id.'/permissions', $payload)
+            ->assertOk()
+            ->assertJsonPath('changed', true);
+
+        $this->actingAs($manager)->postJson('/admin/staff/users/'.$target->id.'/permissions', $payload)
+            ->assertOk()
+            ->assertJsonPath('changed', false);
+
+        $this->assertDatabaseCount('user_permissions', 2);
+        $this->assertDatabaseCount('staff_permission_audits', 1);
+
+        $revokePayload = [
+            'permission' => 'refunds.approve',
+            'reason' => 'Finance rotation assignment has ended.',
+        ];
+
+        $this->actingAs($manager)->deleteJson('/admin/staff/users/'.$target->id.'/permissions', $revokePayload)
+            ->assertOk()
+            ->assertJsonPath('changed', true);
+
+        $this->actingAs($manager)->deleteJson('/admin/staff/users/'.$target->id.'/permissions', $revokePayload)
+            ->assertOk()
+            ->assertJsonPath('changed', false);
+
+        $this->assertDatabaseCount('user_permissions', 1);
+        $this->assertDatabaseCount('staff_permission_audits', 2);
+    }
+
 }
