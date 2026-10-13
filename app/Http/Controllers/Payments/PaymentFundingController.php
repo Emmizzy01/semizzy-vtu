@@ -12,7 +12,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
-use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
+use LogicException;
 
 class PaymentFundingController extends Controller
 {
@@ -65,7 +65,7 @@ class PaymentFundingController extends Controller
 
         try {
             $verifier->verify($request, $provider);
-        } catch (\\LogicException $exception) {
+        } catch (LogicException $exception) {
             report($exception);
 
             return response()->json(['message' => 'Webhook verification is not configured.'], 503);
