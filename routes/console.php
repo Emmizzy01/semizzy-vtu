@@ -180,7 +180,11 @@ Artisan::command('vtu:reconcile-orders {--limit=100}', function (
         return 1;
     }
 
-    if (! config('services.vtu.endpoint') || ! config('services.vtu.token')) {
+    $configured = config('services.vtu.driver') === 'vtpass'
+        ? (config('services.vtu.vtpass.base_url') && config('services.vtu.vtpass.api_key') && config('services.vtu.vtpass.secret_key'))
+        : (config('services.vtu.endpoint') && config('services.vtu.token'));
+
+    if (! $configured) {
         $this->warn('VTU provider is not configured; no orders were queried.');
         return 0;
     }
