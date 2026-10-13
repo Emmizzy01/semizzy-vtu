@@ -218,6 +218,7 @@ class VtuOrderWorkflowTest extends TestCase
         }
     }
 
+    /** @return array{User, \\App\\Models\\Wallet, VtuProduct} */
     private function preparedCustomer(int $productPriceMinor, int $initialBalanceMinor): array
     {
         $user = User::query()->create([
