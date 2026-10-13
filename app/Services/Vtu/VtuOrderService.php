@@ -109,7 +109,9 @@ class VtuOrderService
                     'amount_minor' => $product->price_minor,
                     'currency' => $product->currency,
                     'status' => VtuOrderStatus::Pending->value,
-                    'provider' => (string) config('services.vtu.name', 'configured_vtu'),
+                    'provider' => config('services.vtu.driver') === 'vtpass'
+                        ? 'vtpass'
+                        : (string) config('services.vtu.name', 'configured_vtu'),
                 ]);
 
                 $transaction = $this->ledger->post(
