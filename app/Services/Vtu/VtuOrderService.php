@@ -215,7 +215,10 @@ class VtuOrderService
                 'safe_provider_response' => $this->safeResponse($result),
             ])->save();
 
-            return $order->fresh();
+            $updated = $order->fresh();
+            $updated->wasRecentlyCreated = $order->wasRecentlyCreated;
+
+            return $updated;
         }
 
         $updated = DB::transaction(function () use ($order, $providerStatus, $result): VtuOrder {
@@ -280,7 +283,7 @@ class VtuOrderService
     /** @param array<string, mixed> $result */
     private function markAwaitingReconciliation(VtuOrder $order, string $failureCode, array $result = []): VtuOrder
     {
-        return DB::transaction(function () use ($order, $failureCode, $result): VtuOrder {
+        $updated = DB::transaction(function () use ($order, $failureCode, $result): VtuOrder {
             /** @var VtuOrder $locked */
             $locked = VtuOrder::query()->whereKey($order->getKey())->lockForUpdate()->firstOrFail();
 
@@ -304,6 +307,10 @@ class VtuOrderService
 
             return $locked->fresh();
         }, attempts: 3);
+
+        $updated->wasRecentlyCreated = $order->wasRecentlyCreated;
+
+        return $updated;
     }
 
     /** @param array<string, mixed> $result
