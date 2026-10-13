@@ -187,6 +187,65 @@ class PaymentRefundService
      *
      * @param array<string, mixed> $payload
      */
+    /**
+     * Reconcile one stored refund against Paystack's canonical refund record.
+     *
+     * @return array{outcome:string,status:string}
+     */
+    public function reconcileProviderStatus(string $publicId): array
+    {
+        $refund = PaymentRefund::query()->where('public_id', $publicId)->firstOrFail();
+        if (! in_array($refund->status, ['processing', 'provider_pending', 'review_required'], true)) {
+            return ['outcome' => 'skipped', 'status' => $refund->status];
+        }
+
+        $providerRef = $refund->provider_refund_reference;
+        if (! is_string($providerRef) || ! ctype_digit($providerRef)) {
+            $this->markReviewRequired($refund->public_id, 'missing_provider_refund_id_for_reconciliation');
+
+            return ['outcome' => 'mismatch', 'status' => 'review_required'];
+        }
+
+        try {
+            $provider = $this->paystack->fetchRefund($providerRef);
+        } catch (LogicException $exception) {
+            report($exception);
+
+            return ['outcome' => 'unavailable', 'status' => $refund->status];
+        }
+
+        $intent = $refund->paymentIntent()->firstOrFail();
+        $providerId = isset($provider['id']) && is_numeric($provider['id']) ? (string) $provider['id'] : null;
+        $providerAmount = $provider['amount'] ?? null;
+        $providerAmount = is_int($providerAmount)
+            ? $providerAmount
+            : (is_string($providerAmount) && ctype_digit($providerAmount) ? (int) $providerAmount : null);
+        $providerCurrency = is_string($provider['currency'] ?? null) ? strtoupper($provider['currency']) : null;
+        $providerTransaction = isset($provider['transaction']) && is_numeric($provider['transaction'])
+            ? (string) $provider['transaction'] : null;
+
+        if ($providerId !== $providerRef
+            || $providerAmount !== $refund->amount_minor
+            || $providerCurrency !== $intent->currency
+            || $intent->provider_transaction_id === null
+            || $providerTransaction !== (string) $intent->provider_transaction_id) {
+            $this->markReviewRequired($refund->public_id, 'provider_reconciliation_data_mismatch');
+
+            return ['outcome' => 'mismatch', 'status' => 'review_required'];
+        }
+
+        $providerStatus = is_string($provider['status'] ?? null)
+            ? strtolower($provider['status']) : 'unknown';
+        $updated = $this->applyStatus(
+            $refund->public_id,
+            $providerStatus,
+            $providerRef,
+            ['last_reconciled_at' => now()->toISOString(), 'reconciliation_source' => 'paystack_fetch_refund'],
+        );
+
+        return ['outcome' => 'reconciled', 'status' => $updated->status];
+    }
+
     public function applyPaystackEvent(string $eventType, array $payload): bool
     {
         if (! str_starts_with($eventType, 'refund.')) {
