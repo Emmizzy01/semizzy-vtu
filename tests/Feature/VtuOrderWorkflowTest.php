@@ -347,6 +347,44 @@ class VtuOrderWorkflowTest extends TestCase
         Http::assertSentCount(3);
     }
 
+    public function test_late_failure_reconciliation_cannot_refund_an_already_successful_order(): void
+    {
+        $lookups = 0;
+        Http::fake(function ($request) use (&$lookups) {
+            if ($request->method() === 'POST') {
+                return Http::response(['status' => 'pending'], 200);
+            }
+
+            $lookups++;
+
+            return Http::response([
+                'status' => $lookups === 1 ? 'success' : 'failed',
+                'message_code' => 'LATE_FAILURE',
+                'provider_reference' => 'provider-order-late-failure',
+            ], 200);
+        });
+
+        [$user, $wallet, $product] = $this->preparedCustomer(1000, 1500);
+        $service = app(VtuOrderService::class);
+        $staleOrder = $service->purchase(
+            $user,
+            $product->code,
+            '08012345678',
+            'late-failure-must-not-refund',
+        );
+
+        $successful = $service->reconcile($staleOrder);
+        $lateFailure = $service->reconcile($staleOrder);
+
+        $this->assertSame('successful', $successful->status);
+        $this->assertSame('successful', $lateFailure->status);
+        $this->assertSame(500, (int) $wallet->fresh()->available_balance_minor);
+        $this->assertDatabaseCount('vtu_orders', 1);
+        $this->assertDatabaseCount('wallet_transactions', 2);
+        $this->assertSame(2, $lookups, 'The stale order may be looked up twice but cannot trigger a late refund.');
+        Http::assertSentCount(3);
+    }
+
     public function test_reusing_idempotency_key_for_different_purchase_is_rejected(): void
     {
         Http::fake(fn () => Http::response(['status' => 'pending'], 200));
