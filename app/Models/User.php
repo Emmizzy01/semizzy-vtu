@@ -34,4 +34,14 @@ class User extends Authenticatable
     {
         return $this->hasMany(Wallet::class);
     }
+
+    public function permissions(): HasMany
+    {
+        return $this->hasMany(UserPermission::class);
+    }
+
+    public function permissionAudits(): HasMany
+    {
+        return $this->hasMany(StaffPermissionAudit::class, 'actor_user_id');
+    }
 }
