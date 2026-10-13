@@ -8,6 +8,8 @@ interface VtuProvider
 {
     public function assertConfigured(): void;
 
+    public function assertProductConfigured(VtuProduct $product): void;
+
     /** @return array<string, mixed> */
     public function submit(VtuOrder $order): array;
 
