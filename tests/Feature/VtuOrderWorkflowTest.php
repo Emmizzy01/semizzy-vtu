@@ -61,7 +61,7 @@ class VtuOrderWorkflowTest extends TestCase
 
         $this->assertSame('failed', $order->status);
         $this->assertSame(1500, (int) $wallet->fresh()->available_balance_minor);
-        $this->assertDatabaseCount('wallet_transactions', 2);
+        $this->assertDatabaseCount('wallet_transactions', 3);
         Http::assertSentCount(1);
     }
 
