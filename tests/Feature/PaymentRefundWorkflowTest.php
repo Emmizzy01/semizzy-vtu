@@ -53,7 +53,7 @@ class PaymentRefundWorkflowTest extends TestCase
     {
         Http::fake(['api.paystack.co/refund' => Http::response([
             'status' => true,
-            'data' => ['id' => 'refund_provider_123', 'status' => 'pending'],
+            'data' => ['id' => 123456, 'status' => 'pending'],
         ], 200)]);
 
         $customer = User::query()->create(['name' => 'Customer', 'email' => 'refund-customer2@example.test', 'password' => 'test-password']);
@@ -102,7 +102,7 @@ class PaymentRefundWorkflowTest extends TestCase
     {
         Http::fake(['api.paystack.co/refund' => Http::response([
             'status' => true,
-            'data' => ['id' => 'refund_failed_456', 'status' => 'pending'],
+            'data' => ['id' => 123457, 'status' => 'pending'],
         ], 200)]);
 
         $customer = User::query()->create(['name' => 'Customer', 'email' => 'refund-fail-customer@example.test', 'password' => 'test-password']);
@@ -127,7 +127,7 @@ class PaymentRefundWorkflowTest extends TestCase
             'data' => [
                 'status' => 'failed',
                 'transaction_reference' => $intent->reference,
-                'refund_reference' => 'refund_failed_456',
+                'refund_reference' => '123457',
                 'amount' => 3000,
                 'currency' => 'NGN',
             ],
