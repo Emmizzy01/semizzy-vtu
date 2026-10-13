@@ -1,6 +1,7 @@
 <?php
 
 use App\Services\Payments\PaymentReconciliationService;
+use App\Services\Payments\PaymentRefundMonitoringService;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
 
@@ -29,5 +30,24 @@ Artisan::command('payments:reconcile-paystack {--limit=100}', function (PaymentR
 })->purpose('Reconcile aged Paystack payment intents using provider verification');
 
 Schedule::command('payments:reconcile-paystack --limit=100')
+    ->everyFiveMinutes()
+    ->withoutOverlapping();
+
+
+Artisan::command('payments:monitor-refunds', function (PaymentRefundMonitoringService $monitoring) {
+    $stats = $monitoring->monitor();
+    $this->table(['Stale', 'Processing', 'Provider pending', 'Needs review', 'Threshold minutes', 'Alerts sent'], [[
+        $stats['stuck_total'],
+        $stats['processing'],
+        $stats['provider_pending'],
+        $stats['review_required'],
+        $stats['threshold_minutes'],
+        $stats['alerts_sent'],
+    ]]);
+
+    return 0;
+})->purpose('Alert operators about refund requests that have stopped progressing');
+
+Schedule::command('payments:monitor-refunds')
     ->everyFiveMinutes()
     ->withoutOverlapping();
