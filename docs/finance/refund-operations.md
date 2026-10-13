@@ -11,7 +11,7 @@ Authorized staff can open `/admin/refunds`. The page uses the existing `refunds.
 
 ## Automated stale-refund monitoring
 
-The scheduler runs `payments:monitor-refunds` every five minutes. It flags `processing`, `provider_pending`, and `review_required` records whose `updated_at` is older than `PAYMENTS_REFUND_STALE_MINUTES` (default 15, clamped to 5–1440 minutes).
+The scheduler runs `payments:reconcile-refunds --limit=100` every five minutes. It fetches stale refunds from Paystack's canonical `GET /refund/{id}` endpoint, validates provider refund ID, original transaction ID, amount, and currency, applies only a matched provider status, and then runs stale-state alerting. It flags `processing`, `provider_pending`, and `review_required` records whose `updated_at` is older than `PAYMENTS_REFUND_STALE_MINUTES` (default 15, clamped to 5–1440 minutes).
 
 The command writes critical records to the application log, including the refund ID, current status, amount, provider reference, and last update. If `PAYMENTS_ALERT_WEBHOOK_URL` is configured with an HTTPS URL, it also posts a structured alert. Identical status snapshots are throttled for 15 minutes using the configured Laravel cache store. Keep that cache shared between scheduler instances in multi-server deployments.
 
@@ -25,6 +25,7 @@ PAYMENTS_ALERT_WEBHOOK_URL=
 Run manually:
 
 ```bash
+php artisan payments:reconcile-refunds --limit=100
 php artisan payments:monitor-refunds
 php artisan schedule:list
 ```
@@ -34,6 +35,8 @@ The host must run Laravel's scheduler (for example, a once-per-minute cron invok
 ## CI and production verification
 
 The GitHub Actions workflow `.github/workflows/laravel.yml` runs the Laravel feature suite against MariaDB and builds the frontend on pushes to `main` and pull requests targeting `main`.
+
+The reconciliation uses Paystack's refund fetch endpoint and must never resubmit a refund automatically. See the [official Refund API](https://paystack.com/docs/api/refund/) for the fetch-refund contract.
 
 CI and mocked HTTP tests are not substitutes for a Paystack sandbox run. Before enabling live refunds:
 1. Configure Paystack test keys only in the test environment.
