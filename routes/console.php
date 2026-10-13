@@ -20,7 +20,7 @@ Artisan::command('semizzy:permission:grant {email} {permission} {--force}', func
 
     $email = strtolower(trim((string) $this->argument('email')));
     $permission = (string) $this->argument('permission');
-    $allowedPermissions = ['refunds.approve'];
+    $allowedPermissions = ['refunds.approve', 'staff.permissions.manage'];
 
     if (! in_array($permission, $allowedPermissions, true)) {
         $this->error('Unsupported permission. Allowed values: '.implode(', ', $allowedPermissions));
@@ -53,7 +53,7 @@ Artisan::command('semizzy:permission:revoke {email} {permission} {--force}', fun
 
     $email = strtolower(trim((string) $this->argument('email')));
     $permission = (string) $this->argument('permission');
-    $allowedPermissions = ['refunds.approve'];
+    $allowedPermissions = ['refunds.approve', 'staff.permissions.manage'];
 
     if (! in_array($permission, $allowedPermissions, true)) {
         $this->error('Unsupported permission. Allowed values: '.implode(', ', $allowedPermissions));
