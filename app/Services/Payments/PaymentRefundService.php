@@ -272,6 +272,20 @@ class PaymentRefundService
         }
 
         $matches = $query->limit(2)->get();
+        if ($matches->isEmpty() && is_string($transactionRef) && $transactionRef !== '') {
+            $intent = PaymentIntent::query()
+                ->where('provider', 'paystack')
+                ->where('reference', $transactionRef)
+                ->first();
+
+            if ($intent !== null) {
+                $matches = PaymentRefund::query()
+                    ->where('payment_intent_id', $intent->id)
+                    ->whereIn('status', ['processing', 'provider_pending', 'review_required'])
+                    ->limit(2)
+                    ->get();
+            }
+        }
         if ($matches->count() !== 1) {
             return false;
         }
