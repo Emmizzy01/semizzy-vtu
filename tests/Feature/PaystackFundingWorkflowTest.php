@@ -71,20 +71,6 @@ class PaystackFundingWorkflowTest extends TestCase
 
     public function test_signed_paystack_webhook_verifies_transaction_before_single_credit(): void
     {
-        Http::fake([
-            'api.paystack.co/transaction/verify/*' => Http::response([
-                'status' => true,
-                'message' => 'Verification successful',
-                'data' => [
-                    'id' => 987654,
-                    'status' => 'success',
-                    'reference' => 'PLACEHOLDER',
-                    'amount' => 12500,
-                    'currency' => 'NGN',
-                ],
-            ], 200),
-        ]);
-
         $user = User::query()->create([
             'name' => 'Paystack Webhook Customer',
             'email' => 'paystack-hook@example.test',
