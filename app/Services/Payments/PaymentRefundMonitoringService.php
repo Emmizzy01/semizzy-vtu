@@ -21,10 +21,10 @@ class PaymentRefundMonitoringService
         $cutoff = now()->subMinutes($threshold);
         $stale = PaymentRefund::query()
             ->whereIn('status', ['processing', 'provider_pending', 'review_required'])
-            ->where('updated_at', '<=', $cutoff)
+            ->where('status_changed_at', '<=', $cutoff)
             ->orderBy('updated_at')
             ->limit(500)
-            ->get(['id', 'public_id', 'payment_intent_id', 'amount_minor', 'status', 'provider_status', 'provider_refund_reference', 'updated_at']);
+            ->get(['id', 'public_id', 'payment_intent_id', 'amount_minor', 'status', 'provider_status', 'provider_refund_reference', 'updated_at', 'status_changed_at']);
 
         $stats = [
             'threshold_minutes' => $threshold,
@@ -47,6 +47,7 @@ class PaymentRefundMonitoringService
             'provider_status' => $refund->provider_status,
             'provider_refund_reference' => $refund->provider_refund_reference,
             'last_updated_at' => $refund->updated_at?->toISOString(),
+            'status_since' => $refund->status_changed_at?->toISOString(),
         ])->all();
 
         Log::critical('SEMIZZY refund lifecycle has stale items requiring reconciliation.', [
