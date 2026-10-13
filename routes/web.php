@@ -39,3 +39,10 @@ Route::middleware(['auth', 'can:staff.permissions.manage'])->prefix('admin/staff
     Route::post('/users/{user}/permissions', [StaffAccessController::class, 'grant'])->middleware('throttle:20,1')->name('permissions.grant');
     Route::delete('/users/{user}/permissions', [StaffAccessController::class, 'revoke'])->middleware('throttle:20,1')->name('permissions.revoke');
 });
+
+
+Route::middleware(['auth', 'throttle:60,1'])->prefix('wallet/vtu')->name('wallet.vtu.')->group(function (): void {
+    Route::get('/products', [VtuOrderController::class, 'products'])->name('products');
+    Route::post('/orders', [VtuOrderController::class, 'purchase'])->middleware('throttle:10,1')->name('orders.create');
+    Route::get('/orders/{publicId}', [VtuOrderController::class, 'show'])->name('orders.show');
+});
