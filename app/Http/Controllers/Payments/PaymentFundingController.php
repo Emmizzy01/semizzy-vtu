@@ -12,7 +12,6 @@ use App\Services\Payments\WebhookSignatureVerifier;
 use App\Services\Wallets\WalletAccountService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
 use LogicException;
@@ -110,7 +109,7 @@ class PaymentFundingController extends Controller
 
             try {
                 $verified = $paystack->verifyTransaction($reference);
-            } catch (RuntimeException $exception) {
+            } catch (LogicException $exception) {
                 report($exception);
 
                 return response()->json(['message' => 'Paystack transaction could not be verified.'], 503);
@@ -170,7 +169,7 @@ class PaymentFundingController extends Controller
 
         try {
             $verified = $paystack->verifyTransaction($reference);
-        } catch (RuntimeException $exception) {
+        } catch (LogicException $exception) {
             report($exception);
 
             return response()->json(['message' => 'Payment status is not yet available.'], 503);
