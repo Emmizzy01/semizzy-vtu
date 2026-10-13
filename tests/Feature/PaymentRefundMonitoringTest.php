@@ -49,7 +49,6 @@ class PaymentRefundMonitoringTest extends TestCase
             'created_at' => now()->subHour(),
             'updated_at' => now()->subHour(),
             'status_changed_at' => now()->subHour(),
-            'status_changed_at' => now()->subHour(),
         ]);
 
         $monitoring = app(PaymentRefundMonitoringService::class);
