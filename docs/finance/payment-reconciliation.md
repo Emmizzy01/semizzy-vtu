@@ -17,6 +17,10 @@ The default grace period is five minutes (`PAYMENTS_RECONCILIATION_GRACE_MINUTES
 
 Cases are idempotently keyed by provider, reference, case type, and provider transaction ID. Review cases in `payment_reconciliation_cases`; resolve them only through an audited operational process. Do not manually edit balances to resolve a case. Any manual adjustment should use a dedicated, permission-controlled ledger adjustment workflow.
 
+## Refunds and chargebacks
+
+Signed Paystack refund and dispute events are recorded as open operational cases without automatically changing wallet balances. See [payment refunds and reversals](payment-reversals.md). Refund execution, chargeback recovery, and wallet compensating entries require a separate permission-controlled workflow.
+
 ## Scheduler
 
 The command is registered in `routes/console.php` and scheduled every five minutes with overlap protection. On a typical Laravel host, ensure the system cron invokes `php artisan schedule:run` every minute. Shared-hosting deployments should configure the command and correct PHP executable/path in cPanel Cron Jobs if scheduler support is unavailable.
