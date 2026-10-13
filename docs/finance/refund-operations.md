@@ -11,7 +11,7 @@ Authorized staff can open `/admin/refunds`. The page uses the existing `refunds.
 
 ## Automated stale-refund monitoring
 
-The scheduler runs `payments:reconcile-refunds --limit=100` every five minutes. It fetches stale refunds from Paystack's canonical `GET /refund/{id}` endpoint, validates provider refund ID, original transaction ID, amount, and currency, applies only a matched provider status, and then runs stale-state alerting. It flags `processing`, `provider_pending`, and `review_required` records whose `updated_at` is older than `PAYMENTS_REFUND_STALE_MINUTES` (default 15, clamped to 5–1440 minutes).
+The scheduler runs `payments:reconcile-refunds --limit=100` every five minutes. It fetches stale refunds from Paystack's canonical `GET /refund/{id}` endpoint, validates provider refund ID, original transaction ID, amount, and currency, applies only a matched provider status, and then runs stale-state alerting. It flags `processing`, `provider_pending`, and `review_required` records whose current status has lasted longer than `PAYMENTS_REFUND_STALE_MINUTES` (tracked separately from the last provider check so polling does not reset alert age) (default 15, clamped to 5–1440 minutes).
 
 The command writes critical records to the application log, including the refund ID, current status, amount, provider reference, and last update. If `PAYMENTS_ALERT_WEBHOOK_URL` is configured with an HTTPS URL, it also posts a structured alert. Identical status snapshots are throttled for 15 minutes using the configured Laravel cache store. Keep that cache shared between scheduler instances in multi-server deployments.
 
