@@ -16,7 +16,6 @@ use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
 use LogicException;
-use RuntimeException;
 use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
 
@@ -49,7 +48,7 @@ class PaymentFundingController extends Controller
             $checkout = $paystack->initialize($intent, (string) $user->email);
         } catch (InvalidArgumentException $exception) {
             throw ValidationException::withMessages(['amount_minor' => $exception->getMessage()]);
-        } catch (RuntimeException $exception) {
+        } catch (LogicException $exception) {
             report($exception);
 
             return response()->json(['message' => 'Payment checkout could not be initialized. Please try again.'], 502);
