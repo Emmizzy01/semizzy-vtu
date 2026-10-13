@@ -1,12 +1,12 @@
 <?php
 
-namespace App\\Services\\Vtu;
+namespace App\Services\Vtu;
 
-use App\\Models\\VtuOrder;
-use App\\Models\\VtuProduct;
-use Carbon\\CarbonImmutable;
-use Illuminate\\Http\\Client\\ConnectionException;
-use Illuminate\\Support\\Facades\\Http;
+use App\Models\VtuOrder;
+use App\Models\VtuProduct;
+use Carbon\CarbonImmutable;
+use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Support\Facades\Http;
 use LogicException;
 
 class VtpassProviderClient implements VtuProvider
@@ -106,7 +106,7 @@ class VtpassProviderClient implements VtuProvider
         return $this->normalize($response->json());
     }
 
-    private function post(string $path, array $payload): \\Illuminate\\Http\\Client\\Response
+    private function post(string $path, array $payload): \Illuminate\Http\Client\Response
     {
         $baseUrl = rtrim((string) config('services.vtu.vtpass.base_url'), '/');
 
