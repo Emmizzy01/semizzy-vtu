@@ -74,6 +74,42 @@ class PaystackClient
         return $response->json('data');
     }
 
+    /**
+     * Initiate a full or partial refund against a verified Paystack transaction.
+     * Amounts are minor currency units (kobo for NGN).
+     *
+     * @return array<string, mixed>
+     */
+    public function refund(string $transactionReference, int $amountMinor, string $reason): array
+    {
+        if ($transactionReference === '' || strlen($transactionReference) > 150 || $amountMinor < 1) {
+            throw new \\InvalidArgumentException('Refund transaction and amount are invalid.');
+        }
+
+        try {
+            $response = Http::withToken($this->secretKey())
+                ->acceptJson()
+                ->asJson()
+                ->timeout(20)
+                ->post('https://api.paystack.co/refund', [
+                    'transaction' => $transactionReference,
+                    'amount' => $amountMinor,
+                    'customer_note' => substr($reason, 0, 500),
+                    'merchant_note' => 'SEMIZZY approved refund',
+                ]);
+        } catch (ConnectionException $exception) {
+            // A timeout is ambiguous: Paystack may have accepted the refund.
+            throw new LogicException('Paystack refund result is unknown; reconcile before retrying.', previous: $exception);
+        }
+
+        if (! $response->successful() || $response->json('status') !== true
+            || ! is_array($response->json('data'))) {
+            throw new LogicException('Paystack did not confirm the refund request.');
+        }
+
+        return $response->json('data');
+    }
+
     public function verifyWebhookSignature(string $rawBody, string $signature): bool
     {
         $expected = hash_hmac('sha512', $rawBody, $this->secretKey());
