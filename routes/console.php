@@ -2,6 +2,7 @@
 
 use App\Services\Payments\PaymentReconciliationService;
 use App\Services\Payments\PaymentRefundMonitoringService;
+use App\Services\Payments\PaymentRefundReconciliationService;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
 
@@ -48,6 +49,34 @@ Artisan::command('payments:monitor-refunds', function (PaymentRefundMonitoringSe
     return 0;
 })->purpose('Alert operators about refund requests that have stopped progressing');
 
-Schedule::command('payments:monitor-refunds')
+Artisan::command('payments:reconcile-refunds {--limit=100}', function (
+    PaymentRefundReconciliationService $reconciliation,
+    PaymentRefundMonitoringService $monitoring,
+) {
+    $limit = (int) $this->option('limit');
+    if ($limit < 1 || $limit > 500) {
+        $this->error('The limit must be between 1 and 500.');
+
+        return 1;
+    }
+
+    $reconciled = $reconciliation->reconcile($limit);
+    $alerts = $monitoring->monitor();
+    $this->table(
+        ['Checked', 'Reconciled', 'Mismatched', 'Unavailable', 'Skipped', 'Stale alerts'],
+        [[
+            $reconciled['checked'],
+            $reconciled['reconciled'],
+            $reconciled['mismatched'],
+            $reconciled['unavailable'],
+            $reconciled['skipped'],
+            $alerts['stuck_total'],
+        ]],
+    );
+
+    return 0;
+})->purpose('Reconcile stale Paystack refunds and alert on unresolved cases');
+
+Schedule::command('payments:reconcile-refunds --limit=100')
     ->everyFiveMinutes()
     ->withoutOverlapping();
