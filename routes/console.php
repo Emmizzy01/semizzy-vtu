@@ -13,7 +13,7 @@ Artisan::command('payments:reconcile-paystack {--limit=100}', function (PaymentR
     if ($limit < 1 || $limit > 500) {
         $this->error('The limit must be between 1 and 500.');
 
-        return self::FAILURE;
+        return 1;
     }
 
     $stats = $reconciliation->reconcile($limit);
@@ -25,7 +25,7 @@ Artisan::command('payments:reconcile-paystack {--limit=100}', function (PaymentR
         $stats['unavailable'],
     ]]);
 
-    return self::SUCCESS;
+    return 0;
 })->purpose('Reconcile aged Paystack payment intents using provider verification');
 
 Schedule::command('payments:reconcile-paystack --limit=100')
