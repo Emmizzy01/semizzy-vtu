@@ -3,6 +3,7 @@
 namespace App\Services\Payments;
 
 use App\Models\PaymentIntent;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
 use LogicException;
 
