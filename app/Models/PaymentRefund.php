@@ -12,7 +12,7 @@ class PaymentRefund extends Model
     protected $fillable = [
         'public_id', 'payment_intent_id', 'requested_by_user_id', 'approved_by_user_id',
         'wallet_debit_transaction_id', 'idempotency_key', 'amount_minor', 'reason',
-        'status', 'provider_refund_reference', 'provider_status', 'metadata',
+        'status', 'status_changed_at', 'provider_refund_reference', 'provider_status', 'metadata',
         'approved_at', 'settled_at',
     ];
 
@@ -23,6 +23,7 @@ class PaymentRefund extends Model
             'metadata' => 'array',
             'approved_at' => 'datetime',
             'settled_at' => 'datetime',
+            'status_changed_at' => 'datetime',
         ];
     }
 
