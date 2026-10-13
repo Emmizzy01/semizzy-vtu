@@ -165,10 +165,16 @@ class VtuOrderService
             $result = $this->provider->submit($order);
         } catch (ConnectionException|LogicException $exception) {
             report($exception);
-            return $this->markAwaitingReconciliation($order, 'provider_result_unknown');
+            $updated = $this->markAwaitingReconciliation($order, 'provider_result_unknown');
+            $updated->setAttribute('_created_for_request', true);
+
+            return $updated;
         }
 
-        return $this->applyProviderResult($order, $result);
+        $updated = $this->applyProviderResult($order, $result);
+        $updated->setAttribute('_created_for_request', true);
+
+        return $updated;
     }
 
     public function reconcile(VtuOrder $order): VtuOrder
