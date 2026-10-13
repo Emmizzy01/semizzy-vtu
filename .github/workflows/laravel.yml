@@ -33,6 +33,8 @@ jobs:
           php-version: '8.3'
           extensions: mbstring, pdo_mysql, bcmath, curl, dom, fileinfo, intl, json, openssl, tokenizer, xml
           coverage: none
+      - name: Prepare writable Laravel runtime directories
+        run: mkdir -p bootstrap/cache storage/framework/cache storage/framework/sessions storage/framework/views storage/logs
       - uses: ramsey/composer-install@v3
       - name: Prepare test environment
         run: |
@@ -68,6 +70,5 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
       - run: npm install
       - run: npm run build
