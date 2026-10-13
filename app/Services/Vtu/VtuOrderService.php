@@ -73,6 +73,7 @@ class VtuOrderService
         }
 
         $this->provider->assertConfigured();
+        $this->provider->assertProductConfigured($product);
 
         $wallet = Wallet::query()
             ->where('user_id', $user->getKey())
