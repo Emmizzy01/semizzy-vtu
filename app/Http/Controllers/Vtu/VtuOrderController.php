@@ -65,7 +65,7 @@ class VtuOrderController extends Controller
             return response()->json(['message' => $exception->getMessage()], 409);
         }
 
-        return response()->json(['data' => $this->serializeOrder($order)], $order->wasRecentlyCreated ? 201 : 200);
+        return response()->json(['data' => $this->serializeOrder($order)], $order->getAttribute('_created_for_request') === true ? 201 : 200);
     }
 
     public function show(Request $request, string $publicId): JsonResponse
