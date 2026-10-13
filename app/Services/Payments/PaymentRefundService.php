@@ -6,6 +6,7 @@ use App\Exceptions\Wallet\InsufficientWalletFunds;
 use App\Models\PaymentIntent;
 use App\Models\PaymentRefund;
 use App\Models\User;
+use App\Models\WalletAuditEvent;
 use App\Services\Wallets\WalletLedgerService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -140,7 +141,23 @@ class PaymentRefundService
                 ])->save();
             }
 
-            return PaymentRefund::query()->where('public_id', $publicId)->firstOrFail();
+            $blockedRefund = PaymentRefund::query()->where('public_id', $publicId)->firstOrFail();
+            $blockedIntent = $blockedRefund->paymentIntent()->firstOrFail();
+            WalletAuditEvent::query()->create([
+                'wallet_id' => $blockedIntent->wallet_id,
+                'actor_user_id' => $approver->id,
+                'event_type' => 'wallet.refund.reservation_rejected',
+                'outcome' => 'rejected',
+                'correlation_id' => $blockedRefund->public_id,
+                'context' => [
+                    'payment_refund_id' => $blockedRefund->public_id,
+                    'amount_minor' => $blockedRefund->amount_minor,
+                    'reason' => 'insufficient_available_balance',
+                ],
+                'created_at' => now(),
+            ]);
+
+            return $blockedRefund;
         }
 
         try {
@@ -291,6 +308,7 @@ class PaymentRefundService
                     idempotencyKey: 'refund-failure-compensation:'.$refund->public_id,
                     reference: $intent->reference,
                     description: 'Restore wallet funds after confirmed refund failure',
+                    actorUserId: $refund->approved_by_user_id,
                     metadata: ['payment_refund_id' => $refund->public_id, 'provider_status' => 'failed'],
                     correlationId: $refund->public_id,
                 );
