@@ -97,7 +97,22 @@ class PaymentFundingController extends Controller
             }
 
             $payload = $request->json()->all();
-            if (($payload['event'] ?? null) !== 'charge.success' || ! is_array($payload['data'] ?? null)) {
+            $eventType = $payload['event'] ?? null;
+            if (! is_string($eventType) || ! is_array($payload['data'] ?? null)) {
+                return response()->json(['message' => 'Paystack event schema is invalid.'], 400);
+            }
+
+            if (str_starts_with($eventType, 'refund.') || str_starts_with($eventType, 'charge.dispute.')) {
+                $result = $providerExceptions->recordPaystackEvent($eventType, $payload);
+
+                return response()->json([
+                    'received' => true,
+                    'outcome' => $result['outcome'],
+                    'case_key' => $result['case_key'],
+                ]);
+            }
+
+            if ($eventType !== 'charge.success') {
                 return response()->json(['received' => true, 'outcome' => 'ignored', 'duplicate' => false]);
             }
 
