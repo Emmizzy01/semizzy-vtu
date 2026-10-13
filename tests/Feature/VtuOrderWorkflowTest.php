@@ -53,7 +53,7 @@ class VtuOrderWorkflowTest extends TestCase
                 'vtpass-missing-variation-1',
             );
             $this->fail('Unmapped data products must be rejected before a customer debit.');
-        } catch (\\LogicException $exception) {
+        } catch (\LogicException $exception) {
             $this->assertStringContainsString('variation code', $exception->getMessage());
             $this->assertSame(1500, (int) $wallet->fresh()->available_balance_minor);
             $this->assertDatabaseCount('vtu_orders', 0);
