@@ -45,3 +45,17 @@ CI and mocked HTTP tests are not substitutes for a Paystack sandbox run. Before 
 4. Verify scheduler execution, application log retention, alert delivery, and alert deduplication.
 5. Review all stuck or mismatched cases manually; never release reserved funds solely because a request timed out.
 6. Run the full CI workflow and review its actual result before deployment.
+
+
+## Staff permission provisioning
+
+Refund approval access is granted only to a trusted operator through the server CLI; there is no public endpoint for granting permissions. SSH to the application server as an authorized deployment/operator account, confirm the target user's email carefully, and run:
+
+```bash
+php artisan semizzy:permission:grant finance-operator@example.com refunds.approve --force
+php artisan semizzy:permission:revoke finance-operator@example.com refunds.approve --force
+```
+
+Both commands require `--force`, accept only the explicitly allowlisted `refunds.approve` permission, and reject unknown users. Granting is idempotent. Revoke access immediately when an operator changes role or leaves. These commands are deliberately CLI-only; never add a customer-facing permission grant route. Restrict SSH and shell access, and retain deployment/operator shell logs according to your access-control policy.
+
+Run the permission command tests with `php artisan test --filter=StaffPermissionCommandsTest` before deployment.
