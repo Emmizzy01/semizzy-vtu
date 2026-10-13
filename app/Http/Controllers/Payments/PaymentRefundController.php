@@ -25,7 +25,7 @@ class PaymentRefundController extends Controller
             'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
         ]);
 
-        $query = PaymentRefund::query()->with(['paymentIntent', 'requester'])->latest('id');
+        $query = PaymentRefund::query()->with('paymentIntent')->latest('id');
         if (isset($validated['status'])) {
             $query->where('status', $validated['status']);
         }
@@ -91,16 +91,18 @@ class PaymentRefundController extends Controller
         return response()->json(['data' => $this->present($approved)], $status);
     }
 
-    private function present(\App\Models\PaymentRefund $refund): array
+    private function present(PaymentRefund $refund): array
     {
+        $intent = $refund->paymentIntent;
+
         return [
             'id' => $refund->public_id,
-            'payment_intent_id' => $refund->paymentIntent()->value('public_id'),
-            'payment_reference' => $refund->paymentIntent()->value('reference'),
+            'payment_intent_id' => $intent?->public_id,
+            'payment_reference' => $intent?->reference,
             'requested_by_user_id' => $refund->requested_by_user_id,
             'approved_by_user_id' => $refund->approved_by_user_id,
             'amount_minor' => $refund->amount_minor,
-            'currency' => $refund->metadata['currency'] ?? $refund->paymentIntent()->value('currency'),
+            'currency' => $refund->metadata['currency'] ?? $intent?->currency,
             'reason' => $refund->reason,
             'status' => $refund->status,
             'provider_status' => $refund->provider_status,
