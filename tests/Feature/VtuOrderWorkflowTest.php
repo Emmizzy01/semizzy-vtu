@@ -489,7 +489,9 @@ class VtuOrderWorkflowTest extends TestCase
         $this->assertDatabaseCount('wallet_transactions', 2);
         $this->assertSame(1, $submissions, 'An uncertain order must never be submitted a second time.');
         $this->assertSame(2, $lookups, 'Recovery should query the existing order rather than submit another purchase.');
-        Http::assertSentCount(3);
+        // Laravel's HTTP fake records the two completed GET lookups; the POST
+        // throws a ConnectionException before it is added to the recorded list.
+        Http::assertSentCount(2);
         Http::assertSent(fn ($request) => $request->method() === 'GET'
             && str_ends_with($request->url(), '/orders/'.$first->public_id));
     }
