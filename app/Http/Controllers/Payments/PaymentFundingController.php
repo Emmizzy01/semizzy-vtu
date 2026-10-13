@@ -66,7 +66,7 @@ class PaymentFundingController extends Controller
 
         try {
             $verifier->verify($request);
-        } catch (RuntimeException $exception) {
+        } catch (\\LogicException $exception) {
             report($exception);
 
             return response()->json(['message' => 'Webhook verification is not configured.'], 503);
