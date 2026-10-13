@@ -2,7 +2,7 @@
 
 return [
     // Keep each provider's secret separate; never commit secret values.
-    'paystack' => [
+    'vtu' => [\n        'name' => env('VTU_PROVIDER_NAME', 'configured_vtu'),\n        'endpoint' => env('VTU_PROVIDER_ENDPOINT'),\n        'token' => env('VTU_PROVIDER_TOKEN'),\n    ],\n    'paystack' => [
         'secret_key' => env('PAYSTACK_SECRET_KEY'),
         'callback_url' => env('PAYSTACK_CALLBACK_URL'),
     ],
