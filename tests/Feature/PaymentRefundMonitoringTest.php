@@ -59,7 +59,7 @@ class PaymentRefundMonitoringTest extends TestCase
         $this->assertSame(1, $first['alerts_sent']);
         $this->assertSame(0, $second['alerts_sent']);
         Http::assertSentCount(1);
-        Log::shouldHaveReceived('critical')->once();
+        Log::shouldHaveReceived('critical')->twice();
         $this->assertDatabaseHas('payment_refunds', ['id' => $refund->id, 'status' => 'provider_pending']);
     }
 
