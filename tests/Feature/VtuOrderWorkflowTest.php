@@ -167,7 +167,7 @@ class VtuOrderWorkflowTest extends TestCase
         $this->assertSame('failed', $again->status);
         $this->assertSame(1500, (int) $wallet->fresh()->available_balance_minor);
         $this->assertDatabaseCount('vtu_orders', 1);
-        $this->assertDatabaseCount('wallet_transactions', 3, 'Funding, purchase debit, and one refund are expected.');
+        $this->assertDatabaseCount('wallet_transactions', 3);
         $this->assertSame(2, $requests, 'A terminal order must not be queried or refunded again.');
     }
 
