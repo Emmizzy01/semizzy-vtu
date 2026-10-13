@@ -52,6 +52,7 @@ class VtuOrderService
         $product = VtuProduct::query()
             ->where('code', $productCode)
             ->where('is_active', true)
+            ->whereIn('service_type', ['airtime', 'data'])
             ->where('currency', 'NGN')
             ->firstOrFail();
 
