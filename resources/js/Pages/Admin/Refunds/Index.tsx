@@ -1,4 +1,5 @@
 import { Head } from '@inertiajs/react';
+import type { ReactNode } from 'react';
 import { AlertCircle, ArrowDownLeft, CheckCircle2, Clock3, RefreshCw, Search, ShieldCheck, WalletCards, XCircle } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
@@ -241,6 +242,6 @@ export default function RefundOperationsDashboard() {
   );
 }
 
-function Metric({ icon, label, value, detail }: { icon: React.ReactNode; label: string; value: number; detail: string }) {
+function Metric({ icon, label, value, detail }: { icon: ReactNode; label: string; value: number; detail: string }) {
   return <div className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4 sm:p-5"><div className="flex items-center justify-between gap-2"><span className="text-xs font-bold text-[var(--muted)]">{label}</span><span className="text-[var(--brand)]">{icon}</span></div><p className="mt-3 font-display text-2xl font-extrabold tabular-nums">{value}</p><p className="mt-1 text-[11px] leading-4 text-[var(--muted)]">{detail}</p></div>;
 }
