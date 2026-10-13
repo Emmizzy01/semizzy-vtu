@@ -59,7 +59,6 @@ class PaymentRefundReconciliationTest extends TestCase
             'created_at' => now()->subHour(),
             'updated_at' => now()->subHour(),
             'status_changed_at' => now()->subHour(),
-            'status_changed_at' => now()->subHour(),
         ]);
 
         $stats = app(PaymentRefundReconciliationService::class)->reconcile();
