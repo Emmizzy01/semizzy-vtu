@@ -60,10 +60,10 @@ class PaymentFundingWorkflowTest extends TestCase
         $header = 't='.$timestamp.',v1='.$signature;
 
         $send = function () use ($header, $raw) {
-            return $this->withHeaders([
-                'X-Semizzy-Signature' => $header,
-                'Content-Type' => 'application/json',
-            ])->call('POST', '/api/payments/webhooks/semizzy', [], [], [], [], $raw);
+            return $this->call('POST', '/api/payments/webhooks/semizzy', [], [], [], [
+                'HTTP_X_SEMIZZY_SIGNATURE' => $header,
+                'CONTENT_TYPE' => 'application/json',
+            ], $raw);
         };
 
         $first = $send();
