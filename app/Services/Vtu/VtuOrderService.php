@@ -219,19 +219,34 @@ class VtuOrderService
         }
 
         if ($providerStatus === 'pending') {
-            // A confirmed pending result from a reconciliation lookup must not
-            // erase the fact that the original submission had an ambiguous outcome.
-            $status = $order->status === VtuOrderStatus::AwaitingReconciliation->value
-                ? VtuOrderStatus::AwaitingReconciliation->value
-                : VtuOrderStatus::Processing->value;
+            // Reconciliation may race with a terminal result. Lock and re-read
+            // the row so a late "pending" response can never undo success/failure.
+            $updated = DB::transaction(function () use ($order, $result): VtuOrder {
+                /** @var VtuOrder $locked */
+                $locked = VtuOrder::query()->whereKey($order->getKey())->lockForUpdate()->firstOrFail();
 
-            $order->forceFill([
-                'status' => $status,
-                'provider_reference' => $result['provider_reference'] ?? $order->provider_reference,
-                'safe_provider_response' => $this->safeResponse($result),
-            ])->save();
+                if (in_array($locked->status, [
+                    VtuOrderStatus::Successful->value,
+                    VtuOrderStatus::Failed->value,
+                    VtuOrderStatus::Cancelled->value,
+                ], true)) {
+                    return $locked;
+                }
 
-            $updated = $order->fresh();
+                // A pending lookup must not erase the ambiguous-submission marker.
+                $status = $locked->status === VtuOrderStatus::AwaitingReconciliation->value
+                    ? VtuOrderStatus::AwaitingReconciliation->value
+                    : VtuOrderStatus::Processing->value;
+
+                $locked->forceFill([
+                    'status' => $status,
+                    'provider_reference' => $result['provider_reference'] ?? $locked->provider_reference,
+                    'safe_provider_response' => $this->safeResponse($result),
+                ])->save();
+
+                return $locked->fresh();
+            }, attempts: 3);
+
             $updated->wasRecentlyCreated = $order->wasRecentlyCreated;
 
             return $updated;
