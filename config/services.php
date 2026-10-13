@@ -3,9 +3,15 @@
 return [
     // Keep each provider's secret separate; never commit secret values.
     'vtu' => [
+        'driver' => env('VTU_PROVIDER_DRIVER', 'configured'),
         'name' => env('VTU_PROVIDER_NAME', 'configured_vtu'),
         'endpoint' => env('VTU_PROVIDER_ENDPOINT'),
         'token' => env('VTU_PROVIDER_TOKEN'),
+        'vtpass' => [
+            'base_url' => env('VTU_VTPASS_BASE_URL', 'https://sandbox.vtpass.com/api'),
+            'api_key' => env('VTU_VTPASS_API_KEY'),
+            'secret_key' => env('VTU_VTPASS_SECRET_KEY'),
+        ],
     ],
     'paystack' => [
         'secret_key' => env('PAYSTACK_SECRET_KEY'),
