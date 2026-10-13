@@ -2,7 +2,10 @@
 
 namespace App\Providers;
 
-use App\Models\User;\nuse App\Models\UserPermission;\nuse Illuminate\Support\Facades\Gate;\nuse Illuminate\Support\ServiceProvider;
+use App\Models\User;
+use App\Models\UserPermission;
+use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -13,6 +16,11 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
-        //
+        Gate::define('refunds.approve', function (User $user): bool {
+            return UserPermission::query()
+                ->where('user_id', $user->id)
+                ->where('permission', 'refunds.approve')
+                ->exists();
+        });
     }
 }
