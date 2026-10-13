@@ -3,15 +3,15 @@
 namespace App\Services\Payments;
 
 use Illuminate\Http\Request;
-use RuntimeException;
+use LogicException;
 
 class WebhookSignatureVerifier
 {
-    public function verify(Request $request): void
+    public function verify(Request $request, string $provider): void
     {
-        $secret = (string) config('services.semizzy_payments.webhook_secret', '');
+        $secret = (string) config('services.semizzy_payments.webhook_secrets.'.$provider, '');
         if ($secret === '') {
-            throw new RuntimeException('Payment webhook verification is not configured.');
+            throw new LogicException('Payment webhook verification is not configured for this provider.');
         }
 
         $header = (string) $request->header('X-Semizzy-Signature', '');
