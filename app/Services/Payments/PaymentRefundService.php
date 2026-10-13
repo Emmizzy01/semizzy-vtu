@@ -211,8 +211,25 @@ class PaymentRefundService
             return false;
         }
 
+        $refund = $matches->first();
+        $intent = $refund->paymentIntent()->firstOrFail();
+        $observedAmount = $data['amount'] ?? null;
+        $observedAmount = is_int($observedAmount)
+            ? $observedAmount
+            : (is_string($observedAmount) && ctype_digit($observedAmount) ? (int) $observedAmount : null);
+        $observedCurrency = is_string($data['currency'] ?? null) ? strtoupper($data['currency']) : null;
+        $referenceMismatch = is_string($transactionRef) && $transactionRef !== '' && $transactionRef !== $intent->reference;
+
+        if ($observedAmount !== $refund->amount_minor
+            || $observedCurrency !== $intent->currency
+            || $referenceMismatch) {
+            $this->markReviewRequired($refund->public_id, 'provider_refund_payload_mismatch');
+
+            return true;
+        }
+
         $this->applyStatus(
-            $matches->first()->public_id,
+            $refund->public_id,
             $status,
             $providerRef,
             ['last_provider_event' => $eventType],
