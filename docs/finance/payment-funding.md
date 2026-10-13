@@ -46,3 +46,7 @@ Before live money is enabled:
 - Keep MySQL/MariaDB InnoDB in production for row locks and uniqueness constraints.
 
 Do not trust browser redirects or client-submitted payment status as proof of payment.
+
+## Refunds and reversals
+
+Refunds must use the permission-controlled approval and settlement workflow in [payment refund approval](payment-refund-approval.md). Do not debit wallets or call Paystack refunds directly from customer requests or webhook intake. The workflow reserves available wallet funds before provider submission and requires reconciliation when provider outcomes are uncertain.
