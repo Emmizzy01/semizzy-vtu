@@ -84,7 +84,17 @@ class VtpassProviderClientTest extends TestCase
 
         $result = app(VtpassProviderClient::class)->lookup($this->order('airtime', 'mtn'));
 
-        $this->assertSame('pending', $result['status']);
+        $this->assertSame('unknown', $result['status']);
+    }
+
+    public function test_only_documented_definitive_vtpass_failure_codes_map_to_failed(): void
+    {
+        Http::fake(fn () => Http::response(['code' => '016', 'response_description' => 'TRANSACTION FAILED'], 200));
+
+        $result = app(VtpassProviderClient::class)->lookup($this->order('airtime', 'mtn'));
+
+        $this->assertSame('failed', $result['status']);
+        $this->assertSame('016', $result['message_code']);
     }
 
     public function test_requery_uses_the_same_request_id_and_official_endpoint(): void
