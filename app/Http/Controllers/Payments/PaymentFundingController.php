@@ -6,7 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\PaymentIntent;
 use App\Models\Wallet;
 use App\Services\Payments\PaymentFundingService;
-use App\Services\Payments\PaymentProviderExceptionService;\nuse App\Services\Payments\PaymentRefundService;
+use App\Services\Payments\PaymentProviderExceptionService;
+use App\Services\Payments\PaymentRefundService;
 use App\Services\Payments\PaymentIntentService;
 use App\Services\Payments\PaystackClient;
 use App\Services\Payments\WebhookSignatureVerifier;
@@ -81,6 +82,7 @@ class PaymentFundingController extends Controller
         PaystackClient $paystack,
         PaymentFundingService $funding,
         PaymentProviderExceptionService $providerExceptions,
+        PaymentRefundService $refunds,
     ): JsonResponse {
         abort_unless(in_array($provider, ['paystack', 'semizzy'], true), 404);
 
@@ -105,12 +107,14 @@ class PaymentFundingController extends Controller
             }
 
             if (str_starts_with($eventType, 'refund.') || str_starts_with($eventType, 'charge.dispute.')) {
+                $refundMatched = $refunds->applyPaystackEvent($eventType, $payload);
                 $result = $providerExceptions->recordPaystackEvent($eventType, $payload);
 
                 return response()->json([
                     'received' => true,
                     'outcome' => $result['outcome'],
                     'case_key' => $result['case_key'],
+                    'refund_matched' => $refundMatched,
                 ]);
             }
 
