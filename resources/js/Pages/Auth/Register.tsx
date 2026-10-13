@@ -1,10 +1,11 @@
 import { Head, Link, useForm } from '@inertiajs/react';
+import type { FormEvent } from 'react';
 import { LoaderCircle, ShieldCheck } from 'lucide-react';
 
 export default function Register() {
   const form = useForm({ name: '', email: '', password: '', password_confirmation: '' });
 
-  function submit(event: React.FormEvent<HTMLFormElement>) {
+  function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     form.post('/register');
   }
