@@ -77,6 +77,7 @@ class PaymentRefundService
                 'amount_minor' => $amountMinor,
                 'reason' => trim($reason),
                 'status' => 'requested',
+                'status_changed_at' => now(),
                 'metadata' => ['currency' => $intent->currency],
             ]);
         }, attempts: 3);
@@ -125,6 +126,7 @@ class PaymentRefundService
                     'approved_by_user_id' => $approver->id,
                     'wallet_debit_transaction_id' => $debit->id,
                     'status' => 'processing',
+                    'status_changed_at' => now(),
                     'approved_at' => now(),
                 ])->save();
 
@@ -137,6 +139,7 @@ class PaymentRefundService
                 $metadata['settlement_block'] = 'insufficient_available_balance';
                 $blocked->forceFill([
                     'status' => 'blocked_insufficient_wallet_funds',
+                    'status_changed_at' => $blocked->status === 'blocked_insufficient_wallet_funds' ? $blocked->status_changed_at : now(),
                     'metadata' => $metadata,
                 ])->save();
             }
@@ -336,8 +339,15 @@ class PaymentRefundService
                 return $refund;
             }
             $metadata = $refund->metadata ?? [];
+            if ($refund->status === 'review_required' && ($metadata['review_reason'] ?? null) === $reason) {
+                return $refund;
+            }
             $metadata['review_reason'] = $reason;
-            $refund->forceFill(['status' => 'review_required', 'metadata' => $metadata])->save();
+            $refund->forceFill([
+                'status' => 'review_required',
+                'status_changed_at' => $refund->status === 'review_required' ? $refund->status_changed_at : now(),
+                'metadata' => $metadata,
+            ])->save();
 
             return $refund->fresh();
         });
@@ -366,6 +376,7 @@ class PaymentRefundService
             $combined = array_merge($combined, $metadata);
             $refund->forceFill([
                 'status' => $normalized,
+                'status_changed_at' => $normalized === $refund->status ? ($refund->status_changed_at ?? now()) : now(),
                 'provider_status' => substr($providerStatus, 0, 40),
                 'provider_refund_reference' => $providerRef ?? $refund->provider_refund_reference,
                 'metadata' => $combined,
