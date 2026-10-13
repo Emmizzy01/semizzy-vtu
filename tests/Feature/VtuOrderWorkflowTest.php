@@ -238,7 +238,8 @@ class VtuOrderWorkflowTest extends TestCase
         $this->assertSame('successful', $latePending->status);
         $this->assertSame(500, (int) $wallet->fresh()->available_balance_minor);
         $this->assertDatabaseCount('wallet_transactions', 2);
-        $this->assertSame(3, $lookups + 1, 'One submit and two reconciliation lookups should occur.');
+        $this->assertSame(2, $lookups, 'The stale order should trigger two lookups but no extra submission.');
+        Http::assertSentCount(3);
     }
 
     public function test_reusing_idempotency_key_for_different_purchase_is_rejected(): void
