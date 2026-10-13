@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Vtu;
 
 use App\Http\Controllers\Controller;
+use App\Exceptions\Wallet\InsufficientWalletFunds;
 use App\Models\VtuOrder;
 use App\Models\VtuProduct;
 use App\Services\Vtu\VtuOrderService;
@@ -52,7 +53,7 @@ class VtuOrderController extends Controller
                 $validated['recipient'],
                 $validated['idempotency_key'],
             );
-        } catch (InvalidArgumentException $exception) {
+        } catch (InvalidArgumentException|InsufficientWalletFunds $exception) {
             return response()->json(['message' => $exception->getMessage()], 422);
         } catch (LogicException $exception) {
             report($exception);
