@@ -195,4 +195,36 @@ class PaystackFundingWorkflowTest extends TestCase
         $this->assertSame('pending', $intent->fresh()->status);
         $this->assertDatabaseCount('wallet_transactions', 0);
     }
+    public function test_browser_return_never_credits_even_when_paystack_reports_success(): void
+    {
+        $user = User::query()->create([
+            'name' => 'Return Customer',
+            'email' => 'return@example.test',
+            'password' => 'not-a-real-password',
+        ]);
+        $wallet = app(WalletAccountService::class)->openForUser($user);
+        $intent = app(PaymentIntentService::class)->create($wallet, 15000, 'paystack');
+
+        Http::fake([
+            'api.paystack.co/transaction/verify/*' => Http::response([
+                'status' => true,
+                'data' => [
+                    'id' => 778899,
+                    'status' => 'success',
+                    'reference' => $intent->reference,
+                    'amount' => 15000,
+                    'currency' => 'NGN',
+                ],
+            ], 200),
+        ]);
+
+        $response = $this->getJson('/wallet/funding/return?reference='.$intent->reference);
+
+        $response->assertOk()->assertJsonPath('status', 'pending');
+        $this->assertSame(0, (int) $wallet->fresh()->balance_minor);
+        $this->assertSame('pending', $intent->fresh()->status);
+        $this->assertDatabaseCount('wallet_transactions', 0);
+        $this->assertDatabaseCount('wallet_ledger_entries', 0);
+    }
+
 }
