@@ -58,6 +58,8 @@ class PaymentRefundReconciliationTest extends TestCase
             'metadata' => ['currency' => 'NGN'],
             'created_at' => now()->subHour(),
             'updated_at' => now()->subHour(),
+            'status_changed_at' => now()->subHour(),
+            'status_changed_at' => now()->subHour(),
         ]);
 
         $stats = app(PaymentRefundReconciliationService::class)->reconcile();
@@ -106,6 +108,7 @@ class PaymentRefundReconciliationTest extends TestCase
             'metadata' => ['currency' => 'NGN'],
             'created_at' => now()->subHour(),
             'updated_at' => now()->subHour(),
+            'status_changed_at' => now()->subHour(),
         ]);
 
         $stats = app(PaymentRefundReconciliationService::class)->reconcile();
