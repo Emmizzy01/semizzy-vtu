@@ -1,5 +1,7 @@
 <?php
 
+use App\Models\User;
+use App\Models\UserPermission;
 use App\Services\Payments\PaymentReconciliationService;
 use App\Services\Payments\PaymentRefundMonitoringService;
 use App\Services\Payments\PaymentRefundReconciliationService;
@@ -9,6 +11,72 @@ use Illuminate\Support\Facades\Schedule;
 Artisan::command('semizzy:about', function () {
     $this->info('SEMIZZY VTU application foundation');
 })->purpose('Display basic SEMIZZY application information');
+
+Artisan::command('semizzy:permission:grant {email} {permission} {--force}', function () {
+    if (! $this->option('force')) {
+        $this->error('This changes privileged access. Re-run with --force after verifying the operator and account.');
+        return 1;
+    }
+
+    $email = strtolower(trim((string) $this->argument('email')));
+    $permission = (string) $this->argument('permission');
+    $allowedPermissions = ['refunds.approve'];
+
+    if (! in_array($permission, $allowedPermissions, true)) {
+        $this->error('Unsupported permission. Allowed values: '.implode(', ', $allowedPermissions));
+        return 1;
+    }
+
+    $user = User::query()->whereRaw('LOWER(email) = ?', [$email])->first();
+    if (! $user) {
+        $this->error('No user found for that email address.');
+        return 1;
+    }
+
+    $record = UserPermission::query()->firstOrCreate([
+        'user_id' => $user->id,
+        'permission' => $permission,
+    ]);
+
+    $this->info($record->wasRecentlyCreated
+        ? "Granted {$permission} to user ID {$user->id}."
+        : "User ID {$user->id} already has {$permission}.");
+
+    return 0;
+})->purpose('Grant an allowlisted staff permission from the server CLI');
+
+Artisan::command('semizzy:permission:revoke {email} {permission} {--force}', function () {
+    if (! $this->option('force')) {
+        $this->error('This changes privileged access. Re-run with --force after verifying the operator and account.');
+        return 1;
+    }
+
+    $email = strtolower(trim((string) $this->argument('email')));
+    $permission = (string) $this->argument('permission');
+    $allowedPermissions = ['refunds.approve'];
+
+    if (! in_array($permission, $allowedPermissions, true)) {
+        $this->error('Unsupported permission. Allowed values: '.implode(', ', $allowedPermissions));
+        return 1;
+    }
+
+    $user = User::query()->whereRaw('LOWER(email) = ?', [$email])->first();
+    if (! $user) {
+        $this->error('No user found for that email address.');
+        return 1;
+    }
+
+    $deleted = UserPermission::query()
+        ->where('user_id', $user->id)
+        ->where('permission', $permission)
+        ->delete();
+
+    $this->info($deleted > 0
+        ? "Revoked {$permission} from user ID {$user->id}."
+        : "User ID {$user->id} did not have {$permission}.");
+
+    return 0;
+})->purpose('Revoke an allowlisted staff permission from the server CLI');
 
 Artisan::command('payments:reconcile-paystack {--limit=100}', function (PaymentReconciliationService $reconciliation) {
     $limit = (int) $this->option('limit');
@@ -33,7 +101,6 @@ Artisan::command('payments:reconcile-paystack {--limit=100}', function (PaymentR
 Schedule::command('payments:reconcile-paystack --limit=100')
     ->everyFiveMinutes()
     ->withoutOverlapping();
-
 
 Artisan::command('payments:monitor-refunds', function (PaymentRefundMonitoringService $monitoring) {
     $stats = $monitoring->monitor();
