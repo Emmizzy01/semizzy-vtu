@@ -2,7 +2,6 @@
 
 namespace Tests\Feature;
 
-use App\Models\PaymentIntent;
 use App\Models\User;
 use App\Services\Payments\PaymentIntentService;
 use App\Services\Wallets\WalletAccountService;
