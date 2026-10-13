@@ -26,15 +26,17 @@ class PaystackFundingWorkflowTest extends TestCase
     public function test_authenticated_customer_can_initialize_paystack_checkout(): void
     {
         Http::fake([
-            'api.paystack.co/transaction/initialize' => Http::response([
-                'status' => true,
-                'message' => 'Authorization URL created',
-                'data' => [
-                    'authorization_url' => 'https://checkout.paystack.com/test-session',
-                    'access_code' => 'access_test_123',
-                    'reference' => 'ignored-reference-from-fixture',
-                ],
-            ], 200),
+            'api.paystack.co/transaction/initialize' => function ($request) {
+                return Http::response([
+                    'status' => true,
+                    'message' => 'Authorization URL created',
+                    'data' => [
+                        'authorization_url' => 'https://checkout.paystack.com/test-session',
+                        'access_code' => 'access_test_123',
+                        'reference' => $request['reference'],
+                    ],
+                ], 200);
+            },
         ]);
 
         $user = User::query()->create([
