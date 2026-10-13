@@ -22,5 +22,12 @@ class AppServiceProvider extends ServiceProvider
                 ->where('permission', 'refunds.approve')
                 ->exists();
         });
+
+        Gate::define('staff.permissions.manage', function (User $user): bool {
+            return UserPermission::query()
+                ->where('user_id', $user->id)
+                ->where('permission', 'staff.permissions.manage')
+                ->exists();
+        });
     }
 }
