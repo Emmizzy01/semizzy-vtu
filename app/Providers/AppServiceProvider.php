@@ -11,7 +11,11 @@ class AppServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        //
+        $this->app->bind(VtuProvider::class, function ($app): VtuProvider {
+            return config('services.vtu.driver') === 'vtpass'
+                ? $app->make(VtpassProviderClient::class)
+                : $app->make(VtuProviderClient::class);
+        });
     }
 
     public function boot(): void
