@@ -1,6 +1,6 @@
 <?php
 
-use App\Http\Controllers\Payments\PaymentFundingController;
+use App\Http\Controllers\Payments\PaymentFundingController;\nuse App\Http\Controllers\Payments\PaymentRefundController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
