@@ -3,6 +3,7 @@
 namespace App\Services\Vtu;
 
 use App\Models\VtuOrder;
+use App\Models\VtuProduct;
 
 interface VtuProvider
 {
