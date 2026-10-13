@@ -442,6 +442,58 @@ class VtuOrderWorkflowTest extends TestCase
     }
 
     /** @return array{User, \App\Models\Wallet, VtuProduct} */
+    public function test_recovery_with_unavailable_provider_outcome_never_resubmits_or_refunds(): void
+    {
+        $submissions = 0;
+        $lookups = 0;
+
+        Http::fake(function ($request) use (&$submissions, &$lookups) {
+            if ($request->method() === 'POST') {
+                $submissions++;
+                // The provider may have accepted this request before the connection failed.
+                throw new ConnectionException('Simulated lost provider response');
+            }
+
+            $lookups++;
+
+            // The provider cannot yet confirm whether the purchase completed.
+            return Http::response(['status' => 'pending'], 200);
+        });
+
+        [$user, $wallet, $product] = $this->preparedCustomer(1000, 1500);
+        $service = app(VtuOrderService::class);
+
+        $first = $service->purchase(
+            $user,
+            $product->code,
+            '08012345678',
+            'unavailable-provider-outcome-1',
+        );
+        $retry = $service->purchase(
+            $user,
+            $product->code,
+            '08012345678',
+            'unavailable-provider-outcome-1',
+        );
+
+        $this->assertSame('awaiting_reconciliation', $first->status);
+        $this->assertSame($first->id, $retry->id);
+
+        $firstLookup = $service->reconcile($first->fresh());
+        $secondLookup = $service->reconcile($firstLookup->fresh());
+
+        $this->assertSame('awaiting_reconciliation', $firstLookup->status);
+        $this->assertSame('awaiting_reconciliation', $secondLookup->status);
+        $this->assertSame(500, (int) $wallet->fresh()->available_balance_minor);
+        $this->assertDatabaseCount('vtu_orders', 1);
+        $this->assertDatabaseCount('wallet_transactions', 2);
+        $this->assertSame(1, $submissions, 'An uncertain order must never be submitted a second time.');
+        $this->assertSame(2, $lookups, 'Recovery should query the existing order rather than submit another purchase.');
+        Http::assertSentCount(3);
+        Http::assertSent(fn ($request) => $request->method() === 'GET'
+            && str_ends_with($request->url(), '/orders/'.$first->public_id));
+    }
+
     public function test_reconciliation_keeps_ambiguous_order_flag_when_provider_still_reports_pending(): void
     {
         $requests = 0;
