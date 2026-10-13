@@ -2,7 +2,7 @@
 
 namespace App\Providers;
 
-use Illuminate\Support\ServiceProvider;
+use App\Models\User;\nuse App\Models\UserPermission;\nuse Illuminate\Support\Facades\Gate;\nuse Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
 {
