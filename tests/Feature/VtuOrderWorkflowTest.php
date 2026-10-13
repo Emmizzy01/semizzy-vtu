@@ -167,6 +167,57 @@ class VtuOrderWorkflowTest extends TestCase
     }
 
     /** @return array{User, \App\Models\Wallet, VtuProduct} */
+    public function test_reconciliation_keeps_ambiguous_order_flag_when_provider_still_reports_pending(): void
+    {
+        Http::fake(function ($request) {
+            if ($request->method() === 'POST') {
+                throw new ConnectionException('Simulated submission timeout');
+            }
+
+            return Http::response([
+                'status' => 'pending',
+                'provider_reference' => 'provider-order-still-pending',
+            ], 200);
+        });
+
+        [$user, $wallet, $product] = $this->preparedCustomer(1000, 1500);
+        $service = app(VtuOrderService::class);
+
+        $order = $service->purchase($user, $product->code, '08012345678', 'pending-after-timeout-1');
+        $this->assertSame('awaiting_reconciliation', $order->status);
+
+        $reconciled = $service->reconcile($order->fresh());
+
+        $this->assertSame('awaiting_reconciliation', $reconciled->status);
+        $this->assertSame('provider-order-still-pending', $reconciled->provider_reference);
+        $this->assertSame(500, (int) $wallet->fresh()->available_balance_minor);
+        $this->assertDatabaseCount('vtu_orders', 1);
+        $this->assertDatabaseCount('wallet_transactions', 2);
+        Http::assertSentCount(2);
+    }
+
+    public function test_insufficient_funds_does_not_submit_or_create_vtu_order(): void
+    {
+        Http::fake();
+
+        [$user, $wallet, $product] = $this->preparedCustomer(1500, 1000);
+
+        try {
+            app(VtuOrderService::class)->purchase(
+                $user,
+                $product->code,
+                '08012345678',
+                'insufficient-funds-1',
+            );
+            $this->fail('The purchase should be rejected when the wallet balance is insufficient.');
+        } catch (\\App\\Exceptions\\Wallet\\InsufficientWalletFunds) {
+            $this->assertSame(1000, (int) $wallet->fresh()->available_balance_minor);
+            $this->assertDatabaseCount('vtu_orders', 0);
+            $this->assertDatabaseCount('wallet_transactions', 1);
+            Http::assertNothingSent();
+        }
+    }
+
     private function preparedCustomer(int $productPriceMinor, int $initialBalanceMinor): array
     {
         $user = User::query()->create([
