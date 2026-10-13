@@ -89,12 +89,16 @@ class PaymentRefundController extends Controller
         return [
             'id' => $refund->public_id,
             'payment_intent_id' => $refund->paymentIntent()->value('public_id'),
+            'payment_reference' => $refund->paymentIntent()->value('reference'),
+            'requested_by_user_id' => $refund->requested_by_user_id,
+            'approved_by_user_id' => $refund->approved_by_user_id,
             'amount_minor' => $refund->amount_minor,
             'currency' => $refund->metadata['currency'] ?? $refund->paymentIntent()->value('currency'),
             'reason' => $refund->reason,
             'status' => $refund->status,
             'provider_status' => $refund->provider_status,
             'provider_refund_reference' => $refund->provider_refund_reference,
+            'requested_at' => $refund->created_at?->toISOString(),
             'approved_at' => $refund->approved_at?->toISOString(),
             'settled_at' => $refund->settled_at?->toISOString(),
         ];
