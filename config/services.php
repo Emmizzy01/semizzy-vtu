@@ -8,6 +8,8 @@ return [
     ],
     'payments' => [
         'reconciliation_grace_minutes' => (int) env('PAYMENTS_RECONCILIATION_GRACE_MINUTES', 5),
+        'refund_stale_minutes' => (int) env('PAYMENTS_REFUND_STALE_MINUTES', 15),
+        'alert_webhook_url' => env('PAYMENTS_ALERT_WEBHOOK_URL'),
     ],
     'semizzy_payments' => [
         'webhook_secrets' => [
