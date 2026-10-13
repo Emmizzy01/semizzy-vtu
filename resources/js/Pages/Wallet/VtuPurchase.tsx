@@ -1,5 +1,5 @@
 import { Head } from '@inertiajs/react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { AlertCircle, CheckCircle2, Clock3, LoaderCircle, RefreshCw, Smartphone, ShieldCheck } from 'lucide-react';
 
 type Product = {
@@ -58,6 +58,7 @@ export default function VtuPurchase() {
   const [submitting, setSubmitting] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
+  const [submissionUncertain, setSubmissionUncertain] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -95,13 +96,14 @@ export default function VtuPurchase() {
   );
   const selectedProduct = products.find((product) => product.code === productCode);
 
-  async function submitPurchase(event: React.FormEvent<HTMLFormElement>) {
+  async function submitPurchase(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (submitting || !selectedProduct || !recipient.trim()) return;
 
     setSubmitting(true);
     setError('');
 
+    let receivedResponse = false;
     try {
       const csrf = document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ?? '';
       const response = await fetch('/wallet/vtu/orders', {
@@ -120,12 +122,15 @@ export default function VtuPurchase() {
         }),
       });
 
+      receivedResponse = true;
       const body = await response.json().catch(() => ({}));
       if (!response.ok) {
         throw new Error(typeof body.message === 'string' ? body.message : 'Purchase could not be submitted.');
       }
+      setSubmissionUncertain(false);
       setOrder(body.data as Order);
     } catch (cause: unknown) {
+      if (!receivedResponse) setSubmissionUncertain(true);
       setError(cause instanceof Error ? cause.message : 'The result is unknown. Keep this form unchanged and retry safely.');
     } finally {
       setSubmitting(false);
@@ -230,6 +235,7 @@ export default function VtuPurchase() {
                     setOrder(null);
                     setError('');
                     setRequestKey(newRequestKey());
+                    setSubmissionUncertain(false);
                   }}
                   className="w-full rounded-xl bg-[var(--brand)] px-4 py-3 font-bold text-white transition hover:opacity-90"
                 >
@@ -270,7 +276,7 @@ export default function VtuPurchase() {
                         setProductCode(firstForNetwork?.code ?? '');
                         setRequestKey(newRequestKey());
                       }}
-                      disabled={loadingProducts || networks.length === 0}
+                      disabled={loadingProducts || networks.length === 0 || submissionUncertain}
                       className="mt-2 w-full rounded-xl border border-[var(--line)] bg-[var(--page)] px-3 py-3 font-normal outline-none focus:border-[var(--brand)]"
                     >
                       {networks.map((network) => <option key={network} value={network}>{network}</option>)}
@@ -285,7 +291,7 @@ export default function VtuPurchase() {
                         setProductCode(event.target.value);
                         setRequestKey(newRequestKey());
                       }}
-                      disabled={loadingProducts || products.length === 0}
+                      disabled={loadingProducts || products.length === 0 || submissionUncertain}
                       className="mt-2 w-full rounded-xl border border-[var(--line)] bg-[var(--page)] px-3 py-3 font-normal outline-none focus:border-[var(--brand)]"
                     >
                       {products.filter((product) => !selectedProduct || product.network === selectedProduct.network).map((product) => (
@@ -309,6 +315,7 @@ export default function VtuPurchase() {
                     placeholder="e.g. 08012345678"
                     maxLength={32}
                     required
+                    disabled={submissionUncertain}
                     className="mt-2 w-full rounded-xl border border-[var(--line)] bg-[var(--page)] px-4 py-3 font-normal outline-none focus:border-[var(--brand)]"
                   />
                 </label>
@@ -335,7 +342,7 @@ export default function VtuPurchase() {
                   className="flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--brand)] px-4 py-3.5 font-bold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {submitting && <LoaderCircle className="animate-spin" size={18} />}
-                  {submitting ? 'Submitting securely…' : selectedProduct ? `Buy for ${naira(selectedProduct.price_minor)}` : 'Choose a product'}
+                  {submitting ? 'Submitting securely…' : submissionUncertain ? 'Retry same request safely' : selectedProduct ? `Buy for ${naira(selectedProduct.price_minor)}` : 'Choose a product'}
                 </button>
                 <p className="text-center text-xs leading-5 text-[var(--muted)]">Duplicate requests use the same idempotency key. If the result is uncertain, Semizzy will reconcile the existing order rather than submit another one.</p>
               </form>
