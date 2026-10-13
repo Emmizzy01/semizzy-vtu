@@ -33,17 +33,21 @@ export default function Welcome() {
                 <span className="block text-[10px] font-bold uppercase tracking-[0.22em] text-[var(--muted)]">Digital made simple</span>
               </span>
             </a>
-            <button
-              className="rounded-full border border-[var(--line)] px-4 py-2 text-sm font-semibold transition hover:bg-[var(--surface)]"
-              onClick={() => {
-                const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
-                document.documentElement.dataset.theme = next;
-                localStorage.setItem('semizzy-theme', next);
-              }}
-              type="button"
-            >
-              Toggle theme
-            </button>
+            <div className="flex items-center gap-2 sm:gap-3">
+              <a href="/login" className="rounded-full border border-[var(--line)] px-3 py-2 text-sm font-semibold transition hover:bg-[var(--surface)] sm:px-4">Sign in</a>
+              <a href="/register" className="hidden rounded-full bg-[var(--brand)] px-4 py-2 text-sm font-bold text-white transition hover:opacity-90 sm:inline-flex">Create account</a>
+              <button
+                className="rounded-full border border-[var(--line)] px-3 py-2 text-sm font-semibold transition hover:bg-[var(--surface)] sm:px-4"
+                onClick={() => {
+                  const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+                  document.documentElement.dataset.theme = next;
+                  localStorage.setItem('semizzy-theme', next);
+                }}
+                type="button"
+              >
+                Theme
+              </button>
+            </div>
           </header>
 
           <section className="grid items-center gap-12 pb-20 pt-16 sm:pt-24 lg:grid-cols-[1.05fr_0.95fr] lg:gap-16 lg:pb-28">
@@ -59,8 +63,8 @@ export default function Welcome() {
                 SEMIZZY is being built as a dependable home for VTU services, wallet tools, reseller businesses, and more — with clarity, control, and security at the core.
               </p>
               <div className="mt-8 flex flex-wrap gap-3">
-                <a href="#foundation" className="inline-flex items-center gap-2 rounded-full bg-[var(--brand)] px-6 py-3.5 text-sm font-bold text-white shadow-lg shadow-indigo-950/15 transition hover:-translate-y-0.5">
-                  Explore the foundation <ArrowUpRight size={17} />
+                <a href="/wallet/vtu" className="inline-flex items-center gap-2 rounded-full bg-[var(--brand)] px-6 py-3.5 text-sm font-bold text-white shadow-lg shadow-indigo-950/15 transition hover:-translate-y-0.5">
+                  Buy airtime & data <ArrowUpRight size={17} />
                 </a>
                 <span className="inline-flex items-center rounded-full border border-[var(--line)] px-5 py-3.5 text-sm font-semibold text-[var(--muted)]">Built for Nigeria</span>
               </div>
