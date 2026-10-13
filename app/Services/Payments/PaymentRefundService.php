@@ -87,8 +87,8 @@ class PaymentRefundService
         try {
             $refund = DB::transaction(function () use ($publicId, $approver): PaymentRefund {
                 $refund = PaymentRefund::query()->where('public_id', $publicId)->lockForUpdate()->firstOrFail();
-                if ($refund->status !== 'requested') {
-                    throw new ConflictHttpException('Only requested refunds can be approved.');
+                if (! in_array($refund->status, ['requested', 'blocked_insufficient_wallet_funds'], true)) {
+                    throw new ConflictHttpException('Only requested or balance-blocked refunds can be approved.');
                 }
 
                 $intent = PaymentIntent::query()->whereKey($refund->payment_intent_id)->lockForUpdate()->firstOrFail();
