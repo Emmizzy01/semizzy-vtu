@@ -10,6 +10,15 @@
 6. Once reserved, SEMIZZY sends the refund to Paystack and tracks provider statuses. A timeout or ambiguous provider response becomes `review_required`; the wallet debit remains in place until the provider outcome is confirmed.
 7. A confirmed provider failure posts one idempotent compensating wallet credit and marks the request failed. A processed refund remains debited and is marked succeeded. Signed refund webhooks update matching requests; all refund/dispute events are also retained as reconciliation cases.
 
+## Endpoints
+
+- `POST /wallet/refund-requests`: customer submits a request.
+- `GET /wallet/refund-requests/{refund}`: the requesting customer checks the current status; other customers receive not found.
+- `GET /admin/payment-refunds`: authorized approvers review the paginated queue; optional `status` and `per_page` filters are supported.
+- `POST /admin/payment-refunds/{refund}/approve`: authorized approver approves a requested or balance-blocked refund.
+
+All approval and queue routes require the `refunds.approve` permission. Customer endpoints require authentication and are rate-limited.
+
 ## Statuses
 
 - `requested`: waiting for an authorized approver.
