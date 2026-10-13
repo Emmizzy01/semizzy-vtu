@@ -368,7 +368,7 @@ class PaymentRefundService
                 default => 'review_required',
             };
 
-            if ($refund->status === 'succeeded') {
+            if (in_array($refund->status, ['succeeded', 'failed'], true)) {
                 return $refund;
             }
 
