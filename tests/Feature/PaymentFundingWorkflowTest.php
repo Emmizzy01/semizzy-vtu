@@ -34,7 +34,7 @@ class PaymentFundingWorkflowTest extends TestCase
 
     public function test_valid_signed_webhook_credits_wallet_once_and_replay_is_idempotent(): void
     {
-        config(['services.semizzy_payments.webhook_secret' => 'test-secret-that-is-long-enough-for-tests']);
+        config(['services.semizzy_payments.webhook_secrets.semizzy' => 'test-secret-that-is-long-enough-for-tests']);
 
         $user = User::query()->create([
             'name' => 'Webhook Customer',
@@ -82,7 +82,7 @@ class PaymentFundingWorkflowTest extends TestCase
 
     public function test_invalid_signature_never_credits_wallet(): void
     {
-        config(['services.semizzy_payments.webhook_secret' => 'test-secret-that-is-long-enough-for-tests']);
+        config(['services.semizzy_payments.webhook_secrets.semizzy' => 'test-secret-that-is-long-enough-for-tests']);
 
         $response = $this->withHeaders([
             'X-Semizzy-Signature' => 't='.now()->timestamp.',v1='.str_repeat('0', 64),
