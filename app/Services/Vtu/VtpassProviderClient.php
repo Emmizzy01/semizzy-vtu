@@ -68,6 +68,16 @@ class VtpassProviderClient implements VtuProvider
             throw $exception;
         }
 
+        if (! $response->successful()) {
+            return [
+                'status' => 'unknown',
+                'provider_reference' => null,
+                'message_code' => is_string($response->json('code'))
+                    ? substr($response->json('code'), 0, 80)
+                    : 'http_'.$response->status(),
+            ];
+        }
+
         return $this->normalize($response->json());
     }
 
@@ -81,6 +91,16 @@ class VtpassProviderClient implements VtuProvider
             ]);
         } catch (ConnectionException $exception) {
             throw $exception;
+        }
+
+        if (! $response->successful()) {
+            return [
+                'status' => 'unknown',
+                'provider_reference' => null,
+                'message_code' => is_string($response->json('code'))
+                    ? substr($response->json('code'), 0, 80)
+                    : 'http_'.$response->status(),
+            ];
         }
 
         return $this->normalize($response->json());
