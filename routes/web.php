@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Payments\PaymentFundingController;
 use App\Http\Controllers\Payments\PaymentRefundController;
+use App\Http\Controllers\Admin\StaffAccessController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -30,3 +31,11 @@ Route::middleware(['auth', 'can:refunds.approve', 'throttle:30,1'])->get('/admin
 
 Route::middleware(['auth', 'can:refunds.approve', 'throttle:20,1'])->post('/admin/payment-refunds/{refund}/approve', [PaymentRefundController::class, 'approveRefund'])
     ->name('admin.payment-refunds.approve');
+
+Route::middleware(['auth', 'can:staff.permissions.manage'])->prefix('admin/staff')->name('admin.staff.')->group(function (): void {
+    Route::get('/', [StaffAccessController::class, 'dashboard'])->name('index');
+    Route::get('/users', [StaffAccessController::class, 'users'])->middleware('throttle:60,1')->name('users');
+    Route::get('/permission-audits', [StaffAccessController::class, 'audits'])->middleware('throttle:30,1')->name('audits');
+    Route::post('/users/{user}/permissions', [StaffAccessController::class, 'grant'])->middleware('throttle:20,1')->name('permissions.grant');
+    Route::delete('/users/{user}/permissions', [StaffAccessController::class, 'revoke'])->middleware('throttle:20,1')->name('permissions.revoke');
+});
