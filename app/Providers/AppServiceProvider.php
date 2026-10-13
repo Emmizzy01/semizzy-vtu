@@ -4,6 +4,9 @@ namespace App\Providers;
 
 use App\Models\User;
 use App\Models\UserPermission;
+use App\Services\Vtu\VtpassProviderClient;
+use App\Services\Vtu\VtuProvider;
+use App\Services\Vtu\VtuProviderClient;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 
