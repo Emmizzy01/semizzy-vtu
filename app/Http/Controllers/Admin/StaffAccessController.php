@@ -81,7 +81,7 @@ class StaffAccessController extends Controller
             ->get()
             ->map(fn (StaffPermissionAudit $audit): array => [
                 'id' => $audit->id,
-                'actor' => $audit->actor?->name ?? 'Deleted account',
+                'actor' => $audit->actor?->name ?? ($audit->actor_user_id === null ? 'Server CLI' : 'Deleted account'),
                 'actor_email' => $audit->actor?->email,
                 'target' => $audit->target?->name ?? 'Deleted account',
                 'target_email' => $audit->target?->email,
