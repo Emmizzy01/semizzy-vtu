@@ -8,6 +8,7 @@ Route::get('/', fn () => Inertia::render('Welcome'))
     ->name('home');
 
 Route::get('/wallet/funding/return', [PaymentFundingController::class, 'returnFromCheckout'])
+    ->middleware('throttle:30,1')
     ->name('wallet.funding.return');
 
 Route::middleware('auth')->post('/wallet/funding-intents', [PaymentFundingController::class, 'createIntent'])
