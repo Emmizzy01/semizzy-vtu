@@ -123,6 +123,49 @@ class VtuOrderWorkflowTest extends TestCase
         $service->purchase($user, $product->code, '08087654321', 'same-purchase-key');
     }
 
+    public function test_purchase_uses_server_catalogue_price_not_a_client_supplied_amount(): void
+    {
+        Http::fake(fn () => Http::response(['status' => 'success'], 200));
+
+        [$user, $wallet, $product] = $this->preparedCustomer(1000, 1500);
+
+        $response = $this->actingAs($user)->postJson('/wallet/vtu/orders', [
+            'product_code' => $product->code,
+            'recipient' => '08012345678',
+            'idempotency_key' => 'client-price-tamper-1',
+            'amount_minor' => 1,
+        ]);
+
+        $response->assertCreated()
+            ->assertJsonPath('data.amount_minor', 1000);
+
+        $this->assertSame(500, (int) $wallet->fresh()->available_balance_minor);
+        $this->assertDatabaseCount('vtu_orders', 1);
+    }
+
+    public function test_customer_cannot_view_another_customers_vtu_order(): void
+    {
+        Http::fake(fn () => Http::response(['status' => 'pending'], 200));
+
+        [$owner, , $product] = $this->preparedCustomer(1000, 1500);
+        $order = app(VtuOrderService::class)->purchase(
+            $owner,
+            $product->code,
+            '08012345678',
+            'private-order-check-1',
+        );
+
+        $otherCustomer = User::query()->create([
+            'name' => 'Different Customer',
+            'email' => 'different-customer-'.uniqid().'@example.test',
+            'password' => 'test-password',
+        ]);
+
+        $this->actingAs($otherCustomer)
+            ->getJson('/wallet/vtu/orders/'.$order->public_id)
+            ->assertNotFound();
+    }
+
     /** @return array{User, \App\Models\Wallet, VtuProduct} */
     private function preparedCustomer(int $productPriceMinor, int $initialBalanceMinor): array
     {
