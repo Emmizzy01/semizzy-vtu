@@ -136,6 +136,41 @@ class VtuOrderWorkflowTest extends TestCase
         Http::assertSentCount(2);
     }
 
+    public function test_reconciliation_failure_refunds_once_and_terminal_order_is_not_queried_again(): void
+    {
+        $requests = 0;
+        Http::fake(function ($request) use (&$requests) {
+            $requests++;
+
+            if ($request->method() === 'POST') {
+                return Http::response([
+                    'status' => 'pending',
+                    'provider_reference' => 'provider-order-refund-once',
+                ], 200);
+            }
+
+            return Http::response([
+                'status' => 'failed',
+                'message_code' => 'PROVIDER_DECLINED',
+                'provider_reference' => 'provider-order-refund-once',
+            ], 200);
+        });
+
+        [$user, $wallet, $product] = $this->preparedCustomer(1000, 1500);
+        $service = app(VtuOrderService::class);
+        $order = $service->purchase($user, $product->code, '08012345678', 'reconcile-refund-once-1');
+
+        $failed = $service->reconcile($order->fresh());
+        $again = $service->reconcile($failed->fresh());
+
+        $this->assertSame('failed', $failed->status);
+        $this->assertSame('failed', $again->status);
+        $this->assertSame(1500, (int) $wallet->fresh()->available_balance_minor);
+        $this->assertDatabaseCount('vtu_orders', 1);
+        $this->assertDatabaseCount('wallet_transactions', 3, 'Funding, purchase debit, and one refund are expected.');
+        $this->assertSame(2, $requests, 'A terminal order must not be queried or refunded again.');
+    }
+
     public function test_reusing_idempotency_key_for_different_purchase_is_rejected(): void
     {
         Http::fake(fn () => Http::response(['status' => 'pending'], 200));
