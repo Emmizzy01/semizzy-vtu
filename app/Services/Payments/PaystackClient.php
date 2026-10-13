@@ -4,7 +4,7 @@ namespace App\Services\Payments;
 
 use App\Models\PaymentIntent;
 use Illuminate\Support\Facades\Http;
-use RuntimeException;
+use LogicException;
 
 class PaystackClient
 {
@@ -13,7 +13,7 @@ class PaystackClient
         $key = (string) config('services.paystack.secret_key', '');
 
         if ($key === '') {
-            throw new RuntimeException('Paystack secret key is not configured.');
+            throw new LogicException('Paystack secret key is not configured.');
         }
 
         return $key;
@@ -39,7 +39,7 @@ class PaystackClient
 
         if (! $response->successful() || $response->json('status') !== true
             || ! is_string($response->json('data.authorization_url'))) {
-            throw new RuntimeException('Paystack could not initialize this checkout.');
+            throw new LogicException('Paystack could not initialize this checkout.');
         }
 
         return $response->json('data');
@@ -54,7 +54,7 @@ class PaystackClient
 
         if (! $response->successful() || $response->json('status') !== true
             || ! is_array($response->json('data'))) {
-            throw new RuntimeException('Paystack transaction verification failed.');
+            throw new LogicException('Paystack transaction verification failed.');
         }
 
         return $response->json('data');
