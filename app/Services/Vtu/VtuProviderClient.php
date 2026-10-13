@@ -3,6 +3,7 @@
 namespace App\Services\Vtu;
 
 use App\Models\VtuOrder;
+use App\Models\VtuProduct;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
 use LogicException;
