@@ -21,7 +21,7 @@ class PaymentFundingWorkflowTest extends TestCase
         ]);
         $wallet = app(WalletAccountService::class)->openForUser($user);
 
-        $first = app(PaymentIntentService::class)->create($wallet, 25000);
+        $first = app(PaymentIntentService::class)->create($wallet, 25000, 'semizzy');
         $second = app(PaymentIntentService::class)->create($wallet, 25000);
 
         $this->assertNotSame($first->reference, $second->reference);
@@ -41,7 +41,7 @@ class PaymentFundingWorkflowTest extends TestCase
             'password' => 'not-a-real-password',
         ]);
         $wallet = app(WalletAccountService::class)->openForUser($user);
-        $intent = app(PaymentIntentService::class)->create($wallet, 12500);
+        $intent = app(PaymentIntentService::class)->create($wallet, 12500, 'semizzy');
 
         $payload = [
             'id' => 'evt_test_0001',
