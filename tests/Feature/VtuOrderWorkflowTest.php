@@ -552,6 +552,72 @@ class VtuOrderWorkflowTest extends TestCase
     }
 
     /** @return array{User, \App\Models\Wallet, VtuProduct} */
+    public function test_reconciliation_recovers_an_order_left_processing_after_a_crash(): void
+    {
+        config([
+            'services.vtu.driver' => 'configured',
+            'services.vtu.endpoint' => 'https://provider.example.test/api',
+            'services.vtu.token' => 'test-secret-token',
+        ]);
+
+        Http::fake(function ($request) {
+            if ($request->method() === 'GET') {
+                return Http::response([
+                    'status' => 'success',
+                    'provider_reference' => 'provider-order-after-crash',
+                ], 200);
+            }
+
+            return Http::response(['status' => 'pending'], 200);
+        });
+
+        [$user, $wallet, $product] = $this->preparedCustomer(1000, 1500);
+        $order = VtuOrder::query()->create([
+            'public_id' => (string) \Illuminate\Support\Str::uuid(),
+            'user_id' => $user->getKey(),
+            'wallet_id' => $wallet->getKey(),
+            'vtu_product_id' => $product->getKey(),
+            'idempotency_key' => 'crash-recovery-order-1',
+            'request_hash' => hash('sha256', 'simulated-crash-recovery'),
+            'service_type' => $product->service_type,
+            'network' => $product->network,
+            'product_code' => $product->code,
+            'recipient' => '08012345678',
+            'amount_minor' => $product->price_minor,
+            'currency' => 'NGN',
+            'status' => 'processing',
+            'provider' => 'test_provider',
+            'dispatch_started_at' => now()->subMinutes(10),
+        ]);
+
+        $debit = app(WalletLedgerService::class)->post(
+            walletId: (int) $wallet->getKey(),
+            type: 'debit',
+            amountMinor: (int) $product->price_minor,
+            idempotencyKey: 'vtu-purchase:'.$order->public_id,
+            reference: $order->public_id,
+            description: 'VTU purchase: '.$product->name,
+            actorUserId: (int) $user->getKey(),
+            metadata: ['vtu_order_id' => $order->public_id],
+            correlationId: $order->public_id,
+        );
+
+        $order->forceFill(['wallet_transaction_id' => $debit->getKey()])->save();
+
+        // Simulate the scheduled worker finding a persisted order after the
+        // original application process stopped before saving a provider result.
+        $this->artisan('vtu:reconcile-orders --limit=100')->assertExitCode(0);
+
+        $this->assertSame('successful', $order->fresh()->status);
+        $this->assertSame('provider-order-after-crash', $order->fresh()->provider_reference);
+        $this->assertSame(500, (int) $wallet->fresh()->available_balance_minor);
+        $this->assertDatabaseCount('vtu_orders', 1);
+        $this->assertDatabaseCount('wallet_transactions', 2);
+        Http::assertSentCount(1);
+        Http::assertSent(fn ($request) => $request->method() === 'GET'
+            && str_ends_with($request->url(), '/orders/'.$order->public_id));
+    }
+
     private function preparedCustomer(int $productPriceMinor, int $initialBalanceMinor): array
     {
         $user = User::query()->create([
