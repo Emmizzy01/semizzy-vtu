@@ -307,6 +307,7 @@ export default function VtuPurchase() {
                           }
                         }}
                         aria-pressed={serviceType === type}
+                        disabled={submissionUncertain}
                         className={`rounded-xl border px-4 py-3 text-sm font-bold capitalize transition ${serviceType === type ? 'border-[var(--brand)] bg-[var(--brand)]/10 text-[var(--brand)]' : 'border-[var(--line)] hover:bg-[var(--page)]'}`}
                       >
                         {type}
