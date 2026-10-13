@@ -8,7 +8,6 @@ use App\Models\Wallet;
 use App\Models\WalletAuditEvent;
 use App\Models\WalletLedgerEntry;
 use App\Models\WalletTransaction;
-use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
@@ -52,7 +51,6 @@ class WalletLedgerService
             throw new InvalidArgumentException('Reference cannot exceed 100 characters.');
         }
 
-        // Include every caller-controlled field that changes the financial effect.
         $requestHash = hash('sha256', json_encode([
             'wallet_id' => $walletId,
             'type' => $type,
@@ -90,7 +88,6 @@ class WalletLedgerService
                         );
                     }
 
-                    // Return the original result. Never apply the balance change twice.
                     return $existing;
                 }
 
@@ -105,7 +102,13 @@ class WalletLedgerService
                     throw new InsufficientWalletFunds('Insufficient available wallet funds.');
                 }
 
-                if ($type === 'credit' && $balanceBefore > PHP_INT_MAX - $amountMinor) {
+                if (
+                    $type === 'credit'
+                    && (
+                        $balanceBefore > PHP_INT_MAX - $amountMinor
+                        || $availableBefore > PHP_INT_MAX - $amountMinor
+                    )
+                ) {
                     throw new InvalidArgumentException('Wallet balance limit would be exceeded.');
                 }
 
@@ -195,8 +198,6 @@ class WalletLedgerService
                 'created_at' => now(),
             ]);
 
-            throw $exception;
-        } catch (ModelNotFoundException $exception) {
             throw $exception;
         }
     }
