@@ -167,7 +167,7 @@ class VtuOrderWorkflowTest extends TestCase
 
         $this->assertSame('awaiting_reconciliation', $reconciled->status);
         $this->assertSame(500, (int) $wallet->fresh()->available_balance_minor);
-        $this->assertDatabaseCount('wallet_transactions', 2, 'Unrecognized provider status must never trigger a refund.');
+        $this->assertSame(2, \App\Models\WalletTransaction::query()->count(), 'Unrecognized provider status must never trigger a refund.');
         $this->assertSame(2, $requests);
     }
 
