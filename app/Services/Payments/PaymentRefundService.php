@@ -30,6 +30,9 @@ class PaymentRefundService
         }
 
         return DB::transaction(function () use ($customer, $intentPublicId, $amountMinor, $reason, $idempotencyKey): PaymentRefund {
+            // Serialize a customer's idempotency-key checks across simultaneous requests.
+            User::query()->whereKey($customer->id)->lockForUpdate()->firstOrFail();
+
             $intent = PaymentIntent::query()
                 ->where('public_id', $intentPublicId)
                 ->lockForUpdate()
