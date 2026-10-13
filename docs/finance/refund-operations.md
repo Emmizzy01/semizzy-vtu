@@ -59,3 +59,16 @@ php artisan semizzy:permission:revoke finance-operator@example.com refunds.appro
 Both commands require `--force`, accept only the explicitly allowlisted `refunds.approve` permission, and reject unknown users. Granting is idempotent. Revoke access immediately when an operator changes role or leaves. These commands are deliberately CLI-only; never add a customer-facing permission grant route. Restrict SSH and shell access, and retain deployment/operator shell logs according to your access-control policy.
 
 Run the permission command tests with `php artisan test --filter=StaffPermissionCommandsTest` before deployment.
+
+
+## Staff access management workspace
+
+The restricted workspace is available at `/admin/staff`. Only accounts with `staff.permissions.manage` can access its page, user directory, audit feed, or permission-change endpoints. Bootstrap the first trusted access manager from the server CLI after verifying their account:
+
+```bash
+php artisan semizzy:permission:grant trusted-admin@example.com staff.permissions.manage --force
+```
+
+The workspace intentionally manages only `refunds.approve`. It cannot grant or revoke `staff.permissions.manage`, preventing managers from delegating access-management authority through the web UI. Every UI grant/revocation requires a reason, is committed in the same database transaction as its audit record, identifies the actor and target, and rejects self-modification. CLI permission changes are also written to the audit trail with the actor identified as Server CLI; restrict shell access and retain shell/deployment logs to identify the human operator.
+
+The directory is paginated and searchable, and the audit feed shows the latest 50 changes. Before rollout, run `php artisan test --filter=StaffAccessManagementTest` and `php artisan test --filter=StaffPermissionCommandsTest`. Keep access-manager bootstrap/revocation limited to authorized server operators.
