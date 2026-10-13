@@ -28,6 +28,40 @@ class VtuOrderWorkflowTest extends TestCase
         ]);
     }
 
+    public function test_vtpass_data_product_without_verified_variation_is_rejected_before_debit(): void
+    {
+        config([
+            'services.vtu.driver' => 'vtpass',
+            'services.vtu.vtpass.base_url' => 'https://sandbox.vtpass.com/api',
+            'services.vtu.vtpass.api_key' => 'sandbox-api-key',
+            'services.vtu.vtpass.secret_key' => 'sandbox-secret-key',
+        ]);
+        Http::fake();
+
+        [$user, $wallet, $product] = $this->preparedCustomer(1000, 1500);
+        $product->forceFill([
+            'service_type' => 'data',
+            'network' => 'mtn',
+            'metadata' => [],
+        ])->save();
+
+        try {
+            app(VtuOrderService::class)->purchase(
+                $user,
+                $product->code,
+                '08012345678',
+                'vtpass-missing-variation-1',
+            );
+            $this->fail('Unmapped data products must be rejected before a customer debit.');
+        } catch (\\LogicException $exception) {
+            $this->assertStringContainsString('variation code', $exception->getMessage());
+            $this->assertSame(1500, (int) $wallet->fresh()->available_balance_minor);
+            $this->assertDatabaseCount('vtu_orders', 0);
+            $this->assertDatabaseCount('wallet_transactions', 1);
+            Http::assertNothingSent();
+        }
+    }
+
     public function test_vtpass_adapter_can_process_a_sandbox_shaped_airtime_success(): void
     {
         config([
