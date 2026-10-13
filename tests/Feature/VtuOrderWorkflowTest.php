@@ -47,6 +47,32 @@ class VtuOrderWorkflowTest extends TestCase
         Http::assertSentCount(1);
     }
 
+    public function test_duplicate_successful_purchase_is_not_submitted_or_debited_twice(): void
+    {
+        $attempts = 0;
+        Http::fake(function () use (&$attempts) {
+            $attempts++;
+
+            return Http::response([
+                'status' => 'success',
+                'provider_reference' => 'provider-order-duplicate-success',
+            ], 200);
+        });
+
+        [$user, $wallet, $product] = $this->preparedCustomer(1000, 1500);
+        $service = app(VtuOrderService::class);
+
+        $first = $service->purchase($user, $product->code, '08012345678', 'duplicate-success-key');
+        $duplicate = $service->purchase($user, $product->code, '08012345678', 'duplicate-success-key');
+
+        $this->assertSame('successful', $first->status);
+        $this->assertSame($first->id, $duplicate->id);
+        $this->assertSame(500, (int) $wallet->fresh()->available_balance_minor);
+        $this->assertDatabaseCount('vtu_orders', 1);
+        $this->assertDatabaseCount('wallet_transactions', 2);
+        $this->assertSame(1, $attempts, 'A duplicate successful purchase must not be resubmitted.');
+    }
+
     public function test_definitive_provider_failure_refunds_through_the_ledger(): void
     {
         Http::fake(fn () => Http::response([
@@ -169,7 +195,9 @@ class VtuOrderWorkflowTest extends TestCase
     /** @return array{User, \App\Models\Wallet, VtuProduct} */
     public function test_reconciliation_keeps_ambiguous_order_flag_when_provider_still_reports_pending(): void
     {
-        Http::fake(function ($request) {
+        $requests = 0;
+        Http::fake(function ($request) use (&$requests) {
+            $requests++;
             if ($request->method() === 'POST') {
                 throw new ConnectionException('Simulated submission timeout');
             }
@@ -193,7 +221,7 @@ class VtuOrderWorkflowTest extends TestCase
         $this->assertSame(500, (int) $wallet->fresh()->available_balance_minor);
         $this->assertDatabaseCount('vtu_orders', 1);
         $this->assertDatabaseCount('wallet_transactions', 2);
-        Http::assertSentCount(2);
+        $this->assertSame(2, $requests, 'The submission attempt and reconciliation lookup should both occur.');
     }
 
     public function test_insufficient_funds_does_not_submit_or_create_vtu_order(): void
