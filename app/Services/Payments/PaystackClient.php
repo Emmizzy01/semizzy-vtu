@@ -83,7 +83,7 @@ class PaystackClient
     public function refund(string $transactionReference, int $amountMinor, string $reason): array
     {
         if ($transactionReference === '' || strlen($transactionReference) > 150 || $amountMinor < 1) {
-            throw new \\InvalidArgumentException('Refund transaction and amount are invalid.');
+            throw new \InvalidArgumentException('Refund transaction and amount are invalid.');
         }
 
         try {
