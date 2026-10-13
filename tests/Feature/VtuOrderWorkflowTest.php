@@ -28,6 +28,47 @@ class VtuOrderWorkflowTest extends TestCase
         ]);
     }
 
+    public function test_vtpass_adapter_can_process_a_sandbox_shaped_airtime_success(): void
+    {
+        config([
+            'services.vtu.driver' => 'vtpass',
+            'services.vtu.vtpass.base_url' => 'https://sandbox.vtpass.com/api',
+            'services.vtu.vtpass.api_key' => 'sandbox-api-key',
+            'services.vtu.vtpass.secret_key' => 'sandbox-secret-key',
+        ]);
+
+        Http::fake(fn () => Http::response([
+            'code' => '000',
+            'content' => ['transactions' => [
+                'status' => 'delivered',
+                'transactionId' => 'vtpass-sandbox-order-1',
+            ]],
+        ], 200));
+
+        [$user, $wallet, $product] = $this->preparedCustomer(1000, 1500);
+        $product->forceFill(['network' => 'mtn', 'face_value_minor' => 1000])->save();
+
+        $order = app(VtuOrderService::class)->purchase(
+            $user,
+            $product->code,
+            '08012345678',
+            'vtpass-sandbox-workflow-1',
+        );
+
+        $this->assertSame('successful', $order->status);
+        $this->assertSame('vtpass', $order->provider);
+        $this->assertSame('vtpass-sandbox-order-1', $order->provider_reference);
+        $this->assertSame(500, (int) $wallet->fresh()->available_balance_minor);
+        $this->assertDatabaseCount('vtu_orders', 1);
+        $this->assertDatabaseCount('wallet_transactions', 2);
+        Http::assertSentCount(1);
+        Http::assertSent(fn ($request) => $request->url() === 'https://sandbox.vtpass.com/api/pay'
+            && $request->hasHeader('api-key', 'sandbox-api-key')
+            && $request->hasHeader('secret-key', 'sandbox-secret-key')
+            && $request['serviceID'] === 'mtn'
+            && $request['amount'] === 10);
+    }
+
     public function test_successful_purchase_is_persisted_and_debited_once(): void
     {
         Http::fake(fn () => Http::response([
