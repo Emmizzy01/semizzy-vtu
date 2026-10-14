@@ -43,7 +43,7 @@ export default function PaymentGateway({ gateway }: { gateway: Gateway }) {
   );
 }
 
-function Field({ label, value, onChange, error, placeholder, type = 'text' }: { label: string; value: string; onChange: (v: string) => void; error?: string; placeholder?: string; type?: string }) {
+function Field({ label, value, onChange, error, placeholder, type = 'text' }: { label: string; value: string; onChange: (v: string) => void; error?: string; placeholder?: string; type?: 'text' | 'password' }) {
   return <label className="block space-y-2"><span className="text-sm font-bold">{label}</span><input type={type} value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} className="min-h-11 w-full rounded-xl border border-[var(--line)] bg-transparent px-3 py-2 text-sm" /><span className="block text-sm text-red-600">{error}</span></label>;
 }
 
