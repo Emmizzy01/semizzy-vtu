@@ -1,11 +1,11 @@
 <?php
 
-namespace App\\Services\\Vtu;
+namespace App\Services\Vtu;
 
-use App\\Models\\VtuOrder;
-use Illuminate\\Support\\Facades\\Cache;
-use Illuminate\\Support\\Facades\\Http;
-use Illuminate\\Support\\Facades\\Log;
+use App\Models\VtuOrder;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Throwable;
 
 class VtuOrderMonitoringService
