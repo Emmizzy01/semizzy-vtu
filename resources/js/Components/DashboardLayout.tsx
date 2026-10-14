@@ -99,10 +99,10 @@ export default function DashboardLayout({
         onClick={() => setMobileMenuOpen(false)}
         aria-current={active ? 'page' : undefined}
         className={compact
-          ? `flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl px-1 text-[10px] ${active ? 'font-extrabold text-[var(--brand)]' : 'font-semibold text-[var(--muted)]'}`
+          ? `flex min-h-14 min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-1 text-[10px] transition hover:bg-[var(--page)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--brand)] ${active ? 'font-extrabold text-[var(--brand)]' : 'font-semibold text-[var(--muted)]'}`
           : linkClass(active)}
       >
-        <Icon size={compact ? 19 : 18} className={active ? 'shrink-0' : 'shrink-0'} />
+        <Icon size={compact ? 19 : 18} className="shrink-0" aria-hidden="true" />
         <span className={compact ? 'max-w-full truncate' : 'min-w-0 flex-1'}>{item.label}</span>
         {!compact && active && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--brand)]" aria-hidden="true" />}
       </a>
