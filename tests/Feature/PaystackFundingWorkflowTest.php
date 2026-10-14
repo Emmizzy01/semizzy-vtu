@@ -294,6 +294,100 @@ class PaystackFundingWorkflowTest extends TestCase
         });
     }
 
+    public function test_webhook_transaction_id_mismatch_never_credits_wallet(): void
+    {
+        $user = User::query()->create([
+            'name' => 'Transaction ID Mismatch Customer',
+            'email' => 'transaction-id-mismatch@example.test',
+            'password' => 'not-a-real-password',
+        ]);
+        $wallet = app(WalletAccountService::class)->openForUser($user);
+        $intent = app(PaymentIntentService::class)->create($wallet, 12500, 'paystack');
+
+        Http::fake([
+            'api.paystack.co/transaction/verify/*' => Http::response([
+                'status' => true,
+                'data' => [
+                    'id' => 222222,
+                    'status' => 'success',
+                    'reference' => $intent->reference,
+                    'amount' => 12500,
+                    'currency' => 'NGN',
+                ],
+            ], 200),
+        ]);
+
+        $payload = [
+            'event' => 'charge.success',
+            'data' => [
+                'id' => 111111,
+                'status' => 'success',
+                'reference' => $intent->reference,
+                'amount' => 12500,
+                'currency' => 'NGN',
+            ],
+        ];
+        $raw = json_encode($payload, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES);
+        $signature = hash_hmac('sha512', $raw, 'sk_test_semizzy_test_secret');
+
+        $response = $this->call('POST', '/api/payments/webhooks/paystack', [], [], [], [
+            'CONTENT_TYPE' => 'application/json',
+            'HTTP_X_PAYSTACK_SIGNATURE' => $signature,
+        ], $raw);
+
+        $response->assertStatus(409);
+        $this->assertSame(0, (int) $wallet->fresh()->balance_minor);
+        $this->assertSame('pending', $intent->fresh()->status);
+        $this->assertDatabaseCount('wallet_transactions', 0);
+    }
+
+    public function test_verified_non_ngn_paystack_transaction_never_credits_wallet(): void
+    {
+        $user = User::query()->create([
+            'name' => 'Currency Mismatch Customer',
+            'email' => 'currency-mismatch@example.test',
+            'password' => 'not-a-real-password',
+        ]);
+        $wallet = app(WalletAccountService::class)->openForUser($user);
+        $intent = app(PaymentIntentService::class)->create($wallet, 12500, 'paystack');
+
+        Http::fake([
+            'api.paystack.co/transaction/verify/*' => Http::response([
+                'status' => true,
+                'data' => [
+                    'id' => 333333,
+                    'status' => 'success',
+                    'reference' => $intent->reference,
+                    'amount' => 12500,
+                    'currency' => 'USD',
+                ],
+            ], 200),
+        ]);
+
+        $payload = [
+            'event' => 'charge.success',
+            'data' => [
+                'id' => 333333,
+                'status' => 'success',
+                'reference' => $intent->reference,
+                'amount' => 12500,
+                'currency' => 'NGN',
+            ],
+        ];
+        $raw = json_encode($payload, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES);
+        $signature = hash_hmac('sha512', $raw, 'sk_test_semizzy_test_secret');
+
+        $response = $this->call('POST', '/api/payments/webhooks/paystack', [], [], [], [
+            'CONTENT_TYPE' => 'application/json',
+            'HTTP_X_PAYSTACK_SIGNATURE' => $signature,
+        ], $raw);
+
+        $response->assertStatus(409);
+        $this->assertSame(0, (int) $wallet->fresh()->balance_minor);
+        $this->assertSame('pending', $intent->fresh()->status);
+        $this->assertDatabaseCount('wallet_transactions', 0);
+    }
+
     public function test_browser_return_never_credits_even_when_paystack_reports_success(): void
     {
         $user = User::query()->create([
