@@ -1,12 +1,12 @@
 <?php
 
-namespace Tests\\Feature;
+namespace Tests\Feature;
 
-use App\\Models\\User;
-use App\\Models\\UserPermission;
-use Illuminate\\Foundation\\Testing\\RefreshDatabase;
-use Inertia\\Testing\\AssertableInertia as Assert;
-use Tests\\TestCase;
+use App\Models\User;
+use App\Models\UserPermission;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Inertia\Testing\AssertableInertia as Assert;
+use Tests\TestCase;
 
 class IntegrationSettingsAccessTest extends TestCase
 {
