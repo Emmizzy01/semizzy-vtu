@@ -445,4 +445,43 @@ class PaystackFundingWorkflowTest extends TestCase
         );
     }
 
+
+    public function test_verified_paystack_success_settles_even_if_checkout_intent_expired(): void
+    {
+        $user = User::query()->create([
+            'name' => 'Expired Intent Customer',
+            'email' => 'expired-intent@example.test',
+            'password' => 'not-a-real-password',
+        ]);
+        $wallet = app(WalletAccountService::class)->openForUser($user);
+        $intent = app(PaymentIntentService::class)->create($wallet, 15000, 'paystack');
+        $intent->forceFill(['expires_at' => now()->subMinute()])->save();
+
+        Http::fake([
+            'api.paystack.co/transaction/verify/*' => Http::response([
+                'status' => true,
+                'data' => [
+                    'id' => 889900,
+                    'status' => 'success',
+                    'reference' => $intent->reference,
+                    'amount' => 15000,
+                    'currency' => 'NGN',
+                ],
+            ], 200),
+        ]);
+
+        $url = '/wallet/funding/return?reference='.$intent->reference;
+        $first = $this->actingAs($user)->get($url);
+        $first->assertRedirect(route('dashboard', ['funding' => 'success']));
+
+        $second = $this->get($url);
+        $second->assertRedirect(route('dashboard', ['funding' => 'success']));
+
+        $this->assertSame(15000, (int) $wallet->fresh()->balance_minor);
+        $this->assertSame('paid', $intent->fresh()->status);
+        $this->assertDatabaseCount('wallet_transactions', 1);
+        $this->assertDatabaseCount('wallet_ledger_entries', 1);
+    }
+
+
 }
