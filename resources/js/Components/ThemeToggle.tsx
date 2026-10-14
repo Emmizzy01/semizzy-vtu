@@ -43,7 +43,7 @@ export default function ThemeToggle() {
       title={`Appearance: ${labels[preference]} — tap to change`}
       className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-[var(--line)] bg-[var(--surface)] px-3 text-sm font-semibold transition hover:border-[var(--brand)]"
     >
-      {preference === 'system' ? <Monitor size={16} /> : preference === 'light' ? <Sun size={16} /> : <Moon size={16} />}
+      {preference === 'system' ? <Monitor size={16} aria-hidden="true" /> : preference === 'light' ? <Sun size={16} aria-hidden="true" /> : <Moon size={16} aria-hidden="true" />}
       <span className="hidden sm:inline"> {preference === 'system' ? 'System' : preference === 'light' ? 'Light' : 'Dark'}</span>
     </button>
   );
