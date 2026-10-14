@@ -9,6 +9,7 @@ import {
   Moon,
   Smartphone,
   Sun,
+  ClipboardList,
   Users,
   WalletCards,
   X,
@@ -83,8 +84,11 @@ export default function DashboardLayout({
             {!admin && <a href="/wallet/vtu" className={navLinkClass}><Smartphone size={15} /> Airtime & data</a>}
             {!admin && <a href="#transactions" className={navLinkClass}><WalletCards size={15} /> Transactions</a>}
             {!admin && <a href="#fund-wallet" className={navLinkClass}><CreditCard size={15} /> Fund wallet</a>}
-            {admin && canApproveRefunds && <a href="/admin/refunds" className={navLinkClass}><CreditCard size={15} /> Refund operations</a>}
             {admin && canManageStaff && <a href="/admin/staff" className={navLinkClass}><Users size={15} /> Staff & permissions</a>}
+            {admin && canManageStaff && <a href="/admin/staff/users" className={navLinkClass}><Users size={15} /> Staff users</a>}
+            {admin && canManageStaff && <a href="/admin/staff/permission-audits" className={navLinkClass}><ClipboardList size={15} /> Permission audits</a>}
+            {admin && canApproveRefunds && <a href="/admin/refunds" className={navLinkClass}><CreditCard size={15} /> Refund operations</a>}
+            {admin && <a href="/wallet/vtu" className={navLinkClass}><Smartphone size={15} /> VTU service</a>}
             {admin && <a href="/customer/dashboard" className={navLinkClass}><WalletCards size={15} /> Customer view</a>}
           </nav>
 
@@ -95,8 +99,11 @@ export default function DashboardLayout({
                 {!admin && <a onClick={() => setMobileMenuOpen(false)} href="/wallet/vtu" className={navLinkClass}><Smartphone size={17} /> Airtime & data</a>}
                 {!admin && <a onClick={() => setMobileMenuOpen(false)} href="#transactions" className={navLinkClass}><WalletCards size={17} /> Transactions</a>}
                 {!admin && <a onClick={() => setMobileMenuOpen(false)} href="#fund-wallet" className={navLinkClass}><CreditCard size={17} /> Fund wallet</a>}
-                {admin && canApproveRefunds && <a onClick={() => setMobileMenuOpen(false)} href="/admin/refunds" className={navLinkClass}><CreditCard size={17} /> Refund operations</a>}
                 {admin && canManageStaff && <a onClick={() => setMobileMenuOpen(false)} href="/admin/staff" className={navLinkClass}><Users size={17} /> Staff & permissions</a>}
+                {admin && canManageStaff && <a onClick={() => setMobileMenuOpen(false)} href="/admin/staff/users" className={navLinkClass}><Users size={17} /> Staff users</a>}
+                {admin && canManageStaff && <a onClick={() => setMobileMenuOpen(false)} href="/admin/staff/permission-audits" className={navLinkClass}><ClipboardList size={17} /> Permission audits</a>}
+                {admin && canApproveRefunds && <a onClick={() => setMobileMenuOpen(false)} href="/admin/refunds" className={navLinkClass}><CreditCard size={17} /> Refund operations</a>}
+                {admin && <a onClick={() => setMobileMenuOpen(false)} href="/wallet/vtu" className={navLinkClass}><Smartphone size={17} /> VTU service</a>}
                 {admin && <a onClick={() => setMobileMenuOpen(false)} href="/customer/dashboard" className={navLinkClass}><WalletCards size={17} /> Customer view</a>}
               </div>
             </nav>
@@ -119,8 +126,9 @@ export default function DashboardLayout({
           {!admin && <a href="#transactions" className="flex min-h-14 flex-col items-center justify-center gap-1 rounded-lg px-1 text-[10px] font-semibold text-[var(--muted)]"><WalletCards size={19} /><span>Activity</span></a>}
           {!admin && <a href="#fund-wallet" className="flex min-h-14 flex-col items-center justify-center gap-1 rounded-lg px-1 text-[10px] font-semibold text-[var(--muted)]"><CreditCard size={19} /><span>Fund</span></a>}
           {admin && canManageStaff && <a href="/admin/staff" className="flex min-h-14 flex-col items-center justify-center gap-1 rounded-lg px-1 text-[10px] font-semibold text-[var(--muted)]"><Users size={19} /><span>Staff</span></a>}
-          {admin && canApproveRefunds && <a href="/admin/refunds" className="flex min-h-14 flex-col items-center justify-center gap-1 rounded-lg px-1 text-[10px] font-semibold text-[var(--muted)]"><CreditCard size={19} /><span>Refunds</span></a>}
+          {admin && <a href="/wallet/vtu" className="flex min-h-14 flex-col items-center justify-center gap-1 rounded-lg px-1 text-[10px] font-semibold text-[var(--muted)]"><Smartphone size={19} /><span>VTU</span></a>}
           {admin && <a href="/customer/dashboard" className="flex min-h-14 flex-col items-center justify-center gap-1 rounded-lg px-1 text-[10px] font-semibold text-[var(--muted)]"><WalletCards size={19} /><span>Customer</span></a>}
+          {admin && canApproveRefunds && <a href="/admin/refunds" className="flex min-h-14 flex-col items-center justify-center gap-1 rounded-lg px-1 text-[10px] font-semibold text-[var(--muted)]"><CreditCard size={19} /><span>Refunds</span></a>}
         </nav>
       </main>
     </>
