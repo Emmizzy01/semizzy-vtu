@@ -6,6 +6,8 @@ use App\Models\User;
 use App\Models\VtuOrder;
 use App\Models\VtuProduct;
 use App\Services\Vtu\VtuOrderService;
+use App\Services\Vtu\VtuProvider;
+use App\Exceptions\Wallet\InsufficientWalletFunds;
 use App\Services\Wallets\WalletAccountService;
 use App\Services\Wallets\WalletLedgerService;
 use Illuminate\Http\Client\ConnectionException;
@@ -26,6 +28,59 @@ class VtuOrderWorkflowTest extends TestCase
             'services.vtu.endpoint' => 'https://provider.example.test/api',
             'services.vtu.token' => 'test-secret-token',
         ]);
+    }
+
+    public function test_purchase_rechecks_catalogue_price_under_lock_before_debiting(): void
+    {
+        [$user, $wallet, $product] = $this->preparedCustomer(1000, 1500);
+
+        $provider = new class((int) $product->getKey()) implements VtuProvider {
+            public int $submissions = 0;
+
+            public function __construct(private readonly int $productId)
+            {
+            }
+
+            public function assertConfigured(): void
+            {
+                // Simulate a catalogue edit after the service's initial read
+                // but before its order transaction begins.
+                VtuProduct::query()->whereKey($this->productId)->update(['price_minor' => 2000]);
+            }
+
+            public function assertProductConfigured(VtuProduct $product): void
+            {
+            }
+
+            public function submit(VtuOrder $order): array
+            {
+                $this->submissions++;
+
+                return ['status' => 'pending'];
+            }
+
+            public function lookup(VtuOrder $order): array
+            {
+                return ['status' => 'pending'];
+            }
+        };
+        $this->app->instance(VtuProvider::class, $provider);
+
+        try {
+            app(VtuOrderService::class)->purchase(
+                $user,
+                $product->code,
+                '08012345678',
+                'catalogue-price-race-1',
+            );
+            $this->fail('Purchase must use the latest locked catalogue price.');
+        } catch (InsufficientWalletFunds) {
+            $this->assertSame(2000, (int) $product->fresh()->price_minor);
+            $this->assertSame(1500, (int) $wallet->fresh()->available_balance_minor);
+            $this->assertDatabaseCount('vtu_orders', 0);
+            $this->assertDatabaseCount('wallet_transactions', 1, 'Only the original funding transaction may remain.');
+            $this->assertSame(0, $provider->submissions);
+        }
     }
 
     public function test_vtpass_data_product_without_verified_variation_is_rejected_before_debit(): void
