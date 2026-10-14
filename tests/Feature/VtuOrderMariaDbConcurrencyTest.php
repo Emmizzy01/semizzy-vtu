@@ -9,12 +9,15 @@ use App\Services\Wallets\WalletAccountService;
 use App\Services\Wallets\WalletLedgerService;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Foundation\Testing\RefreshDatabaseState;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
 class VtuOrderMariaDbConcurrencyTest extends TestCase
 {
+    private bool $usesDedicatedTestDatabase = false;
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -26,6 +29,7 @@ class VtuOrderMariaDbConcurrencyTest extends TestCase
             $this->markTestSkipped('MariaDB concurrency tests require a dedicated MySQL database whose name ends in _test.');
         }
 
+        $this->usesDedicatedTestDatabase = true;
         Artisan::call('migrate:fresh', ['--force' => true]);
         DB::purge('mysql');
 
@@ -35,6 +39,19 @@ class VtuOrderMariaDbConcurrencyTest extends TestCase
             'services.vtu.token' => 'test-only-token',
             'services.vtu.driver' => 'configured',
         ]);
+    }
+
+    protected function tearDown(): void
+    {
+        // The independent workers commit their rows, so restore a clean schema
+        // before Laravel's transactional RefreshDatabase tests run afterwards.
+        if ($this->usesDedicatedTestDatabase) {
+            Artisan::call('migrate:fresh', ['--force' => true]);
+            DB::purge('mysql');
+            RefreshDatabaseState::$migrated = false;
+        }
+
+        parent::tearDown();
     }
 
     public function test_two_independent_purchase_workers_create_one_order_debit_and_provider_submission(): void
@@ -49,7 +66,7 @@ class VtuOrderMariaDbConcurrencyTest extends TestCase
 
         $this->assertSame([0, 0], array_column($results, 'exit'));
         $this->assertDatabaseCount('vtu_orders', 1);
-        $this->assertDatabaseCount('wallet_transactions', 2, 'Funding plus exactly one purchase debit are expected.');
+        $this->assertSame(2, DB::table('wallet_transactions')->count(), 'Funding plus exactly one purchase debit are expected.');
         $this->assertSame(500, (int) $wallet->fresh()->available_balance_minor);
 
         $order = VtuOrder::query()->sole();
@@ -104,7 +121,7 @@ class VtuOrderMariaDbConcurrencyTest extends TestCase
         $this->assertSame('failed', $order->fresh()->status);
         $this->assertSame(1500, (int) $wallet->fresh()->available_balance_minor);
         $this->assertDatabaseCount('vtu_orders', 1);
-        $this->assertDatabaseCount('wallet_transactions', 3, 'Funding, one debit, and exactly one refund are expected.');
+        $this->assertSame(3, DB::table('wallet_transactions')->count(), 'Funding, one debit, and exactly one refund are expected.');
         $this->assertSame(2, $this->readState($state, 'lookups'));
         $this->assertSame(0, $this->readState($state, 'submissions'));
 
