@@ -1,4 +1,4 @@
-import { ArrowLeft, CreditCard, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, Check, Copy, CreditCard, ShieldCheck } from 'lucide-react';
 import { Head, useForm } from '@inertiajs/react';
 
 type Gateway = {
@@ -8,7 +8,7 @@ type Gateway = {
   mode: 'Test' | 'Live' | 'Unknown';
   callbackHost: string | null;
   callbackUrl: string;
-  webhookPath: string;
+  webhookUrl: string;
 };
 
 export default function PaymentGateway({ gateway }: { gateway: Gateway }) {
@@ -21,13 +21,23 @@ export default function PaymentGateway({ gateway }: { gateway: Gateway }) {
         <a href="/admin/dashboard" className="inline-flex min-h-10 items-center gap-2 text-sm font-semibold text-[var(--muted)] hover:text-[var(--brand)]"><ArrowLeft size={16} /> Admin overview</a>
         <div className="mt-5 flex items-start gap-4">
           <span className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-[var(--brand-soft)] text-[var(--brand)]"><CreditCard size={26} /></span>
-          <div><p className="text-xs font-extrabold uppercase tracking-[0.18em] text-[var(--brand)]">Finance integrations</p><h1 className="mt-1 font-display text-3xl font-extrabold tracking-tight sm:text-4xl">Payment gateway</h1><p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--muted)]">Edit the Paystack connection used for wallet funding. Saved credentials are encrypted and never displayed again.</p></div>
+          <div><p className="text-xs font-extrabold uppercase tracking-[0.18em] text-[var(--brand)]">Finance integrations</p><h1 className="mt-1 font-display text-3xl font-extrabold tracking-tight sm:text-4xl">Payment gateway</h1><p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--muted)]">Manage Paystack wallet funding, return customers to Semizzy after checkout, and configure the server notification endpoint.</p></div>
         </div>
         <section className="mt-7 grid gap-4 sm:grid-cols-3">
           <Status title="Provider" value={gateway.name} detail="Wallet funding and verification" />
           <Status title="Current key" value={gateway.configured ? 'Configured · hidden' : 'Missing'} detail={`Detected mode: ${gateway.mode}`} />
-          <Status title="Webhook" value="Application route" detail={gateway.webhookPath} />
+          <Status title="Webhook endpoint" value="Ready to configure" detail="Copy the full URL below into Paystack Developers → Webhooks." />
         </section>
+
+        <section className="mt-7 max-w-4xl rounded-3xl border border-[var(--line)] bg-[var(--surface)] p-5 sm:p-7">
+          <h2 className="font-display text-lg font-extrabold">URLs to configure in Paystack</h2>
+          <p className="mt-1 text-sm leading-6 text-[var(--muted)]">Use these exact HTTPS endpoints for the same environment (Test or Live) as the saved secret key. The callback returns the customer to Semizzy; the webhook notifies Semizzy even if the customer never returns.</p>
+          <div className="mt-5 space-y-4">
+            <Endpoint label="Callback URL" value={gateway.callbackUrl} help="Used by the checkout redirect. This URL is also saved in the settings below." />
+            <Endpoint label="Webhook URL" value={gateway.webhookUrl} help="Paste this into Paystack Dashboard → Developers → Webhooks. Listen for charge.success." />
+          </div>
+        </section>
+
         <form onSubmit={e => { e.preventDefault(); form.put('/admin/payment-gateway'); }} className="mt-7 max-w-3xl space-y-5 rounded-3xl border border-[var(--line)] bg-[var(--surface)] p-5 sm:p-7">
           <div className="flex items-start gap-3"><ShieldCheck className="mt-1 shrink-0 text-[var(--brand)]" size={22} /><div><h2 className="font-display text-lg font-extrabold">Paystack settings</h2><p className="mt-1 text-sm leading-6 text-[var(--muted)]">Leave the secret field empty to keep the saved key. To switch modes, replace it with a matching Paystack secret key: sk_test_ for Test mode or sk_live_ for Live mode. Test a complete funding flow before enabling real payments.</p></div></div>
           <Field label="Replace secret key (optional)" value={form.data.secret_key} onChange={v => form.setData('secret_key', v)} error={form.errors.secret_key} placeholder={gateway.configured ? 'Saved key is hidden — enter only to replace' : 'Enter Paystack test or live secret key'} type="password" />
@@ -41,6 +51,25 @@ export default function PaymentGateway({ gateway }: { gateway: Gateway }) {
       </main>
     </>
   );
+}
+
+function Endpoint({ label, value, help }: { label: string; value: string; help: string }) {
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(value);
+    } catch {
+      // The URL remains selectable if clipboard access is unavailable.
+    }
+  }
+
+  return <div className="rounded-2xl border border-[var(--line)] p-4">
+    <p className="text-sm font-bold">{label}</p>
+    <div className="mt-2 flex items-start gap-2">
+      <code className="min-w-0 flex-1 break-all rounded-lg bg-[var(--page)] p-3 text-xs leading-5">{value}</code>
+      <button type="button" onClick={copy} className="inline-flex min-h-10 shrink-0 items-center gap-2 rounded-xl border border-[var(--line)] px-3 text-xs font-bold hover:border-[var(--brand)]"><Copy size={14} /> Copy</button>
+    </div>
+    <p className="mt-2 text-xs leading-5 text-[var(--muted)]">{help}</p>
+  </div>;
 }
 
 function Field({ label, value, onChange, error, placeholder, type = 'text' }: { label: string; value: string; onChange: (v: string) => void; error?: string; placeholder?: string; type?: 'text' | 'password' }) {
