@@ -218,9 +218,12 @@ export default function VtuPurchase() {
                 <span className="block text-xs text-[var(--muted)]">Airtime & data</span>
               </span>
             </a>
-            <span className="inline-flex items-center gap-2 rounded-full border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-xs font-semibold text-[var(--muted)]">
-              <ShieldCheck size={15} /> Secure checkout
-            </span>
+            <div className="flex shrink-0 items-center gap-2">
+              <a href="/dashboard" className="inline-flex min-h-10 items-center rounded-xl border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-xs font-bold text-[var(--ink)] hover:border-[var(--brand)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)] focus-visible:ring-offset-2">Dashboard</a>
+              <span className="hidden items-center gap-2 rounded-full border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-xs font-semibold text-[var(--muted)] sm:inline-flex">
+                <ShieldCheck size={15} aria-hidden="true" /> Secure checkout
+              </span>
+            </div>
           </header>
 
           <section className="rounded-3xl border border-[var(--line)] bg-[var(--surface)] p-5 shadow-sm sm:p-8">
@@ -327,7 +330,7 @@ export default function VtuPurchase() {
                         setRequestKey(newRequestKey());
                       }}
                       disabled={loadingProducts || networks.length === 0 || submissionUncertain}
-                      className="mt-2 w-full rounded-xl border border-[var(--line)] bg-[var(--page)] px-3 py-3 font-normal outline-none focus:border-[var(--brand)]"
+                      className="mt-2 w-full rounded-xl border border-[var(--line)] bg-[var(--page)] px-3 py-3 font-normal outline-none focus:border-[var(--brand)] focus-visible:ring-2 focus-visible:ring-[var(--brand)] focus-visible:ring-offset-2"
                     >
                       {networks.map((network) => <option key={network} value={network}>{network}</option>)}
                     </select>
@@ -366,7 +369,7 @@ export default function VtuPurchase() {
                     maxLength={32}
                     required
                     disabled={submissionUncertain}
-                    className="mt-2 w-full rounded-xl border border-[var(--line)] bg-[var(--page)] px-4 py-3 font-normal outline-none focus:border-[var(--brand)]"
+                    className="mt-2 w-full rounded-xl border border-[var(--line)] bg-[var(--page)] px-4 py-3 font-normal outline-none focus:border-[var(--brand)] focus-visible:ring-2 focus-visible:ring-[var(--brand)] focus-visible:ring-offset-2"
                   />
                 </label>
 

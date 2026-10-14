@@ -23,8 +23,9 @@ createInertiaApp({
       import.meta.glob('./Pages/**/*.tsx') as Record<string, () => Promise<PageWithLayout>>,
     );
 
-    // Dashboard pages already use DashboardLayout, which owns their navigation.
-    if (name === 'Dashboard' || name === 'Admin/Dashboard') {
+    // These pages own their complete layout. Wrapping them in SiteNavigation
+    // duplicates headers and mobile navigation, which can crowd or obscure auth forms.
+    if (name === 'Dashboard' || name === 'Admin/Dashboard' || name === 'Welcome' || name.startsWith('Auth/') || name === 'Wallet/VtuPurchase') {
       return page;
     }
 
