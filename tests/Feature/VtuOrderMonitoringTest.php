@@ -1,18 +1,18 @@
 <?php
 
-namespace Tests\\Feature;
+namespace Tests\Feature;
 
-use App\\Models\\User;
-use App\\Models\\VtuOrder;
-use App\\Models\\VtuProduct;
-use App\\Services\\Vtu\\VtuOrderMonitoringService;
-use App\\Services\\Wallets\\WalletAccountService;
-use Illuminate\\Foundation\\Testing\\RefreshDatabase;
-use Illuminate\\Support\\Facades\\Cache;
-use Illuminate\\Support\\Facades\\Http;
-use Illuminate\\Support\\Facades\\Log;
-use Illuminate\\Support\\Str;
-use Tests\\TestCase;
+use App\Models\User;
+use App\Models\VtuOrder;
+use App\Models\VtuProduct;
+use App\Services\Vtu\VtuOrderMonitoringService;
+use App\Services\Wallets\WalletAccountService;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
+use Tests\TestCase;
 
 class VtuOrderMonitoringTest extends TestCase
 {
