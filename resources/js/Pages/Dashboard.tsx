@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { AlertCircle, ArrowDownToLine, ArrowUpRight, CheckCircle2, Clock3, CreditCard, RefreshCw, Smartphone, WalletCards } from 'lucide-react';
+import { AlertCircle, ArrowDownToLine, ArrowUpRight, CheckCircle2, Clock3, CreditCard, Eye, EyeOff, RefreshCw, Smartphone, WalletCards } from 'lucide-react';
 import DashboardLayout from '../Components/DashboardLayout';
 
 type Wallet = { balance_minor: number; available_balance_minor: number; currency: string; status: string } | null;
@@ -28,6 +28,7 @@ export default function CustomerDashboard({ wallet, transactions, orders, fundin
   const [funding, setFunding] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+  const [balanceVisible, setBalanceVisible] = useState(true);
 
   useEffect(() => {
     const status = new URLSearchParams(window.location.search).get('funding');
@@ -80,14 +81,14 @@ export default function CustomerDashboard({ wallet, transactions, orders, fundin
         <article className="relative overflow-hidden rounded-3xl bg-[var(--brand-strong)] p-6 text-white shadow-xl shadow-emerald-950/10 sm:p-8">
           <div className="absolute -right-12 -top-16 h-52 w-52 rounded-full bg-emerald-300/20 blur-3xl" />
           <div className="relative flex items-start justify-between gap-4">
-            <div><p className="text-sm font-semibold text-slate-300">Available wallet balance</p><p className="mt-3 font-display text-3xl font-extrabold tracking-tight sm:text-4xl">{wallet ? money(wallet.available_balance_minor, wallet.currency) : 'Not set up yet'}</p><p className="mt-2 text-xs text-slate-400">{wallet ? (wallet.status === 'active' ? 'Your NGN wallet is active' : `Wallet status: ${wallet.status}`) : 'A wallet will be created when you start a supported wallet operation.'}</p></div>
+            <div className="min-w-0"><p className="text-sm font-semibold text-white/85">Available wallet balance</p><div className="mt-3 flex flex-wrap items-center gap-3"><p className="font-display text-3xl font-extrabold tracking-tight sm:text-4xl">{wallet ? (balanceVisible ? money(wallet.available_balance_minor, wallet.currency) : '••••••••') : 'Not set up yet'}</p>{wallet && <button type="button" onClick={() => setBalanceVisible((visible) => !visible)} aria-label={balanceVisible ? 'Hide wallet balance' : 'Show wallet balance'} aria-pressed={!balanceVisible} className="inline-flex min-h-10 min-w-10 items-center justify-center rounded-xl text-white/90 hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white">{balanceVisible ? <EyeOff size={18} /> : <Eye size={18} />}</button>}</div><p className="mt-2 text-xs text-white/75">{wallet ? (wallet.status === 'active' ? 'Your NGN wallet is active' : `Wallet status: ${wallet.status}`) : 'A wallet will be created when you start a supported wallet operation.'}</p></div>
             <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-white/10"><WalletCards size={23} /></span>
           </div>
           <div className="relative mt-7 flex flex-wrap gap-3">
             <a href="/wallet/vtu" className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-white px-4 py-3 text-sm font-extrabold text-slate-950 hover:bg-slate-100"><Smartphone size={17} /> Buy airtime & data <ArrowUpRight size={15} /></a>
             <a href="#fund-wallet" className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-white/20 px-4 py-3 text-sm font-bold text-white hover:bg-white/10"><ArrowDownToLine size={17} /> Fund wallet</a>
           </div>
-          {wallet && <p className="relative mt-5 text-xs text-slate-400">Total ledger balance: {money(wallet.balance_minor, wallet.currency)}</p>}
+          {wallet && <p className="relative mt-5 text-xs text-white/75">Total ledger balance: {balanceVisible ? money(wallet.balance_minor, wallet.currency) : '••••••••'}</p>}
         </article>
 
         <article id="fund-wallet" className="rounded-3xl border border-[var(--line)] bg-[var(--surface)] p-5 sm:p-6">
@@ -130,7 +131,7 @@ export default function CustomerDashboard({ wallet, transactions, orders, fundin
 }
 
 function QuickLink({ href, icon, title, detail }: { href: string; icon: React.ReactNode; title: string; detail: string }) {
-  return <a href={href} className="flex min-h-24 items-center gap-3 rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4 transition hover:-translate-y-0.5 hover:border-[var(--brand)]"><span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[var(--brand-soft)] text-[var(--brand)]">{icon}</span><span><span className="block text-sm font-extrabold">{title}</span><span className="mt-1 block text-xs text-[var(--muted)]">{detail}</span></span><ArrowUpRight size={16} className="ml-auto shrink-0 text-[var(--muted)]" /></a>;
+  return <a href={href} className="flex min-h-24 items-center gap-3 rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4 transition hover:-translate-y-0.5 hover:border-[var(--brand)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)]"><span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[var(--brand-soft)] text-[var(--brand)]">{icon}</span><span><span className="block text-sm font-extrabold">{title}</span><span className="mt-1 block text-xs text-[var(--muted)]">{detail}</span></span><ArrowUpRight size={16} className="ml-auto shrink-0 text-[var(--muted)]" /></a>;
 }
 function EmptyState({ message }: { message: string }) {
   return <div className="px-5 py-10 text-center"><span className="mx-auto grid h-10 w-10 place-items-center rounded-xl bg-[var(--page)] text-[var(--muted)]"><WalletCards size={20} /></span><p className="mx-auto mt-3 max-w-sm text-sm leading-6 text-[var(--muted)]">{message}</p></div>;
