@@ -39,7 +39,7 @@ export default function DashboardLayout({
               </span>
             </a>
             <div className="flex items-center gap-2">
-              {admin && <a href="/dashboard" className="hidden items-center gap-1 rounded-xl border border-[var(--line)] px-3 py-2 text-xs font-semibold sm:inline-flex"><ArrowLeft size={14} /> Customer view</a>}
+              {admin && <a href="/customer/dashboard" className="hidden items-center gap-1 rounded-xl border border-[var(--line)] px-3 py-2 text-xs font-semibold sm:inline-flex"><ArrowLeft size={14} /> Customer view</a>}
               <button type="button" onClick={toggleTheme} aria-label="Toggle light or dark theme" className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-[var(--line)] bg-[var(--surface)] px-3 text-sm font-semibold hover:border-[var(--brand)]">
                 <Sun size={16} className="hidden [html[data-theme=dark]_&]:block" /><Moon size={16} className="[html[data-theme=dark]_&]:hidden" /><span className="hidden sm:inline">Theme</span>
               </button>
