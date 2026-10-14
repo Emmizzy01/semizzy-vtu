@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react';
-import { ClipboardList, CreditCard, LayoutDashboard, Menu, Moon, Smartphone, Sun, Users, WalletCards, X } from 'lucide-react';
+import { ClipboardList, CreditCard, LayoutDashboard, Menu, PlugZap, Moon, Smartphone, Sun, Users, WalletCards, X } from 'lucide-react';
 
 type SiteNavigationProps = {
   children: ReactNode;
@@ -55,6 +55,8 @@ export default function SiteNavigation({ children, admin = false, publicPage = f
               <a href="/admin/staff" className={linkClass}><Users size={16} /> Staff & permissions</a>
               <a href="/admin/staff/users" className={linkClass}><Users size={16} /> Staff users</a>
               <a href="/admin/staff/permission-audits" className={linkClass}><ClipboardList size={16} /> Permission audits</a>
+              <a href="/admin/payment-gateway" className={linkClass}><CreditCard size={16} /> Payment gateway</a>
+              <a href="/admin/api-providers" className={linkClass}><PlugZap size={16} /> API providers</a>
               <a href="/wallet/vtu" className={linkClass}><Smartphone size={16} /> VTU service</a>
               <a href="/customer/dashboard" className={linkClass}><WalletCards size={16} /> Customer view</a>
             </>
@@ -81,6 +83,8 @@ export default function SiteNavigation({ children, admin = false, publicPage = f
                   <a onClick={() => setMenuOpen(false)} href="/admin/staff" className={linkClass}><Users size={17} /> Staff & permissions</a>
                   <a onClick={() => setMenuOpen(false)} href="/admin/staff/users" className={linkClass}><Users size={17} /> Staff users</a>
                   <a onClick={() => setMenuOpen(false)} href="/admin/staff/permission-audits" className={linkClass}><ClipboardList size={17} /> Permission audits</a>
+                  <a onClick={() => setMenuOpen(false)} href="/admin/payment-gateway" className={linkClass}><CreditCard size={17} /> Payment gateway</a>
+                  <a onClick={() => setMenuOpen(false)} href="/admin/api-providers" className={linkClass}><PlugZap size={17} /> API providers</a>
                   <a onClick={() => setMenuOpen(false)} href="/wallet/vtu" className={linkClass}><Smartphone size={17} /> VTU service</a>
                   <a onClick={() => setMenuOpen(false)} href="/customer/dashboard" className={linkClass}><WalletCards size={17} /> Customer view</a>
                 </>
