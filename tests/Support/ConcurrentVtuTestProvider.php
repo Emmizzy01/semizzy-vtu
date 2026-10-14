@@ -33,12 +33,18 @@ final class ConcurrentVtuTestProvider implements VtuProvider
 
     public function lookup(VtuOrder $order): array
     {
-        $this->increment('lookups');
+        $lookupNumber = $this->increment('lookups');
         $this->arriveAndWait('lookup_barrier', 2);
 
+        // Optional mixed-result mode exercises two stale workers receiving
+        // contradictory terminal outcomes for the same provider order.
+        $status = $this->read('mixed_outcomes') === 1
+            ? ($lookupNumber === 1 ? 'success' : 'failed')
+            : 'failed';
+
         return [
-            'status' => 'failed',
-            'message_code' => 'CONCURRENCY_TEST_FAILURE',
+            'status' => $status,
+            'message_code' => $status === 'failed' ? 'CONCURRENCY_TEST_FAILURE' : null,
             'provider_reference' => 'concurrency-provider-'.$order->public_id,
         ];
     }
