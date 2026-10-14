@@ -51,6 +51,11 @@ Route::middleware(['auth', 'can:refunds.approve', 'throttle:30,1'])->get('/admin
 Route::middleware(['auth', 'can:refunds.approve', 'throttle:20,1'])->post('/admin/payment-refunds/{refund}/approve', [PaymentRefundController::class, 'approveRefund'])
     ->name('admin.payment-refunds.approve');
 
+Route::middleware(['auth', 'can:staff.permissions.manage'])->prefix('admin')->name('admin.')->group(function (): void {
+    Route::get('/payment-gateway', [IntegrationSettingsController::class, 'paymentGateway'])->name('payment-gateway');
+    Route::get('/api-providers', [IntegrationSettingsController::class, 'apiProviders'])->name('api-providers');
+});
+
 Route::middleware(['auth', 'can:staff.permissions.manage'])->prefix('admin/staff')->name('admin.staff.')->group(function (): void {
     Route::get('/', [StaffAccessController::class, 'dashboard'])->name('index');
     Route::get('/users', [StaffAccessController::class, 'users'])->middleware('throttle:60,1')->name('users');
