@@ -4,8 +4,9 @@ This checklist applies to the staff access workspace and its permission-audit ta
 
 ## 1. Release gate
 
-- [ ] Confirm the exact commit being deployed is `40357063464998767ecc6a9143b884a4ccc05011` or a later commit whose CI run passed.
-- [ ] Confirm both `frontend-build` and `php-tests` jobs passed for that commit.
+- [ ] Record the exact commit SHA selected for deployment; do not rely on a stale hard-coded commit reference.
+- [ ] Confirm both `frontend-build` and `php-tests` jobs passed for that exact commit SHA.
+- [ ] Follow the [production backup and recovery runbook](backup-and-recovery.md) and verify a restorable backup before any approved production migration.
 - [ ] Confirm the hosting PHP version and required extensions match the project requirements.
 - [ ] Confirm the production environment file is configured outside version control. Never copy test credentials or commit `.env`.
 
