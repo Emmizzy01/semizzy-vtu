@@ -38,7 +38,7 @@ class IntegrationSettingsController extends Controller
             'confirm_live' => ['nullable', 'boolean'],
         ]);
         $secret = trim((string) ($data['secret_key'] ?? ''));
-        if ($secret !== '' && ! preg_match('/^sk_(?:test|live)_[^\\\\s]+$/', $secret)) {
+        if ($secret !== '' && ! preg_match('/^sk_(?:test|live)_[^\\s]+$/', $secret)) {
             return back()->withErrors(['secret_key' => 'Enter a valid Paystack secret key beginning with sk_test_ or sk_live_.']);
         }
         if ($secret !== '' && str_starts_with($secret, 'sk_live_') && ! $request->boolean('confirm_live')) {
