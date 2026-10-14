@@ -242,3 +242,39 @@ Artisan::command('vtu:monitor-orders', function (\App\Services\Vtu\VtuOrderMonit
 Schedule::command('vtu:monitor-orders')
     ->everyFifteenMinutes()
     ->withoutOverlapping();
+
+
+Artisan::command('vtu:catalog-sync {--apply : Save the verified provider catalogue to the database}', function (
+    \\App\\Services\\Vtu\\VtpassCatalogService $catalog,
+) {
+    try {
+        $products = $catalog->fetchProducts();
+    } catch (\\Throwable $exception) {
+        report($exception);
+        $this->error('Catalogue retrieval failed. No catalogue changes were applied.');
+
+        return 1;
+    }
+
+    $this->info('Verified catalogue preview: '.$products === [] ? 'No products returned.' : count($products).' products found.');
+    $this->table(
+        ['Type', 'Network', 'Product', 'Price (NGN)', 'Provider code'],
+        array_map(fn (array $product): array => [
+            $product['service_type'],
+            $product['network'],
+            $product['name'],
+            number_format($product['price_minor'] / 100, 2),
+            $product['code'],
+        ], $products),
+    );
+
+    if (! $this->option('apply')) {
+        $this->warn('Preview only: database unchanged. Add --apply only after reviewing the catalogue.');
+        return 0;
+    }
+
+    $count = $catalog->applyProducts($products);
+    $this->info("Saved {$count} catalogue products. No purchase was submitted.");
+
+    return 0;
+})->purpose('Preview VTpass products safely; persist only when --apply is explicitly supplied');
