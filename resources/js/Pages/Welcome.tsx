@@ -25,30 +25,6 @@ export default function Welcome() {
       <Head title="Welcome" />
       <main className="min-h-screen overflow-hidden bg-[var(--page)] text-[var(--ink)]">
         <div className="mx-auto max-w-7xl px-5 py-6 sm:px-8 lg:px-12">
-          <header className="flex items-center justify-between">
-            <a href="/" className="flex items-center gap-3" aria-label="SEMIZZY home">
-              <span className="grid h-11 w-11 place-items-center rounded-2xl bg-[var(--brand)] font-display text-lg font-extrabold text-white shadow-lg shadow-indigo-950/15">S</span>
-              <span>
-                <span className="block font-display text-lg font-extrabold tracking-tight">SEMIZZY</span>
-                <span className="block text-[10px] font-bold uppercase tracking-[0.22em] text-[var(--muted)]">Digital made simple</span>
-              </span>
-            </a>
-            <div className="flex items-center gap-2 sm:gap-3">
-              <a href="/login" className="rounded-full border border-[var(--line)] px-3 py-2 text-sm font-semibold transition hover:bg-[var(--surface)] sm:px-4">Sign in</a>
-              <a href="/register" className="inline-flex rounded-full bg-[var(--brand)] px-3 py-2 text-xs font-bold text-white transition hover:opacity-90 sm:px-4 sm:text-sm">Create account</a>
-              <button
-                className="rounded-full border border-[var(--line)] px-3 py-2 text-sm font-semibold transition hover:bg-[var(--surface)] sm:px-4"
-                onClick={() => {
-                  const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
-                  document.documentElement.dataset.theme = next;
-                  localStorage.setItem('semizzy-theme', next);
-                }}
-                type="button"
-              >
-                Theme
-              </button>
-            </div>
-          </header>
 
           <section className="grid items-center gap-12 pb-20 pt-16 sm:pt-24 lg:grid-cols-[1.05fr_0.95fr] lg:gap-16 lg:pb-28">
             <div>
