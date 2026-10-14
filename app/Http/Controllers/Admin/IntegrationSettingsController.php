@@ -30,7 +30,7 @@ class IntegrationSettingsController extends Controller
         $data = $request->validate([
             'secret_key' => ['nullable', 'string', 'max:500'],
             'callback_url' => ['required', 'url', 'starts_with:https://', 'max:2048'],
-            'confirm_live' => ['nullable', 'accepted'],
+            'confirm_live' => ['nullable', 'boolean'],
         ]);
         $secret = trim((string) ($data['secret_key'] ?? ''));
         if ($secret !== '' && str_starts_with($secret, 'sk_live_') && ! $request->boolean('confirm_live')) {
