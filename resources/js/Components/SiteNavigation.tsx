@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from 'react';
-import { ClipboardList, CreditCard, LayoutDashboard, Menu, PlugZap, Moon, Smartphone, Sun, Users, WalletCards, X } from 'lucide-react';
+import { ClipboardList, CreditCard, LayoutDashboard, Menu, PlugZap, Smartphone, Users, WalletCards, X } from 'lucide-react';
+import ThemeToggle from './ThemeToggle';
 
 type SiteNavigationProps = {
   children: ReactNode;
@@ -9,14 +10,6 @@ type SiteNavigationProps = {
 
 export default function SiteNavigation({ children, admin = false, publicPage = false }: SiteNavigationProps) {
   const [menuOpen, setMenuOpen] = useState(false);
-  const isDark = typeof document !== 'undefined' && document.documentElement.dataset.theme === 'dark';
-
-  function toggleTheme() {
-    const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
-    document.documentElement.dataset.theme = next;
-    try { window.localStorage.setItem('semizzy-theme', next); } catch { /* optional preference */ }
-  }
-
   const linkClass = 'inline-flex min-h-11 items-center gap-2 rounded-xl border border-[var(--line)] px-3 py-2 text-sm font-semibold transition hover:border-[var(--brand)] hover:bg-[var(--brand-soft)]';
   const overview = admin ? '/admin/dashboard' : '/dashboard';
 
@@ -32,9 +25,7 @@ export default function SiteNavigation({ children, admin = false, publicPage = f
             </span>
           </a>
           <div className="flex shrink-0 items-center gap-2">
-            <button type="button" onClick={toggleTheme} aria-label={isDark ? 'Switch to light theme' : 'Switch to dark theme'} className="inline-flex min-h-10 min-w-10 items-center justify-center rounded-xl border border-[var(--line)] bg-[var(--surface)] px-3 hover:border-[var(--brand)]">
-              {isDark ? <Sun size={17} /> : <Moon size={17} />}<span className="hidden sm:inline sm:ml-2">Theme</span>
-            </button>
+            <ThemeToggle />
             {publicPage && <a href="/login" className={linkClass + ' hidden sm:inline-flex'}>Sign in</a>}
             {publicPage && <a href="/register" className="hidden min-h-11 items-center rounded-xl bg-[var(--brand)] px-4 py-2 text-sm font-bold text-white sm:inline-flex">Create account</a>}
             <button type="button" onClick={() => setMenuOpen((open) => !open)} aria-label={menuOpen ? 'Close navigation menu' : 'Open navigation menu'} aria-expanded={menuOpen} aria-controls="semizzy-site-mobile-navigation" className="inline-flex min-h-10 min-w-10 items-center justify-center rounded-xl border border-[var(--line)] bg-[var(--surface)] hover:border-[var(--brand)] sm:hidden">
