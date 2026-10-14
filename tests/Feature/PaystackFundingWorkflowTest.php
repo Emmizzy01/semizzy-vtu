@@ -431,11 +431,9 @@ class PaystackFundingWorkflowTest extends TestCase
             ], 200),
         ]);
 
-        $response = $this->getJson('/wallet/funding/return?reference='.$intent->reference);
+        $response = $this->actingAs($user)->get('/wallet/funding/return?reference='.$intent->reference);
 
-        $response->assertOk()
-            ->assertJsonPath('status', 'paid')
-            ->assertJsonPath('outcome', 'credited');
+        $response->assertRedirect(route('dashboard', ['funding' => 'success']));
         $this->assertSame(15000, (int) $wallet->fresh()->balance_minor);
         $this->assertSame('paid', $intent->fresh()->status);
         $this->assertDatabaseCount('wallet_transactions', 1);
