@@ -13,7 +13,7 @@ type Capabilities = { manageStaff: boolean; approveRefunds: boolean };
 export default function AdminDashboard({ metrics, capabilities }: { metrics: Metrics; capabilities: Capabilities }) {
   return (
     <DashboardLayout title="Admin Command Center" description="A secure operational overview of SEMIZZY. Administrative sections appear according to your assigned permissions." admin canManageStaff={capabilities.manageStaff} canApproveRefunds={capabilities.approveRefunds}>
-      <section aria-label="Operational metrics" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <section aria-label="Operational metrics" className="grid grid-cols-1 gap-3 sm:grid-cols-2 2xl:grid-cols-4">
         {capabilities.manageStaff && <Metric icon={<Users size={19} />} label="Registered accounts" value={metrics.users} detail={metrics.users === null ? "Account count unavailable" : "All customer and staff accounts"} />}
         <Metric icon={<WalletCards size={19} />} label="Wallet accounts" value={metrics.wallets} detail="Wallet records across currencies" />
         <Metric icon={<CreditCard size={19} />} label="Funding in progress" value={metrics.pendingFunding} detail="Pending or processing intents" />
@@ -21,9 +21,9 @@ export default function AdminDashboard({ metrics, capabilities }: { metrics: Met
         <Metric icon={<Smartphone size={19} />} label="Unresolved VTU orders" value={metrics.unresolvedVtuOrders} detail="Processing or awaiting reconciliation" />
       </section>
 
-      <section className="mt-8">
-        <div className="flex items-end justify-between gap-3"><div><p className="text-xs font-extrabold uppercase tracking-[0.18em] text-[var(--brand)]">Operations</p><h2 className="mt-2 font-display text-2xl font-extrabold">Workspaces</h2><p className="mt-1 text-sm text-[var(--muted)]">Open the operational tools your account is allowed to use.</p></div><span className="hidden items-center gap-2 rounded-full border border-[var(--line)] px-3 py-2 text-xs font-semibold text-[var(--muted)] sm:inline-flex"><Activity size={14} /> Current database counts</span></div>
-        <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+      <section aria-labelledby="workspace-title" className="mt-8">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between"><div className="min-w-0"><p className="text-xs font-extrabold uppercase tracking-[0.18em] text-[var(--brand)]">Operations</p><h2 id="workspace-title" className="mt-2 font-display text-2xl font-extrabold">Workspaces</h2><p className="mt-1 max-w-2xl text-sm leading-6 text-[var(--muted)]">Choose an operational area. Available shortcuts follow your assigned permissions.</p></div><span className="inline-flex w-fit items-center gap-2 rounded-full border border-[var(--line)] px-3 py-2 text-xs font-semibold text-[var(--muted)]"><Activity size={14} aria-hidden="true" /> Database counts</span></div>
+        <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2 2xl:grid-cols-3">
           {capabilities.approveRefunds && <Workspace href="/admin/refunds" icon={<CreditCard size={22} />} title="Refund operations" description="Review refund requests, monitor provider outcomes, and approve eligible requests." status="Permission-gated route" />}
           {capabilities.manageStaff && <Workspace href="/admin/staff" icon={<Users size={22} />} title="Staff & permissions" description="Manage approved staff permissions and review access audit records." status="Permission-gated route" />}
           {capabilities.manageStaff && <Workspace href="/admin/payment-gateway" icon={<CreditCard size={22} />} title="Payment gateway settings" description="Inspect the saved gateway configuration and callback setup. Provider payments remain subject to separate verification." status="Configuration view" />}
@@ -33,14 +33,14 @@ export default function AdminDashboard({ metrics, capabilities }: { metrics: Met
         </div>
       </section>
 
-      <section aria-labelledby="security-scope-title" className="mt-8 rounded-3xl border border-[var(--line)] bg-[var(--surface)] p-5 sm:p-6">
+      <section aria-labelledby="security-scope-title" className="mt-8 rounded-3xl border border-[var(--line)] bg-[var(--surface)] p-4 sm:p-6">
         <div className="flex items-start gap-3">
           <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[var(--brand-soft)] text-[var(--brand)]"><LockKeyhole size={20} /></span>
           <div className="min-w-0">
             <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[var(--brand)]">Access governance</p>
             <h2 id="security-scope-title" className="mt-1 font-display text-lg font-extrabold">Security and operational scope</h2>
             <p className="mt-2 max-w-3xl text-sm leading-6 text-[var(--muted)]">Dashboard visibility is filtered by the capabilities supplied by the server. Each administrative route must still enforce its own authorization; hiding a link is not a security boundary.</p>
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
               <ScopeItem icon={<CheckCircle2 size={17} />} title="Permission-aware navigation" detail="Staff and refund workspaces appear only when the relevant capability is present." />
               <ScopeItem icon={<CircleAlert size={17} />} title="Integrations not presumed live" detail="A configuration page or saved credential does not prove a provider is connected, healthy, or enabled for live transactions." />
             </div>
