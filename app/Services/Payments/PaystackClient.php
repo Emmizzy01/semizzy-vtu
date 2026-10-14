@@ -11,7 +11,7 @@ class PaystackClient
 {
     private function secretKey(): string
     {
-        $key = (string) config('services.paystack.secret_key', '');
+        $key = (string) app(IntegrationSettings::class)->get('paystack.secret_key', config('services.paystack.secret_key', ''));
 
         if ($key === '') {
             throw new LogicException('Paystack secret key is not configured.');
@@ -32,7 +32,7 @@ class PaystackClient
                     'amount' => $intent->amount_minor,
                     'currency' => $intent->currency,
                     'reference' => $intent->reference,
-                    'callback_url' => (string) config('services.paystack.callback_url', ''),
+                    'callback_url' => (string) app(IntegrationSettings::class)->get('paystack.callback_url', config('services.paystack.callback_url', '')),
                     'metadata' => [
                         'payment_intent_id' => $intent->public_id,
                         'semizzy_reference' => $intent->reference,
