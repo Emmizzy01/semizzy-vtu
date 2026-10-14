@@ -106,7 +106,7 @@ export default function CustomerDashboard({ wallet, transactions, orders, fundin
         <QuickLink href="/wallet/vtu" icon={<Smartphone size={20} />} title="Airtime & data" detail="Buy mobile services" />
         <QuickLink href="#transactions" icon={<ArrowDownToLine size={20} />} title="Transactions" detail="Review wallet activity" />
         <QuickLink href="#funding-history" icon={<CreditCard size={20} />} title="Funding history" detail="See payment attempts" />
-        <QuickLink href="/wallet/vtu" icon={<ShieldCheck size={20} />} title="Secure services" detail="Protected checkout flows" />
+        <QuickLink href="#orders" icon={<Clock3 size={20} />} title="Order history" detail="Review recent service orders" />
       </section>
 
       <section id="transactions" className="mt-8 grid gap-5 xl:grid-cols-2">
@@ -115,7 +115,7 @@ export default function CustomerDashboard({ wallet, transactions, orders, fundin
           {transactions.length === 0 ? <EmptyState message="No wallet transactions yet. Your activity will appear here when you use a supported wallet service." /> : <div className="divide-y divide-[var(--line)]">{transactions.map((item) => <article key={item.id} className="flex items-start justify-between gap-3 p-4 sm:px-5"><div className="min-w-0"><p className="break-words text-sm font-bold">{item.description || item.type.replaceAll('_', ' ')}</p><p className="mt-1 break-all text-xs text-[var(--muted)]">{item.reference || item.id} · {dateLabel(item.created_at)}</p><span className={`mt-2 inline-flex rounded-full px-2.5 py-1 text-[10px] font-bold ${statusClass(item.status)}`}>{item.status.replaceAll('_', ' ')}</span></div><p className="shrink-0 text-sm font-extrabold tabular-nums">{money(item.amount_minor, item.currency)}</p></article>)}</div>}
         </div>
 
-        <div className="overflow-hidden rounded-3xl border border-[var(--line)] bg-[var(--surface)]">
+        <div id="orders" className="overflow-hidden rounded-3xl border border-[var(--line)] bg-[var(--surface)]">
           <div className="flex items-center justify-between border-b border-[var(--line)] p-5"><div><h2 className="font-display text-lg font-extrabold">Recent airtime & data orders</h2><p className="mt-1 text-xs text-[var(--muted)]">Your latest VTU service requests</p></div><Smartphone size={20} className="text-[var(--brand)]" /></div>
           {orders.length === 0 ? <EmptyState message="No VTU orders yet. When you purchase airtime or data, order updates will appear here." /> : <div className="divide-y divide-[var(--line)]">{orders.map((item) => <article key={item.id} className="flex items-start justify-between gap-3 p-4 sm:px-5"><div className="min-w-0"><p className="text-sm font-bold">{item.network} · {item.service_type}</p><p className="mt-1 text-xs text-[var(--muted)]">{item.recipient} · {dateLabel(item.created_at)}</p><span className={`mt-2 inline-flex rounded-full px-2.5 py-1 text-[10px] font-bold ${statusClass(item.status)}`}>{item.status.replaceAll('_', ' ')}</span></div><p className="shrink-0 text-sm font-extrabold tabular-nums">{money(item.amount_minor, item.currency)}</p></article>)}</div>}
         </div>
