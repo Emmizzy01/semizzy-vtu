@@ -1,24 +1,25 @@
 <?php
 
-namespace App\Http\Controllers\Payments;
+namespace App\\Http\\Controllers\\Payments;
 
-use App\Http\Controllers\Controller;
-use App\Models\PaymentIntent;
-use App\Models\Wallet;
-use App\Services\Payments\PaymentFundingService;
-use App\Services\Payments\PaymentProviderExceptionService;
-use App\Services\Payments\PaymentRefundService;
-use App\Services\Payments\PaymentIntentService;
-use App\Services\Payments\PaystackClient;
-use App\Services\Payments\WebhookSignatureVerifier;
-use App\Services\Wallets\WalletAccountService;
-use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
-use Illuminate\Validation\ValidationException;
+use App\\Http\\Controllers\\Controller;
+use App\\Models\\PaymentIntent;
+use App\\Models\\Wallet;
+use App\\Services\\Payments\\PaymentFundingService;
+use App\\Services\\Payments\\PaymentProviderExceptionService;
+use App\\Services\\Payments\\PaymentRefundService;
+use App\\Services\\Payments\\PaymentIntentService;
+use App\\Services\\Payments\\PaystackClient;
+use App\\Services\\Payments\\WebhookSignatureVerifier;
+use App\\Services\\Wallets\\WalletAccountService;
+use Illuminate\\Http\\JsonResponse;
+use Illuminate\\Http\\RedirectResponse;
+use Illuminate\\Http\\Request;
+use Illuminate\\Validation\\ValidationException;
 use InvalidArgumentException;
 use LogicException;
-use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
-use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
+use Symfony\\Component\\HttpKernel\\Exception\\ConflictHttpException;
+use Symfony\\Component\\HttpKernel\\Exception\\UnprocessableEntityHttpException;
 
 class PaymentFundingController extends Controller
 {
@@ -184,11 +185,11 @@ class PaymentFundingController extends Controller
         Request $request,
         PaystackClient $paystack,
         PaymentFundingService $funding,
-    ): JsonResponse {
+    ): RedirectResponse {
         // Trust the provider's server-to-server verification response, never browser query parameters alone.
         $reference = $request->query('reference');
         if (! is_string($reference) || $reference === '') {
-            return response()->json(['message' => 'Payment reference is required.'], 400);
+            return redirect()->route('dashboard', ['funding' => 'unverified']);
         }
 
         try {
@@ -196,7 +197,7 @@ class PaymentFundingController extends Controller
         } catch (LogicException $exception) {
             report($exception);
 
-            return response()->json(['message' => 'Payment status is not yet available.'], 503);
+            return redirect()->route('dashboard', ['funding' => 'pending']);
         }
 
         $intent = PaymentIntent::query()->where('reference', $reference)->first();
@@ -206,12 +207,12 @@ class PaymentFundingController extends Controller
             || ! is_numeric($verified['id'] ?? null)
             || (int) ($verified['amount'] ?? -1) !== $intent->amount_minor
             || ($verified['currency'] ?? null) !== $intent->currency) {
-            return response()->json(['status' => 'pending_or_unverified'], 202);
+            return redirect()->route('dashboard', ['funding' => 'pending']);
         }
 
         // A successful server-side verification can settle the intent safely.
         // The same transaction ID is idempotent if the signed webhook arrives later.
-        $result = $funding->processVerifiedEvent('paystack', [
+        $funding->processVerifiedEvent('paystack', [
             'id' => 'paystack-return-'.(string) $verified['id'],
             'type' => 'payment.succeeded',
             'data' => [
@@ -223,10 +224,10 @@ class PaymentFundingController extends Controller
             ],
         ]);
 
-        return response()->json([
-            'status' => $intent->fresh()->status,
-            'reference' => $intent->reference,
-            'outcome' => $result['outcome'],
+        $settled = $intent->fresh()->status === 'paid';
+
+        return redirect()->route('dashboard', [
+            'funding' => $settled ? 'success' : 'pending',
         ]);
     }
 }
