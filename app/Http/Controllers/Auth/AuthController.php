@@ -37,7 +37,9 @@ class AuthController extends Controller
 
         $request->session()->regenerate();
 
-        return redirect()->intended('/wallet/vtu');
+        // Preserve Laravel's intended destination. Otherwise, /dashboard routes
+        // customers to their dashboard and permissioned staff to the command center.
+        return redirect()->intended('/dashboard');
     }
 
     public function registerForm(): Response
@@ -64,7 +66,7 @@ class AuthController extends Controller
         Auth::login($user);
         $request->session()->regenerate();
 
-        return redirect('/wallet/vtu');
+        return redirect('/dashboard');
     }
 
     public function logout(Request $request): RedirectResponse
