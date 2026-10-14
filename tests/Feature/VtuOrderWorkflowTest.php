@@ -221,6 +221,47 @@ class VtuOrderWorkflowTest extends TestCase
         Http::assertSentCount(1);
     }
 
+    public function test_vtpass_invalid_request_id_does_not_trigger_automatic_resubmission_or_refund(): void
+    {
+        config([
+            'services.vtu.driver' => 'vtpass',
+            'services.vtu.vtpass.base_url' => 'https://sandbox.vtpass.com/api',
+            'services.vtu.vtpass.api_key' => 'sandbox-api-key',
+            'services.vtu.vtpass.secret_key' => 'sandbox-secret-key',
+        ]);
+
+        $sequence = Http::sequence()
+            ->push(['code' => '000', 'content' => ['transactions' => ['status' => 'pending']]], 200)
+            ->push(['code' => '015', 'response_description' => 'INVALID REQUEST ID'], 200)
+            ->push(['code' => '015', 'response_description' => 'INVALID REQUEST ID'], 200);
+        Http::fake(['https://sandbox.vtpass.com/api/*' => $sequence]);
+
+        [$user, $wallet, $product] = $this->preparedCustomer(1000, 1500);
+        $product->forceFill(['network' => 'mtn', 'face_value_minor' => 1000])->save();
+        $service = app(VtuOrderService::class);
+
+        $order = $service->purchase($user, $product->code, '08012345678', 'vtpass-not-found-no-retry');
+        $this->assertSame('processing', $order->status);
+
+        $firstLookup = $service->reconcile($order->fresh());
+        $this->assertSame('awaiting_reconciliation', $firstLookup->status);
+        $secondLookup = $service->reconcile($firstLookup->fresh());
+
+        $this->assertSame('awaiting_reconciliation', $secondLookup->status);
+        $this->assertSame(500, (int) $wallet->fresh()->available_balance_minor);
+        $this->assertDatabaseCount('vtu_orders', 1);
+        $this->assertDatabaseCount('wallet_transactions', 2);
+        Http::assertSentCount(3);
+        Http::assertSent(fn ($request) => $request->url() === 'https://sandbox.vtpass.com/api/pay');
+        Http::assertSentCount(3);
+        $payRequests = Http::recorded(fn ($request) => $request->url() === 'https://sandbox.vtpass.com/api/pay');
+        $requeryRequests = Http::recorded(fn ($request) => $request->url() === 'https://sandbox.vtpass.com/api/requery');
+        $this->assertCount(1, $payRequests, 'A not-found lookup must not automatically resubmit the purchase.');
+        $this->assertCount(2, $requeryRequests);
+        $this->assertSame($payRequests->first()[0]['request_id'], $requeryRequests->first()[0]['request_id']);
+        $this->assertSame($requeryRequests->first()[0]['request_id'], $requeryRequests->last()[0]['request_id']);
+    }
+
     public function test_timeout_marks_order_for_reconciliation_and_retry_does_not_resubmit(): void
     {
         $attempts = 0;
