@@ -25,6 +25,16 @@ export default function Welcome() {
       <Head title="Welcome" />
       <main className="min-h-screen overflow-hidden bg-[var(--page)] text-[var(--ink)]">
         <div className="mx-auto max-w-7xl px-5 py-6 sm:px-8 lg:px-12">
+          <header className="flex items-center justify-between gap-4 border-b border-[var(--line)] pb-5">
+            <a href="/" aria-label="SEMIZZY home" className="flex items-center gap-3">
+              <span aria-hidden="true" className="grid h-10 w-10 place-items-center rounded-2xl bg-[var(--brand)] font-display text-lg font-extrabold text-white">S</span>
+              <span><strong className="block font-display text-base font-extrabold">SEMIZZY</strong><span className="block text-[10px] text-[var(--muted)]">Digital made simple</span></span>
+            </a>
+            <nav aria-label="Account navigation" className="flex items-center gap-2 sm:gap-3">
+              <a href="/login" className="inline-flex min-h-10 items-center rounded-xl px-3 py-2 text-sm font-bold text-[var(--muted)] hover:bg-[var(--surface)] hover:text-[var(--ink)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)]">Sign in</a>
+              <a href="/register" className="inline-flex min-h-10 items-center rounded-xl bg-[var(--brand)] px-4 py-2 text-sm font-bold text-white hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)] focus-visible:ring-offset-2">Create account</a>
+            </nav>
+          </header>
 
           <section className="grid items-center gap-12 pb-20 pt-16 sm:pt-24 lg:grid-cols-[1.05fr_0.95fr] lg:gap-16 lg:pb-28">
             <div>
@@ -39,10 +49,10 @@ export default function Welcome() {
                 SEMIZZY is being built as a dependable home for VTU services, wallet tools, reseller businesses, and more — with clarity, control, and security at the core.
               </p>
               <div className="mt-8 flex flex-wrap gap-3">
-                <a href="/wallet/vtu" className="inline-flex items-center gap-2 rounded-full bg-[var(--brand)] px-6 py-3.5 text-sm font-bold text-white shadow-lg shadow-indigo-950/15 transition hover:-translate-y-0.5">
-                  Buy airtime & data <ArrowUpRight size={17} />
+                <a href="/register" className="inline-flex min-h-12 items-center gap-2 rounded-full bg-[var(--brand)] px-6 py-3.5 text-sm font-bold text-white shadow-lg shadow-emerald-950/15 transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)] focus-visible:ring-offset-2">
+                  Get started <ArrowUpRight size={17} aria-hidden="true" />
                 </a>
-                <span className="inline-flex items-center rounded-full border border-[var(--line)] px-5 py-3.5 text-sm font-semibold text-[var(--muted)]">Built for Nigeria</span>
+                <a href="/login" className="inline-flex min-h-12 items-center rounded-full border border-[var(--line)] px-5 py-3.5 text-sm font-semibold text-[var(--ink)] hover:bg-[var(--surface)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)]">I already have an account</a>
               </div>
               <div className="mt-10 flex items-center gap-3 text-xs font-medium text-[var(--muted)]">
                 <span className="flex -space-x-2">
@@ -62,7 +72,7 @@ export default function Welcome() {
                     <p className="text-sm font-semibold text-[var(--muted)]">Your SEMIZZY space</p>
                     <p className="mt-1 font-display text-2xl font-extrabold">Everything, connected.</p>
                   </div>
-                  <span className="rounded-xl bg-emerald-500/10 p-3 text-emerald-600"><ShieldCheck size={21} /></span>
+                  <span aria-hidden="true" className="rounded-xl bg-emerald-500/10 p-3 text-emerald-600"><ShieldCheck size={21} /></span>
                 </div>
                 <div className="mt-7 rounded-2xl bg-slate-950 p-5 text-white sm:p-6">
                   <div className="flex items-center justify-between text-sm text-slate-300">
@@ -100,7 +110,7 @@ export default function Welcome() {
             <div className="mt-9 grid gap-4 md:grid-cols-3">
               {highlights.map(({ icon: Icon, title, description }, index) => (
                 <article key={title} className="rounded-3xl border border-[var(--line)] bg-[var(--surface)] p-6 transition hover:-translate-y-1 hover:shadow-xl hover:shadow-slate-950/5">
-                  <span className="grid h-12 w-12 place-items-center rounded-2xl bg-[var(--brand-soft)] text-[var(--brand)]"><Icon size={22} /></span>
+                  <span aria-hidden="true" className="grid h-12 w-12 place-items-center rounded-2xl bg-[var(--brand-soft)] text-[var(--brand)]"><Icon size={22} /></span>
                   <p className="mt-6 text-xs font-bold text-[var(--muted)]">0{index + 1}</p>
                   <h3 className="mt-2 font-display text-lg font-extrabold">{title}</h3>
                   <p className="mt-3 text-sm leading-6 text-[var(--muted)]">{description}</p>
