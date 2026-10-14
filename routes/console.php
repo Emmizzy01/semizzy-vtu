@@ -256,7 +256,7 @@ Artisan::command('vtu:catalog-sync {--apply : Save the verified provider catalog
         return 1;
     }
 
-    $this->info('Verified catalogue preview: '.$products === [] ? 'No products returned.' : count($products).' products found.');
+    $this->info('Verified catalogue preview: '.count($products).' products found.');
     $this->table(
         ['Type', 'Network', 'Product', 'Price (NGN)', 'Provider code'],
         array_map(fn (array $product): array => [
