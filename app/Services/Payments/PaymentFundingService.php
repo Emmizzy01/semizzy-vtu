@@ -92,7 +92,9 @@ class PaymentFundingService
                     return ['outcome' => 'duplicate_payment', 'duplicate' => true];
                 }
 
-                if ($intent->status !== 'pending' || ($intent->expires_at && $intent->expires_at->isPast())) {
+                // A provider-verified Paystack success must still be reconciled after checkout expiry.
+                // The intent reference, amount, currency, and provider transaction ID are checked above/below.
+                if ($intent->status !== 'pending' || ($provider !== 'paystack' && $intent->expires_at && $intent->expires_at->isPast())) {
                     $event->forceFill([
                         'outcome' => 'rejected',
                         'payment_intent_id' => $intent->id,
@@ -152,6 +154,18 @@ class PaymentFundingService
 
             if (! hash_equals($existing->payload_hash, $payloadHash)) {
                 throw new ConflictHttpException('Webhook event ID was replayed with a different payload.');
+            }
+
+            // Older deployments may have recorded a verified Paystack success as rejected
+            // solely because the local checkout intent expired. Retry that exact event when
+            // its intent is still pending; settlement remains protected by row locks and ledger idempotency.
+            if ($provider === 'paystack' && $existing->outcome === 'rejected' && $existing->payment_intent_id !== null) {
+                $intentStatus = PaymentIntent::query()->whereKey($existing->payment_intent_id)->value('status');
+                if ($intentStatus === 'pending') {
+                    $existing->delete();
+
+                    return $this->processVerifiedEvent($provider, $payload);
+                }
             }
 
             return ['outcome' => $existing->outcome, 'duplicate' => true];
