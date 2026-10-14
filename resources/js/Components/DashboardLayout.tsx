@@ -134,7 +134,7 @@ export default function DashboardLayout({
         <header className="sticky top-0 z-40 border-b border-[var(--line)] bg-[var(--surface)]/95 backdrop-blur">
           <div className="mx-auto flex max-w-[1600px] items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8">
             <a href={overviewHref} className="flex min-w-0 items-center gap-3" aria-label="SEMIZZY dashboard">
-              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-[var(--brand)] font-display text-lg font-extrabold text-white">S</span>
+              <span aria-hidden="true" className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-[var(--brand)] font-display text-lg font-extrabold text-white">S</span>
               <span className="min-w-0">
                 <span className="block font-display text-base font-extrabold tracking-tight">SEMIZZY</span>
                 <span className="block text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--muted)]">{admin ? 'Command Center' : 'Customer workspace'}</span>
