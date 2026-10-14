@@ -14,15 +14,15 @@ class VtpassProviderClient implements VtuProvider
 {
     public function assertConfigured(): void
     {
-        $baseUrl = rtrim((string) app(IntegrationSettings::class)->get('vtu.vtpass.base_url', app(IntegrationSettings::class)->get('vtu.vtpass.base_url', config('services.vtu.vtpass.base_url', ''))), '/');
+        $baseUrl = rtrim((string) app(IntegrationSettings::class)->get('vtu.vtpass.base_url', config('services.vtu.vtpass.base_url', '')), '/');
 
         if (
             ! in_array($baseUrl, [
                 'https://vtpass.com/api',
                 'https://sandbox.vtpass.com/api',
             ], true)
-            || ! app(IntegrationSettings::class)->get('vtu.vtpass.api_key', app(IntegrationSettings::class)->get('vtu.vtpass.api_key', config('services.vtu.vtpass.api_key')))
-            || ! app(IntegrationSettings::class)->get('vtu.vtpass.secret_key', app(IntegrationSettings::class)->get('vtu.vtpass.secret_key', config('services.vtu.vtpass.secret_key')))
+            || ! app(IntegrationSettings::class)->get('vtu.vtpass.api_key', config('services.vtu.vtpass.api_key'))
+            || ! app(IntegrationSettings::class)->get('vtu.vtpass.secret_key', config('services.vtu.vtpass.secret_key'))
         ) {
             throw new LogicException('VTpass requires its official HTTPS API base URL and server-side API credentials.');
         }
