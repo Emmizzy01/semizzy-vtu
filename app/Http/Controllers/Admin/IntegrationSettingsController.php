@@ -1,11 +1,11 @@
 <?php
 
-namespace App\\Http\\Controllers\\Admin;
+namespace App\Http\Controllers\Admin;
 
-use App\\Http\\Controllers\\Controller;
-use Illuminate\\Support\\Str;
-use Inertia\\Inertia;
-use Inertia\\Response as InertiaResponse;
+use App\Http\Controllers\Controller;
+use Illuminate\Support\Str;
+use Inertia\Inertia;
+use Inertia\Response as InertiaResponse;
 
 class IntegrationSettingsController extends Controller
 {
