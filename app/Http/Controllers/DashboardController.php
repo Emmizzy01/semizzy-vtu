@@ -25,6 +25,54 @@ class DashboardController extends Controller
             return redirect()->route('admin.dashboard');
         }
 
+        return $this->renderCustomerDashboard($request);
+    }
+
+    public function customerPreview(Request $request): InertiaResponse
+    {
+        abort_unless($request->user(), 401);
+
+        // Allows staff to inspect the customer interface for their own account.
+        // This does not grant access to another customer's data.
+        return $this->renderCustomerDashboard($request);
+    }
+
+    public function admin(Request $request): InertiaResponse
+    {
+        $user = $request->user();
+        abort_unless($user, 401);
+
+        $canManageStaff = UserPermission::query()
+            ->where('user_id', $user->id)
+            ->where('permission', 'staff.permissions.manage')
+            ->exists();
+        $canApproveRefunds = UserPermission::query()
+            ->where('user_id', $user->id)
+            ->where('permission', 'refunds.approve')
+            ->exists();
+
+        return Inertia::render('Admin/Dashboard', [
+            'capabilities' => [
+                'manageStaff' => $canManageStaff,
+                'approveRefunds' => $canApproveRefunds,
+            ],
+            'metrics' => [
+                'users' => $canManageStaff ? User::query()->count() : null,
+                'wallets' => Wallet::query()->count(),
+                'pendingFunding' => PaymentIntent::query()->whereIn('status', ['pending', 'processing'])->count(),
+                'refundsNeedingAction' => $canApproveRefunds
+                    ? PaymentRefund::query()->whereIn('status', ['requested', 'blocked_insufficient_wallet_funds', 'review_required'])->count()
+                    : null,
+                'unresolvedVtuOrders' => VtuOrder::query()->whereIn('status', ['processing', 'awaiting_reconciliation'])->count(),
+            ],
+        ]);
+    }
+
+    private function renderCustomerDashboard(Request $request): InertiaResponse
+    {
+        $user = $request->user();
+        abort_unless($user, 401);
+
         $wallet = Wallet::query()
             ->where('user_id', $user->id)
             ->where('currency', 'NGN')
@@ -83,37 +131,6 @@ class DashboardController extends Controller
                         'created_at' => $intent->created_at?->toISOString(),
                     ])->values()
                 : [],
-        ]);
-    }
-
-    public function admin(Request $request): InertiaResponse
-    {
-        $user = $request->user();
-        abort_unless($user, 401);
-
-        $canManageStaff = UserPermission::query()
-            ->where('user_id', $user->id)
-            ->where('permission', 'staff.permissions.manage')
-            ->exists();
-        $canApproveRefunds = UserPermission::query()
-            ->where('user_id', $user->id)
-            ->where('permission', 'refunds.approve')
-            ->exists();
-
-        return Inertia::render('Admin/Dashboard', [
-            'capabilities' => [
-                'manageStaff' => $canManageStaff,
-                'approveRefunds' => $canApproveRefunds,
-            ],
-            'metrics' => [
-                'users' => $canManageStaff ? User::query()->count() : null,
-                'wallets' => Wallet::query()->count(),
-                'pendingFunding' => PaymentIntent::query()->whereIn('status', ['pending', 'processing'])->count(),
-                'refundsNeedingAction' => $canApproveRefunds
-                    ? PaymentRefund::query()->whereIn('status', ['requested', 'blocked_insufficient_wallet_funds', 'review_required'])->count()
-                    : null,
-                'unresolvedVtuOrders' => VtuOrder::query()->whereIn('status', ['processing', 'awaiting_reconciliation'])->count(),
-            ],
         ]);
     }
 
