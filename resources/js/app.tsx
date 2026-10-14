@@ -9,7 +9,7 @@ import SiteNavigation from './Components/SiteNavigation';
 const appName = import.meta.env.VITE_APP_NAME || 'SEMIZZY VTU';
 
 type PageWithLayout = {
-  default: ComponentType & { layout?: (page: ReactNode) => ReactNode };
+  default: ComponentType<any> & { layout?: (page: ReactNode) => ReactNode };
 };
 
 function restoreTheme() {
@@ -34,14 +34,14 @@ createInertiaApp({
     );
 
     // Dashboard pages already use DashboardLayout, which owns their navigation.
-    // Auth screens remain focused on sign-in/registration rather than app navigation.
-    if (name === 'Dashboard' || name === 'Admin/Dashboard' || name.startsWith('Auth/')) {
+    // Dashboard pages already use DashboardLayout, which owns their navigation.
+    if (name === 'Dashboard' || name === 'Admin/Dashboard') {
       return page;
     }
 
     const PageComponent = page.default;
     PageComponent.layout = (content) => (
-      <SiteNavigation admin={name.startsWith('Admin/')} publicPage={name === 'Welcome'}>
+      <SiteNavigation admin={name.startsWith('Admin/')} publicPage={name === 'Welcome' || name.startsWith('Auth/')}>
         {content}
       </SiteNavigation>
     );
