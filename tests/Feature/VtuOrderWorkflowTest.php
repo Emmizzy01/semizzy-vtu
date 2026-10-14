@@ -78,7 +78,7 @@ class VtuOrderWorkflowTest extends TestCase
             $this->assertSame(2000, (int) $product->fresh()->price_minor);
             $this->assertSame(1500, (int) $wallet->fresh()->available_balance_minor);
             $this->assertDatabaseCount('vtu_orders', 0);
-            $this->assertDatabaseCount('wallet_transactions', 1, 'Only the original funding transaction may remain.');
+            $this->assertDatabaseCount('wallet_transactions', 1);
             $this->assertSame(0, $provider->submissions);
         }
     }
