@@ -23,6 +23,12 @@ final class ConcurrentVtuTestProvider implements VtuProvider
 
     public function submit(VtuOrder $order): array
     {
+        // Simulate a process dying at the dispatch boundary before any request
+        // reaches the provider. This must leave the persisted order for lookup.
+        if ($this->read('crash_before_submit') === 1) {
+            exit(87);
+        }
+
         $this->increment('submissions');
 
         // Simulate the remote provider accepting a request immediately before
@@ -48,6 +54,7 @@ final class ConcurrentVtuTestProvider implements VtuProvider
         // reconciliation discovers that accepted purchase without resubmitting.
         // Mixed-result mode exercises contradictory concurrent terminal outcomes.
         $status = match (true) {
+            $this->read('crash_before_submit') === 1 => 'pending',
             $this->read('crash_after_submit') === 1 => 'success',
             $this->read('mixed_outcomes') === 1 => $lookupNumber === 1 ? 'success' : 'failed',
             $this->read('success_success') === 1 => 'success',
