@@ -47,11 +47,12 @@ final class ConcurrentVtuTestProvider implements VtuProvider
         // Crash recovery models a provider that accepted the original submit;
         // reconciliation discovers that accepted purchase without resubmitting.
         // Mixed-result mode exercises contradictory concurrent terminal outcomes.
-        $status = $this->read('crash_after_submit') === 1
-            ? 'success'
-            : ($this->read('mixed_outcomes') === 1
-                ? ($lookupNumber === 1 ? 'success' : 'failed')
-                : 'failed');
+        $status = match (true) {
+            $this->read('crash_after_submit') === 1 => 'success',
+            $this->read('mixed_outcomes') === 1 => $lookupNumber === 1 ? 'success' : 'failed',
+            $this->read('success_pending') === 1 => $lookupNumber === 1 ? 'success' : 'pending',
+            default => 'failed',
+        };
 
         return [
             'status' => $status,
