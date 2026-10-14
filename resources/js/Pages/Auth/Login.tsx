@@ -25,18 +25,18 @@ export default function Login() {
           </div>
           <form onSubmit={submit} className="space-y-5">
             <label className="block text-sm font-semibold">Email address
-              <input type="email" autoComplete="email" required value={form.data.email} onChange={(event) => form.setData('email', event.target.value)} className="mt-2 w-full rounded-xl border border-[var(--line)] bg-[var(--page)] px-4 py-3 font-normal outline-none focus:border-[var(--brand)] focus-visible:ring-2 focus-visible:ring-[var(--brand)] focus-visible:ring-offset-2" />
-              {form.errors.email && <span className="mt-1 block text-xs text-rose-500">{form.errors.email}</span>}
+              <input id="login-email" name="email" type="email" autoComplete="username" autoCapitalize="none" spellCheck={false} required value={form.data.email} onChange={(event) => form.setData('email', event.target.value)} aria-invalid={Boolean(form.errors.email)} aria-describedby={form.errors.email ? 'login-email-error' : undefined} className="mt-2 w-full rounded-xl border border-[var(--line)] bg-[var(--page)] px-4 py-3 font-normal outline-none focus:border-[var(--brand)] focus-visible:ring-2 focus-visible:ring-[var(--brand)] focus-visible:ring-offset-2" />
+              {form.errors.email && <span id="login-email-error" role="alert" className="mt-1 block text-xs text-rose-500">{form.errors.email}</span>}
             </label>
             <label className="block text-sm font-semibold">Password
-              <input type="password" autoComplete="current-password" required value={form.data.password} onChange={(event) => form.setData('password', event.target.value)} className="mt-2 w-full rounded-xl border border-[var(--line)] bg-[var(--page)] px-4 py-3 font-normal outline-none focus:border-[var(--brand)] focus-visible:ring-2 focus-visible:ring-[var(--brand)] focus-visible:ring-offset-2" />
-              {form.errors.password && <span className="mt-1 block text-xs text-rose-500">{form.errors.password}</span>}
+              <input id="login-password" name="password" type="password" autoComplete="current-password" required value={form.data.password} onChange={(event) => form.setData('password', event.target.value)} aria-invalid={Boolean(form.errors.password)} aria-describedby={form.errors.password ? 'login-password-error' : undefined} className="mt-2 w-full rounded-xl border border-[var(--line)] bg-[var(--page)] px-4 py-3 font-normal outline-none focus:border-[var(--brand)] focus-visible:ring-2 focus-visible:ring-[var(--brand)] focus-visible:ring-offset-2" />
+              {form.errors.password && <span id="login-password-error" role="alert" className="mt-1 block text-xs text-rose-500">{form.errors.password}</span>}
             </label>
             <label className="flex items-center gap-2 text-sm text-[var(--muted)]">
-              <input type="checkbox" checked={form.data.remember} onChange={(event) => form.setData('remember', event.target.checked)} className="rounded border-[var(--line)]" />
+              <input id="remember-me" name="remember" type="checkbox" checked={form.data.remember} onChange={(event) => form.setData('remember', event.target.checked)} className="rounded border-[var(--line)] focus-visible:ring-2 focus-visible:ring-[var(--brand)] focus-visible:ring-offset-2" />
               Remember me on this device
             </label>
-            <button type="submit" disabled={form.processing} className="flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--brand)] px-4 py-3.5 font-bold text-white disabled:opacity-60">
+            <button type="submit" disabled={form.processing} className="flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--brand)] px-4 py-3.5 font-bold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)] focus-visible:ring-offset-2 disabled:opacity-60">
               {form.processing && <LoaderCircle size={18} className="animate-spin" aria-hidden="true" />} Sign in
             </button>
           </form>

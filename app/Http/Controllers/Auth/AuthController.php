@@ -20,6 +20,10 @@ class AuthController extends Controller
 
     public function login(Request $request): RedirectResponse
     {
+        // Match registration's normalization so accidental surrounding spaces or
+        // email-address casing do not prevent an otherwise valid sign-in.
+        $request->merge(['email' => strtolower(trim((string) $request->input('email')))]);
+
         $credentials = $request->validate([
             'email' => ['required', 'email', 'max:255'],
             'password' => ['required', 'string'],

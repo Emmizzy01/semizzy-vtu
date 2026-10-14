@@ -77,6 +77,18 @@ class DashboardRoutingTest extends TestCase
         $this->actingAs($customer)->get('/admin/dashboard')->assertForbidden();
     }
 
+    public function test_login_normalizes_email_case_and_surrounding_whitespace(): void
+    {
+        $customer = $this->account('case-normalized@example.test');
+
+        $this->post('/login', [
+            'email' => '  CASE-NORMALIZED@EXAMPLE.TEST  ',
+            'password' => 'CorrectPassword1234',
+        ])->assertRedirect('/dashboard');
+
+        $this->assertAuthenticatedAs($customer);
+    }
+
     public function test_login_fallback_routes_customer_to_dashboard(): void
     {
         $customer = $this->account('login-customer@example.test');

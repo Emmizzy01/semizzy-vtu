@@ -25,22 +25,23 @@ export default function Register() {
           </div>
           <form onSubmit={submit} className="space-y-4">
             <label className="block text-sm font-semibold">Full name
-              <input autoComplete="name" required maxLength={120} value={form.data.name} onChange={(event) => form.setData('name', event.target.value)} className="mt-2 w-full rounded-xl border border-[var(--line)] bg-[var(--page)] px-4 py-3 font-normal outline-none focus:border-[var(--brand)] focus-visible:ring-2 focus-visible:ring-[var(--brand)] focus-visible:ring-offset-2" />
-              {form.errors.name && <span className="mt-1 block text-xs text-rose-500">{form.errors.name}</span>}
+              <input id="register-name" name="name" autoComplete="name" required maxLength={120} value={form.data.name} onChange={(event) => form.setData('name', event.target.value)} aria-invalid={Boolean(form.errors.name)} aria-describedby={form.errors.name ? 'register-name-error' : undefined} className="mt-2 w-full rounded-xl border border-[var(--line)] bg-[var(--page)] px-4 py-3 font-normal outline-none focus:border-[var(--brand)] focus-visible:ring-2 focus-visible:ring-[var(--brand)] focus-visible:ring-offset-2" />
+              {form.errors.name && <span id="register-name-error" role="alert" className="mt-1 block text-xs text-rose-500">{form.errors.name}</span>}
             </label>
             <label className="block text-sm font-semibold">Email address
-              <input type="email" autoComplete="email" required value={form.data.email} onChange={(event) => form.setData('email', event.target.value)} className="mt-2 w-full rounded-xl border border-[var(--line)] bg-[var(--page)] px-4 py-3 font-normal outline-none focus:border-[var(--brand)] focus-visible:ring-2 focus-visible:ring-[var(--brand)] focus-visible:ring-offset-2" />
-              {form.errors.email && <span className="mt-1 block text-xs text-rose-500">{form.errors.email}</span>}
+              <input id="register-email" name="email" type="email" autoComplete="email" autoCapitalize="none" spellCheck={false} required value={form.data.email} onChange={(event) => form.setData('email', event.target.value)} aria-invalid={Boolean(form.errors.email)} aria-describedby={form.errors.email ? 'register-email-error' : undefined} className="mt-2 w-full rounded-xl border border-[var(--line)] bg-[var(--page)] px-4 py-3 font-normal outline-none focus:border-[var(--brand)] focus-visible:ring-2 focus-visible:ring-[var(--brand)] focus-visible:ring-offset-2" />
+              {form.errors.email && <span id="register-email-error" role="alert" className="mt-1 block text-xs text-rose-500">{form.errors.email}</span>}
             </label>
             <label className="block text-sm font-semibold">Password
-              <input type="password" autoComplete="new-password" required minLength={12} value={form.data.password} onChange={(event) => form.setData('password', event.target.value)} className="mt-2 w-full rounded-xl border border-[var(--line)] bg-[var(--page)] px-4 py-3 font-normal outline-none focus:border-[var(--brand)] focus-visible:ring-2 focus-visible:ring-[var(--brand)] focus-visible:ring-offset-2" />
-              <span className="mt-1 block text-xs font-normal text-[var(--muted)]">Use at least 12 characters with mixed case and numbers.</span>
-              {form.errors.password && <span className="mt-1 block text-xs text-rose-500">{form.errors.password}</span>}
+              <input id="register-password" name="password" type="password" autoComplete="new-password" required minLength={12} value={form.data.password} onChange={(event) => form.setData('password', event.target.value)} aria-invalid={Boolean(form.errors.password)} aria-describedby={form.errors.password ? 'register-password-hint register-password-error' : 'register-password-hint'} className="mt-2 w-full rounded-xl border border-[var(--line)] bg-[var(--page)] px-4 py-3 font-normal outline-none focus:border-[var(--brand)] focus-visible:ring-2 focus-visible:ring-[var(--brand)] focus-visible:ring-offset-2" />
+              <span id="register-password-hint" className="mt-1 block text-xs font-normal text-[var(--muted)]">Use at least 12 characters, including letters, uppercase and lowercase characters, and numbers.</span>
+              {form.errors.password && <span id="register-password-error" role="alert" className="mt-1 block text-xs text-rose-500">{form.errors.password}</span>}
             </label>
             <label className="block text-sm font-semibold">Confirm password
-              <input type="password" autoComplete="new-password" required minLength={12} value={form.data.password_confirmation} onChange={(event) => form.setData('password_confirmation', event.target.value)} className="mt-2 w-full rounded-xl border border-[var(--line)] bg-[var(--page)] px-4 py-3 font-normal outline-none focus:border-[var(--brand)] focus-visible:ring-2 focus-visible:ring-[var(--brand)] focus-visible:ring-offset-2" />
+              <input id="register-password-confirmation" name="password_confirmation" type="password" autoComplete="new-password" required minLength={12} value={form.data.password_confirmation} onChange={(event) => form.setData('password_confirmation', event.target.value)} aria-invalid={Boolean(form.errors.password_confirmation)} aria-describedby={form.errors.password_confirmation ? 'register-password-confirmation-error' : undefined} className="mt-2 w-full rounded-xl border border-[var(--line)] bg-[var(--page)] px-4 py-3 font-normal outline-none focus:border-[var(--brand)] focus-visible:ring-2 focus-visible:ring-[var(--brand)] focus-visible:ring-offset-2" />
+              {form.errors.password_confirmation && <span id="register-password-confirmation-error" role="alert" className="mt-1 block text-xs text-rose-500">{form.errors.password_confirmation}</span>}
             </label>
-            <button type="submit" disabled={form.processing} className="flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--brand)] px-4 py-3.5 font-bold text-white disabled:opacity-60">
+            <button type="submit" disabled={form.processing} className="flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--brand)] px-4 py-3.5 font-bold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)] focus-visible:ring-offset-2 disabled:opacity-60">
               {form.processing && <LoaderCircle size={18} className="animate-spin" aria-hidden="true" />} Create account
             </button>
           </form>
