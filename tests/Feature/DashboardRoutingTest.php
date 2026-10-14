@@ -59,6 +59,17 @@ class DashboardRoutingTest extends TestCase
                 ->where('capabilities.approveRefunds', false));
     }
 
+    public function test_admin_can_preview_the_customer_dashboard_for_their_own_account(): void
+    {
+        $admin = $this->account('preview-admin@example.test');
+        $this->grant($admin, 'staff.permissions.manage');
+
+        $this->actingAs($admin)
+            ->get('/customer/dashboard')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page->component('Dashboard'));
+    }
+
     public function test_admin_dashboard_rejects_accounts_without_admin_permission(): void
     {
         $customer = $this->account('ordinary@example.test');
