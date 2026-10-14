@@ -30,7 +30,7 @@ createInertiaApp({
   resolve: async (name) => {
     const page = await resolvePageComponent<PageWithLayout>(
       `./Pages/${name}.tsx`,
-      import.meta.glob('./Pages/**/*.tsx'),
+      import.meta.glob('./Pages/**/*.tsx') as Record<string, () => Promise<PageWithLayout>>,
     );
 
     // Dashboard pages already use DashboardLayout, which owns their navigation.
