@@ -54,6 +54,29 @@ class VtuOrderMariaDbConcurrencyTest extends TestCase
         parent::tearDown();
     }
 
+    public function test_two_independent_workers_open_only_one_first_wallet_for_a_user(): void
+    {
+        $user = User::query()->create([
+            'name' => 'Concurrent Wallet Creation Customer',
+            'email' => 'wallet-race-'.Str::uuid().'@example.test',
+            'password' => Hash::make('test-only-password'),
+        ]);
+        $state = $this->newStateFile();
+
+        $results = $this->runWorkers([
+            ['open-wallet', $state, (string) $user->getKey()],
+            ['open-wallet', $state, (string) $user->getKey()],
+        ]);
+
+        $this->assertSame([0, 0], array_column($results, 'exit'));
+        $this->assertSame($results[0]['stdout'], $results[1]['stdout'], 'Both workers must return the same wallet ID.');
+        $this->assertSame(1, DB::table('wallets')->where('user_id', $user->getKey())->where('currency', 'NGN')->count());
+        $this->assertSame(0, (int) DB::table('wallets')->where('user_id', $user->getKey())->value('balance_minor'));
+        $this->assertSame(0, DB::table('wallet_transactions')->count());
+
+        @unlink($state);
+    }
+
     public function test_two_independent_purchase_workers_create_one_order_debit_and_provider_submission(): void
     {
         [$user, $wallet, $product] = $this->preparedCustomer(1000, 1500);
