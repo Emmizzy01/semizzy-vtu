@@ -385,6 +385,47 @@ class VtuOrderWorkflowTest extends TestCase
         Http::assertSentCount(3);
     }
 
+    public function test_two_stale_reconciliations_cannot_refund_the_same_definitive_failure_twice(): void
+    {
+        $lookups = 0;
+        Http::fake(function ($request) use (&$lookups) {
+            if ($request->method() === 'POST') {
+                return Http::response(['status' => 'pending'], 200);
+            }
+
+            $lookups++;
+
+            return Http::response([
+                'status' => 'failed',
+                'message_code' => 'PROVIDER_DECLINED',
+                'provider_reference' => 'provider-order-concurrent-failure',
+            ], 200);
+        });
+
+        [$user, $wallet, $product] = $this->preparedCustomer(1000, 1500);
+        $service = app(VtuOrderService::class);
+        $staleOrder = $service->purchase(
+            $user,
+            $product->code,
+            '08012345678',
+            'concurrent-failure-refund-once',
+        );
+
+        // Both reconciliations intentionally use the same stale non-terminal
+        // snapshot, modelling workers that looked up the provider concurrently.
+        $firstFailure = $service->reconcile($staleOrder);
+        $secondFailure = $service->reconcile($staleOrder);
+
+        $this->assertSame('failed', $firstFailure->status);
+        $this->assertSame('failed', $secondFailure->status);
+        $this->assertSame('failed', $staleOrder->fresh()->status);
+        $this->assertSame(1500, (int) $wallet->fresh()->available_balance_minor);
+        $this->assertDatabaseCount('vtu_orders', 1);
+        $this->assertDatabaseCount('wallet_transactions', 3);
+        $this->assertSame(2, $lookups);
+        Http::assertSentCount(3);
+    }
+
     public function test_reusing_idempotency_key_for_different_purchase_is_rejected(): void
     {
         Http::fake(fn () => Http::response(['status' => 'pending'], 200));
