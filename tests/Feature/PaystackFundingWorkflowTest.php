@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\IntegrationSetting;
 use App\Models\User;
 use App\Services\Payments\PaymentIntentService;
 use App\Services\Wallets\WalletAccountService;
@@ -195,6 +196,104 @@ class PaystackFundingWorkflowTest extends TestCase
         $this->assertSame('pending', $intent->fresh()->status);
         $this->assertDatabaseCount('wallet_transactions', 0);
     }
+    public function test_checkout_uses_database_saved_paystack_secret_and_callback_url(): void
+    {
+        IntegrationSetting::query()->create([
+            'key' => 'paystack.secret_key',
+            'value' => 'sk_test_database_saved_secret',
+        ]);
+        IntegrationSetting::query()->create([
+            'key' => 'paystack.callback_url',
+            'value' => 'https://semizzy.example.test/wallet/funding/return',
+        ]);
+
+        Http::fake([
+            'api.paystack.co/transaction/initialize' => function ($request) {
+                return Http::response([
+                    'status' => true,
+                    'data' => [
+                        'authorization_url' => 'https://checkout.paystack.com/database-settings-session',
+                        'access_code' => 'access_database_settings',
+                        'reference' => $request['reference'],
+                    ],
+                ], 200);
+            },
+        ]);
+
+        $user = User::query()->create([
+            'name' => 'Database Settings Customer',
+            'email' => 'database-settings@example.test',
+            'password' => 'not-a-real-password',
+        ]);
+
+        $response = $this->actingAs($user)->postJson('/wallet/funding-intents', [
+            'amount_minor' => 25000,
+        ]);
+
+        $response->assertCreated();
+
+        Http::assertSent(function ($request): bool {
+            return str_ends_with($request->url(), '/transaction/initialize')
+                && $request->hasHeader('Authorization', 'Bearer sk_test_database_saved_secret')
+                && $request['callback_url'] === 'https://semizzy.example.test/wallet/funding/return';
+        });
+    }
+
+    public function test_webhook_uses_database_saved_secret_for_signature_and_verification(): void
+    {
+        IntegrationSetting::query()->create([
+            'key' => 'paystack.secret_key',
+            'value' => 'sk_test_database_webhook_secret',
+        ]);
+
+        $user = User::query()->create([
+            'name' => 'Database Webhook Customer',
+            'email' => 'database-webhook@example.test',
+            'password' => 'not-a-real-password',
+        ]);
+        $wallet = app(WalletAccountService::class)->openForUser($user);
+        $intent = app(PaymentIntentService::class)->create($wallet, 12500, 'paystack');
+
+        Http::fake([
+            'api.paystack.co/transaction/verify/*' => Http::response([
+                'status' => true,
+                'data' => [
+                    'id' => 445566,
+                    'status' => 'success',
+                    'reference' => $intent->reference,
+                    'amount' => 12500,
+                    'currency' => 'NGN',
+                ],
+            ], 200),
+        ]);
+
+        $payload = [
+            'event' => 'charge.success',
+            'data' => [
+                'id' => 445566,
+                'status' => 'success',
+                'reference' => $intent->reference,
+                'amount' => 12500,
+                'currency' => 'NGN',
+            ],
+        ];
+        $raw = json_encode($payload, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES);
+        $signature = hash_hmac('sha512', $raw, 'sk_test_database_webhook_secret');
+
+        $response = $this->call('POST', '/api/payments/webhooks/paystack', [], [], [], [
+            'CONTENT_TYPE' => 'application/json',
+            'HTTP_X_PAYSTACK_SIGNATURE' => $signature,
+        ], $raw);
+
+        $response->assertOk()->assertJsonPath('outcome', 'credited');
+        $this->assertSame(12500, (int) $wallet->fresh()->balance_minor);
+
+        Http::assertSent(function ($request): bool {
+            return str_contains($request->url(), '/transaction/verify/')
+                && $request->hasHeader('Authorization', 'Bearer sk_test_database_webhook_secret');
+        });
+    }
+
     public function test_browser_return_never_credits_even_when_paystack_reports_success(): void
     {
         $user = User::query()->create([
