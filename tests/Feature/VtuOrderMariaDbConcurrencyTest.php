@@ -1,0 +1,209 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Models\User;
+use App\Models\VtuOrder;
+use App\Models\VtuProduct;
+use App\Services\Wallets\WalletAccountService;
+use App\Services\Wallets\WalletLedgerService;
+use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
+use Tests\TestCase;
+
+class VtuOrderMariaDbConcurrencyTest extends TestCase
+{
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        // This suite deliberately uses committed rows shared by independent PHP
+        // processes. Never run its schema reset against SQLite or a non-test DB.
+        if (config('database.default') !== 'mysql'
+            || ! str_ends_with((string) config('database.connections.mysql.database'), '_test')) {
+            $this->markTestSkipped('MariaDB concurrency tests require a dedicated MySQL database whose name ends in _test.');
+        }
+
+        Artisan::call('migrate:fresh', ['--force' => true]);
+        DB::purge('mysql');
+
+        config([
+            'services.vtu.name' => 'concurrency-test-provider',
+            'services.vtu.endpoint' => 'https://provider.example.test/api',
+            'services.vtu.token' => 'test-only-token',
+            'services.vtu.driver' => 'configured',
+        ]);
+    }
+
+    public function test_two_independent_purchase_workers_create_one_order_debit_and_provider_submission(): void
+    {
+        [$user, $wallet, $product] = $this->preparedCustomer(1000, 1500);
+        $state = $this->newStateFile();
+
+        $results = $this->runWorkers([
+            ['purchase', $state, (string) $user->getKey(), $product->code, 'parallel-purchase-once'],
+            ['purchase', $state, (string) $user->getKey(), $product->code, 'parallel-purchase-once'],
+        ]);
+
+        $this->assertSame([0, 0], array_column($results, 'exit'));
+        $this->assertDatabaseCount('vtu_orders', 1);
+        $this->assertDatabaseCount('wallet_transactions', 2, 'Funding plus exactly one purchase debit are expected.');
+        $this->assertSame(500, (int) $wallet->fresh()->available_balance_minor);
+
+        $order = VtuOrder::query()->sole();
+        $this->assertSame('awaiting_reconciliation', $order->status);
+        $this->assertSame(1, $this->readState($state, 'submissions'));
+        $this->assertSame(0, $this->readState($state, 'lookups'));
+
+        @unlink($state);
+    }
+
+    public function test_two_reconciliation_workers_refund_a_failed_order_once(): void
+    {
+        [$user, $wallet, $product] = $this->preparedCustomer(1000, 1500);
+        $order = VtuOrder::query()->create([
+            'public_id' => (string) Str::uuid(),
+            'user_id' => $user->getKey(),
+            'wallet_id' => $wallet->getKey(),
+            'vtu_product_id' => $product->getKey(),
+            'idempotency_key' => 'parallel-reconcile-once',
+            'request_hash' => hash('sha256', 'parallel-reconcile-once'),
+            'service_type' => $product->service_type,
+            'network' => $product->network,
+            'product_code' => $product->code,
+            'recipient' => '08012345678',
+            'amount_minor' => $product->price_minor,
+            'currency' => 'NGN',
+            'status' => 'processing',
+            'provider' => 'concurrency-test-provider',
+            'dispatch_started_at' => now()->subMinutes(10),
+        ]);
+
+        $debit = app(WalletLedgerService::class)->post(
+            walletId: (int) $wallet->getKey(),
+            type: 'debit',
+            amountMinor: (int) $product->price_minor,
+            idempotencyKey: 'vtu-purchase:'.$order->public_id,
+            reference: $order->public_id,
+            description: 'Concurrency test purchase debit',
+            actorUserId: (int) $user->getKey(),
+            metadata: ['vtu_order_id' => $order->public_id],
+            correlationId: $order->public_id,
+        );
+        $order->forceFill(['wallet_transaction_id' => $debit->getKey()])->save();
+
+        $state = $this->newStateFile();
+        $results = $this->runWorkers([
+            ['reconcile', $state, (string) $order->getKey()],
+            ['reconcile', $state, (string) $order->getKey()],
+        ]);
+
+        $this->assertSame([0, 0], array_column($results, 'exit'));
+        $this->assertSame('failed', $order->fresh()->status);
+        $this->assertSame(1500, (int) $wallet->fresh()->available_balance_minor);
+        $this->assertDatabaseCount('vtu_orders', 1);
+        $this->assertDatabaseCount('wallet_transactions', 3, 'Funding, one debit, and exactly one refund are expected.');
+        $this->assertSame(2, $this->readState($state, 'lookups'));
+        $this->assertSame(0, $this->readState($state, 'submissions'));
+
+        @unlink($state);
+    }
+
+    private function preparedCustomer(int $priceMinor, int $initialBalanceMinor): array
+    {
+        $user = User::query()->create([
+            'name' => 'MariaDB Concurrency Customer',
+            'email' => 'concurrency-'.Str::uuid().'@example.test',
+            'password' => Hash::make('test-only-password'),
+        ]);
+
+        $wallet = app(WalletAccountService::class)->openForUser($user);
+        app(WalletLedgerService::class)->post(
+            walletId: (int) $wallet->getKey(),
+            type: 'credit',
+            amountMinor: $initialBalanceMinor,
+            idempotencyKey: 'test-funding:'.$user->getKey(),
+            reference: 'test-funding:'.$user->getKey(),
+            description: 'Test-only funding',
+        );
+
+        $product = VtuProduct::query()->create([
+            'service_type' => 'airtime',
+            'network' => 'test_network',
+            'code' => 'concurrency-airtime-'.Str::uuid(),
+            'name' => 'Concurrency Test Airtime',
+            'price_minor' => $priceMinor,
+            'face_value_minor' => $priceMinor,
+            'currency' => 'NGN',
+            'is_active' => true,
+        ]);
+
+        return [$user, $wallet->fresh(), $product];
+    }
+
+    private function newStateFile(): string
+    {
+        $path = tempnam(sys_get_temp_dir(), 'semizzy-vtu-race-');
+        if ($path === false) {
+            $this->fail('Could not create shared concurrency state file.');
+        }
+
+        file_put_contents($path, '{}');
+
+        return $path;
+    }
+
+    /** @param list<list<string>> $workers
+     *  @return list<array{exit:int,stdout:string,stderr:string}>
+     */
+    private function runWorkers(array $workers): array
+    {
+        $processes = [];
+        $script = base_path('tests/Support/vtu_concurrency_worker.php');
+
+        foreach ($workers as $arguments) {
+            $command = array_merge([PHP_BINARY, $script], $arguments);
+            $pipes = [];
+            $process = proc_open($command, [
+                0 => ['pipe', 'r'],
+                1 => ['pipe', 'w'],
+                2 => ['pipe', 'w'],
+            ], $pipes, base_path());
+
+            if (! is_resource($process)) {
+                $this->fail('Could not start an independent MariaDB concurrency worker.');
+            }
+
+            fclose($pipes[0]);
+            $processes[] = [$process, $pipes];
+        }
+
+        $results = [];
+        foreach ($processes as [$process, $pipes]) {
+            $stdout = stream_get_contents($pipes[1]);
+            $stderr = stream_get_contents($pipes[2]);
+            fclose($pipes[1]);
+            fclose($pipes[2]);
+            $results[] = [
+                'exit' => proc_close($process),
+                'stdout' => trim($stdout === false ? '' : $stdout),
+                'stderr' => trim($stderr === false ? '' : $stderr),
+            ];
+        }
+
+        foreach ($results as $result) {
+            $this->assertSame(0, $result['exit'], 'Worker failed: '.$result['stderr']);
+        }
+
+        return $results;
+    }
+
+    private function readState(string $path, string $key): int
+    {
+        $state = json_decode((string) file_get_contents($path), true);
+
+        return is_array($state) ? (int) ($state[$key] ?? 0) : 0;
+    }
+}
