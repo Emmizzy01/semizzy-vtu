@@ -1,27 +1,32 @@
 <?php
 
-namespace App\Http\Controllers\Admin;
+namespace App\\Http\\Controllers\\Admin;
 
-use App\Http\Controllers\Controller;
-use App\Services\IntegrationSettings;
-use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
-use Inertia\Inertia;
-use Inertia\Response as InertiaResponse;
+use App\\Http\\Controllers\\Controller;
+use App\\Services\\IntegrationSettings;
+use Illuminate\\Http\\RedirectResponse;
+use Illuminate\\Http\\Request;
+use Inertia\\Inertia;
+use Inertia\\Response as InertiaResponse;
 
 class IntegrationSettingsController extends Controller
 {
-    public function paymentGateway(IntegrationSettings $settings): InertiaResponse
+    public function paymentGateway(Request $request, IntegrationSettings $settings): InertiaResponse
     {
         $secret = (string) $settings->get('paystack.secret_key', config('services.paystack.secret_key', ''));
-        $callback = (string) $settings->get('paystack.callback_url', config('services.paystack.callback_url', ''));
+        $callback = trim((string) $settings->get('paystack.callback_url', config('services.paystack.callback_url', '')));
+        if ($callback === '') {
+            $callback = $request->getSchemeAndHttpHost().'/wallet/funding/return';
+        }
+        $webhookUrl = $request->getSchemeAndHttpHost().'/api/payments/webhooks/paystack';
 
         return Inertia::render('Admin/PaymentGateway', ['gateway' => [
             'name' => 'Paystack', 'configured' => $secret !== '',
             'callbackConfigured' => $callback !== '',
             'mode' => str_starts_with($secret, 'sk_test_') ? 'Test' : (str_starts_with($secret, 'sk_live_') ? 'Live' : 'Unknown'),
             'callbackHost' => parse_url($callback, PHP_URL_HOST) ?: null,
-            'callbackUrl' => $callback, 'webhookPath' => '/api/payments/webhooks/paystack',
+            'callbackUrl' => $callback,
+            'webhookUrl' => $webhookUrl,
         ]]);
     }
 
@@ -33,7 +38,7 @@ class IntegrationSettingsController extends Controller
             'confirm_live' => ['nullable', 'boolean'],
         ]);
         $secret = trim((string) ($data['secret_key'] ?? ''));
-        if ($secret !== '' && ! preg_match('/^sk_(?:test|live)_[^\\s]+$/', $secret)) {
+        if ($secret !== '' && ! preg_match('/^sk_(?:test|live)_[^\\\\s]+$/', $secret)) {
             return back()->withErrors(['secret_key' => 'Enter a valid Paystack secret key beginning with sk_test_ or sk_live_.']);
         }
         if ($secret !== '' && str_starts_with($secret, 'sk_live_') && ! $request->boolean('confirm_live')) {
