@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Models\User;
 use App\Models\UserPermission;
+use App\Services\IntegrationSettings;
 use App\Services\Vtu\VtpassProviderClient;
 use App\Services\Vtu\VtuProvider;
 use App\Services\Vtu\VtuProviderClient;
@@ -15,7 +16,7 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->bind(VtuProvider::class, function ($app): VtuProvider {
-            return config('services.vtu.driver') === 'vtpass'
+            return $app->make(IntegrationSettings::class)->get('vtu.driver', config('services.vtu.driver')) === 'vtpass'
                 ? $app->make(VtpassProviderClient::class)
                 : $app->make(VtuProviderClient::class);
         });
