@@ -32,7 +32,7 @@ Artisan::command('semizzy:bootstrap-admin {email} {--force : Confirm this one-ti
         return 1;
     }
 
-    $result = \\Illuminate\\Support\\Facades\\DB::transaction(function () use ($user): array {
+    $result = \Illuminate\Support\Facades\DB::transaction(function () use ($user): array {
         $privilegedPermissions = ['staff.permissions.manage', 'refunds.approve'];
         $existingAdminAccess = UserPermission::query()
             ->whereIn('permission', $privilegedPermissions)
