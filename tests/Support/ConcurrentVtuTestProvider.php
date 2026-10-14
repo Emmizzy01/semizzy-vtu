@@ -50,6 +50,7 @@ final class ConcurrentVtuTestProvider implements VtuProvider
         $status = match (true) {
             $this->read('crash_after_submit') === 1 => 'success',
             $this->read('mixed_outcomes') === 1 => $lookupNumber === 1 ? 'success' : 'failed',
+            $this->read('success_success') === 1 => 'success',
             $this->read('success_pending') === 1 => $lookupNumber === 1 ? 'success' : 'pending',
             default => 'failed',
         };
