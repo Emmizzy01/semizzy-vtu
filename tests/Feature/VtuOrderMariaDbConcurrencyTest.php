@@ -206,6 +206,47 @@ class VtuOrderMariaDbConcurrencyTest extends TestCase
         @unlink($state);
     }
 
+    public function test_crashed_worker_after_provider_acceptance_recovers_by_lookup_without_resubmission(): void
+    {
+        [$user, $wallet, $product] = $this->preparedCustomer(1000, 1500);
+        $state = $this->newStateFile([
+            'crash_after_submit' => 1,
+            'single_lookup' => 1,
+        ]);
+
+        // Two requests meet at the purchase barrier. Exactly one submits to the
+        // fake provider and exits abruptly before persisting its response; the
+        // competing idempotent request must reuse the same order.
+        $results = $this->runWorkers([
+            ['purchase', $state, (string) $user->getKey(), $product->code, 'crash-after-provider-acceptance'],
+            ['purchase', $state, (string) $user->getKey(), $product->code, 'crash-after-provider-acceptance'],
+        ], assertSuccessful: false);
+
+        $this->assertSame([0, 86], collect(array_column($results, 'exit'))->sort()->values()->all());
+        $this->assertDatabaseCount('vtu_orders', 1);
+        $this->assertSame(2, DB::table('wallet_transactions')->count(), 'Funding and one purchase debit must persist across the crash.');
+        $this->assertSame(500, (int) $wallet->fresh()->available_balance_minor);
+        $this->assertSame('processing', VtuOrder::query()->sole()->status);
+        $this->assertSame(1, $this->readState($state, 'submissions'));
+        $this->assertSame(0, $this->readState($state, 'lookups'));
+
+        $order = VtuOrder::query()->sole();
+        $recovery = $this->runWorkers([
+            ['reconcile', $state, (string) $order->getKey()],
+        ]);
+
+        $this->assertSame([0], array_column($recovery, 'exit'));
+        $this->assertSame('successful', $order->fresh()->status);
+        $this->assertSame('concurrency-provider-'.$order->public_id, $order->fresh()->provider_reference);
+        $this->assertSame(500, (int) $wallet->fresh()->available_balance_minor);
+        $this->assertDatabaseCount('vtu_orders', 1);
+        $this->assertSame(2, DB::table('wallet_transactions')->count(), 'Recovery must not debit or refund again.');
+        $this->assertSame(1, $this->readState($state, 'submissions'), 'Recovery must never resubmit a purchase.');
+        $this->assertSame(1, $this->readState($state, 'lookups'), 'Recovery must query provider state once.');
+
+        @unlink($state);
+    }
+
     private function preparedCustomer(int $priceMinor, int $initialBalanceMinor): array
     {
         $user = User::query()->create([
