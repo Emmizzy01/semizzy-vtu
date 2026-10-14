@@ -152,7 +152,7 @@ export default function DashboardLayout({
               <ThemeToggle />
               <form method="post" action="/logout">
                 <input type="hidden" name="_token" value={typeof document === 'undefined' ? '' : (document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ?? '')} />
-                <button type="submit" className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-[var(--brand)] px-3 text-sm font-bold text-white hover:opacity-90">
+                <button type="submit" aria-label="Sign out" className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-[var(--brand)] px-3 text-sm font-bold text-white hover:opacity-90">
                   <LogOut size={15} aria-hidden="true" /><span className="hidden sm:inline">Sign out</span>
                 </button>
               </form>
