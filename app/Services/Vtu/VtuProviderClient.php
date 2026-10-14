@@ -4,6 +4,7 @@ namespace App\Services\Vtu;
 
 use App\Models\VtuOrder;
 use App\Models\VtuProduct;
+use App\Services\IntegrationSettings;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
 use LogicException;
@@ -12,8 +13,8 @@ class VtuProviderClient implements VtuProvider
 {
     public function assertConfigured(): void
     {
-        $endpoint = (string) config('services.vtu.endpoint', '');
-        $token = (string) config('services.vtu.token', '');
+        $endpoint = (string) app(IntegrationSettings::class)->get('vtu.endpoint', config('services.vtu.endpoint', ''));
+        $token = (string) app(IntegrationSettings::class)->get('vtu.token', config('services.vtu.token', ''));
         $scheme = parse_url($endpoint, PHP_URL_SCHEME);
 
         if ($endpoint === '' || $token === '' || $scheme !== 'https') {
@@ -38,9 +39,9 @@ class VtuProviderClient implements VtuProvider
     public function submit(VtuOrder $order): array
     {
         $this->assertConfigured();
-        $endpoint = rtrim((string) config('services.vtu.endpoint'), '/');
+        $endpoint = rtrim((string) app(IntegrationSettings::class)->get('vtu.endpoint', config('services.vtu.endpoint')), '/');
 
-        $response = Http::withToken((string) config('services.vtu.token'))
+        $response = Http::withToken((string) app(IntegrationSettings::class)->get('vtu.token', config('services.vtu.token')))
             ->acceptJson()
             ->asJson()
             ->connectTimeout(5)
