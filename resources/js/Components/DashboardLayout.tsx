@@ -50,6 +50,14 @@ export default function DashboardLayout({
       window.removeEventListener('popstate', syncLocation);
     };
   }, []);
+  useEffect(() => {
+    if (!mobileMenuOpen) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setMobileMenuOpen(false);
+    };
+    window.addEventListener('keydown', closeOnEscape);
+    return () => window.removeEventListener('keydown', closeOnEscape);
+  }, [mobileMenuOpen]);
   const currentPath = location.path;
   const currentHash = location.hash;
   const overviewHref = admin ? '/admin/dashboard' : '/dashboard';
