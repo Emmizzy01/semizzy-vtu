@@ -77,8 +77,8 @@ export default function CustomerDashboard({ wallet, transactions, orders, fundin
   return (
     <DashboardLayout title="Your dashboard" description="Your wallet, digital services, and recent activity in one secure place.">
       <section className="grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
-        <article className="relative overflow-hidden rounded-3xl bg-slate-950 p-6 text-white shadow-xl shadow-slate-950/10 sm:p-8">
-          <div className="absolute -right-12 -top-16 h-52 w-52 rounded-full bg-indigo-500/20 blur-3xl" />
+        <article className="relative overflow-hidden rounded-3xl bg-[var(--brand-strong)] p-6 text-white shadow-xl shadow-emerald-950/10 sm:p-8">
+          <div className="absolute -right-12 -top-16 h-52 w-52 rounded-full bg-emerald-300/20 blur-3xl" />
           <div className="relative flex items-start justify-between gap-4">
             <div><p className="text-sm font-semibold text-slate-300">Available wallet balance</p><p className="mt-3 font-display text-3xl font-extrabold tracking-tight sm:text-4xl">{wallet ? money(wallet.available_balance_minor, wallet.currency) : 'Not set up yet'}</p><p className="mt-2 text-xs text-slate-400">{wallet ? (wallet.status === 'active' ? 'Your NGN wallet is active' : `Wallet status: ${wallet.status}`) : 'A wallet will be created when you start a supported wallet operation.'}</p></div>
             <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-white/10"><WalletCards size={23} /></span>
