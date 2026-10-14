@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use App\Models\UserPermission;
+use App\Models\IntegrationSetting;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
@@ -72,4 +73,53 @@ class IntegrationSettingsAccessTest extends TestCase
                 ->missing('provider.api_key')
                 ->missing('provider.secret_key'));
     }
+    public function test_staff_admin_can_save_encrypted_payment_settings(): void
+    {
+        $admin = User::query()->create([
+            'name' => 'Payment Admin',
+            'email' => 'payment-admin@example.test',
+            'password' => 'not-a-real-password',
+        ]);
+        UserPermission::query()->create(['user_id' => $admin->id, 'permission' => 'staff.permissions.manage']);
+
+        $this->actingAs($admin)->put('/admin/payment-gateway', [
+            'secret_key' => 'sk_test_example123',
+            'callback_url' => 'https://semizzy.example.test/wallet/funding/return',
+            'confirm_live' => false,
+        ])->assertSessionHasNoErrors();
+
+        $stored = IntegrationSetting::query()->where('key', 'paystack.secret_key')->firstOrFail();
+        $this->assertNotSame('sk_test_example123', $stored->getRawOriginal('value'));
+        $this->assertSame('sk_test_example123', $stored->value);
+        $this->assertSame($admin->id, $stored->updated_by_user_id);
+    }
+
+    public function test_staff_admin_can_save_provider_settings_without_returning_credentials(): void
+    {
+        $admin = User::query()->create([
+            'name' => 'Provider Admin',
+            'email' => 'provider-admin@example.test',
+            'password' => 'not-a-real-password',
+        ]);
+        UserPermission::query()->create(['user_id' => $admin->id, 'permission' => 'staff.permissions.manage']);
+
+        $this->actingAs($admin)->put('/admin/api-providers', [
+            'driver' => 'vtpass',
+            'name' => 'VTpass',
+            'generic_endpoint' => '',
+            'generic_token' => '',
+            'vtpass_base_url' => 'https://sandbox.vtpass.com/api',
+            'vtpass_api_key' => 'sandbox-api-example',
+            'vtpass_secret_key' => 'sandbox-secret-example',
+            'confirm_live' => false,
+        ])->assertSessionHasNoErrors();
+
+        $this->assertSame('vtpass', app(\App\Services\IntegrationSettings::class)->get('vtu.driver'));
+        $this->assertSame('sandbox-api-example', app(\App\Services\IntegrationSettings::class)->get('vtu.vtpass.api_key'));
+        $this->assertNotSame(
+            'sandbox-api-example',
+            IntegrationSetting::query()->where('key', 'vtu.vtpass.api_key')->firstOrFail()->getRawOriginal('value')
+        );
+    }
+
 }
