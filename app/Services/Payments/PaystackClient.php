@@ -18,6 +18,12 @@ class PaystackClient
             throw new LogicException('Paystack secret key is not configured.');
         }
 
+        // Paystack secret keys determine the account mode. Reject malformed values
+        // rather than sending an unknown credential to the live API.
+        if (! preg_match('/^sk_(?:test|live)_[^\\s]+$/', $key)) {
+            throw new LogicException('Paystack secret key must be a valid test or live secret key.');
+        }
+
         return $key;
     }
 
