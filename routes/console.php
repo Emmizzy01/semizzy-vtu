@@ -245,11 +245,11 @@ Schedule::command('vtu:monitor-orders')
 
 
 Artisan::command('vtu:catalog-sync {--apply : Save the verified provider catalogue to the database}', function (
-    \\App\\Services\\Vtu\\VtpassCatalogService $catalog,
+    \App\Services\Vtu\VtpassCatalogService $catalog,
 ) {
     try {
         $products = $catalog->fetchProducts();
-    } catch (\\Throwable $exception) {
+    } catch (\Throwable $exception) {
         report($exception);
         $this->error('Catalogue retrieval failed. No catalogue changes were applied.');
 
