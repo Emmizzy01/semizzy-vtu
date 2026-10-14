@@ -37,6 +37,7 @@ class DashboardRoutingTest extends TestCase
             ->get('/dashboard')
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page->component('Dashboard')
+                ->where('isAdminPreview', false)
                 ->has('transactions')
                 ->has('orders')
                 ->has('fundingHistory'));
@@ -67,7 +68,8 @@ class DashboardRoutingTest extends TestCase
         $this->actingAs($admin)
             ->get('/customer/dashboard')
             ->assertOk()
-            ->assertInertia(fn (Assert $page) => $page->component('Dashboard'));
+            ->assertInertia(fn (Assert $page) => $page->component('Dashboard')
+                ->where('isAdminPreview', true));
     }
 
     public function test_admin_dashboard_rejects_accounts_without_admin_permission(): void

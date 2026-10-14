@@ -24,6 +24,7 @@ type DashboardLayoutProps = {
   children: ReactNode;
   canManageStaff?: boolean;
   canApproveRefunds?: boolean;
+  customerPreview?: boolean;
 };
 
 type NavItem = { label: string; href: string; icon: typeof LayoutDashboard; match?: string };
@@ -35,6 +36,7 @@ export default function DashboardLayout({
   children,
   canManageStaff = false,
   canApproveRefunds = false,
+  customerPreview = false,
 }: DashboardLayoutProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [location, setLocation] = useState(() => ({
@@ -63,7 +65,7 @@ export default function DashboardLayout({
   const overviewHref = admin ? '/admin/dashboard' : '/dashboard';
 
   const customerItems: NavItem[] = [
-    { label: 'Overview', href: '/dashboard', icon: LayoutDashboard, match: '/dashboard' },
+    { label: customerPreview ? 'Customer overview' : 'Overview', href: customerPreview ? '/customer/dashboard' : '/dashboard', icon: LayoutDashboard, match: customerPreview ? '/customer/dashboard' : '/dashboard' },
     { label: 'Airtime & data', href: '/wallet/vtu', icon: Smartphone, match: '/wallet/vtu' },
     { label: 'Transactions', href: '/dashboard#transactions', icon: ArrowLeftRight, match: '#transactions' },
     { label: 'Fund wallet', href: '/dashboard#fund-wallet', icon: CreditCard, match: '#fund-wallet' },
@@ -137,7 +139,7 @@ export default function DashboardLayout({
               <span aria-hidden="true" className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-[var(--brand)] font-display text-lg font-extrabold text-white">S</span>
               <span className="min-w-0">
                 <span className="block font-display text-base font-extrabold tracking-tight">SEMIZZY</span>
-                <span className="block text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--muted)]">{admin ? 'Command Center' : 'Customer workspace'}</span>
+                <span className="block text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--muted)]">{admin ? 'Command Center' : customerPreview ? 'Customer preview' : 'Customer workspace'}</span>
               </span>
             </a>
             {admin && (
@@ -173,7 +175,7 @@ export default function DashboardLayout({
                       {group.items.map((item) => renderLink(item))}
                     </section>
                   ))
-                : customerItems.map((item) => renderLink(item))}
+                : <>{customerItems.map((item) => renderLink(item))}{customerPreview && <a href="/admin/dashboard" className="mt-3 flex min-h-11 items-center gap-3 rounded-xl border border-[var(--line)] px-3 py-2.5 text-sm font-bold text-[var(--brand)] hover:bg-[var(--page)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)]"><LayoutDashboard size={18} aria-hidden="true" /><span>Back to Command Center</span></a>}</>}
             </div>
           </nav>
         )}
@@ -189,6 +191,7 @@ export default function DashboardLayout({
               <>
                 <p className="mb-2 px-3 text-[10px] font-extrabold uppercase tracking-[0.18em] text-[var(--muted)]">Your account</p>
                 <div className="space-y-1">{customerItems.map((item) => renderLink(item))}</div>
+                {customerPreview && <a href="/admin/dashboard" className="mt-4 flex min-h-11 items-center gap-3 rounded-xl border border-[var(--line)] px-3 py-2.5 text-sm font-bold text-[var(--brand)] hover:bg-[var(--page)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)]"><LayoutDashboard size={18} aria-hidden="true" /><span>Back to Command Center</span></a>}
                 <div className="mt-6 rounded-2xl border border-[var(--line)] bg-[var(--page)] p-4">
                   <p className="text-sm font-bold">Need help?</p>
                   <p className="mt-1 text-xs leading-5 text-[var(--muted)]">Keep your transaction reference handy when contacting support.</p>

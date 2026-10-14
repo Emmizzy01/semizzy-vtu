@@ -21,8 +21,8 @@ function statusClass(status: string) {
   return 'bg-amber-500/10 text-amber-800 dark:text-amber-300';
 }
 
-export default function CustomerDashboard({ wallet, transactions, orders, fundingHistory }: {
-  wallet: Wallet; transactions: Transaction[]; orders: Order[]; fundingHistory: Funding[];
+export default function CustomerDashboard({ wallet, transactions, orders, fundingHistory, isAdminPreview = false }: {
+  wallet: Wallet; transactions: Transaction[]; orders: Order[]; fundingHistory: Funding[]; isAdminPreview?: boolean;
 }) {
   const [amount, setAmount] = useState('1000');
   const [funding, setFunding] = useState(false);
@@ -76,7 +76,8 @@ export default function CustomerDashboard({ wallet, transactions, orders, fundin
   }
 
   return (
-    <DashboardLayout title="Your dashboard" description="Your wallet, digital services, and recent activity in one secure place.">
+    <DashboardLayout title={isAdminPreview ? 'Customer dashboard preview' : 'Your dashboard'} description={isAdminPreview ? 'Preview the customer experience for your own staff account. Customer data and permissions are unchanged.' : 'Your wallet, digital services, and recent activity in one secure place.'} customerPreview={isAdminPreview}>
+      {isAdminPreview && <aside className="mb-5 flex flex-col gap-3 rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-sm font-extrabold">Staff preview mode</p><p className="mt-1 text-xs leading-5 text-[var(--muted)]">This is your own account’s customer view, not a customer impersonation session.</p></div><a href="/admin/dashboard" className="inline-flex min-h-10 items-center justify-center rounded-xl bg-[var(--brand)] px-4 py-2 text-sm font-bold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)] focus-visible:ring-offset-2">Back to Command Center</a></aside>}
       <section className="grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
         <article className="relative overflow-hidden rounded-3xl bg-[var(--brand-strong)] p-6 text-white shadow-xl shadow-emerald-950/10 sm:p-8">
           <div className="absolute -right-12 -top-16 h-52 w-52 rounded-full bg-emerald-300/20 blur-3xl" />

@@ -93,6 +93,7 @@ class DashboardController extends Controller
             ->get(['public_id', 'service_type', 'network', 'recipient', 'amount_minor', 'currency', 'status', 'created_at']);
 
         return Inertia::render('Dashboard', [
+            'isAdminPreview' => $this->hasAdminAccess($user->id),
             'wallet' => $wallet ? [
                 'balance_minor' => (int) $wallet->balance_minor,
                 'available_balance_minor' => (int) $wallet->available_balance_minor,
