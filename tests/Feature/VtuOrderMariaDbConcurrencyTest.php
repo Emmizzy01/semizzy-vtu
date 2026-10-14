@@ -329,6 +329,44 @@ class VtuOrderMariaDbConcurrencyTest extends TestCase
         @unlink($state);
     }
 
+    public function test_crash_before_provider_receives_request_keeps_order_ambiguous_without_refund_or_resubmission(): void
+    {
+        [$user, $wallet, $product] = $this->preparedCustomer(1000, 1500);
+        $state = $this->newStateFile([
+            'crash_before_submit' => 1,
+            'single_lookup' => 1,
+        ]);
+
+        // The order and debit commit before submit(). The fake provider exits
+        // before recording any outbound request, modelling a crash at the
+        // dispatch boundary before the provider receives the purchase.
+        $results = $this->runWorkers([
+            ['purchase', $state, (string) $user->getKey(), $product->code, 'crash-before-provider-receives'],
+            ['purchase', $state, (string) $user->getKey(), $product->code, 'crash-before-provider-receives'],
+        ], assertSuccessful: false);
+
+        $this->assertSame([0, 87], collect(array_column($results, 'exit'))->sort()->values()->all());
+        $this->assertDatabaseCount('vtu_orders', 1);
+        $order = VtuOrder::query()->sole();
+        $this->assertSame('processing', $order->status);
+        $this->assertNotNull($order->dispatch_started_at);
+        $this->assertSame(2, DB::table('wallet_transactions')->count(), 'Funding and one purchase debit must persist.');
+        $this->assertSame(500, (int) $wallet->fresh()->available_balance_minor);
+        $this->assertSame(0, $this->readState($state, 'submissions'), 'The provider fake must confirm no request was received.');
+
+        $recovery = $this->runWorkers([
+            ['reconcile', $state, (string) $order->getKey()],
+        ]);
+        $this->assertSame([0], array_column($recovery, 'exit'));
+        $this->assertSame('awaiting_reconciliation', $order->fresh()->status);
+        $this->assertSame(0, $this->readState($state, 'submissions'), 'Recovery must not blindly resubmit.');
+        $this->assertSame(1, $this->readState($state, 'lookups'));
+        $this->assertSame(500, (int) $wallet->fresh()->available_balance_minor, 'An unresolved provider lookup must not refund the debit.');
+        $this->assertSame(2, DB::table('wallet_transactions')->count());
+
+        @unlink($state);
+    }
+
     public function test_crashed_worker_after_provider_acceptance_recovers_by_lookup_without_resubmission(): void
     {
         [$user, $wallet, $product] = $this->preparedCustomer(1000, 1500);
