@@ -25,6 +25,12 @@ final class ConcurrentVtuTestProvider implements VtuProvider
     {
         $this->increment('submissions');
 
+        // Simulate the remote provider accepting a request immediately before
+        // the application worker is forcibly terminated, leaving no saved result.
+        if ($this->read('crash_after_submit') === 1) {
+            exit(86);
+        }
+
         return [
             'status' => 'pending',
             'provider_reference' => 'concurrency-provider-'.$order->public_id,
@@ -34,13 +40,18 @@ final class ConcurrentVtuTestProvider implements VtuProvider
     public function lookup(VtuOrder $order): array
     {
         $lookupNumber = $this->increment('lookups');
-        $this->arriveAndWait('lookup_barrier', 2);
+        if ($this->read('single_lookup') !== 1) {
+            $this->arriveAndWait('lookup_barrier', 2);
+        }
 
-        // Optional mixed-result mode exercises two stale workers receiving
-        // contradictory terminal outcomes for the same provider order.
-        $status = $this->read('mixed_outcomes') === 1
-            ? ($lookupNumber === 1 ? 'success' : 'failed')
-            : 'failed';
+        // Crash recovery models a provider that accepted the original submit;
+        // reconciliation discovers that accepted purchase without resubmitting.
+        // Mixed-result mode exercises contradictory concurrent terminal outcomes.
+        $status = $this->read('crash_after_submit') === 1
+            ? 'success'
+            : ($this->read('mixed_outcomes') === 1
+                ? ($lookupNumber === 1 ? 'success' : 'failed')
+                : 'failed');
 
         return [
             'status' => $status,
