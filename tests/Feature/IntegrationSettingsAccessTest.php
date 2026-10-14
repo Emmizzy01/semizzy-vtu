@@ -122,4 +122,52 @@ class IntegrationSettingsAccessTest extends TestCase
         );
     }
 
+    public function test_paystack_rejects_malformed_secret_keys(): void
+    {
+        $admin = User::query()->create([
+            'name' => 'Invalid Key Admin',
+            'email' => 'invalid-key-admin@example.test',
+            'password' => 'not-a-real-password',
+        ]);
+        UserPermission::query()->create(['user_id' => $admin->id, 'permission' => 'staff.permissions.manage']);
+
+        $this->actingAs($admin)->put('/admin/payment-gateway', [
+            'secret_key' => 'not-a-paystack-key',
+            'callback_url' => 'https://semizzy.example.test/wallet/funding/return',
+            'confirm_live' => false,
+        ])->assertSessionHasErrors('secret_key');
+
+        $this->assertDatabaseMissing('integration_settings', ['key' => 'paystack.secret_key']);
+    }
+
+    public function test_live_paystack_key_requires_confirmation_and_mode_is_detected_from_saved_key(): void
+    {
+        $admin = User::query()->create([
+            'name' => 'Live Key Admin',
+            'email' => 'live-key-admin@example.test',
+            'password' => 'not-a-real-password',
+        ]);
+        UserPermission::query()->create(['user_id' => $admin->id, 'permission' => 'staff.permissions.manage']);
+
+        $this->actingAs($admin)->put('/admin/payment-gateway', [
+            'secret_key' => 'sk_live_semizzy_live_test_key',
+            'callback_url' => 'https://semizzy.example.test/wallet/funding/return',
+            'confirm_live' => false,
+        ])->assertSessionHasErrors('confirm_live');
+
+        $this->assertDatabaseMissing('integration_settings', ['key' => 'paystack.secret_key']);
+
+        $this->actingAs($admin)->put('/admin/payment-gateway', [
+            'secret_key' => 'sk_live_semizzy_live_test_key',
+            'callback_url' => 'https://semizzy.example.test/wallet/funding/return',
+            'confirm_live' => true,
+        ])->assertSessionHasNoErrors();
+
+        $this->actingAs($admin)->get('/admin/payment-gateway')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Admin/PaymentGateway')
+                ->where('gateway.mode', 'Live'));
+    }
+
 }
