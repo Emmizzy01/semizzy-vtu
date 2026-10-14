@@ -388,6 +388,26 @@ class PaystackFundingWorkflowTest extends TestCase
         $this->assertDatabaseCount('wallet_transactions', 0);
     }
 
+    public function test_malformed_paystack_secret_key_never_reaches_provider_api(): void
+    {
+        config(['services.paystack.secret_key' => 'not-a-paystack-secret']);
+        Http::fake();
+
+        $user = User::query()->create([
+            'name' => 'Malformed Key Customer',
+            'email' => 'malformed-key@example.test',
+            'password' => 'not-a-real-password',
+        ]);
+
+        $response = $this->actingAs($user)->postJson('/wallet/funding-intents', [
+            'amount_minor' => 25000,
+        ]);
+
+        $response->assertStatus(502);
+        Http::assertNothingSent();
+        $this->assertSame(0, (int) $user->wallets()->firstOrFail()->fresh()->balance_minor);
+    }
+
     public function test_browser_return_never_credits_even_when_paystack_reports_success(): void
     {
         $user = User::query()->create([
