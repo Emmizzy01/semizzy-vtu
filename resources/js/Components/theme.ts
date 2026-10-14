@@ -14,11 +14,22 @@ export function readThemePreference(): ThemePreference {
 
 export function applyThemePreference(preference: ThemePreference): void {
   if (typeof document === 'undefined') return;
+
   if (preference === 'system') {
     document.documentElement.removeAttribute('data-theme');
   } else {
     document.documentElement.dataset.theme = preference;
   }
+
+  let useDarkStyles = preference === 'dark';
+  if (preference === 'system' && typeof window !== 'undefined') {
+    try {
+      useDarkStyles = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    } catch {
+      useDarkStyles = false;
+    }
+  }
+  document.documentElement.classList.toggle('dark', useDarkStyles);
 }
 
 export function saveThemePreference(preference: ThemePreference): void {
