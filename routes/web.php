@@ -1,10 +1,11 @@
 <?php
 
-use App\Http\Controllers\Payments\PaymentFundingController;
-use App\Http\Controllers\Auth\AuthController;
-use App\Http\Controllers\Vtu\VtuOrderController;
-use App\Http\Controllers\Payments\PaymentRefundController;
 use App\Http\Controllers\Admin\StaffAccessController;
+use App\Http\Controllers\Auth\AuthController;
+use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\Payments\PaymentFundingController;
+use App\Http\Controllers\Payments\PaymentRefundController;
+use App\Http\Controllers\Vtu\VtuOrderController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -18,8 +19,13 @@ Route::middleware('guest')->group(function (): void {
     Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:3,1')->name('register.store');
 });
 
-Route::middleware('auth')->post('/logout', [AuthController::class, 'logout'])->name('logout');
-
+Route::middleware('auth')->group(function (): void {
+    Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
+    Route::get('/dashboard', [DashboardController::class, 'customer'])->name('dashboard');
+    Route::get('/admin/dashboard', [DashboardController::class, 'admin'])
+        ->middleware('can:admin.dashboard')
+        ->name('admin.dashboard');
+});
 
 Route::get('/wallet/funding/return', [PaymentFundingController::class, 'returnFromCheckout'])
     ->middleware('throttle:30,1')
@@ -51,7 +57,6 @@ Route::middleware(['auth', 'can:staff.permissions.manage'])->prefix('admin/staff
     Route::post('/users/{user}/permissions', [StaffAccessController::class, 'grant'])->middleware('throttle:20,1')->name('permissions.grant');
     Route::delete('/users/{user}/permissions', [StaffAccessController::class, 'revoke'])->middleware('throttle:20,1')->name('permissions.revoke');
 });
-
 
 Route::middleware(['auth', 'throttle:60,1'])->prefix('wallet/vtu')->name('wallet.vtu.')->group(function (): void {
     Route::get('/', fn () => Inertia::render('Wallet/VtuPurchase'))->name('index');
