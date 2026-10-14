@@ -148,6 +148,64 @@ class VtuOrderMariaDbConcurrencyTest extends TestCase
         @unlink($state);
     }
 
+    public function test_concurrent_mixed_provider_outcomes_cannot_reverse_the_first_terminal_result(): void
+    {
+        [$user, $wallet, $product] = $this->preparedCustomer(1000, 1500);
+        $order = VtuOrder::query()->create([
+            'public_id' => (string) Str::uuid(),
+            'user_id' => $user->getKey(),
+            'wallet_id' => $wallet->getKey(),
+            'vtu_product_id' => $product->getKey(),
+            'idempotency_key' => 'mixed-provider-outcome',
+            'request_hash' => hash('sha256', 'mixed-provider-outcome'),
+            'service_type' => $product->service_type,
+            'network' => $product->network,
+            'product_code' => $product->code,
+            'recipient' => '08012345678',
+            'amount_minor' => $product->price_minor,
+            'currency' => 'NGN',
+            'status' => 'processing',
+            'provider' => 'concurrency-test-provider',
+            'dispatch_started_at' => now()->subMinutes(10),
+        ]);
+
+        $debit = app(WalletLedgerService::class)->post(
+            walletId: (int) $wallet->getKey(),
+            type: 'debit',
+            amountMinor: (int) $product->price_minor,
+            idempotencyKey: 'vtu-purchase:'.$order->public_id,
+            reference: $order->public_id,
+            description: 'Concurrency test purchase debit',
+            actorUserId: (int) $user->getKey(),
+            metadata: ['vtu_order_id' => $order->public_id],
+            correlationId: $order->public_id,
+        );
+        $order->forceFill(['wallet_transaction_id' => $debit->getKey()])->save();
+
+        $state = $this->newStateFile(['mixed_outcomes' => 1]);
+        $results = $this->runWorkers([
+            ['reconcile', $state, (string) $order->getKey()],
+            ['reconcile', $state, (string) $order->getKey()],
+        ]);
+
+        $this->assertSame([0, 0], array_column($results, 'exit'));
+        $finalStatus = $order->fresh()->status;
+        $this->assertContains($finalStatus, ['successful', 'failed']);
+        $this->assertSame(2, $this->readState($state, 'lookups'));
+        $this->assertSame(0, $this->readState($state, 'submissions'));
+        $this->assertDatabaseCount('vtu_orders', 1);
+
+        if ($finalStatus === 'successful') {
+            $this->assertSame(500, (int) $wallet->fresh()->available_balance_minor);
+            $this->assertSame(2, DB::table('wallet_transactions')->count(), 'A successful terminal result must not be refunded.');
+        } else {
+            $this->assertSame(1500, (int) $wallet->fresh()->available_balance_minor);
+            $this->assertSame(3, DB::table('wallet_transactions')->count(), 'A failed terminal result must be refunded exactly once.');
+        }
+
+        @unlink($state);
+    }
+
     private function preparedCustomer(int $priceMinor, int $initialBalanceMinor): array
     {
         $user = User::query()->create([
@@ -180,14 +238,14 @@ class VtuOrderMariaDbConcurrencyTest extends TestCase
         return [$user, $wallet->fresh(), $product];
     }
 
-    private function newStateFile(): string
+    private function newStateFile(array $initialState = []): string
     {
         $path = tempnam(sys_get_temp_dir(), 'semizzy-vtu-race-');
         if ($path === false) {
             $this->fail('Could not create shared concurrency state file.');
         }
 
-        file_put_contents($path, '{}');
+        file_put_contents($path, json_encode($initialState, JSON_THROW_ON_ERROR));
 
         return $path;
     }
