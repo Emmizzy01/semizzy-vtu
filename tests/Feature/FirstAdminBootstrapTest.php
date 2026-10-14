@@ -1,12 +1,12 @@
 <?php
 
-namespace Tests\\Feature;
+namespace Tests\Feature;
 
-use App\\Models\\StaffPermissionAudit;
-use App\\Models\\User;
-use App\\Models\\UserPermission;
-use Illuminate\\Foundation\\Testing\\RefreshDatabase;
-use Tests\\TestCase;
+use App\Models\StaffPermissionAudit;
+use App\Models\User;
+use App\Models\UserPermission;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\TestCase;
 
 class FirstAdminBootstrapTest extends TestCase
 {
