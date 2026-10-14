@@ -89,10 +89,10 @@ class VtuProviderClient implements VtuProvider
     public function lookup(VtuOrder $order): array
     {
         $this->assertConfigured();
-        $endpoint = rtrim((string) config('services.vtu.endpoint'), '/');
+        $endpoint = rtrim((string) app(IntegrationSettings::class)->get('vtu.endpoint', config('services.vtu.endpoint')), '/');
 
         try {
-            $response = Http::withToken((string) config('services.vtu.token'))
+            $response = Http::withToken((string) app(IntegrationSettings::class)->get('vtu.token', config('services.vtu.token')))
                 ->acceptJson()
                 ->connectTimeout(5)
                 ->timeout(10)
