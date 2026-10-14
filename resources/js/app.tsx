@@ -5,6 +5,7 @@ import { createRoot } from 'react-dom/client';
 import type { ComponentType, ReactNode } from 'react';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import SiteNavigation from './Components/SiteNavigation';
+import { applyThemePreference, readThemePreference } from './Components/theme';
 
 const appName = import.meta.env.VITE_APP_NAME || 'SEMIZZY VTU';
 
@@ -12,18 +13,7 @@ type PageWithLayout = {
   default: ComponentType<any> & { layout?: (page: ReactNode) => ReactNode };
 };
 
-function restoreTheme() {
-  try {
-    const savedTheme = window.localStorage.getItem('semizzy-theme');
-    if (savedTheme === 'light' || savedTheme === 'dark') {
-      document.documentElement.dataset.theme = savedTheme;
-    }
-  } catch {
-    // The app remains usable if browser storage is unavailable.
-  }
-}
-
-restoreTheme();
+applyThemePreference(readThemePreference());
 
 createInertiaApp({
   title: (title) => (title ? `${title} · ${appName}` : appName),
@@ -33,7 +23,6 @@ createInertiaApp({
       import.meta.glob('./Pages/**/*.tsx') as Record<string, () => Promise<PageWithLayout>>,
     );
 
-    // Dashboard pages already use DashboardLayout, which owns their navigation.
     // Dashboard pages already use DashboardLayout, which owns their navigation.
     if (name === 'Dashboard' || name === 'Admin/Dashboard') {
       return page;
@@ -52,6 +41,6 @@ createInertiaApp({
     createRoot(el).render(<App {...props} />);
   },
   progress: {
-    color: '#635bff',
+    color: '#087443',
   },
 });
