@@ -96,19 +96,33 @@ class VtuOrderService
                     return $this->returnExisting($duplicate, $requestHash);
                 }
 
+                // Re-read the catalogue row under lock: an admin may have
+                // repriced or disabled this product after the initial preflight.
+                /** @var VtuProduct $lockedProduct */
+                $lockedProduct = VtuProduct::query()
+                    ->whereKey($product->getKey())
+                    ->lockForUpdate()
+                    ->firstOrFail();
+
+                if (! $lockedProduct->is_active) {
+                    throw new InvalidArgumentException('This product is no longer available.');
+                }
+
+                $this->provider->assertProductConfigured($lockedProduct);
+
                 $order = VtuOrder::query()->create([
                     'public_id' => (string) Str::uuid(),
                     'user_id' => $user->getKey(),
                     'wallet_id' => $wallet->getKey(),
-                    'vtu_product_id' => $product->getKey(),
+                    'vtu_product_id' => $lockedProduct->getKey(),
                     'idempotency_key' => $idempotencyKey,
                     'request_hash' => $requestHash,
-                    'service_type' => $product->service_type,
-                    'network' => $product->network,
-                    'product_code' => $product->code,
+                    'service_type' => $lockedProduct->service_type,
+                    'network' => $lockedProduct->network,
+                    'product_code' => $lockedProduct->code,
                     'recipient' => $recipient,
-                    'amount_minor' => $product->price_minor,
-                    'currency' => $product->currency,
+                    'amount_minor' => $lockedProduct->price_minor,
+                    'currency' => $lockedProduct->currency,
                     'status' => VtuOrderStatus::Pending->value,
                     'provider' => config('services.vtu.driver') === 'vtpass'
                         ? 'vtpass'
@@ -118,14 +132,14 @@ class VtuOrderService
                 $transaction = $this->ledger->post(
                     walletId: (int) $wallet->getKey(),
                     type: 'debit',
-                    amountMinor: (int) $product->price_minor,
+                    amountMinor: (int) $lockedProduct->price_minor,
                     idempotencyKey: 'vtu-purchase:'.$order->public_id,
                     reference: $order->public_id,
-                    description: 'VTU purchase: '.$product->name,
+                    description: 'VTU purchase: '.$lockedProduct->name,
                     actorUserId: (int) $user->getKey(),
                     metadata: [
                         'vtu_order_id' => $order->public_id,
-                        'product_code' => $product->code,
+                        'product_code' => $lockedProduct->code,
                         'recipient' => $recipient,
                     ],
                     correlationId: $order->public_id,
