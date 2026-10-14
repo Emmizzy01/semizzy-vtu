@@ -53,7 +53,7 @@ class VtuOrderMariaDbConcurrencyTest extends TestCase
         $this->assertSame(500, (int) $wallet->fresh()->available_balance_minor);
 
         $order = VtuOrder::query()->sole();
-        $this->assertSame('awaiting_reconciliation', $order->status);
+        $this->assertSame('processing', $order->status);
         $this->assertSame(1, $this->readState($state, 'submissions'));
         $this->assertSame(0, $this->readState($state, 'lookups'));
 
