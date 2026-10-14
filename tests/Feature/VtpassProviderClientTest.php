@@ -97,6 +97,32 @@ class VtpassProviderClientTest extends TestCase
         $this->assertSame('016', $result['message_code']);
     }
 
+    public function test_invalid_request_id_during_requery_remains_pending_not_failed(): void
+    {
+        Http::fake(fn () => Http::response([
+            'code' => '015',
+            'response_description' => 'INVALID REQUEST ID',
+        ], 200));
+
+        $result = app(VtpassProviderClient::class)->lookup($this->order('airtime', 'mtn'));
+
+        $this->assertSame('pending', $result['status']);
+        $this->assertSame('015', $result['message_code']);
+    }
+
+    public function test_duplicate_request_id_response_is_not_misclassified_as_a_definitive_failure(): void
+    {
+        Http::fake(fn () => Http::response([
+            'code' => '014',
+            'response_description' => 'REQUEST ID ALREADY EXIST',
+        ], 200));
+
+        $result = app(VtpassProviderClient::class)->submit($this->order('airtime', 'mtn'));
+
+        $this->assertSame('pending', $result['status']);
+        $this->assertSame('014', $result['message_code']);
+    }
+
     public function test_requery_uses_the_same_request_id_and_official_endpoint(): void
     {
         Http::fake(fn () => Http::response([
