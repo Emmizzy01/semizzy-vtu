@@ -1,4 +1,4 @@
-import { Activity, ArrowUpRight, CreditCard, ShieldCheck, Smartphone, Users, WalletCards } from 'lucide-react';
+import { Activity, ArrowUpRight, CreditCard, PlugZap, ShieldCheck, Smartphone, Users, WalletCards } from 'lucide-react';
 import DashboardLayout from '../../Components/DashboardLayout';
 
 type Metrics = {
@@ -26,13 +26,15 @@ export default function AdminDashboard({ metrics, capabilities }: { metrics: Met
         <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {capabilities.approveRefunds && <Workspace href="/admin/refunds" icon={<CreditCard size={22} />} title="Refund operations" description="Review refund requests, monitor provider outcomes, and approve eligible requests." />}
           {capabilities.manageStaff && <Workspace href="/admin/staff" icon={<Users size={22} />} title="Staff & permissions" description="Manage approved staff permissions and review access audit records." />}
+          <Workspace href="/admin/payment-gateway" icon={<CreditCard size={22} />} title="Payment gateway" description="Review Paystack configuration status and the wallet funding callback and webhook setup." />
+          <Workspace href="/admin/api-providers" icon={<PlugZap size={22} />} title="API providers" description="Check the selected VTU provider, credential readiness, and sandbox/live configuration." />
           <Workspace href="/wallet/vtu" icon={<Smartphone size={22} />} title="VTU service" description="Open the airtime and data purchase experience available to signed-in customers." />
           <Workspace href="/customer/dashboard" icon={<WalletCards size={22} />} title="Customer experience" description="Preview the customer dashboard and its wallet, funding, and VTU links." />
         </div>
       </section>
 
       <section className="mt-8 rounded-3xl border border-[var(--line)] bg-[var(--surface)] p-5 sm:p-6">
-        <div className="flex items-start gap-3"><span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[var(--brand-soft)] text-[var(--brand)]"><ShieldCheck size={20} /></span><div><h2 className="font-display text-lg font-extrabold">Security and scope</h2><p className="mt-2 max-w-3xl text-sm leading-6 text-[var(--muted)]">This command center only links to implemented, permission-protected tools. User management beyond staff access, provider configuration, KYC review, and wider security reporting are not presented as complete until their backend workflows are implemented and tested.</p></div></div>
+        <div className="flex items-start gap-3"><span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[var(--brand-soft)] text-[var(--brand)]"><ShieldCheck size={20} /></span><div><h2 className="font-display text-lg font-extrabold">Security and scope</h2><p className="mt-2 max-w-3xl text-sm leading-6 text-[var(--muted)]">This command center only links to implemented, permission-protected tools. User management beyond staff access, credential editing, KYC review, and wider security reporting are not presented as complete until their backend workflows are implemented and tested.</p></div></div>
       </section>
     </DashboardLayout>
   );
