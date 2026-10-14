@@ -11,20 +11,19 @@ class ScheduledOperationsTest extends TestCase
     {
         $events = app(Schedule::class)->events();
 
-        $scheduled = collect($events)->mapWithKeys(function ($event): array {
-            return [$event->command => $event->expression];
-        });
+        $this->assertScheduledCommand($events, 'payments:reconcile-paystack --limit=100', '*/5 * * * *');
+        $this->assertScheduledCommand($events, 'payments:reconcile-refunds --limit=100', '*/5 * * * *');
+        $this->assertScheduledCommand($events, 'vtu:reconcile-orders --limit=100', '*/5 * * * *');
+        $this->assertScheduledCommand($events, 'vtu:monitor-orders', '*/15 * * * *');
+    }
 
-        $this->assertArrayHasKey('php artisan payments:reconcile-paystack --limit=100', $scheduled);
-        $this->assertSame('*/5 * * * *', $scheduled['php artisan payments:reconcile-paystack --limit=100']);
+    private function assertScheduledCommand(array $events, string $commandFragment, string $expression): void
+    {
+        $event = collect($events)->first(
+            fn ($scheduledEvent): bool => str_contains((string) $scheduledEvent->command, $commandFragment),
+        );
 
-        $this->assertArrayHasKey('php artisan payments:reconcile-refunds --limit=100', $scheduled);
-        $this->assertSame('*/5 * * * *', $scheduled['php artisan payments:reconcile-refunds --limit=100']);
-
-        $this->assertArrayHasKey('php artisan vtu:reconcile-orders --limit=100', $scheduled);
-        $this->assertSame('*/5 * * * *', $scheduled['php artisan vtu:reconcile-orders --limit=100']);
-
-        $this->assertArrayHasKey('php artisan vtu:monitor-orders', $scheduled);
-        $this->assertSame('*/15 * * * *', $scheduled['php artisan vtu:monitor-orders']);
+        $this->assertNotNull($event, "Expected scheduled command containing [{$commandFragment}].");
+        $this->assertSame($expression, $event->expression);
     }
 }
