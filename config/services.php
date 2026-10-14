@@ -7,6 +7,7 @@ return [
         'name' => env('VTU_PROVIDER_NAME', 'configured_vtu'),
         'endpoint' => env('VTU_PROVIDER_ENDPOINT'),
         'token' => env('VTU_PROVIDER_TOKEN'),
+        'stuck_order_minutes' => (int) env('VTU_STUCK_ORDER_MINUTES', 60),
         'vtpass' => [
             'base_url' => env('VTU_VTPASS_BASE_URL', 'https://sandbox.vtpass.com/api'),
             'api_key' => env('VTU_VTPASS_API_KEY'),
