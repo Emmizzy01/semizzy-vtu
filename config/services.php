@@ -8,6 +8,8 @@ return [
         'endpoint' => env('VTU_PROVIDER_ENDPOINT'),
         'token' => env('VTU_PROVIDER_TOKEN'),
         'stuck_order_minutes' => (int) env('VTU_STUCK_ORDER_MINUTES', 60),
+        // Whole-naira airtime face values; data prices always come from VTpass variations.
+        'airtime_denominations' => array_values(array_filter(array_map('intval', explode(',', (string) env('VTU_AIRTIME_DENOMINATIONS', '100,200,500,1000'))))),
         'vtpass' => [
             'base_url' => env('VTU_VTPASS_BASE_URL', 'https://sandbox.vtpass.com/api'),
             'api_key' => env('VTU_VTPASS_API_KEY'),
