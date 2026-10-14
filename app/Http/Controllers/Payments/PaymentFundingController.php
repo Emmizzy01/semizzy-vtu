@@ -180,9 +180,12 @@ class PaymentFundingController extends Controller
         ]);
     }
 
-    public function returnFromCheckout(Request $request, PaystackClient $paystack): JsonResponse
-    {
-        // The browser return is informational only; no wallet credit happens here.
+    public function returnFromCheckout(
+        Request $request,
+        PaystackClient $paystack,
+        PaymentFundingService $funding,
+    ): JsonResponse {
+        // Trust the provider's server-to-server verification response, never browser query parameters alone.
         $reference = $request->query('reference');
         if (! is_string($reference) || $reference === '') {
             return response()->json(['message' => 'Payment reference is required.'], 400);
@@ -200,12 +203,30 @@ class PaymentFundingController extends Controller
         if ($intent === null || $intent->provider !== 'paystack'
             || ($verified['status'] ?? null) !== 'success'
             || ($verified['reference'] ?? null) !== $intent->reference
+            || ! is_numeric($verified['id'] ?? null)
             || (int) ($verified['amount'] ?? -1) !== $intent->amount_minor
             || ($verified['currency'] ?? null) !== $intent->currency) {
             return response()->json(['status' => 'pending_or_unverified'], 202);
         }
 
-        // Settlement still occurs only through the signed webhook flow.
-        return response()->json(['status' => $intent->fresh()->status, 'reference' => $intent->reference]);
+        // A successful server-side verification can settle the intent safely.
+        // The same transaction ID is idempotent if the signed webhook arrives later.
+        $result = $funding->processVerifiedEvent('paystack', [
+            'id' => 'paystack-return-'.(string) $verified['id'],
+            'type' => 'payment.succeeded',
+            'data' => [
+                'reference' => $intent->reference,
+                'transaction_id' => (string) $verified['id'],
+                'status' => 'succeeded',
+                'amount_minor' => (int) $verified['amount'],
+                'currency' => (string) $verified['currency'],
+            ],
+        ]);
+
+        return response()->json([
+            'status' => $intent->fresh()->status,
+            'reference' => $intent->reference,
+            'outcome' => $result['outcome'],
+        ]);
     }
 }
