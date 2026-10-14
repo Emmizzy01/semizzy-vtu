@@ -68,7 +68,7 @@ export default function DashboardLayout({
     if (item.match?.startsWith('#')) return currentPath === '/dashboard' && currentHash === item.match;
     if (item.href.includes('#')) return currentPath === '/dashboard' && currentHash === item.href.split('#')[1] ? true : false;
     if (item.href === '/dashboard' || item.href === '/admin/dashboard' || item.href === '/customer/dashboard') return currentPath === item.href;
-    return item.match ? currentPath.startsWith(item.match) : currentPath === item.href;
+    return item.match === '/wallet/vtu' ? currentPath.startsWith('/wallet/vtu') : item.match ? currentPath === item.match : currentPath === item.href;
   };
 
   const linkClass = (active: boolean) =>
@@ -103,7 +103,7 @@ export default function DashboardLayout({
         ...(canManageStaff ? [{ label: 'Staff', href: '/admin/staff', icon: Users, match: '/admin/staff' }] : []),
         { label: 'VTU', href: '/wallet/vtu', icon: Smartphone, match: '/wallet/vtu' },
         { label: 'Customer', href: '/customer/dashboard', icon: WalletCards, match: '/customer/dashboard' },
-      ].slice(0, 4)
+      ]
     : customerItems;
 
   return (
