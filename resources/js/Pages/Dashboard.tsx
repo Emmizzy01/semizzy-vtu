@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { AlertCircle, ArrowDownToLine, ArrowUpRight, CheckCircle2, Clock3, CreditCard, RefreshCw, ShieldCheck, Smartphone, WalletCards } from 'lucide-react';
 import DashboardLayout from '../Components/DashboardLayout';
 
@@ -28,6 +28,17 @@ export default function CustomerDashboard({ wallet, transactions, orders, fundin
   const [funding, setFunding] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+
+  useEffect(() => {
+    const status = new URLSearchParams(window.location.search).get('funding');
+    if (status === 'success') {
+      setNotice('Payment verified and your wallet has been credited.');
+    } else if (status === 'pending') {
+      setError('Payment is not verified yet, so your wallet has not been credited. Check your funding history again shortly.');
+    } else if (status === 'unverified') {
+      setError('We could not verify this payment return. Your wallet has not been credited. Please contact support if you completed payment.');
+    }
+  }, []);
 
   async function startFunding(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
