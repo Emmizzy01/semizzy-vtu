@@ -142,8 +142,8 @@ export default function DashboardLayout({
             </a>
             {admin && (
               <div className="hidden max-w-sm flex-1 px-6 lg:block">
-                <div title="Global search will be added when searchable admin records are available" className="flex h-10 items-center gap-2 rounded-xl border border-[var(--line)] bg-[var(--page)] px-3 text-sm text-[var(--muted)]">
-                  <Search size={16} /><span className="flex-1">Global search</span><span className="rounded-md border border-[var(--line)] px-1.5 py-0.5 text-[10px]">Soon</span>
+                <div role="note" aria-label="Global search is not available yet; searchable admin records are not connected" title="Global search will be added when searchable admin records are available" className="flex h-10 items-center gap-2 rounded-xl border border-[var(--line)] bg-[var(--page)] px-3 text-sm text-[var(--muted)]">
+                  <Search size={16} aria-hidden="true" /><span className="flex-1">Global search</span><span className="rounded-md border border-[var(--line)] px-1.5 py-0.5 text-[10px]">Soon</span>
                 </div>
               </div>
             )}
