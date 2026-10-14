@@ -405,7 +405,7 @@ class PaystackFundingWorkflowTest extends TestCase
 
         $response->assertStatus(502);
         Http::assertNothingSent();
-        $this->assertSame(0, (int) $user->wallets()->firstOrFail()->fresh()->balance_minor);
+        $this->assertSame(0, (int) \App\Models\Wallet::query()->where('user_id', $user->id)->firstOrFail()->balance_minor);
     }
 
     public function test_browser_return_never_credits_even_when_paystack_reports_success(): void
