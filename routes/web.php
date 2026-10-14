@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Admin\IntegrationSettingsController;
 use App\Http\Controllers\Admin\StaffAccessController;
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\DashboardController;
