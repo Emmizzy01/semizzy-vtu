@@ -357,6 +357,9 @@ class VtuOrderService
             }
 
             $locked->failure_code = $failureCode;
+            $locked->provider_reference = is_string($result['provider_reference'] ?? null)
+                ? substr($result['provider_reference'], 0, 150)
+                : $locked->provider_reference;
             $locked->safe_provider_response = $this->safeResponse($result);
             $locked->save();
 
