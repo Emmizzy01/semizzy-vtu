@@ -408,7 +408,7 @@ class PaystackFundingWorkflowTest extends TestCase
         $this->assertSame(0, (int) \App\Models\Wallet::query()->where('user_id', $user->id)->firstOrFail()->balance_minor);
     }
 
-    public function test_browser_return_never_credits_even_when_paystack_reports_success(): void
+    public function test_successful_verified_browser_return_credits_wallet_once(): void
     {
         $user = User::query()->create([
             'name' => 'Return Customer',
@@ -433,11 +433,18 @@ class PaystackFundingWorkflowTest extends TestCase
 
         $response = $this->getJson('/wallet/funding/return?reference='.$intent->reference);
 
-        $response->assertOk()->assertJsonPath('status', 'pending');
-        $this->assertSame(0, (int) $wallet->fresh()->balance_minor);
-        $this->assertSame('pending', $intent->fresh()->status);
-        $this->assertDatabaseCount('wallet_transactions', 0);
-        $this->assertDatabaseCount('wallet_ledger_entries', 0);
+        $response->assertOk()
+            ->assertJsonPath('status', 'paid')
+            ->assertJsonPath('outcome', 'credited');
+        $this->assertSame(15000, (int) $wallet->fresh()->balance_minor);
+        $this->assertSame('paid', $intent->fresh()->status);
+        $this->assertDatabaseCount('wallet_transactions', 1);
+        $this->assertDatabaseCount('wallet_ledger_entries', 1);
+
+        Http::assertSent(fn ($request): bool =>
+            str_contains($request->url(), '/transaction/verify/')
+            && $request->hasHeader('Authorization', 'Bearer sk_test_semizzy_test_secret')
+        );
     }
 
 }
