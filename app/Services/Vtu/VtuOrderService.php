@@ -210,6 +210,13 @@ class VtuOrderService
             return $order->fresh();
         }
 
+        // A reconciliation lookup that still reports pending means the original
+        // dispatch outcome remains ambiguous. Keep it out of the normal processing
+        // queue state without refunding or resubmitting the purchase.
+        if (($result['status'] ?? null) === 'pending') {
+            return $this->markAwaitingReconciliation($order, 'provider_still_pending', $result);
+        }
+
         return $this->applyProviderResult($order, $result);
     }
 
