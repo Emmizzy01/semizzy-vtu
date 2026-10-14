@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import ThemeToggle from './ThemeToggle';
 import { Head } from '@inertiajs/react';
 import {
@@ -37,8 +37,21 @@ export default function DashboardLayout({
   canApproveRefunds = false,
 }: DashboardLayoutProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const currentPath = typeof window === 'undefined' ? '' : window.location.pathname;
-  const currentHash = typeof window === 'undefined' ? '' : window.location.hash;
+  const [location, setLocation] = useState(() => ({
+    path: typeof window === 'undefined' ? '' : window.location.pathname,
+    hash: typeof window === 'undefined' ? '' : window.location.hash,
+  }));
+  useEffect(() => {
+    const syncLocation = () => setLocation({ path: window.location.pathname, hash: window.location.hash });
+    window.addEventListener('hashchange', syncLocation);
+    window.addEventListener('popstate', syncLocation);
+    return () => {
+      window.removeEventListener('hashchange', syncLocation);
+      window.removeEventListener('popstate', syncLocation);
+    };
+  }, []);
+  const currentPath = location.path;
+  const currentHash = location.hash;
   const overviewHref = admin ? '/admin/dashboard' : '/dashboard';
 
   const customerItems: NavItem[] = [
