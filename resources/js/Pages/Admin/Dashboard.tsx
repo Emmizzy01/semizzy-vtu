@@ -14,10 +14,10 @@ export default function AdminDashboard({ metrics, capabilities }: { metrics: Met
   return (
     <DashboardLayout title="Admin Command Center" description="A secure operational overview of SEMIZZY. Administrative sections appear according to your assigned permissions." admin canManageStaff={capabilities.manageStaff} canApproveRefunds={capabilities.approveRefunds}>
       <section aria-label="Operational metrics" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {capabilities.manageStaff && <Metric icon={<Users size={19} />} label="Registered accounts" value={metrics.users ?? 0} detail="All customer and staff accounts" />}
+        {capabilities.manageStaff && <Metric icon={<Users size={19} />} label="Registered accounts" value={metrics.users} detail={metrics.users === null ? "Account count unavailable" : "All customer and staff accounts"} />}
         <Metric icon={<WalletCards size={19} />} label="Wallet accounts" value={metrics.wallets} detail="Wallet records across currencies" />
         <Metric icon={<CreditCard size={19} />} label="Funding in progress" value={metrics.pendingFunding} detail="Pending or processing intents" />
-        {capabilities.approveRefunds && <Metric icon={<ShieldCheck size={19} />} label="Refunds needing action" value={metrics.refundsNeedingAction ?? 0} detail="Requested, blocked, or review required" />}
+        {capabilities.approveRefunds && <Metric icon={<ShieldCheck size={19} />} label="Refunds needing action" value={metrics.refundsNeedingAction} detail={metrics.refundsNeedingAction === null ? "Refund count unavailable" : "Requested, blocked, or review required"} />}
         <Metric icon={<Smartphone size={19} />} label="Unresolved VTU orders" value={metrics.unresolvedVtuOrders} detail="Processing or awaiting reconciliation" />
       </section>
 
@@ -52,8 +52,8 @@ export default function AdminDashboard({ metrics, capabilities }: { metrics: Met
   );
 }
 
-function Metric({ icon, label, value, detail }: { icon: React.ReactNode; label: string; value: number; detail: string }) {
-  return <article className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-5"><div className="flex items-center justify-between gap-2"><p className="text-xs font-bold text-[var(--muted)]">{label}</p><span className="text-[var(--brand)]">{icon}</span></div><p className="mt-4 font-display text-3xl font-extrabold tabular-nums">{value.toLocaleString('en-NG')}</p><p className="mt-2 text-xs leading-5 text-[var(--muted)]">{detail}</p></article>;
+function Metric({ icon, label, value, detail }: { icon: React.ReactNode; label: string; value: number | null; detail: string }) {
+  return <article className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-5"><div className="flex items-center justify-between gap-2"><p className="text-xs font-bold text-[var(--muted)]">{label}</p><span className="text-[var(--brand)]">{icon}</span></div><p className="mt-4 font-display text-3xl font-extrabold tabular-nums">{value === null ? '—' : value.toLocaleString('en-NG')}</p><p className="mt-2 text-xs leading-5 text-[var(--muted)]">{detail}</p></article>;
 }
 function Workspace({ href, icon, title, description, status }: { href: string; icon: React.ReactNode; title: string; description: string; status: string }) {
   return <a href={href} className="group flex min-w-0 flex-col rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-5 transition hover:-translate-y-0.5 hover:border-[var(--brand)] hover:shadow-lg hover:shadow-slate-950/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)]"><span className="grid h-12 w-12 place-items-center rounded-2xl bg-[var(--brand-soft)] text-[var(--brand)]">{icon}</span><div className="mt-5 flex items-center justify-between gap-3"><h3 className="min-w-0 font-display text-lg font-extrabold">{title}</h3><ArrowUpRight size={17} className="shrink-0 text-[var(--muted)] transition group-hover:text-[var(--brand)]" /></div><p className="mt-2 flex-1 text-sm leading-6 text-[var(--muted)]">{description}</p><span className="mt-4 inline-flex w-fit max-w-full items-center rounded-full border border-[var(--line)] px-2.5 py-1 text-[10px] font-bold text-[var(--muted)]">{status}</span></a>;
