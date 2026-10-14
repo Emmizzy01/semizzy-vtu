@@ -13,6 +13,64 @@ Artisan::command('semizzy:about', function () {
     $this->info('SEMIZZY VTU application foundation');
 })->purpose('Display basic SEMIZZY application information');
 
+
+Artisan::command('semizzy:bootstrap-admin {email} {--force : Confirm this one-time first-admin setup}', function () {
+    if (! $this->option('force')) {
+        $this->error('No changes made. Verify the target account, then rerun with --force.');
+        return 1;
+    }
+
+    $email = strtolower(trim((string) $this->argument('email')));
+    if (! filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        $this->error('Provide a valid email address for the intended administrator.');
+        return 1;
+    }
+
+    $user = User::query()->whereRaw('LOWER(email) = ?', [$email])->first();
+    if (! $user) {
+        $this->error('No existing account matches that email address. No changes were made.');
+        return 1;
+    }
+
+    $result = \\Illuminate\\Support\\Facades\\DB::transaction(function () use ($user): array {
+        $privilegedPermissions = ['staff.permissions.manage', 'refunds.approve'];
+        $existingAdminAccess = UserPermission::query()
+            ->whereIn('permission', $privilegedPermissions)
+            ->lockForUpdate()
+            ->exists();
+
+        if ($existingAdminAccess) {
+            return ['created' => false, 'reason' => 'already_bootstrapped'];
+        }
+
+        UserPermission::query()->create([
+            'user_id' => $user->id,
+            'permission' => 'staff.permissions.manage',
+            'granted_by_user_id' => null,
+        ]);
+
+        StaffPermissionAudit::query()->create([
+            'actor_user_id' => null,
+            'target_user_id' => $user->id,
+            'permission' => 'staff.permissions.manage',
+            'action' => 'granted',
+            'reason' => 'One-time first administrator bootstrap via server CLI; operator-confirmed target email.',
+        ]);
+
+        return ['created' => true, 'reason' => null];
+    });
+
+    if (! $result['created']) {
+        $this->error('First-admin setup is locked: privileged access already exists. No changes were made.');
+        return 1;
+    }
+
+    $this->info("First administrator access granted to user ID {$user->id}.");
+    $this->warn('Audit recorded with Server CLI as the actor. Keep server CLI access restricted.');
+
+    return 0;
+})->purpose('Safely bootstrap the first Semizzy administrator exactly once');
+
 Artisan::command('semizzy:permission:grant {email} {permission} {--force}', function () {
     if (! $this->option('force')) {
         $this->error('This changes privileged access. Re-run with --force after verifying the operator and account.');
