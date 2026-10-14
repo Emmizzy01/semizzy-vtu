@@ -19,6 +19,13 @@ export default function ThemeToggle() {
 
   useEffect(() => {
     applyThemePreference(preference);
+
+    if (preference !== 'system' || typeof window.matchMedia !== 'function') return;
+
+    const media = window.matchMedia('(prefers-color-scheme: dark)');
+    const updateSystemTheme = () => applyThemePreference('system');
+    media.addEventListener('change', updateSystemTheme);
+    return () => media.removeEventListener('change', updateSystemTheme);
   }, [preference]);
 
   function cycleTheme() {
