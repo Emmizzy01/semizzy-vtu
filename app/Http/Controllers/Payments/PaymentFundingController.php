@@ -1,25 +1,25 @@
 <?php
 
-namespace App\\Http\\Controllers\\Payments;
+namespace App\Http\Controllers\Payments;
 
-use App\\Http\\Controllers\\Controller;
-use App\\Models\\PaymentIntent;
-use App\\Models\\Wallet;
-use App\\Services\\Payments\\PaymentFundingService;
-use App\\Services\\Payments\\PaymentProviderExceptionService;
-use App\\Services\\Payments\\PaymentRefundService;
-use App\\Services\\Payments\\PaymentIntentService;
-use App\\Services\\Payments\\PaystackClient;
-use App\\Services\\Payments\\WebhookSignatureVerifier;
-use App\\Services\\Wallets\\WalletAccountService;
-use Illuminate\\Http\\JsonResponse;
-use Illuminate\\Http\\RedirectResponse;
-use Illuminate\\Http\\Request;
-use Illuminate\\Validation\\ValidationException;
+use App\Http\Controllers\Controller;
+use App\Models\PaymentIntent;
+use App\Models\Wallet;
+use App\Services\Payments\PaymentFundingService;
+use App\Services\Payments\PaymentProviderExceptionService;
+use App\Services\Payments\PaymentRefundService;
+use App\Services\Payments\PaymentIntentService;
+use App\Services\Payments\PaystackClient;
+use App\Services\Payments\WebhookSignatureVerifier;
+use App\Services\Wallets\WalletAccountService;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
 use LogicException;
-use Symfony\\Component\\HttpKernel\\Exception\\ConflictHttpException;
-use Symfony\\Component\\HttpKernel\\Exception\\UnprocessableEntityHttpException;
+use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
+use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
 
 class PaymentFundingController extends Controller
 {
