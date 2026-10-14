@@ -9,6 +9,7 @@ use App\Services\Vtu\VtuOrderMonitoringService;
 use App\Services\Wallets\WalletAccountService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -85,7 +86,7 @@ class VtuOrderMonitoringTest extends TestCase
             'is_active' => true,
         ]);
 
-        return VtuOrder::query()->create([
+        $order = VtuOrder::query()->create([
             'public_id' => (string) Str::uuid(),
             'user_id' => $user->getKey(),
             'wallet_id' => $wallet->getKey(),
@@ -103,7 +104,16 @@ class VtuOrderMonitoringTest extends TestCase
             'failure_code' => 'provider_still_pending',
             'dispatch_started_at' => $createdAt,
             'created_at' => $createdAt,
+            'updated_at' => now(),
+        ]);
+
+        // Set historical creation time at SQL level so Eloquent timestamp handling
+        // cannot replace the old timestamp during model creation.
+        DB::table('vtu_orders')->where('id', $order->getKey())->update([
+            'created_at' => $createdAt,
             'updated_at' => $updatedAt,
         ]);
+
+        return $order->fresh();
     }
 }
