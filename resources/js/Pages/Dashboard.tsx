@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { AlertCircle, ArrowDownToLine, ArrowUpRight, CheckCircle2, Clock3, CreditCard, RefreshCw, ShieldCheck, Smartphone, WalletCards } from 'lucide-react';
+import { AlertCircle, ArrowDownToLine, ArrowUpRight, CheckCircle2, Clock3, CreditCard, RefreshCw, Smartphone, WalletCards } from 'lucide-react';
 import DashboardLayout from '../Components/DashboardLayout';
 
 type Wallet = { balance_minor: number; available_balance_minor: number; currency: string; status: string } | null;
