@@ -77,6 +77,26 @@ class VtuOrderMariaDbConcurrencyTest extends TestCase
         @unlink($state);
     }
 
+    public function test_competing_purchase_workers_cannot_overdraw_one_wallet(): void
+    {
+        [$user, $wallet, $product] = $this->preparedCustomer(1000, 1000);
+        $state = $this->newStateFile();
+
+        $results = $this->runWorkers([
+            ['purchase', $state, (string) $user->getKey(), $product->code, 'competing-purchase-a'],
+            ['purchase', $state, (string) $user->getKey(), $product->code, 'competing-purchase-b'],
+        ], assertSuccessful: false);
+
+        $this->assertSame([0, 1], collect(array_column($results, 'exit'))->sort()->values()->all());
+        $this->assertDatabaseCount('vtu_orders', 1);
+        $this->assertSame(2, DB::table('wallet_transactions')->count(), 'Funding plus only one purchase debit are expected.');
+        $this->assertSame(0, (int) $wallet->fresh()->available_balance_minor);
+        $this->assertSame(1, $this->readState($state, 'submissions'));
+        $this->assertSame(0, $this->readState($state, 'lookups'));
+
+        @unlink($state);
+    }
+
     public function test_two_reconciliation_workers_refund_a_failed_order_once(): void
     {
         [$user, $wallet, $product] = $this->preparedCustomer(1000, 1500);
@@ -175,7 +195,7 @@ class VtuOrderMariaDbConcurrencyTest extends TestCase
     /** @param list<list<string>> $workers
      *  @return list<array{exit:int,stdout:string,stderr:string}>
      */
-    private function runWorkers(array $workers): array
+    private function runWorkers(array $workers, bool $assertSuccessful = true): array
     {
         $processes = [];
         $script = base_path('tests/Support/vtu_concurrency_worker.php');
@@ -210,8 +230,10 @@ class VtuOrderMariaDbConcurrencyTest extends TestCase
             ];
         }
 
-        foreach ($results as $result) {
-            $this->assertSame(0, $result['exit'], 'Worker failed: '.$result['stderr']);
+        if ($assertSuccessful) {
+            foreach ($results as $result) {
+                $this->assertSame(0, $result['exit'], 'Worker failed: '.$result['stderr']);
+            }
         }
 
         return $results;
