@@ -27,7 +27,7 @@ export default function AdminDashboard({ metrics, capabilities }: { metrics: Met
           {capabilities.approveRefunds && <Workspace href="/admin/refunds" icon={<CreditCard size={22} />} title="Refund operations" description="Review refund requests, monitor provider outcomes, and approve eligible requests." />}
           {capabilities.manageStaff && <Workspace href="/admin/staff" icon={<Users size={22} />} title="Staff & permissions" description="Manage approved staff permissions and review access audit records." />}
           <Workspace href="/wallet/vtu" icon={<Smartphone size={22} />} title="VTU service" description="Open the airtime and data purchase experience available to signed-in customers." />
-          <Workspace href="/dashboard" icon={<WalletCards size={22} />} title="Customer experience" description="Preview the customer dashboard and its wallet, funding, and VTU links." />
+          <Workspace href="/customer/dashboard" icon={<WalletCards size={22} />} title="Customer experience" description="Preview the customer dashboard and its wallet, funding, and VTU links." />
         </div>
       </section>
 
