@@ -206,6 +206,56 @@ class VtuOrderMariaDbConcurrencyTest extends TestCase
         @unlink($state);
     }
 
+    public function test_concurrent_success_provider_results_commit_one_terminal_success(): void
+    {
+        [$user, $wallet, $product] = $this->preparedCustomer(1000, 1500);
+        $order = VtuOrder::query()->create([
+            'public_id' => (string) Str::uuid(),
+            'user_id' => $user->getKey(),
+            'wallet_id' => $wallet->getKey(),
+            'vtu_product_id' => $product->getKey(),
+            'idempotency_key' => 'success-success-provider-race',
+            'request_hash' => hash('sha256', 'success-success-provider-race'),
+            'service_type' => $product->service_type,
+            'network' => $product->network,
+            'product_code' => $product->code,
+            'recipient' => '08012345678',
+            'amount_minor' => $product->price_minor,
+            'currency' => 'NGN',
+            'status' => 'processing',
+            'provider' => 'concurrency-test-provider',
+            'dispatch_started_at' => now()->subMinutes(10),
+        ]);
+
+        $debit = app(WalletLedgerService::class)->post(
+            walletId: (int) $wallet->getKey(),
+            type: 'debit',
+            amountMinor: (int) $product->price_minor,
+            idempotencyKey: 'vtu-purchase:'.$order->public_id,
+            reference: $order->public_id,
+            description: 'Concurrency test purchase debit',
+            actorUserId: (int) $user->getKey(),
+            metadata: ['vtu_order_id' => $order->public_id],
+            correlationId: $order->public_id,
+        );
+        $order->forceFill(['wallet_transaction_id' => $debit->getKey()])->save();
+
+        $state = $this->newStateFile(['success_success' => 1]);
+        $results = $this->runWorkers([
+            ['reconcile', $state, (string) $order->getKey()],
+            ['reconcile', $state, (string) $order->getKey()],
+        ]);
+
+        $this->assertSame([0, 0], array_column($results, 'exit'));
+        $this->assertSame('successful', $order->fresh()->status);
+        $this->assertSame(500, (int) $wallet->fresh()->available_balance_minor);
+        $this->assertSame(2, DB::table('wallet_transactions')->count(), 'Concurrent successes must not add another debit or a refund.');
+        $this->assertSame(2, $this->readState($state, 'lookups'));
+        $this->assertSame(0, $this->readState($state, 'submissions'));
+
+        @unlink($state);
+    }
+
     public function test_concurrent_pending_provider_result_cannot_regress_success(): void
     {
         [$user, $wallet, $product] = $this->preparedCustomer(1000, 1500);
