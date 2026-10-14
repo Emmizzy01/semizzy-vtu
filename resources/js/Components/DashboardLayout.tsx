@@ -6,6 +6,7 @@ import {
   LayoutDashboard,
   LogOut,
   Menu,
+  PlugZap,
   Moon,
   Smartphone,
   Sun,
@@ -87,6 +88,8 @@ export default function DashboardLayout({
             {admin && canManageStaff && <a href="/admin/staff" className={navLinkClass}><Users size={15} /> Staff & permissions</a>}
             {admin && canManageStaff && <a href="/admin/staff/users" className={navLinkClass}><Users size={15} /> Staff users</a>}
             {admin && canManageStaff && <a href="/admin/staff/permission-audits" className={navLinkClass}><ClipboardList size={15} /> Permission audits</a>}
+            {admin && canManageStaff && <a href="/admin/payment-gateway" className={navLinkClass}><CreditCard size={15} /> Payment gateway</a>}
+            {admin && canManageStaff && <a href="/admin/api-providers" className={navLinkClass}><PlugZap size={15} /> API providers</a>}
             {admin && canApproveRefunds && <a href="/admin/refunds" className={navLinkClass}><CreditCard size={15} /> Refund operations</a>}
             {admin && <a href="/wallet/vtu" className={navLinkClass}><Smartphone size={15} /> VTU service</a>}
             {admin && <a href="/customer/dashboard" className={navLinkClass}><WalletCards size={15} /> Customer view</a>}
@@ -102,6 +105,8 @@ export default function DashboardLayout({
                 {admin && canManageStaff && <a onClick={() => setMobileMenuOpen(false)} href="/admin/staff" className={navLinkClass}><Users size={17} /> Staff & permissions</a>}
                 {admin && canManageStaff && <a onClick={() => setMobileMenuOpen(false)} href="/admin/staff/users" className={navLinkClass}><Users size={17} /> Staff users</a>}
                 {admin && canManageStaff && <a onClick={() => setMobileMenuOpen(false)} href="/admin/staff/permission-audits" className={navLinkClass}><ClipboardList size={17} /> Permission audits</a>}
+                {admin && canManageStaff && <a onClick={() => setMobileMenuOpen(false)} href="/admin/payment-gateway" className={navLinkClass}><CreditCard size={17} /> Payment gateway</a>}
+                {admin && canManageStaff && <a onClick={() => setMobileMenuOpen(false)} href="/admin/api-providers" className={navLinkClass}><PlugZap size={17} /> API providers</a>}
                 {admin && canApproveRefunds && <a onClick={() => setMobileMenuOpen(false)} href="/admin/refunds" className={navLinkClass}><CreditCard size={17} /> Refund operations</a>}
                 {admin && <a onClick={() => setMobileMenuOpen(false)} href="/wallet/vtu" className={navLinkClass}><Smartphone size={17} /> VTU service</a>}
                 {admin && <a onClick={() => setMobileMenuOpen(false)} href="/customer/dashboard" className={navLinkClass}><WalletCards size={17} /> Customer view</a>}
