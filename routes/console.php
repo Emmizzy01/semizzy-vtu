@@ -225,3 +225,20 @@ Artisan::command('vtu:reconcile-orders {--limit=100}', function (
 Schedule::command('vtu:reconcile-orders --limit=100')
     ->everyFiveMinutes()
     ->withoutOverlapping();
+
+Artisan::command('vtu:monitor-orders', function (\App\Services\Vtu\VtuOrderMonitoringService $monitoring) {
+    $stats = $monitoring->monitor();
+    $this->table(['Threshold minutes', 'Stuck total', 'Processing', 'Awaiting reconciliation', 'Alerts sent'], [[
+        $stats['threshold_minutes'],
+        $stats['stuck_total'],
+        $stats['processing'],
+        $stats['awaiting_reconciliation'],
+        $stats['alerts_sent'],
+    ]]);
+
+    return 0;
+})->purpose('Alert operators about old unresolved VTU orders without retrying or refunding them');
+
+Schedule::command('vtu:monitor-orders')
+    ->everyFifteenMinutes()
+    ->withoutOverlapping();
