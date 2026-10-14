@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from 'react';
+import ThemeToggle from './ThemeToggle';
 import { Head } from '@inertiajs/react';
 import {
   ArrowLeft,
@@ -7,9 +8,7 @@ import {
   LogOut,
   Menu,
   PlugZap,
-  Moon,
   Smartphone,
-  Sun,
   ClipboardList,
   Users,
   WalletCards,
@@ -35,12 +34,6 @@ export default function DashboardLayout({
 }: DashboardLayoutProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  function toggleTheme() {
-    const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
-    document.documentElement.dataset.theme = next;
-    try { window.localStorage.setItem('semizzy-theme', next); } catch { /* optional preference */ }
-  }
-
   const overviewHref = admin ? '/admin/dashboard' : '/dashboard';
   const navLinkClass = 'inline-flex min-h-11 shrink-0 items-center gap-2 rounded-xl border border-[var(--line)] px-3 py-2 text-sm font-semibold transition hover:border-[var(--brand)] hover:bg-[var(--brand-soft)]';
   const activeLinkClass = 'inline-flex min-h-11 shrink-0 items-center gap-2 rounded-xl bg-[var(--brand-soft)] px-3 py-2 text-sm font-bold text-[var(--brand)]';
@@ -60,9 +53,7 @@ export default function DashboardLayout({
             </a>
             <div className="flex shrink-0 items-center gap-2">
               {admin && <a href="/customer/dashboard" className="hidden min-h-10 items-center gap-1 rounded-xl border border-[var(--line)] px-3 py-2 text-xs font-semibold sm:inline-flex"><ArrowLeft size={14} /> Customer view</a>}
-              <button type="button" onClick={toggleTheme} aria-label="Toggle light or dark theme" className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-[var(--line)] bg-[var(--surface)] px-3 text-sm font-semibold hover:border-[var(--brand)]">
-                <Sun size={16} className="hidden [html[data-theme=dark]_&]:block" /><Moon size={16} className="[html[data-theme=dark]_&]:hidden" /><span className="hidden sm:inline">Theme</span>
-              </button>
+              <ThemeToggle />
               <form method="post" action="/logout">
                 <input type="hidden" name="_token" value={typeof document === 'undefined' ? '' : (document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ?? '')} />
                 <button type="submit" className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-[var(--brand)] px-3 text-sm font-bold text-white hover:opacity-90"><LogOut size={15} /><span className="hidden sm:inline">Sign out</span></button>
