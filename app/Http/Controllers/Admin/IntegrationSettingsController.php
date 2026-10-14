@@ -75,7 +75,7 @@ class IntegrationSettingsController extends Controller
             'vtpass_base_url' => ['required', 'in:https://sandbox.vtpass.com/api,https://vtpass.com/api'],
             'vtpass_api_key' => ['nullable', 'string', 'max:1000'],
             'vtpass_secret_key' => ['nullable', 'string', 'max:1000'],
-            'confirm_live' => ['nullable', 'accepted'],
+            'confirm_live' => ['nullable', 'boolean'],
         ]);
         if ($data['vtpass_base_url'] === 'https://vtpass.com/api' && ! $request->boolean('confirm_live')) {
             return back()->withErrors(['confirm_live' => 'Confirm live VTpass mode before saving.']);
