@@ -1,4 +1,4 @@
-import { ArrowLeft, Check, Copy, CreditCard, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, Copy, CreditCard, ShieldCheck } from 'lucide-react';
 import { Head, useForm } from '@inertiajs/react';
 
 type Gateway = {
