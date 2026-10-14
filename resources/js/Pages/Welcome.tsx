@@ -35,7 +35,7 @@ export default function Welcome() {
             </a>
             <div className="flex items-center gap-2 sm:gap-3">
               <a href="/login" className="rounded-full border border-[var(--line)] px-3 py-2 text-sm font-semibold transition hover:bg-[var(--surface)] sm:px-4">Sign in</a>
-              <a href="/register" className="hidden rounded-full bg-[var(--brand)] px-4 py-2 text-sm font-bold text-white transition hover:opacity-90 sm:inline-flex">Create account</a>
+              <a href="/register" className="inline-flex rounded-full bg-[var(--brand)] px-3 py-2 text-xs font-bold text-white transition hover:opacity-90 sm:px-4 sm:text-sm">Create account</a>
               <button
                 className="rounded-full border border-[var(--line)] px-3 py-2 text-sm font-semibold transition hover:bg-[var(--surface)] sm:px-4"
                 onClick={() => {
