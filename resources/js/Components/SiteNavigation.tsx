@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react';
-import { CreditCard, LayoutDashboard, Menu, Moon, Smartphone, Sun, Users, WalletCards, X } from 'lucide-react';
+import { ClipboardList, CreditCard, LayoutDashboard, Menu, Moon, Smartphone, Sun, Users, WalletCards, X } from 'lucide-react';
 
 type SiteNavigationProps = {
   children: ReactNode;
@@ -53,6 +53,9 @@ export default function SiteNavigation({ children, admin = false, publicPage = f
             <>
               <a href="/admin/dashboard" className={linkClass}><LayoutDashboard size={16} /> Admin overview</a>
               <a href="/admin/staff" className={linkClass}><Users size={16} /> Staff & permissions</a>
+              <a href="/admin/staff/users" className={linkClass}><Users size={16} /> Staff users</a>
+              <a href="/admin/staff/permission-audits" className={linkClass}><ClipboardList size={16} /> Permission audits</a>
+              <a href="/wallet/vtu" className={linkClass}><Smartphone size={16} /> VTU service</a>
               <a href="/customer/dashboard" className={linkClass}><WalletCards size={16} /> Customer view</a>
             </>
           ) : (
@@ -76,6 +79,9 @@ export default function SiteNavigation({ children, admin = false, publicPage = f
                 <>
                   <a onClick={() => setMenuOpen(false)} href="/admin/dashboard" className={linkClass}><LayoutDashboard size={17} /> Admin overview</a>
                   <a onClick={() => setMenuOpen(false)} href="/admin/staff" className={linkClass}><Users size={17} /> Staff & permissions</a>
+                  <a onClick={() => setMenuOpen(false)} href="/admin/staff/users" className={linkClass}><Users size={17} /> Staff users</a>
+                  <a onClick={() => setMenuOpen(false)} href="/admin/staff/permission-audits" className={linkClass}><ClipboardList size={17} /> Permission audits</a>
+                  <a onClick={() => setMenuOpen(false)} href="/wallet/vtu" className={linkClass}><Smartphone size={17} /> VTU service</a>
                   <a onClick={() => setMenuOpen(false)} href="/customer/dashboard" className={linkClass}><WalletCards size={17} /> Customer view</a>
                 </>
               ) : (
@@ -92,7 +98,7 @@ export default function SiteNavigation({ children, admin = false, publicPage = f
 
       {children}
 
-      <nav aria-label="Quick navigation" className="fixed inset-x-0 bottom-0 z-40 grid border-t border-[var(--line)] bg-[var(--surface)]/95 px-1 pb-[env(safe-area-inset-bottom)] pt-2 backdrop-blur sm:hidden" style={{ gridTemplateColumns: publicPage ? 'repeat(3,minmax(0,1fr))' : admin ? 'repeat(3,minmax(0,1fr))' : 'repeat(3,minmax(0,1fr))' }}>
+      <nav aria-label="Quick navigation" className="fixed inset-x-0 bottom-0 z-40 grid border-t border-[var(--line)] bg-[var(--surface)]/95 px-1 pb-[env(safe-area-inset-bottom)] pt-2 backdrop-blur sm:hidden" style={{ gridTemplateColumns: 'repeat(4,minmax(0,1fr))' }}>
         {publicPage ? (
           <>
             <a href="/" className="flex min-h-14 flex-col items-center justify-center gap-1 rounded-lg px-1 text-[10px] font-semibold text-[var(--muted)]"><LayoutDashboard size={19} /><span>Home</span></a>
@@ -103,6 +109,7 @@ export default function SiteNavigation({ children, admin = false, publicPage = f
           <>
             <a href="/admin/dashboard" className="flex min-h-14 flex-col items-center justify-center gap-1 rounded-lg px-1 text-[10px] font-semibold text-[var(--muted)]"><LayoutDashboard size={19} /><span>Overview</span></a>
             <a href="/admin/staff" className="flex min-h-14 flex-col items-center justify-center gap-1 rounded-lg px-1 text-[10px] font-semibold text-[var(--muted)]"><Users size={19} /><span>Staff</span></a>
+            <a href="/wallet/vtu" className="flex min-h-14 flex-col items-center justify-center gap-1 rounded-lg px-1 text-[10px] font-semibold text-[var(--muted)]"><Smartphone size={19} /><span>VTU</span></a>
             <a href="/customer/dashboard" className="flex min-h-14 flex-col items-center justify-center gap-1 rounded-lg px-1 text-[10px] font-semibold text-[var(--muted)]"><WalletCards size={19} /><span>Customer</span></a>
           </>
         ) : (
