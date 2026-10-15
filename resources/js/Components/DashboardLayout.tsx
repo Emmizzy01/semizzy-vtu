@@ -102,6 +102,7 @@ export default function DashboardLayout({
       { label: 'Staff users', href: '/admin/staff/users', icon: Users, match: '/admin/staff/users' },
       { label: 'Permission audits', href: '/admin/staff/permission-audits', icon: Activity, match: '/admin/staff/permission-audits' },
       { label: 'User level policies', href: '/admin/user-levels', icon: ShieldCheck, match: '/admin/user-levels' },
+      { label: 'Tier upgrade requests', href: '/admin/user-level-upgrade-requests', icon: ShieldCheck, match: '/admin/user-level-upgrade-requests' },
       { label: 'Security activity', href: '/admin/security-events', icon: Activity, match: '/admin/security-events' },
     ] }] : []),
     { title: 'Customer', items: [
