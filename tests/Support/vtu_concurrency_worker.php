@@ -1,6 +1,9 @@
 <?php
 
 use App\Models\User;
+use App\Http\Controllers\Payments\ManualDepositController;
+use App\Services\Wallets\WalletLedgerService;
+use Illuminate\Http\Request;
 use App\Models\VtuOrder;
 use App\Models\VtuProduct;
 use App\Services\Vtu\VtuOrderService;
@@ -16,7 +19,7 @@ $app->make(Kernel::class)->bootstrap();
 
 $mode = $argv[1] ?? '';
 $statePath = $argv[2] ?? '';
-if ($statePath === '' || ! in_array($mode, ['purchase', 'reconcile', 'open-wallet'], true)) {
+if ($statePath === '' || ! in_array($mode, ['purchase', 'reconcile', 'open-wallet', 'review-deposit'], true)) {
     fwrite(STDERR, "Invalid worker arguments.\n");
     exit(2);
 }
@@ -32,6 +35,19 @@ $provider = new ConcurrentVtuTestProvider($statePath);
 $app->instance(VtuProvider::class, $provider);
 
 try {
+    if ($mode === 'review-deposit') {
+        $admin = User::query()->findOrFail((int) ($argv[3] ?? 0));
+        $publicId = (string) ($argv[4] ?? '');
+        $request = Request::create('/admin/manual-deposits/'.$publicId.'/review', 'POST', [
+            'decision' => 'approve',
+            'reason' => 'Verified bank transfer concurrency test',
+        ]);
+        $request->setUserResolver(fn () => $admin);
+        app(ManualDepositController::class)->review($request, $publicId, app(WalletLedgerService::class));
+        fwrite(STDOUT, "approved\\n");
+        exit(0);
+    }
+
     $service = app(VtuOrderService::class);
 
     if ($mode === 'purchase') {
