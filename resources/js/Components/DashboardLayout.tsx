@@ -6,6 +6,7 @@ import {
   ArrowLeftRight,
   CreditCard,
   Grid2X2,
+  Gift,
   LifeBuoy,
   LayoutDashboard,
   LogOut,
@@ -78,7 +79,7 @@ export default function DashboardLayout({
   const customerItems: NavItem[] = [
     { label: 'Home', href: customerPreview ? '/customer/dashboard' : '/dashboard', icon: LayoutDashboard, match: customerPreview ? '/customer/dashboard' : '/dashboard' },
     { label: 'Services', href: '/services', icon: Grid2X2, match: '/services' },
-    { label: 'Airtime & data', href: '/wallet/vtu', icon: Smartphone, match: '/wallet/vtu' },
+    { label: 'Rewards', href: '/account/tiers', icon: Gift, match: '/account/tiers' },
     { label: 'Wallet', href: '/wallet/manual-deposits', icon: WalletCards, match: '/wallet/manual-deposits' },
     { label: 'Profile', href: '/profile', icon: UserRound, match: '/profile' },
   ];
