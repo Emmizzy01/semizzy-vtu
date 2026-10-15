@@ -9,6 +9,7 @@ use App\Http\Controllers\Payments\PaymentFundingController;
 use App\Http\Controllers\Payments\ManualDepositController;
 use App\Http\Controllers\Admin\ManualDepositSettingsController;
 use App\Http\Controllers\Admin\PlatformSettingsController;
+use App\Http\Controllers\Admin\UserManagementController;
 use App\Services\IntegrationSettings;
 use App\Http\Controllers\Payments\PaymentRefundController;
 use App\Http\Controllers\Vtu\VtuOrderController;
@@ -62,6 +63,8 @@ Route::middleware(['auth', 'can:refunds.approve', 'throttle:20,1'])->post('/admi
     ->name('admin.payment-refunds.approve');
 
 Route::middleware(['auth', 'can:staff.permissions.manage'])->prefix('admin')->name('admin.')->group(function (): void {
+    Route::get('/users', [UserManagementController::class, 'index'])->middleware('throttle:60,1')->name('users.index');
+    Route::put('/users/{user}/classification', [UserManagementController::class, 'update'])->middleware('throttle:20,1')->name('users.classification.update');
     Route::get('/platform-settings', [PlatformSettingsController::class, 'edit'])->name('platform-settings');
     Route::put('/platform-settings', [PlatformSettingsController::class, 'update'])->middleware('throttle:10,1')->name('platform-settings.update');
     Route::get('/manual-deposits', [ManualDepositController::class, 'adminIndex'])->middleware('throttle:30,1')->name('manual-deposits.index');
