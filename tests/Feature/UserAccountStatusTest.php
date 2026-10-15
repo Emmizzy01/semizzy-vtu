@@ -34,7 +34,7 @@ class UserAccountStatusTest extends TestCase
         $user->forceFill(['account_status' => 'suspended'])->save();
 
         $this->from('/login')->post('/login', ['email' => $user->email, 'password' => 'CorrectPassword1234'])
-            ->assertRedirect('/login')->assertSessionHasErrors('email');
+            ->assertRedirect('/login')->assertSessionHasErrors('identifier');
         $this->actingAs($user)->get('/dashboard')->assertRedirect('/login');
         $this->assertGuest();
     }
