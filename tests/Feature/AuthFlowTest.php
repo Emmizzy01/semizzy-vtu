@@ -1,10 +1,11 @@
 <?php
 
-namespace Tests\Feature;
+namespace Tests\\Feature;
 
-use App\Models\User;
-use Illuminate\Foundation\Testing\RefreshDatabase;
-use Tests\TestCase;
+use App\\Models\\User;
+use Illuminate\\Foundation\\Testing\\RefreshDatabase;
+use Illuminate\\Support\\Facades\\Hash;
+use Tests\\TestCase;
 
 class AuthFlowTest extends TestCase
 {
@@ -60,6 +61,55 @@ class AuthFlowTest extends TestCase
             'name' => 'New Customer',
         ]);
         $this->assertAuthenticated();
+    }
+
+    public function test_registration_can_create_a_hashed_transaction_pin_and_audit_event(): void
+    {
+        $this->post('/register', [
+            'name' => 'PIN Registration Customer',
+            'email' => 'pin-registration@example.test',
+            'password' => 'ValidPassword1234',
+            'password_confirmation' => 'ValidPassword1234',
+            'transaction_pin' => '492815',
+            'transaction_pin_confirmation' => '492815',
+        ])->assertRedirect('/dashboard');
+
+        $user = User::query()->where('email', 'pin-registration@example.test')->firstOrFail();
+
+        $this->assertNotNull($user->transaction_pin_hash);
+        $this->assertTrue(Hash::check('492815', $user->transaction_pin_hash));
+        $this->assertNotSame('492815', $user->transaction_pin_hash);
+        $this->assertDatabaseHas('transaction_security_events', [
+            'user_id' => $user->id,
+            'event_type' => 'pin_created',
+            'outcome' => 'success',
+        ]);
+        $this->assertAuthenticatedAs($user);
+    }
+
+    public function test_registration_rejects_weak_or_unconfirmed_transaction_pin(): void
+    {
+        $this->from('/register')->post('/register', [
+            'name' => 'Weak PIN Customer',
+            'email' => 'weak-pin-registration@example.test',
+            'password' => 'ValidPassword1234',
+            'password_confirmation' => 'ValidPassword1234',
+            'transaction_pin' => '123456',
+            'transaction_pin_confirmation' => '123456',
+        ])->assertRedirect('/register')->assertSessionHasErrors('transaction_pin');
+
+        $this->from('/register')->post('/register', [
+            'name' => 'Mismatch PIN Customer',
+            'email' => 'mismatch-pin-registration@example.test',
+            'password' => 'ValidPassword1234',
+            'password_confirmation' => 'ValidPassword1234',
+            'transaction_pin' => '492815',
+            'transaction_pin_confirmation' => '492816',
+        ])->assertRedirect('/register')->assertSessionHasErrors('transaction_pin_confirmation');
+
+        $this->assertDatabaseMissing('users', ['email' => 'weak-pin-registration@example.test']);
+        $this->assertDatabaseMissing('users', ['email' => 'mismatch-pin-registration@example.test']);
+        $this->assertGuest();
     }
 
     public function test_registration_rejects_duplicate_email_addresses(): void
