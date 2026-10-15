@@ -81,11 +81,11 @@ class AuthController extends Controller
 
         $pin = $validated['transaction_pin'] ?? null;
         if ($pin !== null && in_array($pin, [
-            '012345', '123456', '234567', '345678', '456789',
-            '987654', '876543', '765432', '654321', '543210',
-            '123123', '121212', '112233',
+            '0123', '1234', '2345', '3456', '4567', '5678', '6789',
+            '9876', '8765', '7654', '6543', '5432', '4321', '3210',
+            '1212', '1122', '2211', '1010',
         ], true)) {
-            return back()->withErrors(['transaction_pin' => 'Choose a less predictable six-digit transaction PIN.'])->withInput($request->except(['password', 'password_confirmation', 'transaction_pin', 'transaction_pin_confirmation']));
+            return back()->withErrors(['transaction_pin' => 'Choose a less predictable four-digit transaction PIN.'])->withInput($request->except(['password', 'password_confirmation', 'transaction_pin', 'transaction_pin_confirmation']));
         }
 
         $user = DB::transaction(function () use ($validated, $pin, $pins): User {
