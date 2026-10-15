@@ -4,6 +4,8 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use App\Models\UserPermission;
+use App\Models\VtuOrder;
+use App\Models\VtuProduct;
 use App\Models\Wallet;
 use App\Models\WalletTransaction;
 use Illuminate\Support\Str;
@@ -119,6 +121,73 @@ class DashboardRoutingTest extends TestCase
                 ->where('transactionFilters.search', 'ACTIVITY')
                 ->where('transactionFilters.status', 'successful')
                 ->where('transactions.0.reference', 'ACTIVITY-02'));
+    }
+
+    public function test_customer_order_history_is_paginated_and_searchable_without_exposing_other_users_orders(): void
+    {
+        $customer = $this->account('order-history-customer@example.test');
+        $otherCustomer = $this->account('other-order-history-customer@example.test');
+        $wallet = Wallet::query()->create(['user_id' => $customer->id, 'currency' => 'NGN']);
+        $otherWallet = Wallet::query()->create(['user_id' => $otherCustomer->id, 'currency' => 'NGN']);
+        $product = VtuProduct::query()->create([
+            'service_type' => 'airtime',
+            'network' => 'mtn',
+            'code' => 'history-airtime',
+            'name' => 'History airtime',
+            'price_minor' => 10000,
+            'currency' => 'NGN',
+            'is_active' => true,
+        ]);
+
+        for ($index = 1; $index <= 12; $index++) {
+            VtuOrder::query()->create([
+                'public_id' => (string) Str::uuid(),
+                'user_id' => $customer->id,
+                'wallet_id' => $wallet->id,
+                'vtu_product_id' => $product->id,
+                'idempotency_key' => 'order-history-' . $index,
+                'request_hash' => hash('sha256', 'order-history-' . $index),
+                'service_type' => 'airtime',
+                'network' => 'mtn',
+                'product_code' => $product->code,
+                'recipient' => '08012345678',
+                'amount_minor' => 10000,
+                'currency' => 'NGN',
+                'status' => 'successful',
+                'provider' => 'test_provider',
+                'provider_reference' => 'ORDER-HISTORY-' . $index,
+            ]);
+        }
+
+        VtuOrder::query()->create([
+            'public_id' => (string) Str::uuid(),
+            'user_id' => $otherCustomer->id,
+            'wallet_id' => $otherWallet->id,
+            'vtu_product_id' => $product->id,
+            'idempotency_key' => 'other-customer-order',
+            'request_hash' => hash('sha256', 'other-customer-order'),
+            'service_type' => 'airtime',
+            'network' => 'mtn',
+            'product_code' => $product->code,
+            'recipient' => '08099999999',
+            'amount_minor' => 10000,
+            'currency' => 'NGN',
+            'status' => 'successful',
+            'provider' => 'test_provider',
+            'provider_reference' => 'PRIVATE-ORDER-REFERENCE',
+        ]);
+
+        $this->actingAs($customer)
+            ->get('/dashboard?orders_page=2&order_search=08012345678&order_status=successful')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page->component('Dashboard')
+                ->has('orders', 2)
+                ->where('orderPagination.currentPage', 2)
+                ->where('orderPagination.lastPage', 2)
+                ->where('orderPagination.total', 12)
+                ->where('orderFilters.search', '08012345678')
+                ->where('orderFilters.status', 'successful')
+                ->where('orders.0.recipient', '08012345678'));
     }
 
     public function test_user_with_admin_permission_is_routed_to_admin_command_center(): void
