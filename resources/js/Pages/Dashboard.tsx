@@ -89,21 +89,6 @@ export default function CustomerDashboard({ wallet, transactions, orders, fundin
     <DashboardLayout title={isAdminPreview ? 'Customer dashboard preview' : 'Your dashboard'} description={isAdminPreview ? 'Preview the customer experience for your own staff account. Customer data and permissions are unchanged.' : 'Your wallet, digital services, and recent activity in one secure place.'} customerPreview={isAdminPreview}>
       {isAdminPreview && <aside className="mb-5 flex flex-col gap-3 rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-sm font-extrabold">Staff preview mode</p><p className="mt-1 text-xs leading-5 text-[var(--muted)]">This is your own account’s customer view, not a customer impersonation session.</p></div><a href="/admin/dashboard" className="inline-flex min-h-10 items-center justify-center rounded-xl bg-[var(--brand)] px-4 py-2 text-sm font-bold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)] focus-visible:ring-offset-2">Back to Command Center</a></aside>}
       <section className="mx-auto max-w-3xl space-y-4 pb-3">
-        <div className="flex items-center justify-between gap-3 px-1 pt-1">
-          <a href="/profile" className="flex min-w-0 items-center gap-3" aria-label="Open profile and account level">
-            <span className="relative grid h-12 w-12 shrink-0 place-items-center rounded-full border-2 border-white bg-emerald-100 text-base font-extrabold text-emerald-800 shadow-sm dark:border-slate-800 dark:bg-emerald-950 dark:text-emerald-200">
-              {customer?.avatarUrl ? <img src={customer.avatarUrl} alt="" className="h-full w-full rounded-full object-cover" /> : (customer?.name || 'S').trim().split(/\\s+/).slice(0,2).map(part => part[0]).join('').toUpperCase()}
-              <span className="absolute -bottom-1 -right-1 flex h-5 min-w-5 items-center justify-center rounded-full border border-white bg-amber-100 px-1 text-[9px] font-black text-amber-900 dark:border-slate-900" title={customer?.tier || 'Account tier'}>{customer?.tier || '—'}</span>
-            </span>
-            <span className="min-w-0"><span className="block text-[10px] font-semibold uppercase tracking-wide text-[var(--muted)]">Welcome back</span><span className="block truncate text-lg font-extrabold">{customer?.name || 'Semizzy user'}</span><span className="block truncate text-[10px] font-bold text-[var(--brand)]">Tier: {customer?.tier || 'Customer'}</span></span>
-          </a>
-          <div className="flex shrink-0 items-center gap-3 text-[var(--ink)]">
-            <a href="/support" aria-label="Help and support" className="relative grid h-10 w-10 place-items-center rounded-full hover:bg-[var(--brand-soft)]"><Headset size={23}/><span className="absolute -right-1 -top-1 rounded-full bg-pink-200 px-1.5 py-0.5 text-[8px] font-extrabold text-pink-800">HELP</span></a>
-            <button type="button" aria-label="Scan code" onClick={() => setNotice('QR scanning is not enabled yet. Use the available service links for now.')} className="grid h-10 w-10 place-items-center rounded-full hover:bg-[var(--brand-soft)]"><ScanLine size={23}/></button>
-            <button type="button" aria-label="Notifications are not available yet" title="Notifications are not available yet" disabled className="relative grid h-10 w-10 cursor-not-allowed place-items-center rounded-full opacity-50"><Bell size={23}/></button>
-          </div>
-        </div>
-
         <article className="overflow-hidden rounded-[28px] bg-emerald-600 text-white shadow-sm">
           <div className="p-5 sm:p-6">
             <div className="flex items-center justify-between gap-3"><span className="inline-flex items-center gap-2 text-xs font-bold text-white/90"><ShieldCheck size={17}/> {wallet?.status === 'active' ? 'Available' : wallet ? 'Wallet ' + wallet.status : 'Wallet not set up'} <span className="text-white/70">●</span></span><a href="#fund-wallet" className="inline-flex min-h-10 items-center gap-2 rounded-full border border-white/25 bg-white/10 px-4 text-xs font-extrabold hover:bg-white/20"><ArrowDownToLine size={16}/> Add Money</a></div>
