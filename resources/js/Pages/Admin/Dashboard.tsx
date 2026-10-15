@@ -1,4 +1,5 @@
-import { Activity, ArrowUpRight, CheckCircle2, CircleAlert, CreditCard, LockKeyhole, PlugZap, ShieldCheck, Smartphone, Users, WalletCards } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { Activity, ArrowUpRight, CheckCircle2, CircleAlert, CreditCard, LockKeyhole, PlugZap, Search, ShieldCheck, Smartphone, Users, WalletCards } from 'lucide-react';
 import DashboardLayout from '../../Components/DashboardLayout';
 
 type Metrics = {
@@ -11,6 +12,27 @@ type Metrics = {
 type Capabilities = { manageStaff: boolean; approveRefunds: boolean };
 
 export default function AdminDashboard({ metrics, capabilities }: { metrics: Metrics; capabilities: Capabilities }) {
+  const [workspaceQuery, setWorkspaceQuery] = useState('');
+  const [workspaceCategory, setWorkspaceCategory] = useState('all');
+
+  const workspaces = useMemo(() => [
+    ...(capabilities.approveRefunds ? [{ href: '/admin/refunds', icon: <CreditCard size={22} />, title: 'Refund operations', description: 'Review refund requests, monitor provider outcomes, and approve eligible requests.', status: 'Permission-gated route', category: 'operations' }] : []),
+    ...(capabilities.manageStaff ? [{ href: '/admin/staff', icon: <Users size={22} />, title: 'Staff & permissions', description: 'Manage approved staff permissions and review access audit records.', status: 'Permission-gated route', category: 'operations' }] : []),
+    ...(capabilities.manageStaff ? [{ href: '/admin/payment-gateway', icon: <CreditCard size={22} />, title: 'Payment gateway settings', description: 'Inspect the saved gateway configuration and callback setup. Provider payments remain subject to separate verification.', status: 'Configuration view', category: 'operations' }] : []),
+    ...(capabilities.manageStaff ? [{ href: '/admin/api-providers', icon: <PlugZap size={22} />, title: 'API provider settings', description: 'Review provider configuration and environment selection. Live service readiness is not inferred from saved settings.', status: 'Configuration view', category: 'operations' }] : []),
+    { href: '/wallet/vtu', icon: <Smartphone size={22} />, title: 'VTU customer flow', description: 'Open the signed-in airtime and data purchase experience.', status: 'Customer route', category: 'customer' },
+    { href: '/customer/dashboard', icon: <WalletCards size={22} />, title: 'Customer dashboard', description: 'Review the customer-facing wallet, funding, and service links.', status: 'Customer route', category: 'customer' },
+  ], [capabilities.approveRefunds, capabilities.manageStaff]);
+
+  const filteredWorkspaces = useMemo(() => {
+    const query = workspaceQuery.trim().toLocaleLowerCase();
+    return workspaces.filter((workspace) => {
+      const matchesCategory = workspaceCategory === 'all' || workspace.category === workspaceCategory;
+      const searchable = [workspace.title, workspace.description, workspace.status, workspace.category].join(' ').toLocaleLowerCase();
+      return matchesCategory && (!query || searchable.includes(query));
+    });
+  }, [workspaces, workspaceCategory, workspaceQuery]);
+
   return (
     <DashboardLayout title="Admin Command Center" description="A secure operational overview of SEMIZZY. Administrative sections appear according to your assigned permissions." admin canManageStaff={capabilities.manageStaff} canApproveRefunds={capabilities.approveRefunds}>
       <section aria-label="Operational metrics" className="grid grid-cols-1 gap-3 sm:grid-cols-2 2xl:grid-cols-4">
@@ -24,14 +46,27 @@ export default function AdminDashboard({ metrics, capabilities }: { metrics: Met
 
       <section aria-labelledby="workspace-title" className="mt-8">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between"><div className="min-w-0"><p className="text-xs font-extrabold uppercase tracking-[0.18em] text-[var(--brand)]">Operations</p><h2 id="workspace-title" className="mt-2 font-display text-2xl font-extrabold">Workspaces</h2><p className="mt-1 max-w-2xl text-sm leading-6 text-[var(--muted)]">Choose an operational area. Available shortcuts follow your assigned permissions.</p></div><span role="status" aria-label="Data status: current saved application records; provider health is not checked" className="inline-flex w-fit items-center gap-2 rounded-full border border-[var(--line)] px-3 py-2 text-xs font-semibold text-[var(--muted)]"><Activity size={14} aria-hidden="true" /> Current data snapshot</span></div>
-        <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2 2xl:grid-cols-3">
-          {capabilities.approveRefunds && <Workspace href="/admin/refunds" icon={<CreditCard size={22} />} title="Refund operations" description="Review refund requests, monitor provider outcomes, and approve eligible requests." status="Permission-gated route" />}
-          {capabilities.manageStaff && <Workspace href="/admin/staff" icon={<Users size={22} />} title="Staff & permissions" description="Manage approved staff permissions and review access audit records." status="Permission-gated route" />}
-          {capabilities.manageStaff && <Workspace href="/admin/payment-gateway" icon={<CreditCard size={22} />} title="Payment gateway settings" description="Inspect the saved gateway configuration and callback setup. Provider payments remain subject to separate verification." status="Configuration view" />}
-          {capabilities.manageStaff && <Workspace href="/admin/api-providers" icon={<PlugZap size={22} />} title="API provider settings" description="Review provider configuration and environment selection. Live service readiness is not inferred from saved settings." status="Configuration view" />}
-          <Workspace href="/wallet/vtu" icon={<Smartphone size={22} />} title="VTU customer flow" description="Open the signed-in airtime and data purchase experience." status="Customer route" />
-          <Workspace href="/customer/dashboard" icon={<WalletCards size={22} />} title="Customer dashboard" description="Review the customer-facing wallet, funding, and service links." status="Customer route" />
+        <div className="mt-5 grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
+          <label className="relative block min-w-0">
+            <span className="sr-only">Search admin workspaces</span>
+            <Search size={16} aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--muted)]" />
+            <input type="search" value={workspaceQuery} onChange={(event) => setWorkspaceQuery(event.target.value)} placeholder="Search workspaces or tasks" className="min-h-11 w-full rounded-xl border border-[var(--line)] bg-[var(--surface)] py-2 pl-9 pr-3 text-sm outline-none focus:border-[var(--brand)] focus-visible:ring-2 focus-visible:ring-[var(--brand)]" />
+          </label>
+          <label className="block">
+            <span className="sr-only">Filter workspaces by category</span>
+            <select value={workspaceCategory} onChange={(event) => setWorkspaceCategory(event.target.value)} className="min-h-11 w-full rounded-xl border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-sm outline-none focus:border-[var(--brand)] focus-visible:ring-2 focus-visible:ring-[var(--brand)]">
+              <option value="all">All workspaces</option>
+              <option value="operations">Operations</option>
+              <option value="customer">Customer experience</option>
+            </select>
+          </label>
         </div>
+        <p className="mt-3 text-xs text-[var(--muted)]" aria-live="polite">Showing {filteredWorkspaces.length} of {workspaces.length} available workspaces</p>
+        {filteredWorkspaces.length > 0
+          ? <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 2xl:grid-cols-3">
+              {filteredWorkspaces.map((workspace) => <Workspace key={workspace.href} {...workspace} />)}
+            </div>
+          : <p className="mt-3 rounded-2xl border border-dashed border-[var(--line)] p-6 text-sm text-[var(--muted)]">No workspaces match this search. Try a different term or category.</p>}
       </section>
 
       <section aria-labelledby="security-scope-title" className="mt-8 rounded-3xl border border-[var(--line)] bg-[var(--surface)] p-4 sm:p-6">
