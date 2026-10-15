@@ -12,6 +12,7 @@ use App\Services\Wallets\WalletAccountService;
 use App\Services\Wallets\WalletLedgerService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use DomainException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -160,7 +161,8 @@ class ManualDepositController extends Controller
         $actor = $request->user();
         abort_unless($actor, 401);
 
-        DB::transaction(function () use ($publicId, $validated, $actor, $ledger): void {
+        try {
+            DB::transaction(function () use ($publicId, $validated, $actor, $ledger): void {
             $deposit = ManualDeposit::query()->where('public_id', $publicId)->lockForUpdate()->firstOrFail();
             abort_unless($deposit->status === 'pending', 409, 'Only pending deposits can be reviewed.');
             abort_if((int) $deposit->user_id === (int) $actor->id, 403, 'You cannot review your own deposit.');
@@ -196,7 +198,37 @@ class ManualDepositController extends Controller
                 'context' => ['amount_minor' => $deposit->amount_minor, 'currency' => 'NGN'],
                 'created_at' => now(),
             ]);
-        }, attempts: 3);
+            }, attempts: 3);
+        } catch (DomainException $exception) {
+            if (! str_contains($exception->getMessage(), 'account level would be exceeded')) {
+                throw $exception;
+            }
+
+            // Keep the submitted deposit and audit trail visible for reconciliation.
+            DB::transaction(function () use ($publicId, $actor, $validated): void {
+                $deposit = ManualDeposit::query()->where('public_id', $publicId)->lockForUpdate()->firstOrFail();
+                if ($deposit->status !== 'pending') {
+                    return;
+                }
+                $deposit->forceFill([
+                    'status' => 'review_required',
+                    'reviewed_by_user_id' => $actor->id,
+                    'reviewed_at' => now(),
+                    'review_reason' => 'Wallet level balance cap reached. '.trim($validated['reason']),
+                ])->save();
+                ManualDepositAudit::query()->create([
+                    'manual_deposit_id' => $deposit->id,
+                    'actor_user_id' => $actor->id,
+                    'event_type' => 'wallet_limit_review',
+                    'outcome' => 'review_required',
+                    'reason' => trim($validated['reason']),
+                    'context' => ['amount_minor' => $deposit->amount_minor, 'currency' => 'NGN'],
+                    'created_at' => now(),
+                ]);
+            }, attempts: 3);
+
+            return back()->withErrors(['amount' => 'This wallet reached its account-level balance limit. The deposit was preserved for reconciliation and was not credited.']);
+        }
 
         return back()->with('status', 'Manual deposit review saved.');
     }
