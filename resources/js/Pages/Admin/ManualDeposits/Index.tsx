@@ -25,7 +25,7 @@ export default function ManualDepositsAdmin({ deposits, filters }: { deposits: P
     <div className="mx-auto max-w-6xl space-y-5">
       {error && <div role="alert" className="rounded-xl bg-rose-500/10 p-3 text-sm text-rose-700">{error}</div>}
       <form onSubmit={submitSearch} className="flex flex-wrap gap-3 rounded-2xl border border-slate-200 p-4 dark:border-slate-800">
-        <select className="rounded-xl border bg-transparent p-2 dark:border-slate-700" value={filters.status} onChange={e => router.get('/admin/manual-deposits', { status: e.target.value, search }, { preserveState: true })}><option value="pending">Pending</option><option value="approved">Approved</option><option value="rejected">Rejected</option><option value="all">All</option></select>
+        <select className="rounded-xl border bg-transparent p-2 dark:border-slate-700" value={filters.status} onChange={e => router.get('/admin/manual-deposits', { status: e.target.value, search }, { preserveState: true })}><option value="pending">Pending</option><option value="review_required">Needs reconciliation</option><option value="approved">Approved</option><option value="rejected">Rejected</option><option value="all">All</option></select>
         <input className="min-w-0 flex-1 rounded-xl border bg-transparent p-2 dark:border-slate-700" placeholder="Customer, email, deposit ID or transfer ref" value={search} onChange={e => setSearch(e.target.value)} />
         <button className="inline-flex items-center gap-2 rounded-xl bg-emerald-700 px-4 py-2 text-white"><Search size={16} />Search</button>
         <a className="rounded-xl border px-4 py-2 dark:border-slate-700" href="/admin/manual-deposits/settings">Deposit instructions</a>
