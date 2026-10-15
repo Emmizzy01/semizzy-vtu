@@ -2,7 +2,7 @@ import { Head } from '@inertiajs/react';
 import DashboardLayout from '../../Components/DashboardLayout';
 import {
   Activity, BookOpen, BriefcaseBusiness, Building2, CalendarDays, Code2, Cpu, GraduationCap,
-  HeartHandshake, Home, Landmark, LifeBuoy, Megaphone, Package, PiggyBank, ShieldCheck,
+  HeartHandshake, Home, LifeBuoy, Megaphone, Package, PiggyBank, ShieldCheck,
   Shirt, ShoppingBag, Smartphone, Sparkles, Store, Truck, WalletCards, Wifi, Zap, Tv,
   type LucideIcon,
 } from 'lucide-react';
