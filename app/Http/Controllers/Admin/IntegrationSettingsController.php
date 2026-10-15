@@ -20,11 +20,16 @@ class IntegrationSettingsController extends Controller
         }
         $webhookUrl = $request->getSchemeAndHttpHost().'/api/payments/webhooks/paystack';
 
+        $detectedMode = str_starts_with($secret, 'sk_test_') ? 'Test' : (str_starts_with($secret, 'sk_live_') ? 'Live' : 'Unknown');
+        $savedMode = (string) $settings->get('paystack.mode', '');
+        $mode = in_array($savedMode, ['test', 'live'], true) ? ucfirst($savedMode) : $detectedMode;
+
         return Inertia::render('Admin/PaymentGateway', ['gateway' => [
             'name' => 'Paystack', 'configured' => $secret !== '',
             'production' => app()->environment('production'),
             'callbackConfigured' => $callback !== '',
-            'mode' => str_starts_with($secret, 'sk_test_') ? 'Test' : (str_starts_with($secret, 'sk_live_') ? 'Live' : 'Unknown'),
+            'mode' => $mode,
+            'keyMode' => $detectedMode,
             'callbackHost' => parse_url($callback, PHP_URL_HOST) ?: null,
             'callbackUrl' => $callback,
             'webhookUrl' => $webhookUrl,
@@ -35,6 +40,7 @@ class IntegrationSettingsController extends Controller
     {
         $data = $request->validate([
             'secret_key' => ['nullable', 'string', 'max:500'],
+            'mode' => ['required', 'in:test,live'],
             'callback_url' => ['required', 'url', 'starts_with:https://', 'max:2048'],
             'confirm_live' => ['nullable', 'boolean'],
         ]);
@@ -42,15 +48,20 @@ class IntegrationSettingsController extends Controller
         if ($secret !== '' && ! preg_match('/^sk_(?:test|live)_[^\s]+$/', $secret)) {
             return back()->withErrors(['secret_key' => 'Enter a valid Paystack secret key beginning with sk_test_ or sk_live_.']);
         }
-        if (app()->environment('production') && $secret !== '' && str_starts_with($secret, 'sk_test_')) {
-            return back()->withErrors(['secret_key' => 'Test credentials cannot be saved for production. Use the live secret key issued by Paystack.']);
+        $effectiveSecret = $secret !== ''
+            ? $secret
+            : (string) $settings->get('paystack.secret_key', config('services.paystack.secret_key', ''));
+        $expectedPrefix = $data['mode'] === 'test' ? 'sk_test_' : 'sk_live_';
+        if ($effectiveSecret !== '' && ! str_starts_with($effectiveSecret, $expectedPrefix)) {
+            return back()->withErrors(['secret_key' => 'The selected '.strtoupper($data['mode']).' mode requires a matching Paystack '.($data['mode'] === 'test' ? 'test' : 'live').' secret key. Enter the matching key before switching modes.']);
         }
-        if ($secret !== '' && str_starts_with($secret, 'sk_live_') && ! $request->boolean('confirm_live')) {
+        if ($data['mode'] === 'live' && ! $request->boolean('confirm_live')) {
             return back()->withErrors(['confirm_live' => 'Confirm live payment mode before saving.']);
         }
         if ($secret !== '') {
             $settings->set('paystack.secret_key', $secret, $request->user()->id);
         }
+        $settings->set('paystack.mode', $data['mode'], $request->user()->id);
         $settings->set('paystack.callback_url', $data['callback_url'], $request->user()->id);
 
         return back()->with('success', 'Payment gateway settings saved.');
