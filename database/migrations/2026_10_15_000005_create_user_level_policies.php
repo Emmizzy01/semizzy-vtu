@@ -13,6 +13,7 @@ return new class extends Migration
             $table->id();
             $table->string('level', 16)->unique();
             $table->string('label', 80);
+            $table->unsignedBigInteger('wallet_balance_limit_minor')->nullable();
             $table->unsignedBigInteger('max_single_transaction_minor')->nullable();
             $table->unsignedBigInteger('daily_transaction_limit_minor')->nullable();
             $table->boolean('requires_verified_kyc')->default(false);
