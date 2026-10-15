@@ -33,4 +33,49 @@ class FeatureControlRegistryTest extends TestCase
         $this->assertDatabaseHas('platform_feature_controls', ['feature_key' => 'core.wallet_ledger', 'is_enabled' => 1]);
         $this->assertDatabaseHas('platform_feature_controls', ['feature_key' => 'service.marketplace', 'is_enabled' => 0]);
     }
+
+    public function test_feature_cannot_be_enabled_until_its_dependency_is_enabled(): void
+    {
+        $admin = User::query()->create(['name' => 'Dependency Admin', 'email' => 'feature-dependency@example.test', 'password' => 'not-a-real-password']);
+        UserPermission::query()->create(['user_id' => $admin->id, 'permission' => 'staff.permissions.manage']);
+        PlatformFeatureControl::query()->create([
+            'feature_key' => 'test.dependency', 'label' => 'Dependency', 'category' => 'test',
+            'dependencies' => [], 'default_enabled' => false, 'is_enabled' => false,
+            'is_core' => false, 'is_implemented' => true,
+        ]);
+        PlatformFeatureControl::query()->create([
+            'feature_key' => 'test.dependent', 'label' => 'Dependent', 'category' => 'test',
+            'dependencies' => ['test.dependency'], 'default_enabled' => false, 'is_enabled' => false,
+            'is_core' => false, 'is_implemented' => true,
+        ]);
+
+        $this->actingAs($admin)->put('/admin/feature-controls/test.dependent', [
+            'is_enabled' => true, 'reason' => 'Enable test dependent feature',
+        ])->assertStatus(422);
+
+        $this->assertDatabaseHas('platform_feature_controls', ['feature_key' => 'test.dependent', 'is_enabled' => 0]);
+    }
+
+    public function test_enabled_dependent_prevents_disabling_its_dependency(): void
+    {
+        $admin = User::query()->create(['name' => 'Dependency Admin', 'email' => 'feature-dependent@example.test', 'password' => 'not-a-real-password']);
+        UserPermission::query()->create(['user_id' => $admin->id, 'permission' => 'staff.permissions.manage']);
+        PlatformFeatureControl::query()->create([
+            'feature_key' => 'test.dependency', 'label' => 'Dependency', 'category' => 'test',
+            'dependencies' => [], 'default_enabled' => true, 'is_enabled' => true,
+            'is_core' => false, 'is_implemented' => true,
+        ]);
+        PlatformFeatureControl::query()->create([
+            'feature_key' => 'test.dependent', 'label' => 'Dependent', 'category' => 'test',
+            'dependencies' => ['test.dependency'], 'default_enabled' => true, 'is_enabled' => true,
+            'is_core' => false, 'is_implemented' => true,
+        ]);
+
+        $this->actingAs($admin)->put('/admin/feature-controls/test.dependency', [
+            'is_enabled' => false, 'reason' => 'Disable test dependency',
+        ])->assertStatus(422);
+
+        $this->assertDatabaseHas('platform_feature_controls', ['feature_key' => 'test.dependency', 'is_enabled' => 1]);
+        $this->assertDatabaseHas('platform_feature_controls', ['feature_key' => 'test.dependent', 'is_enabled' => 1]);
+    }
 }
