@@ -43,6 +43,7 @@ try {
             'reason' => 'Verified bank transfer concurrency test',
         ]);
         $request->setUserResolver(fn () => $admin);
+        $provider->arriveAndWait('deposit_review_barrier', 2);
         app(ManualDepositController::class)->review($request, $publicId, app(WalletLedgerService::class));
         fwrite(STDOUT, "approved\\n");
         exit(0);
