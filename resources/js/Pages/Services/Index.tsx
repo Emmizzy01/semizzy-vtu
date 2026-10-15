@@ -1,10 +1,11 @@
 import { Head } from '@inertiajs/react';
+import { useMemo, useState } from 'react';
 import DashboardLayout from '../../Components/DashboardLayout';
 import {
   Activity, BookOpen, BriefcaseBusiness, Building2, Boxes, CalendarDays, Code2, Cpu,
   GraduationCap, HeartHandshake, Home, Leaf, LifeBuoy, Megaphone, Package, PiggyBank,
   ShieldCheck, Shirt, ShoppingBag, Smartphone, Sparkles, Store, Truck, WalletCards,
-  Wifi, Zap, Tv, Wrench, type LucideIcon,
+  Wifi, Zap, Tv, Wrench, Search, SlidersHorizontal, type LucideIcon,
 } from 'lucide-react';
 
 type Service = {
@@ -56,7 +57,14 @@ const services: Service[] = [
 const statusLabel = (status: Service['status']) => status === 'available' ? 'Available now' : status === 'disabled' ? 'Temporarily unavailable' : status === 'gated' ? 'Approval required' : 'In development';
 
 export default function ServicesIndex({ availability }: { availability: { airtimeData: boolean; manualDeposit: boolean } }) {
+  const [search, setSearch] = useState('');
+  const [selectedGroup, setSelectedGroup] = useState('all');
   const groups = [...new Set(services.map(service => service.group))];
+  const filteredServices = useMemo(() => {
+    const term = search.trim().toLocaleLowerCase();
+    return services.filter(service => (selectedGroup === 'all' || service.group === selectedGroup)
+      && (!term || [service.title, service.description, service.group].some(value => value.toLocaleLowerCase().includes(term))));
+  }, [search, selectedGroup]);
   return <DashboardLayout title="Services" description="Explore Semizzy services. Status labels reflect the current implementation and approval gates, not just roadmap scope.">
     <Head title="Services · Semizzy" />
     <div className="mx-auto max-w-7xl space-y-8">
@@ -65,10 +73,15 @@ export default function ServicesIndex({ availability }: { availability: { airtim
         <h2 className="mt-2 text-2xl font-bold tracking-tight sm:text-3xl">What would you like to do today?</h2>
         <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600 dark:text-slate-300">The Unified Marketplace has the blueprint’s 19 top-level categories. Only verified end-to-end workflows are marked available; regulated or provider-dependent products remain gated until their controls are ready.</p>
       </section>
-      {groups.map(group => <section key={group} className="space-y-3">
+      <section className="grid gap-3 rounded-2xl border border-slate-200 bg-white p-3 sm:grid-cols-[minmax(0,1fr)_auto] dark:border-slate-800 dark:bg-slate-950">
+        <label className="flex min-h-11 items-center gap-2 rounded-xl border border-slate-200 px-3 dark:border-slate-700"><Search size={17} className="shrink-0 text-slate-500" aria-hidden="true" /><span className="sr-only">Search services</span><input value={search} onChange={event => setSearch(event.target.value)} maxLength={100} placeholder="Search services, categories or capabilities…" className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-slate-500" />{search && <button type="button" onClick={() => setSearch('')} className="rounded-lg px-2 py-1 text-xs font-semibold text-emerald-700 dark:text-emerald-300">Clear</button>}</label>
+        <label className="flex min-h-11 items-center gap-2 rounded-xl border border-slate-200 px-3 dark:border-slate-700"><SlidersHorizontal size={17} className="shrink-0 text-slate-500" aria-hidden="true" /><span className="sr-only">Filter service group</span><select value={selectedGroup} onChange={event => setSelectedGroup(event.target.value)} className="min-w-0 flex-1 bg-transparent text-sm outline-none"><option value="all">All service groups</option>{groups.map(group => <option key={group} value={group}>{group}</option>)}</select></label>
+        <p className="text-xs text-slate-500 sm:col-span-2" aria-live="polite">Showing {filteredServices.length} of {services.length} services</p>
+      </section>
+      {groups.filter(group => filteredServices.some(service => service.group === group)).map(group => <section key={group} className="space-y-3">
         <h2 className="text-lg font-semibold">{group}</h2>
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          {services.filter(service => service.group === group).map(service => {
+          {filteredServices.filter(service => service.group === group).map(service => {
             const Icon = service.icon;
             const effectiveStatus = service.feature ? (availability[service.feature] ? service.status : 'disabled') : service.status;
             const content = <><div className="flex items-start justify-between gap-3"><span className="rounded-xl bg-emerald-700/10 p-3 text-emerald-700 dark:text-emerald-300"><Icon size={22} strokeWidth={1.8} /></span><span className={'rounded-full px-2.5 py-1 text-[11px] font-semibold ' + (effectiveStatus === 'available' ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300' : effectiveStatus === 'disabled' ? 'bg-rose-500/10 text-rose-700 dark:text-rose-300' : effectiveStatus === 'gated' ? 'bg-amber-500/10 text-amber-800 dark:text-amber-300' : 'bg-slate-500/10 text-slate-600 dark:text-slate-300')}>{statusLabel(effectiveStatus)}</span></div><h3 className="mt-4 font-semibold">{service.title}</h3><p className="mt-1 text-sm leading-5 text-slate-500">{service.description}</p>{service.href && <span className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-emerald-700 dark:text-emerald-300">Open service <span aria-hidden="true">→</span></span>}</>;
@@ -76,6 +89,7 @@ export default function ServicesIndex({ availability }: { availability: { airtim
           })}
         </div>
       </section>)}
+      {filteredServices.length === 0 && <div className="rounded-2xl border border-dashed border-slate-300 p-8 text-center dark:border-slate-700"><Search size={24} className="mx-auto text-slate-400" /><h2 className="mt-3 font-semibold">No matching services</h2><p className="mt-1 text-sm text-slate-500">Try another search term or select a different group.</p><button type="button" onClick={() => { setSearch(''); setSelectedGroup('all'); }} className="mt-4 rounded-xl bg-emerald-700 px-4 py-2 text-sm font-semibold text-white">Reset filters</button></div>}
     </div>
   </DashboardLayout>;
 }

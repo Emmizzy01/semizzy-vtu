@@ -144,6 +144,12 @@ export default function DashboardLayout({
         ...(canApproveRefunds ? [{ label: 'Refunds', href: '/admin/refunds', icon: CreditCard, match: '/admin/refunds' }] : []),
         ...(canManageStaff ? [
           { label: 'VTU orders', href: '/admin/vtu-orders', icon: Smartphone, match: '/admin/vtu-orders' },
+          { label: 'Manual deposits', href: '/admin/manual-deposits', icon: WalletCards, match: '/admin/manual-deposits' },
+          { label: 'Site control', href: '/admin/platform-settings', icon: ShieldCheck, match: '/admin/platform-settings' },
+          { label: 'Feature controls', href: '/admin/feature-controls', icon: SlidersHorizontal, match: '/admin/feature-controls' },
+          { label: 'User levels', href: '/admin/user-levels', icon: ShieldCheck, match: '/admin/user-levels' },
+          { label: 'Users & KYC', href: '/admin/users', icon: Users, match: '/admin/users' },
+          { label: 'Security activity', href: '/admin/security-events', icon: Activity, match: '/admin/security-events' },
           { label: 'Gateway', href: '/admin/payment-gateway', icon: ShieldCheck, match: '/admin/payment-gateway' },
           { label: 'Providers', href: '/admin/api-providers', icon: PlugZap, match: '/admin/api-providers' },
           { label: 'Staff', href: '/admin/staff', icon: Users, match: '/admin/staff' },
