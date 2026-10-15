@@ -14,6 +14,8 @@ class User extends Authenticatable
     protected $fillable = [
         'name',
         'email',
+        'username',
+        'whatsapp_number',
         'password',
     ];
 
@@ -30,6 +32,7 @@ class User extends Authenticatable
     {
         return [
             'email_verified_at' => 'datetime',
+            'whatsapp_verified_at' => 'datetime',
             'password' => 'hashed',
             'transaction_pin_locked_until' => 'datetime',
             'transaction_pin_changed_at' => 'datetime',
