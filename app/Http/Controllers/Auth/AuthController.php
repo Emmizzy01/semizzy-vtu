@@ -75,7 +75,7 @@ class AuthController extends Controller
             'name' => ['required', 'string', 'max:120'],
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email'],
             'password' => ['required', 'confirmed', Password::min(12)->letters()->mixedCase()->numbers()],
-            'transaction_pin' => ['nullable', 'string', 'digits:6', 'regex:/^(?!([0-9])\1{5})\d{6}$/'],
+            'transaction_pin' => ['nullable', 'string', 'digits:4', 'regex:/^(?!([0-9])\1{3})\d{4}$/'],
             'transaction_pin_confirmation' => ['required_with:transaction_pin', 'nullable', 'string', 'same:transaction_pin'],
         ]);
 
