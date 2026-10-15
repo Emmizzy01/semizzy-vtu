@@ -150,7 +150,7 @@ class DashboardController extends Controller
         return Inertia::render('Dashboard', [
             'customer' => [
                 'name' => (string) $user->name,
-                'tier' => $user->user_type ?? $user->tier ?? null,
+                'tier' => $user->tier ?? $user->user_level ?? $user->level ?? $user->user_type ?? null,
                 'level' => $user->user_level ?? $user->level ?? null,
                 'avatarUrl' => $user->avatar_url ?? $user->profile_photo_url ?? null,
                 'kycStatus' => $user->kyc_status ?? null,
