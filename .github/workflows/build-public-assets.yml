@@ -24,6 +24,26 @@ jobs:
           ref: main
           persist-credentials: true
 
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mbstring, pdo_sqlite, sqlite3, dom, curl, fileinfo, intl, openssl, tokenizer, xml
+          coverage: none
+
+      - name: Install PHP dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Prepare test environment
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+          echo "DB_CONNECTION=sqlite" >> .env
+          echo "DB_DATABASE=:memory:" >> .env
+
+      - name: Run Laravel tests
+        run: php artisan test
+
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
