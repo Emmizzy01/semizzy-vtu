@@ -19,6 +19,7 @@ use App\Http\Controllers\Admin\FeatureControlController;
 use App\Models\PlatformFeatureControl;
 use App\Http\Controllers\Security\TransactionPinController;
 use App\Http\Controllers\Account\ProfileController;
+use App\Http\Controllers\Account\AccountTierController;
 use App\Http\Controllers\Support\SupportTicketController;
 use App\Http\Controllers\Admin\SupportTicketOperationsController;
 use App\Services\IntegrationSettings;
@@ -47,6 +48,8 @@ Route::middleware('auth')->group(function (): void {
     Route::post('/support', [SupportTicketController::class, 'store'])->middleware('throttle:5,1')->name('support.store');
     Route::post('/support/{ticket}/reply', [SupportTicketController::class, 'reply'])->middleware('throttle:10,1')->name('support.reply');
     Route::get('/profile', [ProfileController::class, 'show'])->name('profile.show');
+    Route::get('/account/tiers', [AccountTierController::class, 'index'])->name('account.tiers');
+    Route::post('/account/tiers/upgrade', [AccountTierController::class, 'requestUpgrade'])->middleware('throttle:3,1')->name('account.tiers.upgrade');
     Route::put('/profile', [ProfileController::class, 'update'])->middleware('throttle:10,1')->name('profile.update');
     Route::put('/profile/password', [ProfileController::class, 'updatePassword'])->middleware('throttle:5,1')->name('profile.password.update');
     Route::get('/dashboard', [DashboardController::class, 'customer'])->name('dashboard');
