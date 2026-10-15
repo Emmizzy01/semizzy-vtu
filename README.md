@@ -35,7 +35,9 @@ A modular Nigerian VTU and fintech platform foundation designed for secure, reli
 
 ## Development status
 
-This repository is being initialized. Planned capabilities are not considered implemented until code, tests, and documentation are added and verified.
+**Canonical development branch: `main` only.** All Semizzy changes must be committed directly to this branch; do not create feature branches.
+
+The repository contains an evolving Laravel/Inertia application foundation, including authentication, wallet funding/deposit review, transaction PIN controls, VTU ordering, account classification/level policies, support, and administrative settings/workspaces. The exact completion state varies by workflow: use the [Semizzy Product & Implementation Blueprint](docs/SEMIZZY-BLUEPRINT.md) as the canonical acceptance checklist, and do not consider a feature complete until its backend, UI, authorization, tests, and deployment notes are verified.
 
 ## Local setup target
 
