@@ -1,18 +1,18 @@
 <?php
 
-namespace App\\Http\\Controllers\\Auth;
+namespace App\Http\Controllers\Auth;
 
-use App\\Http\\Controllers\\Controller;
-use App\\Models\\User;
-use App\\Services\\Security\\TransactionPinService;
-use Illuminate\\Http\\RedirectResponse;
-use Illuminate\\Http\\Request;
-use Illuminate\\Support\\Facades\\Auth;
-use Illuminate\\Support\\Facades\\DB;
-use Illuminate\\Support\\Facades\\Hash;
-use Illuminate\\Validation\\Rules\\Password;
-use Inertia\\Inertia;
-use Inertia\\Response;
+use App\Http\Controllers\Controller;
+use App\Models\User;
+use App\Services\Security\TransactionPinService;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rules\Password;
+use Inertia\Inertia;
+use Inertia\Response;
 
 class AuthController extends Controller
 {
@@ -63,7 +63,7 @@ class AuthController extends Controller
             'name' => ['required', 'string', 'max:120'],
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email'],
             'password' => ['required', 'confirmed', Password::min(12)->letters()->mixedCase()->numbers()],
-            'transaction_pin' => ['nullable', 'string', 'digits:6', 'regex:/^(?!([0-9])\\1{5})\\d{6}$/'],
+            'transaction_pin' => ['nullable', 'string', 'digits:6', 'regex:/^(?!([0-9])\1{5})\d{6}$/'],
             'transaction_pin_confirmation' => ['required_with:transaction_pin', 'nullable', 'string', 'same:transaction_pin'],
         ]);
 
