@@ -10,7 +10,7 @@ class ManualDeposit extends Model
 {
     protected $fillable = [
         'public_id', 'user_id', 'wallet_id', 'amount_minor', 'transfer_reference',
-        'evidence_path', 'status', 'evidence_viewed_at', 'evidence_viewed_by_user_id',
+        'evidence_path', 'evidence_sha256', 'duplicate_evidence', 'status', 'evidence_viewed_at', 'evidence_viewed_by_user_id',
         'reviewed_by_user_id', 'reviewed_at', 'review_reason',
         'credited_wallet_transaction_id', 'idempotency_key',
     ];
@@ -19,6 +19,7 @@ class ManualDeposit extends Model
     {
         return [
             'amount_minor' => 'integer',
+            'duplicate_evidence' => 'boolean',
             'evidence_viewed_at' => 'datetime',
             'reviewed_at' => 'datetime',
         ];

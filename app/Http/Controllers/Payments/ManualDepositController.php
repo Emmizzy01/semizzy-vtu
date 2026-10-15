@@ -63,6 +63,8 @@ class ManualDepositController extends Controller
         $user = $request->user();
         abort_unless($user, 401);
         $wallet = $wallets->openForUser($user, 'NGN');
+        $evidenceHash = hash_file('sha256', $request->file('evidence')->getRealPath());
+        $duplicateEvidence = ManualDeposit::query()->where('evidence_sha256', $evidenceHash)->exists();
         $path = $request->file('evidence')->store('manual-deposits', 'local');
         if (! $path) {
             return back()->withErrors(['evidence' => 'Proof could not be stored securely. Please try again.']);
@@ -75,6 +77,8 @@ class ManualDepositController extends Controller
             'amount_minor' => (int) $validated['amount_minor'],
             'transfer_reference' => trim($validated['transfer_reference']),
             'evidence_path' => $path,
+            'evidence_sha256' => $evidenceHash,
+            'duplicate_evidence' => $duplicateEvidence,
             'status' => 'pending',
             'idempotency_key' => 'manual-deposit:'.Str::uuid(),
         ]);
@@ -87,7 +91,10 @@ class ManualDepositController extends Controller
             'created_at' => now(),
         ]);
 
-        return redirect()->route('wallet.manual-deposits.index')->with('status', 'Deposit submitted for verification. Your wallet has not been credited yet.');
+        if ($duplicateEvidence) {
+            ManualDepositAudit::query()->create(['manual_deposit_id' => $deposit->id, 'actor_user_id' => $user->id, 'event_type' => 'duplicate_evidence_detected', 'outcome' => 'flagged', 'created_at' => now()]);
+        }
+        return redirect()->route('wallet.manual-deposits.index')->with('status', $duplicateEvidence ? 'Deposit submitted but flagged because this receipt matches earlier evidence. Wallet credit is blocked pending investigation.' : 'Deposit submitted for verification. Your wallet has not been credited yet.');
     }
 
     public function adminIndex(Request $request): InertiaResponse
@@ -116,7 +123,8 @@ class ManualDepositController extends Controller
                 'email' => $deposit->user?->email, 'amount_minor' => $deposit->amount_minor,
                 'reference' => $deposit->transfer_reference, 'status' => $deposit->status,
                 'created_at' => $deposit->created_at?->toISOString(),
-                'evidence_viewed' => $deposit->evidence_viewed_at !== null,
+                'duplicate_evidence' => (bool) $deposit->duplicate_evidence,
+                'evidence_viewed_by_current_admin' => (int) $deposit->evidence_viewed_by_user_id === (int) $request->user()->id,
                 'review_reason' => $deposit->review_reason,
             ]),
             'filters' => ['status' => $status, 'search' => $search],
@@ -148,7 +156,8 @@ class ManualDepositController extends Controller
             $deposit = ManualDeposit::query()->where('public_id', $publicId)->lockForUpdate()->firstOrFail();
             abort_unless($deposit->status === 'pending', 409, 'Only pending deposits can be reviewed.');
             abort_if((int) $deposit->user_id === (int) $actor->id, 403, 'You cannot review your own deposit.');
-            abort_unless($deposit->evidence_viewed_at !== null, 422, 'Open and inspect the transfer evidence before reviewing.');
+            abort_unless((int) $deposit->evidence_viewed_by_user_id === (int) $actor->id, 422, 'Open and inspect the transfer evidence yourself before reviewing.');
+            abort_if($deposit->duplicate_evidence && $validated['decision'] === 'approve', 422, 'Duplicate receipt evidence cannot be approved here; investigate and reject or escalate it.');
 
             if ($validated['decision'] === 'approve') {
                 $transaction = $ledger->post(

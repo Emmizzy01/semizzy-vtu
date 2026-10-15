@@ -16,6 +16,8 @@ return new class extends Migration
             $table->unsignedBigInteger('amount_minor');
             $table->string('transfer_reference', 120)->unique();
             $table->string('evidence_path', 500);
+            $table->char('evidence_sha256', 64)->index();
+            $table->boolean('duplicate_evidence')->default(false)->index();
             $table->string('status', 20)->default('pending');
             $table->timestamp('evidence_viewed_at')->nullable();
             $table->foreignId('evidence_viewed_by_user_id')->nullable()->constrained('users')->nullOnDelete();
