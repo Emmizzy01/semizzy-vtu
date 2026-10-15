@@ -83,7 +83,7 @@ export default function DashboardLayout({
     { label: 'Home', href: customerPreview ? '/customer/dashboard' : '/dashboard', icon: LayoutDashboard, match: customerPreview ? '/customer/dashboard' : '/dashboard' },
     { label: 'Services', href: '/services', icon: Grid2X2, match: '/services' },
     { label: 'Rewards', href: customerPreview ? '/customer/dashboard#rewards' : '/dashboard#rewards', icon: Gift, match: '#rewards' },
-    { label: 'Wallet', href: customerPreview ? '/customer/dashboard#fund-wallet' : '/dashboard#fund-wallet', icon: WalletCards, match: '#fund-wallet' },
+    { label: 'Wallet', href: '/wallet/manual-deposits', icon: WalletCards, match: '/wallet/manual-deposits' },
     { label: 'Profile', href: '/profile', icon: UserRound, match: '/profile' },
   ];
 
