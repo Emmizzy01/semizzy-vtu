@@ -44,10 +44,10 @@ export default function DashboardLayout({
   canApproveRefunds = false,
   customerPreview = false,
 }: DashboardLayoutProps) {
-  const { platform, auth } = usePage<{ platform?: { name?: string; skin?: 'modern-green' | 'navy-teal' | 'minimal-blue' | 'obsidian-luxe' | 'arctic-light' }; auth?: { user?: { name?: string; email?: string; tier?: string; level?: string; avatar_url?: string | null; avatarUrl?: string | null } | null } }>().props;
+  const { platform, auth } = usePage<{ platform?: { name?: string; skin?: 'modern-green' | 'navy-teal' | 'minimal-blue' | 'obsidian-luxe' | 'arctic-light' }; auth?: { user?: { name?: string; email?: string; tier?: string; level?: string; user_level?: string; user_type?: string; avatar_url?: string | null; avatarUrl?: string | null } | null } }>().props;
   const currentUser = auth?.user;
   const userName = currentUser?.name?.trim() || 'Semizzy user';
-  const userTier = currentUser?.tier || currentUser?.level || 'Customer';
+  const userTier = currentUser?.tier || currentUser?.user_level || currentUser?.level || currentUser?.user_type || 'Customer';
   const avatarUrl = currentUser?.avatar_url || currentUser?.avatarUrl || null;
   const userInitials = userName.split(/\s+/).slice(0, 2).map(part => part[0]).join('').toUpperCase() || 'S';
   const platformName = platform?.name || 'SEMIZZY';
