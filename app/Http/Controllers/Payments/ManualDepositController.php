@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Payments;
 use App\Http\Controllers\Controller;
 use App\Models\ManualDeposit;
 use App\Models\ManualDepositAudit;
+use App\Models\PlatformFeatureControl;
 use App\Models\Wallet;
 use App\Services\IntegrationSettings;
 use App\Services\Wallets\WalletAccountService;
@@ -44,7 +45,8 @@ class ManualDepositController extends Controller
                 'account_name' => (string) $settings->get('manual_deposit.account_name', ''),
                 'account_number' => (string) $settings->get('manual_deposit.account_number', ''),
                 'instructions' => (string) $settings->get('manual_deposit.instructions', 'Transfer the exact amount, then submit your transfer reference and proof. Your wallet is credited only after staff verify the payment.'),
-                'enabled' => filter_var($settings->get('manual_deposit.enabled', true), FILTER_VALIDATE_BOOLEAN),
+                'enabled' => filter_var($settings->get('manual_deposit.enabled', true), FILTER_VALIDATE_BOOLEAN)
+                    && (PlatformFeatureControl::query()->where('feature_key', 'service.manual_deposit')->value('is_enabled') ?? true),
             ],
             'walletCurrency' => $wallet?->currency ?? 'NGN',
             'deposits' => $deposits,
@@ -59,7 +61,13 @@ class ManualDepositController extends Controller
             'evidence' => ['required', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
         ]);
 
-        abort_unless(filter_var(app(IntegrationSettings::class)->get('manual_deposit.enabled', true), FILTER_VALIDATE_BOOLEAN), 403, 'Manual deposits are temporarily disabled.');
+        $featureEnabled = PlatformFeatureControl::query()->where('feature_key', 'service.manual_deposit')->value('is_enabled');
+        abort_unless(
+            filter_var(app(IntegrationSettings::class)->get('manual_deposit.enabled', true), FILTER_VALIDATE_BOOLEAN)
+                && ($featureEnabled === null || (bool) $featureEnabled),
+            403,
+            'Manual deposits are temporarily disabled.',
+        );
         $user = $request->user();
         abort_unless($user, 401);
         $wallet = $wallets->openForUser($user, 'NGN');
