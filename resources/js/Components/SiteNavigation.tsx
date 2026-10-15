@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { usePage } from '@inertiajs/react';
 import MobileAppHeader from './MobileAppHeader';
-import { ClipboardList, CreditCard, LayoutDashboard, Menu, PlugZap, Smartphone, Users, WalletCards, X } from 'lucide-react';
+import { ClipboardList, CreditCard, Gift, LayoutDashboard, Menu, PlugZap, Smartphone, UserRound, Users, WalletCards, X } from 'lucide-react';
 
 type SiteNavigationProps = {
   children: ReactNode;
@@ -119,9 +119,9 @@ export default function SiteNavigation({ children, admin = false, publicPage = f
           <>
             <a href="/dashboard" className="flex min-h-14 flex-col items-center justify-center gap-1 rounded-lg px-1 text-[10px] font-semibold text-[var(--muted)]"><LayoutDashboard size={19} /><span>Home</span></a>
             <a href="/services" className="flex min-h-14 flex-col items-center justify-center gap-1 rounded-lg px-1 text-[10px] font-semibold text-[var(--muted)]"><Smartphone size={19} /><span>Services</span></a>
-            <a href="/dashboard#rewards" className="flex min-h-14 flex-col items-center justify-center gap-1 rounded-lg px-1 text-[10px] font-semibold text-[var(--muted)]"><CreditCard size={19} /><span>Rewards</span></a>
+            <a href="/dashboard#rewards" className="flex min-h-14 flex-col items-center justify-center gap-1 rounded-lg px-1 text-[10px] font-semibold text-[var(--muted)]"><Gift size={19} /><span>Rewards</span></a>
             <a href="/wallet/manual-deposits" className="flex min-h-14 flex-col items-center justify-center gap-1 rounded-lg px-1 text-[10px] font-semibold text-[var(--muted)]"><WalletCards size={19} /><span>Wallet</span></a>
-            <a href="/profile" className="flex min-h-14 flex-col items-center justify-center gap-1 rounded-lg px-1 text-[10px] font-semibold text-[var(--muted)]"><Users size={19} /><span>Profile</span></a>
+            <a href="/profile" className="flex min-h-14 flex-col items-center justify-center gap-1 rounded-lg px-1 text-[10px] font-semibold text-[var(--muted)]"><UserRound size={19} /><span>Profile</span></a>
           </>
         )}
       </nav>
