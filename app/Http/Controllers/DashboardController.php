@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ManualDeposit;
 use App\Models\PaymentIntent;
 use App\Models\PaymentRefund;
 use App\Models\User;
@@ -60,6 +61,7 @@ class DashboardController extends Controller
                 'users' => $canManageStaff ? User::query()->count() : null,
                 'wallets' => Wallet::query()->count(),
                 'pendingFunding' => PaymentIntent::query()->whereIn('status', ['pending', 'processing'])->count(),
+                'pendingManualDeposits' => $canManageStaff ? ManualDeposit::query()->where('status', 'pending')->count() : null,
                 'refundsNeedingAction' => $canApproveRefunds
                     ? PaymentRefund::query()->whereIn('status', ['requested', 'blocked_insufficient_wallet_funds', 'review_required'])->count()
                     : null,
