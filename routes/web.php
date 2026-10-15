@@ -5,7 +5,9 @@ use App\Http\Controllers\Admin\StaffAccessController;
 use App\Http\Controllers\Admin\VtuOrderOperationsController;
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\DashboardController;
-use App\Http\Controllers\Payments\PaymentFundingController;\nuse App\Http\Controllers\Payments\ManualDepositController;\nuse App\Http\Controllers\Admin\ManualDepositSettingsController;
+use App\Http\Controllers\Payments\PaymentFundingController;
+use App\Http\Controllers\Payments\ManualDepositController;
+use App\Http\Controllers\Admin\ManualDepositSettingsController;
 use App\Http\Controllers\Payments\PaymentRefundController;
 use App\Http\Controllers\Vtu\VtuOrderController;
 use Illuminate\Support\Facades\Route;
@@ -34,7 +36,10 @@ Route::get('/wallet/funding/return', [PaymentFundingController::class, 'returnFr
     ->middleware('throttle:30,1')
     ->name('wallet.funding.return');
 
-Route::middleware('auth')->get('/wallet/manual-deposits', [ManualDepositController::class, 'index'])->name('wallet.manual-deposits.index');\nRoute::middleware(['auth', 'throttle:5,1'])->post('/wallet/manual-deposits', [ManualDepositController::class, 'submit'])->name('wallet.manual-deposits.submit');\n\nRoute::middleware('auth')->post('/wallet/funding-intents', [PaymentFundingController::class, 'createIntent'])
+Route::middleware('auth')->get('/wallet/manual-deposits', [ManualDepositController::class, 'index'])->name('wallet.manual-deposits.index');
+Route::middleware(['auth', 'throttle:5,1'])->post('/wallet/manual-deposits', [ManualDepositController::class, 'submit'])->name('wallet.manual-deposits.submit');
+
+Route::middleware('auth')->post('/wallet/funding-intents', [PaymentFundingController::class, 'createIntent'])
     ->middleware('throttle:10,1')
     ->name('wallet.funding-intents.create');
 
@@ -53,7 +58,12 @@ Route::middleware(['auth', 'can:refunds.approve', 'throttle:30,1'])->get('/admin
 Route::middleware(['auth', 'can:refunds.approve', 'throttle:20,1'])->post('/admin/payment-refunds/{refund}/approve', [PaymentRefundController::class, 'approveRefund'])
     ->name('admin.payment-refunds.approve');
 
-Route::middleware(['auth', 'can:staff.permissions.manage'])->prefix('admin')->name('admin.')->group(function (): void {\n    Route::get('/manual-deposits', [ManualDepositController::class, 'adminIndex'])->middleware('throttle:30,1')->name('manual-deposits.index');\n    Route::get('/manual-deposits/settings', [ManualDepositSettingsController::class, 'edit'])->name('manual-deposits.settings');\n    Route::put('/manual-deposits/settings', [ManualDepositSettingsController::class, 'update'])->middleware('throttle:10,1')->name('manual-deposits.settings.update');\n    Route::get('/manual-deposits/{publicId}/evidence', [ManualDepositController::class, 'evidence'])->middleware('throttle:20,1')->name('manual-deposits.evidence');\n    Route::post('/manual-deposits/{publicId}/review', [ManualDepositController::class, 'review'])->middleware('throttle:10,1')->name('manual-deposits.review');
+Route::middleware(['auth', 'can:staff.permissions.manage'])->prefix('admin')->name('admin.')->group(function (): void {
+    Route::get('/manual-deposits', [ManualDepositController::class, 'adminIndex'])->middleware('throttle:30,1')->name('manual-deposits.index');
+    Route::get('/manual-deposits/settings', [ManualDepositSettingsController::class, 'edit'])->name('manual-deposits.settings');
+    Route::put('/manual-deposits/settings', [ManualDepositSettingsController::class, 'update'])->middleware('throttle:10,1')->name('manual-deposits.settings.update');
+    Route::get('/manual-deposits/{publicId}/evidence', [ManualDepositController::class, 'evidence'])->middleware('throttle:20,1')->name('manual-deposits.evidence');
+    Route::post('/manual-deposits/{publicId}/review', [ManualDepositController::class, 'review'])->middleware('throttle:10,1')->name('manual-deposits.review');
     Route::get('/payment-gateway', [IntegrationSettingsController::class, 'paymentGateway'])->name('payment-gateway');
     Route::put('/payment-gateway', [IntegrationSettingsController::class, 'updatePaymentGateway'])->name('payment-gateway.update');
     Route::get('/api-providers', [IntegrationSettingsController::class, 'apiProviders'])->name('api-providers');
