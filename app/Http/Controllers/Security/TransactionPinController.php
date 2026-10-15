@@ -34,12 +34,12 @@ class TransactionPinController extends Controller
         }
         $wasConfigured = (bool) $user->transaction_pin_hash;
         $data = $request->validate([
-            'current_pin' => $wasConfigured ? ['required', 'string', 'digits:6'] : ['nullable', 'string', 'digits:6'],
+            'current_pin' => $wasConfigured ? ['required', 'string', 'regex:/^\\d{4}(?:\\d{2})?$/'] : ['nullable', 'string', 'regex:/^\\d{4}(?:\\d{2})?$/'],
             'pin' => ['required', 'string', 'digits:6', 'confirmed', 'regex:/^(?!([0-9])\1{5})\d{6}$/'],
         ]);
         $pin = (string) $data['pin'];
-        if (in_array($pin, ['012345', '123456', '234567', '345678', '456789', '987654', '876543', '765432', '654321', '543210', '123123', '121212', '112233'], true)) {
-            return back()->withErrors(['pin' => 'Choose a less predictable six-digit PIN.']);
+        if (in_array($pin, ['0123', '1234', '2345', '3456', '4567', '5678', '6789', '9876', '8765', '7654', '6543', '5432', '4321', '3210', '1212', '1122', '2211', '1010'], true)) {
+            return back()->withErrors(['pin' => 'Choose a less predictable four-digit PIN.']);
         }
         if ($wasConfigured) {
             $result = $pins->verify($user, (string) $data['current_pin']);
