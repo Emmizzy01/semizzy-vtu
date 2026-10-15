@@ -56,7 +56,7 @@ Route::middleware('auth')->group(function (): void {
     $manualDepositFeature = PlatformFeatureControl::query()->where('feature_key', 'service.manual_deposit')->value('is_enabled');
     return Inertia::render('Services/Index', ['availability' => [
         'airtimeData' => filter_var($settings->get('service.airtime_data.enabled', true), FILTER_VALIDATE_BOOLEAN),
-        'manualDeposit' => filter_var($settings->get('manual_deposit.enabled', true), FILTER_VALIDATE_BOOLEAN)
+        'manualDeposit' => filter_var($settings->get('manual_deposit.enabled', false), FILTER_VALIDATE_BOOLEAN)
             && ($manualDepositFeature === null || (bool) $manualDepositFeature),
     ]]);
 })->name('services.index');
