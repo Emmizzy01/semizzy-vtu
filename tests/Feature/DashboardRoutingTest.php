@@ -34,6 +34,24 @@ class DashboardRoutingTest extends TestCase
         ]);
     }
 
+    public function test_guest_cannot_access_customer_and_admin_workspaces_or_account_services(): void
+    {
+        foreach ([
+            '/dashboard',
+            '/customer/dashboard',
+            '/services',
+            '/profile',
+            '/support',
+            '/security/transaction-pin',
+            '/wallet/manual-deposits',
+            '/admin/dashboard',
+        ] as $path) {
+            $this->get($path)->assertRedirect('/login');
+        }
+
+        $this->assertGuest();
+    }
+
     public function test_regular_customer_sees_customer_dashboard(): void
     {
         $customer = $this->account('customer@example.test');
