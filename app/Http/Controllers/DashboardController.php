@@ -148,6 +148,13 @@ class DashboardController extends Controller
             ->paginate(10, ['public_id', 'service_type', 'network', 'recipient', 'amount_minor', 'currency', 'status', 'created_at'], 'orders_page', $orderPage);
 
         return Inertia::render('Dashboard', [
+            'customer' => [
+                'name' => (string) $user->name,
+                'tier' => $user->user_type ?? $user->tier ?? null,
+                'level' => $user->user_level ?? $user->level ?? null,
+                'avatarUrl' => $user->avatar_url ?? $user->profile_photo_url ?? null,
+                'kycStatus' => $user->kyc_status ?? null,
+            ],
             'isAdminPreview' => $this->hasAdminAccess($user->id),
             'wallet' => $wallet ? [
                 'balance_minor' => (int) $wallet->balance_minor,
