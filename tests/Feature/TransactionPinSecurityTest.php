@@ -51,7 +51,7 @@ class TransactionPinSecurityTest extends TestCase
         for ($attempt = 0; $attempt < 4; $attempt++) {
             $this->actingAs($user)->postJson('/wallet/vtu/orders', [
                 'product_code' => 'not-looked-up-before-pin',
-                'recipient' => '08012345678',
+                'recipient' => '080123478',
                 'idempotency_key' => 'pin-lockout-'.$attempt,
                 'transaction_pin' => '1111',
             ])->assertStatus(422);
@@ -59,17 +59,17 @@ class TransactionPinSecurityTest extends TestCase
 
         $this->actingAs($user)->postJson('/wallet/vtu/orders', [
             'product_code' => 'not-looked-up-before-pin',
-            'recipient' => '08012345678',
+            'recipient' => '080123478',
             'idempotency_key' => 'pin-lockout-fifth',
-            'transaction_pin' => '111111',
+            'transaction_pin' => '1111',
         ])->assertStatus(423);
 
         // A correct PIN must not bypass the active lockout window.
         $this->actingAs($user)->postJson('/wallet/vtu/orders', [
             'product_code' => 'not-looked-up-before-pin',
-            'recipient' => '08012345678',
+            'recipient' => '080123478',
             'idempotency_key' => 'pin-lockout-correct-pin',
-            'transaction_pin' => '492815',
+            'transaction_pin' => '4928',
         ])->assertStatus(429);
 
         $this->assertSame(5, (int) $user->fresh()->transaction_pin_failed_attempts);
@@ -81,26 +81,26 @@ class TransactionPinSecurityTest extends TestCase
     {
         $user = User::query()->create(['name' => 'PIN Customer', 'email' => 'pin-customer@example.test', 'password' => 'not-a-real-password']);
         $this->actingAs($user)->get('/security/transaction-pin')->assertOk();
-        $this->actingAs($user)->put('/security/transaction-pin', ['pin' => '492815', 'pin_confirmation' => '492815'])->assertRedirect();
+        $this->actingAs($user)->put('/security/transaction-pin', ['pin' => '4928', 'pin_confirmation' => '4928'])->assertRedirect();
         $this->assertNotNull($user->fresh()->transaction_pin_hash);
-        $this->assertTrue(Hash::check('492815', $user->fresh()->transaction_pin_hash));
+        $this->assertTrue(Hash::check('4928', $user->fresh()->transaction_pin_hash));
         $this->assertDatabaseHas('transaction_security_events', ['user_id' => $user->id, 'event_type' => 'pin_created', 'outcome' => 'success']);
     }
 
     public function test_repeated_pin_and_simple_sequences_are_rejected(): void
     {
         $user = User::query()->create(['name' => 'PIN Customer', 'email' => 'pin-customer2@example.test', 'password' => 'not-a-real-password']);
-        $this->actingAs($user)->put('/security/transaction-pin', ['pin' => '111111', 'pin_confirmation' => '111111'])->assertSessionHasErrors('pin');
-        $this->actingAs($user)->put('/security/transaction-pin', ['pin' => '123456', 'pin_confirmation' => '123456'])->assertSessionHasErrors('pin');
+        $this->actingAs($user)->put('/security/transaction-pin', ['pin' => '1111', 'pin_confirmation' => '1111'])->assertSessionHasErrors('pin');
+        $this->actingAs($user)->put('/security/transaction-pin', ['pin' => '1234', 'pin_confirmation' => '1234'])->assertSessionHasErrors('pin');
     }
 
     public function test_five_failed_verifications_lock_the_pin_for_fifteen_minutes(): void
     {
         $user = User::query()->create(['name' => 'PIN Customer', 'email' => 'pin-customer3@example.test', 'password' => 'not-a-real-password']);
-        $user->forceFill(['transaction_pin_hash' => Hash::make('492815')])->save();
+        $user->forceFill(['transaction_pin_hash' => Hash::make('4928')])->save();
         $pins = app(TransactionPinService::class);
-        for ($i = 0; $i < 4; $i++) $this->assertSame('invalid', $pins->verify($user, '111111'));
-        $this->assertSame('locked', $pins->verify($user, '111111'));
+        for ($i = 0; $i < 4; $i++) $this->assertSame('invalid', $pins->verify($user, '1111'));
+        $this->assertSame('locked', $pins->verify($user, '1111'));
         $this->assertNotNull($user->fresh()->transaction_pin_locked_until);
         $this->assertDatabaseHas('transaction_security_events', ['user_id' => $user->id, 'event_type' => 'pin_verification', 'outcome' => 'locked']);
     }
