@@ -70,7 +70,7 @@ class TransactionPinSecurityTest extends TestCase
             'recipient' => '08012345678',
             'idempotency_key' => 'pin-lockout-correct-pin',
             'transaction_pin' => '492815',
-        ])->assertStatus(423);
+        ])->assertStatus(429);
 
         $this->assertSame(5, (int) $user->fresh()->transaction_pin_failed_attempts);
         $this->assertDatabaseCount('vtu_orders', 0);
