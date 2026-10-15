@@ -21,6 +21,9 @@ class PlatformSettingsAccessTest extends TestCase
         $admin = User::query()->create(['name' => 'Platform Admin', 'email' => 'site-admin@example.test', 'password' => 'not-a-real-password']);
         UserPermission::query()->create(['user_id' => $admin->id, 'permission' => 'staff.permissions.manage']);
         $this->actingAs($admin)->get('/admin/platform-settings')->assertOk();
+        app(IntegrationSettings::class)->set('manual_deposit.bank_name', 'Test Bank', $admin->id);
+        app(IntegrationSettings::class)->set('manual_deposit.account_name', 'Semizzy Test Account', $admin->id);
+        app(IntegrationSettings::class)->set('manual_deposit.account_number', '0123456789', $admin->id);
         $this->actingAs($admin)->put('/admin/platform-settings', [
             'site_name' => 'Semizzy Test', 'support_email' => 'support@example.test',
             'support_phone' => '+2348000000000', 'theme_skin' => 'minimal-blue', 'maintenance_mode' => false,
