@@ -94,4 +94,24 @@ class PlatformSettingsController extends Controller
         }, attempts: 3);
         return back()->with('status', 'Platform settings saved and changes recorded in the audit trail.');
     }
+
+    public function updateTheme(Request $request, IntegrationSettings $settings): RedirectResponse
+    {
+        $data = $request->validate(['theme_mode' => ['required', 'in:light,dark']]);
+        $new = $data['theme_mode'];
+        $old = (string) $settings->get('site.theme_mode', 'light');
+        if (! in_array($old, ['light', 'dark'], true)) { $old = 'light'; }
+        if ($old !== $new) {
+            DB::transaction(function () use ($request, $settings, $old, $new): void {
+                $settings->set('site.theme_mode', $new, (int) $request->user()->id);
+                PlatformSettingAudit::query()->create([
+                    'actor_user_id' => $request->user()->id, 'setting_key' => 'site.theme_mode',
+                    'old_value_hash' => hash('sha256', $old), 'new_value_hash' => hash('sha256', $new),
+                    'reason' => 'Admin changed the global day/night appearance from the dashboard header.',
+                    'created_at' => now(),
+                ]);
+            }, attempts: 3);
+        }
+        return back()->with('status', 'Global day/night appearance updated.');
+    }
 }
