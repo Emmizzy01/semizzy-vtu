@@ -18,7 +18,7 @@ import {
   Smartphone,
   Users,
   UserRound,
-  Headset,
+  Palette,
   WalletCards,
   X,
 } from 'lucide-react';
@@ -51,11 +51,40 @@ export default function DashboardLayout({
   const avatarUrl = currentUser?.avatar_url || currentUser?.avatarUrl || null;
   const userInitials = userName.split(/\s+/).slice(0, 2).map(part => part[0]).join('').toUpperCase() || 'S';
   const platformName = platform?.name || 'SEMIZZY';
+  const skinOptions = ['modern-green', 'navy-teal', 'minimal-blue', 'obsidian-luxe', 'arctic-light'] as const;
+  type BrandSkin = (typeof skinOptions)[number];
+  const skinLabels: Record<BrandSkin, string> = {
+    'modern-green': 'Modern Green',
+    'navy-teal': 'Navy Teal',
+    'minimal-blue': 'Minimal Blue',
+    'obsidian-luxe': 'Obsidian Luxe',
+    'arctic-light': 'Arctic Light',
+  };
+  const [brandSkin, setBrandSkin] = useState<BrandSkin>(() =>
+    platform?.skin && skinOptions.includes(platform.skin as BrandSkin) ? platform.skin as BrandSkin : 'modern-green'
+  );
   useEffect(() => {
-    const skin = platform?.skin || 'emerald';
-    if (skin === 'modern-green') document.documentElement.removeAttribute('data-brand');
-    else document.documentElement.dataset.brand = skin;
-  }, [platform?.skin]);
+    try {
+      const saved = window.localStorage.getItem('semizzy-brand-skin');
+      if (saved && skinOptions.includes(saved as BrandSkin)) setBrandSkin(saved as BrandSkin);
+    } catch {
+      // Keep the platform default when browser storage is unavailable.
+    }
+  }, []);
+  useEffect(() => {
+    if (brandSkin === 'modern-green') document.documentElement.removeAttribute('data-brand');
+    else document.documentElement.dataset.brand = brandSkin;
+  }, [brandSkin]);
+  function cycleBrandSkin() {
+    const currentIndex = skinOptions.indexOf(brandSkin);
+    const nextSkin = skinOptions[(currentIndex + 1) % skinOptions.length];
+    setBrandSkin(nextSkin);
+    try {
+      window.localStorage.setItem('semizzy-brand-skin', nextSkin);
+    } catch {
+      // The selected skin still applies for the current page.
+    }
+  }
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [location, setLocation] = useState(() => ({
     path: typeof window === 'undefined' ? '' : window.location.pathname,
@@ -197,7 +226,7 @@ export default function DashboardLayout({
               </form>
             )}
             <div className="flex shrink-0 items-center gap-2">
-              {!admin && !customerPreview && <a href="/support" aria-label="Help and support" className="grid h-10 w-10 place-items-center rounded-full hover:bg-[var(--brand-soft)]"><Headset size={22} aria-hidden="true" /></a>}
+              {!admin && !customerPreview && <button type="button" onClick={cycleBrandSkin} aria-label={`Website skin: ${skinLabels[brandSkin]}. Switch website skin.`} title={`Website skin: ${skinLabels[brandSkin]} — tap to switch`} className="grid h-10 w-10 place-items-center rounded-full hover:bg-[var(--brand-soft)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)]"><Palette size={22} aria-hidden="true" /></button>}
               {admin && <a href="/customer/dashboard" className="hidden min-h-10 items-center gap-1 rounded-xl border border-[var(--line)] px-3 py-2 text-xs font-semibold hover:border-[var(--brand)] sm:inline-flex"><ArrowLeftRight size={14} aria-hidden="true" /> Customer view</a>}
               <ThemeToggle />
               <form method="post" action="/logout">
