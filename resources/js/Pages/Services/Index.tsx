@@ -18,14 +18,14 @@ type Service = {
   group: string;
 };
 const services: Service[] = [
-  { title: 'Airtime & data', description: 'Browse supported networks and data plans, with order status and recovery.', icon: Smartphone, status: 'available', feature: 'airtimeData', href: '/wallet/vtu', group: 'Everyday services' },
-  { title: 'Manual bank deposit', description: 'Submit a completed NGN transfer and evidence for independent review; uploads never credit a wallet by themselves.', icon: WalletCards, status: 'available', feature: 'manualDeposit', href: '/wallet/manual-deposits', group: 'Everyday services' },
-  { title: 'Transactions & orders', description: 'Review wallet activity, funding records and your order history.', icon: Activity, status: 'available', href: '/dashboard#transactions', group: 'Everyday services' },
-  { title: 'Electricity bills', description: 'Provider-backed biller catalogue and payment verification are being completed.', icon: Zap, status: 'in-progress', group: 'Everyday services' },
-  { title: 'Cable TV subscriptions', description: 'Supported providers, plans and fulfilment verification are being completed.', icon: Tv, status: 'in-progress', group: 'Everyday services' },
-  { title: 'Internet bills', description: 'Authorized internet and broadband provider catalogue is not yet enabled.', icon: Wifi, status: 'in-progress', group: 'Everyday services' },
-  { title: 'Remita payments', description: 'Authorized RRR/biller verification and settlement reconciliation are still being completed.', icon: Building2, status: 'in-progress', group: 'Everyday services' },
-  { title: 'Transaction security', description: 'Set a separate six-digit transaction PIN; repeated failures trigger a temporary lock and are audited.', icon: ShieldCheck, status: 'available', href: '/security/transaction-pin', group: 'Account security' },
+  { title: 'Airtime & data', description: 'Browse supported networks and data plans, with order status and recovery.', icon: Smartphone, status: 'available', feature: 'airtimeData', href: '/wallet/vtu', group: 'Core services' },
+  { title: 'Manual bank deposit', description: 'Submit a completed NGN transfer and evidence for independent review; uploads never credit a wallet by themselves.', icon: WalletCards, status: 'available', feature: 'manualDeposit', href: '/wallet/manual-deposits', group: 'Core services' },
+  { title: 'Transactions & orders', description: 'Review wallet activity, funding records and your order history.', icon: Activity, status: 'available', href: '/dashboard#transactions', group: 'Core services' },
+  { title: 'Electricity bills', description: 'Provider-backed biller catalogue and payment verification are being completed.', icon: Zap, status: 'in-progress', group: 'Core services' },
+  { title: 'Cable TV subscriptions', description: 'Supported providers, plans and fulfilment verification are being completed.', icon: Tv, status: 'in-progress', group: 'Core services' },
+  { title: 'Internet bills', description: 'Authorized internet and broadband provider catalogue is not yet enabled.', icon: Wifi, status: 'in-progress', group: 'Core services' },
+  { title: 'Remita payments', description: 'Authorized RRR/biller verification and settlement reconciliation are still being completed.', icon: Building2, status: 'in-progress', group: 'Core services' },
+  { title: 'Transaction security', description: 'Set a separate six-digit transaction PIN; repeated failures trigger a temporary lock and are audited.', icon: ShieldCheck, status: 'available', href: '/security/transaction-pin', group: 'Account & security' },
   { title: 'Electronics & Gadgets', description: 'Devices, phones, computing equipment and accessories.', icon: Cpu, status: 'in-progress', group: 'Unified Marketplace · 19 categories' },
   { title: 'Fashion, Clothing & Accessories', description: 'Clothing, footwear, bags and fashion accessories.', icon: Shirt, status: 'in-progress', group: 'Unified Marketplace · 19 categories' },
   { title: 'Beauty, Personal Care & Wellness Products', description: 'Beauty, grooming, personal care and wellness products.', icon: Sparkles, status: 'in-progress', group: 'Unified Marketplace · 19 categories' },
@@ -48,7 +48,6 @@ const services: Service[] = [
   { title: 'Reseller & agent tools', description: 'Mini-stores, controlled pricing, subagents, commissions and transaction reporting.', icon: Store, status: 'in-progress', group: 'Business tools' },
   { title: 'Developer APIs', description: 'API credentials, scopes, quotas, provider mapping and usage reporting.', icon: Code2, status: 'in-progress', group: 'Business tools' },
   { title: 'Communications', description: 'In-app, email, SMS, WhatsApp and push channels with consent and delivery tracking.', icon: Smartphone, status: 'in-progress', group: 'Business tools' },
-  { title: 'Websites & domains', description: 'Website builder, reseller storefronts and domain management.', icon: Building2, status: 'in-progress', group: 'Business tools' },
   { title: 'Education & exam services', description: 'Approved learning materials, official exam support and verified institution information.', icon: GraduationCap, status: 'in-progress', group: 'Learning & engagement' },
   { title: 'Savings & group contributions', description: 'Savings goals and Ajo/Esusu require separate operational, legal and safeguarding review before activation.', icon: PiggyBank, status: 'gated', group: 'Learning & engagement' },
   { title: 'Rewards & promotions', description: 'Eligibility, campaign budgets, reward ledgers, expiry and fraud controls.', icon: Sparkles, status: 'in-progress', group: 'Learning & engagement' },
@@ -73,14 +72,14 @@ export default function ServicesIndex({ availability }: { availability: { airtim
         <h2 className="mt-2 text-2xl font-bold tracking-tight sm:text-3xl">What would you like to do today?</h2>
         <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600 dark:text-slate-300">The Unified Marketplace has the blueprint’s 19 top-level categories. Only verified end-to-end workflows are marked available; regulated or provider-dependent products remain gated until their controls are ready.</p>
       </section>
-      <section className="grid gap-3 rounded-2xl border border-slate-200 bg-white p-3 sm:grid-cols-[minmax(0,1fr)_auto] dark:border-slate-800 dark:bg-slate-950">
+      <section className="grid grid-cols-1 gap-3 rounded-2xl border border-slate-200 bg-white p-3 sm:grid-cols-[minmax(0,1fr)_minmax(220px,auto)] dark:border-slate-800 dark:bg-slate-950">
         <label className="flex min-h-11 items-center gap-2 rounded-xl border border-slate-200 px-3 dark:border-slate-700"><Search size={17} className="shrink-0 text-slate-500" aria-hidden="true" /><span className="sr-only">Search services</span><input value={search} onChange={event => setSearch(event.target.value)} maxLength={100} placeholder="Search services, categories or capabilities…" className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-slate-500" />{search && <button type="button" onClick={() => setSearch('')} className="rounded-lg px-2 py-1 text-xs font-semibold text-emerald-700 dark:text-emerald-300">Clear</button>}</label>
         <label className="flex min-h-11 items-center gap-2 rounded-xl border border-slate-200 px-3 dark:border-slate-700"><SlidersHorizontal size={17} className="shrink-0 text-slate-500" aria-hidden="true" /><span className="sr-only">Filter service group</span><select value={selectedGroup} onChange={event => setSelectedGroup(event.target.value)} className="min-w-0 flex-1 bg-transparent text-sm outline-none"><option value="all">All service groups</option>{groups.map(group => <option key={group} value={group}>{group}</option>)}</select></label>
         <p className="text-xs text-slate-500 sm:col-span-2" aria-live="polite">Showing {filteredServices.length} of {services.length} services</p>
       </section>
       {groups.filter(group => filteredServices.some(service => service.group === group)).map(group => <section key={group} className="space-y-3">
         <h2 className="text-lg font-semibold">{group}</h2>
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {filteredServices.filter(service => service.group === group).map(service => {
             const Icon = service.icon;
             const effectiveStatus = service.feature ? (availability[service.feature] ? service.status : 'disabled') : service.status;
