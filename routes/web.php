@@ -8,6 +8,8 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\Payments\PaymentFundingController;
 use App\Http\Controllers\Payments\ManualDepositController;
 use App\Http\Controllers\Admin\ManualDepositSettingsController;
+use App\Http\Controllers\Admin\PlatformSettingsController;
+use App\Services\IntegrationSettings;
 use App\Http\Controllers\Payments\PaymentRefundController;
 use App\Http\Controllers\Vtu\VtuOrderController;
 use Illuminate\Support\Facades\Route;
@@ -26,7 +28,7 @@ Route::middleware('guest')->group(function (): void {
 Route::middleware('auth')->group(function (): void {
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
     Route::get('/dashboard', [DashboardController::class, 'customer'])->name('dashboard');
-    Route::get('/services', fn () => Inertia::render('Services/Index'))->name('services.index');
+    Route::get('/services', function (IntegrationSettings $settings) { return Inertia::render('Services/Index', ['availability' => ['airtimeData' => filter_var($settings->get('service.airtime_data.enabled', true), FILTER_VALIDATE_BOOLEAN), 'manualDeposit' => filter_var($settings->get('manual_deposit.enabled', true), FILTER_VALIDATE_BOOLEAN)]]); })->name('services.index');
     Route::get('/customer/dashboard', [DashboardController::class, 'customerPreview'])->name('customer.dashboard');
     Route::get('/admin/dashboard', [DashboardController::class, 'admin'])
         ->middleware('can:admin.dashboard')
@@ -60,6 +62,8 @@ Route::middleware(['auth', 'can:refunds.approve', 'throttle:20,1'])->post('/admi
     ->name('admin.payment-refunds.approve');
 
 Route::middleware(['auth', 'can:staff.permissions.manage'])->prefix('admin')->name('admin.')->group(function (): void {
+    Route::get('/platform-settings', [PlatformSettingsController::class, 'edit'])->name('platform-settings');
+    Route::put('/platform-settings', [PlatformSettingsController::class, 'update'])->middleware('throttle:10,1')->name('platform-settings.update');
     Route::get('/manual-deposits', [ManualDepositController::class, 'adminIndex'])->middleware('throttle:30,1')->name('manual-deposits.index');
     Route::get('/manual-deposits/settings', [ManualDepositSettingsController::class, 'edit'])->name('manual-deposits.settings');
     Route::put('/manual-deposits/settings', [ManualDepositSettingsController::class, 'update'])->middleware('throttle:10,1')->name('manual-deposits.settings.update');

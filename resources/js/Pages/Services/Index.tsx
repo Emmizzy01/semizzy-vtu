@@ -11,14 +11,15 @@ type Service = {
   title: string;
   description: string;
   icon: LucideIcon;
-  status: 'available' | 'in-progress' | 'gated';
+  status: 'available' | 'in-progress' | 'gated' | 'disabled';
+  feature?: 'airtimeData' | 'manualDeposit';
   href?: string;
   group: string;
 };
 
 const services: Service[] = [
-  { title: 'Airtime & data', description: 'Browse supported mobile networks and place supported VTU orders.', icon: Smartphone, status: 'available', href: '/wallet/vtu', group: 'Everyday services' },
-  { title: 'Wallet funding', description: 'Fund your NGN wallet through the available payment or manual-deposit methods.', icon: WalletCards, status: 'available', href: '/wallet/manual-deposits', group: 'Everyday services' },
+  { title: 'Airtime & data', description: 'Browse supported mobile networks and place supported VTU orders.', icon: Smartphone, status: 'available', feature: 'airtimeData', href: '/wallet/vtu', group: 'Everyday services' },
+  { title: 'Manual bank deposit', description: 'Submit a transfer reference and proof for review; wallet credit follows verification.', icon: WalletCards, status: 'available', feature: 'manualDeposit', href: '/wallet/manual-deposits', group: 'Everyday services' },
   { title: 'Transactions & orders', description: 'Review wallet activity, funding records and your order history.', icon: Activity, status: 'available', href: '/dashboard#transactions', group: 'Everyday services' },
   { title: 'Electricity bills', description: 'Utility-bill catalogue and provider coverage are being verified before activation.', icon: Zap, status: 'in-progress', group: 'Everyday services' },
   { title: 'TV subscriptions', description: 'Supported providers, plans and fulfilment checks are still being completed.', icon: Tv, status: 'in-progress', group: 'Everyday services' },
@@ -49,9 +50,9 @@ const services: Service[] = [
   { title: 'Websites & domains', description: 'Website builder, reseller storefront templates and domain tools.', icon: Building2, status: 'in-progress', group: 'Business tools' },
 ];
 
-const statusLabel = (status: Service['status']) => status === 'available' ? 'Available now' : status === 'gated' ? 'Approval required' : 'In development';
+const statusLabel = (status: Service['status']) => status === 'available' ? 'Available now' : status === 'disabled' ? 'Temporarily unavailable' : status === 'gated' ? 'Approval required' : 'In development';
 
-export default function ServicesIndex() {
+export default function ServicesIndex({ availability }: { availability: { airtimeData: boolean; manualDeposit: boolean } }) {
   const groups = [...new Set(services.map(service => service.group))];
   return <DashboardLayout title="Services" description="Explore Semizzy services. Availability labels reflect the current implementation, not the full roadmap.">
     <Head title="Services · Semizzy" />
@@ -66,7 +67,8 @@ export default function ServicesIndex() {
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {services.filter(service => service.group === group).map(service => {
             const Icon = service.icon;
-            const content = <><div className="flex items-start justify-between gap-3"><span className="rounded-xl bg-emerald-700/10 p-3 text-emerald-700 dark:text-emerald-300"><Icon size={22} strokeWidth={1.8} /></span><span className={'rounded-full px-2.5 py-1 text-[11px] font-semibold ' + (service.status === 'available' ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300' : service.status === 'gated' ? 'bg-amber-500/10 text-amber-800 dark:text-amber-300' : 'bg-slate-500/10 text-slate-600 dark:text-slate-300')}>{statusLabel(service.status)}</span></div><h3 className="mt-4 font-semibold">{service.title}</h3><p className="mt-1 text-sm leading-5 text-slate-500">{service.description}</p>{service.href && <span className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-emerald-700 dark:text-emerald-300">Open service <span aria-hidden="true">→</span></span>}</>;
+            const effectiveStatus = service.feature ? (availability[service.feature] ? service.status : 'disabled') : service.status;
+            const content = <><div className="flex items-start justify-between gap-3"><span className="rounded-xl bg-emerald-700/10 p-3 text-emerald-700 dark:text-emerald-300"><Icon size={22} strokeWidth={1.8} /></span><span className={'rounded-full px-2.5 py-1 text-[11px] font-semibold ' + (effectiveStatus === 'available' ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300' : effectiveStatus === 'disabled' ? 'bg-rose-500/10 text-rose-700 dark:text-rose-300' : effectiveStatus === 'gated' ? 'bg-amber-500/10 text-amber-800 dark:text-amber-300' : 'bg-slate-500/10 text-slate-600 dark:text-slate-300')}>{statusLabel(effectiveStatus)}</span></div><h3 className="mt-4 font-semibold">{service.title}</h3><p className="mt-1 text-sm leading-5 text-slate-500">{service.description}</p>{service.href && <span className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-emerald-700 dark:text-emerald-300">Open service <span aria-hidden="true">→</span></span>}</>;
             return service.href ? <a key={service.title} href={service.href} className="rounded-2xl border border-slate-200 bg-white p-4 transition hover:border-emerald-600/50 hover:shadow-sm dark:border-slate-800 dark:bg-slate-950">{content}</a> : <div key={service.title} className="rounded-2xl border border-slate-200/80 p-4 dark:border-slate-800">{content}</div>;
           })}
         </div>

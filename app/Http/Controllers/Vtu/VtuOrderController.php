@@ -7,6 +7,7 @@ use App\Exceptions\Wallet\InsufficientWalletFunds;
 use App\Models\VtuOrder;
 use App\Models\VtuProduct;
 use App\Services\Vtu\VtuOrderService;
+use App\Services\IntegrationSettings;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use InvalidArgumentException;
@@ -17,6 +18,7 @@ class VtuOrderController extends Controller
 {
     public function products(Request $request): JsonResponse
     {
+        if (! filter_var(app(IntegrationSettings::class)->get('service.airtime_data.enabled', true), FILTER_VALIDATE_BOOLEAN)) return response()->json(['message' => 'Airtime and data purchases are temporarily unavailable.'], 503);
         $validated = $request->validate([
             'service_type' => ['sometimes', 'string', 'in:airtime,data'],
             'network' => ['sometimes', 'string', 'max:40'],
@@ -37,6 +39,7 @@ class VtuOrderController extends Controller
 
     public function purchase(Request $request, VtuOrderService $orders): JsonResponse
     {
+        if (! filter_var(app(IntegrationSettings::class)->get('service.airtime_data.enabled', true), FILTER_VALIDATE_BOOLEAN)) return response()->json(['message' => 'Airtime and data purchases are temporarily unavailable.'], 503);
         $validated = $request->validate([
             'product_code' => ['required', 'string', 'max:80'],
             'recipient' => ['required', 'string', 'max:32'],
