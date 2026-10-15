@@ -48,6 +48,8 @@ export default function CustomerDashboard({ wallet, transactions, orders, fundin
     const status = new URLSearchParams(window.location.search).get('funding');
     if (status === 'success') {
       setNotice('Payment verified and your wallet has been credited.');
+    } else if (status === 'test-success') {
+      setNotice('Paystack test checkout verified successfully. No real money was taken and your wallet balance was not changed.');
     } else if (status === 'pending') {
       setError('Payment is not verified yet, so your wallet has not been credited. Check your funding history again shortly.');
     } else if (status === 'unverified') {
