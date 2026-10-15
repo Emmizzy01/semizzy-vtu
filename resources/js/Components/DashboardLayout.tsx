@@ -88,6 +88,7 @@ export default function DashboardLayout({
       { label: 'API providers', href: '/admin/api-providers', icon: PlugZap, match: '/admin/api-providers' },
       { label: 'Staff & permissions', href: '/admin/staff', icon: Users, match: '/admin/staff' },
       { label: 'Site control', href: '/admin/platform-settings', icon: ShieldCheck, match: '/admin/platform-settings' },
+      { label: 'Feature controls', href: '/admin/feature-controls', icon: SlidersHorizontal, match: '/admin/feature-controls' },
       { label: 'Staff users', href: '/admin/staff/users', icon: Users, match: '/admin/staff/users' },
       { label: 'Permission audits', href: '/admin/staff/permission-audits', icon: Activity, match: '/admin/staff/permission-audits' },
       { label: 'User level policies', href: '/admin/user-levels', icon: ShieldCheck, match: '/admin/user-levels' },

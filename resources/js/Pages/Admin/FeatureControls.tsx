@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Head, router } from '@inertiajs/react';
 import DashboardLayout from '../../Components/DashboardLayout';
-import { AlertTriangle, CheckCircle2, LockKeyhole, Save } from 'lucide-react';
+import { AlertTriangle, LockKeyhole, Save } from 'lucide-react';
 
 type Feature = { feature_key: string; label: string; category: string; owner: string; description: string; dependencies: string[]; default_enabled: boolean; is_enabled: boolean; is_core: boolean; is_implemented: boolean };
 export default function FeatureControls({ features }: { features: Feature[] }) {
