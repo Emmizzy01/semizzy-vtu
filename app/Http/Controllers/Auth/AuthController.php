@@ -23,26 +23,38 @@ class AuthController extends Controller
 
     public function login(Request $request): RedirectResponse
     {
-        // Match registration's normalization so accidental surrounding spaces or
-        // email-address casing do not prevent an otherwise valid sign-in.
-        $request->merge(['email' => strtolower(trim((string) $request->input('email')))]);
+        $identifier = trim((string) $request->input('identifier', $request->input('email', '')));
+        $request->merge(['identifier' => $identifier]);
 
         $credentials = $request->validate([
-            'email' => ['required', 'email', 'max:255'],
+            'identifier' => ['required', 'string', 'max:255'],
             'password' => ['required', 'string'],
             'remember' => ['sometimes', 'boolean'],
         ]);
 
-        if (! Auth::attempt([
-            'email' => strtolower($credentials['email']),
-            'password' => $credentials['password'],
-            'account_status' => 'active',
-        ], (bool) ($credentials['remember'] ?? false))) {
-            return back()->withErrors([
-                'email' => 'These credentials do not match our records.',
-            ])->onlyInput('email');
+        $identifier = $credentials['identifier'];
+        $userQuery = User::query();
+
+        if (filter_var($identifier, FILTER_VALIDATE_EMAIL)) {
+            $userQuery->whereRaw('LOWER(email) = ?', [strtolower($identifier)]);
+        } elseif (preg_match('/^[+0-9() .-]{7,32}$/', $identifier)) {
+            // A WhatsApp number is accepted only after its ownership has been verified.
+            $normalizedNumber = preg_replace('/[() .-]/', '', $identifier);
+            $userQuery->where('whatsapp_number', $normalizedNumber)
+                ->whereNotNull('whatsapp_verified_at');
+        } else {
+            $userQuery->whereRaw('LOWER(username) = ?', [strtolower($identifier)]);
         }
 
+        $user = $userQuery->where('account_status', 'active')->first();
+
+        if (! $user || ! Hash::check($credentials['password'], $user->password)) {
+            return back()->withErrors([
+                'identifier' => 'These credentials do not match our records.',
+            ])->onlyInput('identifier');
+        }
+
+        Auth::login($user, (bool) ($credentials['remember'] ?? false));
         $request->session()->regenerate();
 
         // Preserve Laravel's intended destination. Otherwise, /dashboard routes
