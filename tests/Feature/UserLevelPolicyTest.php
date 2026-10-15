@@ -34,6 +34,38 @@ class UserLevelPolicyTest extends TestCase
         $this->assertDatabaseHas('user_level_policy_audits', ['level' => 'level_1', 'actor_user_id' => $admin->id]);
     }
 
+    public function test_kyc_is_enforced_by_server_before_creating_or_debiting_a_purchase(): void
+    {
+        config(['services.vtu.name' => 'test_provider', 'services.vtu.endpoint' => 'https://provider.example.test/api', 'services.vtu.token' => 'test-secret']);
+        $provider = new class implements VtuProvider {
+            public function assertConfigured(): void {}
+            public function assertProductConfigured(VtuProduct $product): void {}
+            public function submit(\App\Models\VtuOrder $order): array { return ['status' => 'pending']; }
+            public function lookup(\App\Models\VtuOrder $order): array { return ['status' => 'pending']; }
+        };
+        $this->app->instance(VtuProvider::class, $provider);
+
+        $user = User::query()->create(['name' => 'KYC Required Customer', 'email' => 'kyc-required@example.test', 'password' => 'not-a-real-password']);
+        $wallet = app(WalletAccountService::class)->openForUser($user);
+        app(WalletLedgerService::class)->post($wallet->id, 'credit', 5000, 'kyc-policy-funding');
+        $product = VtuProduct::query()->create([
+            'service_type' => 'airtime', 'network' => 'mtn', 'code' => 'kyc-policy-airtime',
+            'name' => 'KYC Policy Airtime', 'price_minor' => 1000, 'face_value_minor' => 1000,
+            'currency' => 'NGN', 'is_active' => true,
+        ]);
+        UserLevelPolicy::query()->where('level', 'level_1')->update(['requires_verified_kyc' => true]);
+
+        try {
+            app(VtuOrderService::class)->purchase($user, $product->code, '08012345678', 'kyc-policy-order');
+            $this->fail('A customer without verified KYC must not be allowed to purchase.');
+        } catch (InvalidArgumentException $exception) {
+            $this->assertStringContainsString('KYC verification', $exception->getMessage());
+            $this->assertSame(5000, (int) $wallet->fresh()->available_balance_minor);
+            $this->assertDatabaseCount('vtu_orders', 0);
+            $this->assertDatabaseCount('wallet_transactions', 1);
+        }
+    }
+
     public function test_daily_aggregate_limit_is_enforced_before_any_wallet_debit(): void
     {
         config(['services.vtu.name' => 'test_provider', 'services.vtu.endpoint' => 'https://provider.example.test/api', 'services.vtu.token' => 'test-secret']);
