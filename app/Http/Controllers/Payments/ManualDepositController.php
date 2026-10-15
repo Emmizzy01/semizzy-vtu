@@ -45,7 +45,7 @@ class ManualDepositController extends Controller
                 'account_name' => (string) $settings->get('manual_deposit.account_name', ''),
                 'account_number' => (string) $settings->get('manual_deposit.account_number', ''),
                 'instructions' => (string) $settings->get('manual_deposit.instructions', 'Transfer the exact amount, then submit your transfer reference and proof. Your wallet is credited only after staff verify the payment.'),
-                'enabled' => filter_var($settings->get('manual_deposit.enabled', true), FILTER_VALIDATE_BOOLEAN)
+                'enabled' => filter_var($settings->get('manual_deposit.enabled', false), FILTER_VALIDATE_BOOLEAN)
                     && (PlatformFeatureControl::query()->where('feature_key', 'service.manual_deposit')->value('is_enabled') ?? true),
             ],
             'walletCurrency' => $wallet?->currency ?? 'NGN',
@@ -63,7 +63,7 @@ class ManualDepositController extends Controller
 
         $featureEnabled = PlatformFeatureControl::query()->where('feature_key', 'service.manual_deposit')->value('is_enabled');
         abort_unless(
-            filter_var(app(IntegrationSettings::class)->get('manual_deposit.enabled', true), FILTER_VALIDATE_BOOLEAN)
+            filter_var(app(IntegrationSettings::class)->get('manual_deposit.enabled', false), FILTER_VALIDATE_BOOLEAN)
                 && ($featureEnabled === null || (bool) $featureEnabled),
             403,
             'Manual deposits are temporarily disabled.',
