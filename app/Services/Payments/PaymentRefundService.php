@@ -120,7 +120,6 @@ class PaymentRefundService
                         'reason' => $refund->reason,
                     ],
                     correlationId: $refund->public_id,
-                    isFinancialRecovery: true,
                 );
 
                 $refund->forceFill([
@@ -396,6 +395,7 @@ class PaymentRefundService
                     actorUserId: $refund->approved_by_user_id,
                     metadata: ['payment_refund_id' => $refund->public_id, 'provider_status' => 'failed'],
                     correlationId: $refund->public_id,
+                    isFinancialRecovery: true,
                 );
             }
 
