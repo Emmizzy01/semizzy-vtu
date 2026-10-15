@@ -5,6 +5,7 @@ namespace App\Services\Payments;
 use App\Models\PaymentIntent;
 use App\Models\PaymentWebhookEvent;
 use App\Services\Wallets\WalletLedgerService;
+use DomainException;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -127,27 +128,47 @@ class PaymentFundingService
                     return ['outcome' => 'test_succeeded', 'duplicate' => false];
                 }
 
+                try {
+                    $this->ledger->post(
+                        walletId: $intent->wallet_id,
+                        type: 'credit',
+                        amountMinor: $intent->amount_minor,
+                        idempotencyKey: 'funding:'.hash('sha256', $provider.':'.$providerTransactionId),
+                        reference: $intent->reference,
+                        description: 'Verified wallet funding',
+                        metadata: [
+                            'payment_intent_id' => $intent->public_id,
+                            'provider' => $provider,
+                            'provider_transaction_id' => $providerTransactionId,
+                        ],
+                        correlationId: (string) Str::uuid(),
+                    );
+                } catch (DomainException $exception) {
+                    if (! str_contains($exception->getMessage(), 'account level would be exceeded')) {
+                        throw $exception;
+                    }
+
+                    // The gateway payment is verified but could not be credited.
+                    // Persist it for reconciliation instead of losing it or calling it settled.
+                    $intent->forceFill([
+                        'status' => 'review_required',
+                        'provider_transaction_id' => $providerTransactionId,
+                        'paid_at' => now(),
+                    ])->save();
+                    $event->forceFill([
+                        'outcome' => 'wallet_limit_review',
+                        'payment_intent_id' => $intent->id,
+                        'processed_at' => now(),
+                    ])->save();
+
+                    return ['outcome' => 'wallet_limit_review', 'duplicate' => false];
+                }
+
                 $intent->forceFill([
                     'status' => 'paid',
                     'provider_transaction_id' => $providerTransactionId,
                     'paid_at' => now(),
                 ])->save();
-
-                $this->ledger->post(
-                    walletId: $intent->wallet_id,
-                    type: 'credit',
-                    amountMinor: $intent->amount_minor,
-                    idempotencyKey: 'funding:'.hash('sha256', $provider.':'.$providerTransactionId),
-                    reference: $intent->reference,
-                    description: 'Verified wallet funding',
-                    metadata: [
-                        'payment_intent_id' => $intent->public_id,
-                        'provider' => $provider,
-                        'provider_transaction_id' => $providerTransactionId,
-                    ],
-                    correlationId: (string) Str::uuid(),
-                );
-
                 $event->forceFill([
                     'outcome' => 'credited',
                     'payment_intent_id' => $intent->id,
