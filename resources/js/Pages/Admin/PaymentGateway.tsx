@@ -29,7 +29,7 @@ export default function PaymentGateway({ gateway }: { gateway: Gateway }) {
         {gateway.production && gateway.mode === 'Unknown' && gateway.configured && <section role="alert" className="mt-6 rounded-2xl border border-amber-500/50 bg-amber-500/10 p-5 text-sm leading-6"><strong>Production payment safety hold:</strong> the saved Paystack key mode cannot be verified. Real wallet funding will be rejected until a valid live secret key is configured.</section>}
         <section className="mt-7 grid gap-4 sm:grid-cols-3">
           <Status title="Provider" value={gateway.name} detail="Wallet funding and verification" />
-          <Status title="Current key" value={gateway.configured ? 'Configured · hidden' : 'Missing'} detail={`Detected mode: ${gateway.mode}`} />
+          <Status title="Current key" value={gateway.configured ? 'Configured · hidden' : 'Missing'} detail={`Key detected: ${gateway.keyMode}; selected mode: ${gateway.mode}`} />
           <Status title="Webhook endpoint" value="Ready to configure" detail="Copy the full URL below into Paystack Developers → Webhooks." />
         </section>
 
