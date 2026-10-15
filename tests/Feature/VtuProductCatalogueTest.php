@@ -38,7 +38,7 @@ class VtuProductCatalogueTest extends TestCase
 
     public function test_data_plan_cannot_be_activated_without_provider_variation_code(): void
     {
-        $staff = User::factory()->create(['role' => 'admin']);
+        $staff = User::factory()->create();
         $staff->permissions()->create(['permission' => 'staff.permissions.manage']);
         $this->actingAs($staff)->post('/admin/vtu-products', [
             'service_type' => 'data', 'network' => 'MTN', 'code' => 'mtn-missing-map',

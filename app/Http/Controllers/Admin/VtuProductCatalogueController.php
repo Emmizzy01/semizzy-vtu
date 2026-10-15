@@ -54,7 +54,7 @@ class VtuProductCatalogueController extends Controller
     {
         $data = $this->validatedData($request, true);
         $product = DB::transaction(function () use ($request, $data): VtuProduct {
-            $metadata = $this->metadata($data);
+            $metadata = $this->metadata($data, $locked->metadata ?? []);
             $active = (bool) ($data['is_active'] ?? false);
             $this->assertActivatable($data['service_type'], $data['network'], $metadata, $active);
             $product = VtuProduct::query()->create([
@@ -108,14 +108,16 @@ class VtuProductCatalogueController extends Controller
         ]);
     }
 
-    private function metadata(array $data): array
+    private function metadata(array $data, array $existing = []): array
     {
-        return array_filter([
+        $known = ['validity', 'data_type', 'provider_service_id', 'provider_variation_code'];
+        foreach ($known as $key) unset($existing[$key]);
+        return array_merge($existing, array_filter([
             'validity' => isset($data['validity']) ? trim($data['validity']) : null,
             'data_type' => isset($data['data_type']) ? trim($data['data_type']) : null,
             'provider_service_id' => isset($data['provider_service_id']) ? trim($data['provider_service_id']) : null,
             'provider_variation_code' => isset($data['provider_variation_code']) ? trim($data['provider_variation_code']) : null,
-        ], fn ($value): bool => $value !== null && $value !== '');
+        ], fn ($value): bool => $value !== null && $value !== ''));
     }
 
     private function assertActivatable(string $type, string $network, array $metadata, bool $active): void

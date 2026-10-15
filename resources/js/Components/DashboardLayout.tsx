@@ -13,6 +13,7 @@ import {
   LayoutDashboard,
   LogOut,
   Menu,
+  Package,
   PlugZap,
   Search,
   ShieldCheck,
@@ -92,6 +93,7 @@ export default function DashboardLayout({
     { title: 'Workspace', items: [{ label: 'Command Center', href: '/admin/dashboard', icon: LayoutDashboard, match: '/admin/dashboard' }] },
     ...(canApproveRefunds ? [{ title: 'Finance', items: [{ label: 'Refund operations', href: '/admin/refunds', icon: CreditCard, match: '/admin/refunds' }] }] : []),
     ...(canManageStaff ? [{ title: 'Operations', items: [{ label: 'VTU order queue', href: '/admin/vtu-orders', icon: Smartphone, match: '/admin/vtu-orders' },
+      { label: 'VTU product catalogue', href: '/admin/vtu-products', icon: Package, match: '/admin/vtu-products' },
       { label: 'Support tickets', href: '/admin/support', icon: LifeBuoy, match: '/admin/support' },
       { label: 'Manual deposits', href: '/admin/manual-deposits', icon: WalletCards, match: '/admin/manual-deposits' }] }] : []),
     ...(canManageStaff ? [{ title: 'Platform', items: [
