@@ -16,6 +16,7 @@ import {
   SlidersHorizontal,
   Smartphone,
   Users,
+  UserRound,
   WalletCards,
   X,
 } from 'lucide-react';
@@ -82,6 +83,7 @@ export default function DashboardLayout({
     { label: 'Fund wallet', href: '#fund-wallet', icon: CreditCard, match: '#fund-wallet' },
     { label: 'Manual deposit', href: '/wallet/manual-deposits', icon: WalletCards, match: '/wallet/manual-deposits' },
     { label: 'Transaction security', href: '/security/transaction-pin', icon: ShieldCheck, match: '/security/transaction-pin' },
+    { label: 'Profile & password', href: '/profile', icon: UserRound, match: '/profile' },
   ];
 
   const adminGroups: { title: string; items: NavItem[] }[] = [
@@ -102,6 +104,7 @@ export default function DashboardLayout({
       { label: 'Security activity', href: '/admin/security-events', icon: Activity, match: '/admin/security-events' },
     ] }] : []),
     { title: 'Customer', items: [
+      { label: 'Profile & password', href: '/profile', icon: UserRound, match: '/profile' },
       { label: 'Help & support', href: '/support', icon: LifeBuoy, match: '/support' },
       { label: 'VTU services', href: '/wallet/vtu', icon: Smartphone, match: '/wallet/vtu' },
       { label: 'Customer view', href: '/customer/dashboard', icon: WalletCards, match: '/customer/dashboard' },
