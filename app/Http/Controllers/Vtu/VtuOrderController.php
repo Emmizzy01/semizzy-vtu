@@ -45,7 +45,7 @@ class VtuOrderController extends Controller
             'product_code' => ['required', 'string', 'max:80'],
             'recipient' => ['required', 'string', 'max:32'],
             'idempotency_key' => ['required', 'string', 'max:128'],
-            'transaction_pin' => ['nullable', 'string', 'digits:6'],
+            'transaction_pin' => ['nullable', 'string', 'regex:/^\\d{4}(?:\\d{2})?$/'],
         ]);
 
         $user = $request->user();
