@@ -21,7 +21,7 @@ class HandleInertiaRequests extends Middleware
         return [
             ...parent::share($request),
             'appName' => (string) $settings->get('site.name', config('app.name')),
-            'platform' => ['name' => (string) $settings->get('site.name', config('app.name', 'Semizzy')), 'skin' => (string) $settings->get('site.theme_skin', 'modern-green')],
+            'platform' => ['name' => (string) $settings->get('site.name', config('app.name', 'Semizzy')), 'skin' => match ((string) $settings->get('site.theme_skin', 'modern-green')) { 'emerald' => 'modern-green', 'teal' => 'navy-teal', 'blue' => 'minimal-blue', 'violet' => 'obsidian-luxe', 'amber' => 'arctic-light', default => (string) $settings->get('site.theme_skin', 'modern-green') }],
             'auth' => [
                 'user' => $request->user(),
             ],
