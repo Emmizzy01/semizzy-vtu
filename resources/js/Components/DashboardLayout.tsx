@@ -109,7 +109,7 @@ export default function DashboardLayout({
         onClick={() => setMobileMenuOpen(false)}
         aria-current={active ? 'page' : undefined}
         className={compact
-          ? `flex min-h-14 min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-1 text-[10px] transition hover:bg-[var(--page)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--brand)] ${active ? 'font-extrabold text-[var(--brand)]' : 'font-semibold text-[var(--muted)]'}`
+          ? `flex min-h-14 min-w-[68px] flex-1 shrink-0 flex-col items-center justify-center gap-1 rounded-xl px-1 text-[10px] transition hover:bg-[var(--page)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--brand)] ${active ? 'font-extrabold text-[var(--brand)]' : 'font-semibold text-[var(--muted)]'}`
           : linkClass(active)}
       >
         <Icon size={compact ? 19 : 18} className="shrink-0" aria-hidden="true" />
@@ -211,7 +211,7 @@ export default function DashboardLayout({
           </div>
         </div>
 
-        <nav aria-label="Quick navigation" className="fixed inset-x-0 bottom-0 z-30 grid border-t border-[var(--line)] bg-[var(--surface)]/95 px-2 pb-[env(safe-area-inset-bottom)] pt-2 backdrop-blur lg:hidden" style={{ gridTemplateColumns: `repeat(${mobileItems.length}, minmax(0, 1fr))` }}>
+        <nav aria-label="Quick navigation" className="fixed inset-x-0 bottom-0 z-30 flex justify-start gap-1 overflow-x-auto border-t border-[var(--line)] bg-[var(--surface)]/95 px-2 pb-[env(safe-area-inset-bottom)] pt-2 backdrop-blur lg:hidden" style={{ scrollbarWidth: "thin" }}>
           {mobileItems.map((item) => renderLink(item, true))}
         </nav>
       </main>

@@ -93,7 +93,7 @@ export default function SiteNavigation({ children, admin = false, publicPage = f
 
       {children}
 
-      <nav aria-label="Quick navigation" className="fixed inset-x-0 bottom-0 z-40 grid border-t border-[var(--line)] bg-[var(--surface)]/95 px-1 pb-[env(safe-area-inset-bottom)] pt-2 backdrop-blur sm:hidden" style={{ gridTemplateColumns: 'repeat(4,minmax(0,1fr))' }}>
+      <nav aria-label="Quick navigation" className="fixed inset-x-0 bottom-0 z-40 grid border-t border-[var(--line)] bg-[var(--surface)]/95 px-1 pb-[env(safe-area-inset-bottom)] pt-2 backdrop-blur sm:hidden" style={{ gridTemplateColumns: `repeat(${admin ? 4 : 3},minmax(0,1fr))` }}>
         {publicPage ? (
           <>
             <a href="/" className="flex min-h-14 flex-col items-center justify-center gap-1 rounded-lg px-1 text-[10px] font-semibold text-[var(--muted)]"><LayoutDashboard size={19} /><span>Home</span></a>

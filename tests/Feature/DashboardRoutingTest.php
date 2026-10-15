@@ -4,6 +4,9 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use App\Models\UserPermission;
+use App\Models\Wallet;
+use App\Models\WalletTransaction;
+use Illuminate\Support\Str;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
@@ -41,6 +44,42 @@ class DashboardRoutingTest extends TestCase
                 ->has('transactions')
                 ->has('orders')
                 ->has('fundingHistory'));
+    }
+
+    public function test_customer_dashboard_only_returns_transactions_from_their_own_wallet(): void
+    {
+        $customer = $this->account('activity-owner@example.test');
+        $otherCustomer = $this->account('other-activity-owner@example.test');
+        $customerWallet = Wallet::query()->create(['user_id' => $customer->id, 'currency' => 'NGN']);
+        $otherWallet = Wallet::query()->create(['user_id' => $otherCustomer->id, 'currency' => 'NGN']);
+
+        foreach ([
+            [$customerWallet, 'OWN-REFERENCE', 'Own wallet transaction'],
+            [$otherWallet, 'OTHER-REFERENCE', 'Another customer transaction'],
+        ] as [$wallet, $reference, $description]) {
+            WalletTransaction::query()->create([
+                'public_id' => (string) Str::uuid(),
+                'wallet_id' => $wallet->id,
+                'idempotency_key' => 'test-' . $reference,
+                'request_hash' => hash('sha256', $reference),
+                'type' => 'credit',
+                'status' => 'succeeded',
+                'currency' => 'NGN',
+                'amount_minor' => 10000,
+                'balance_before_minor' => 0,
+                'balance_after_minor' => 10000,
+                'reference' => $reference,
+                'description' => $description,
+            ]);
+        }
+
+        $this->actingAs($customer)
+            ->get('/dashboard')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page->component('Dashboard')
+                ->has('transactions', 1)
+                ->where('transactions.0.reference', 'OWN-REFERENCE')
+                ->where('transactions.0.description', 'Own wallet transaction'));
     }
 
     public function test_user_with_admin_permission_is_routed_to_admin_command_center(): void

@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { AlertCircle, ArrowDownToLine, ArrowUpRight, CheckCircle2, Clock3, CreditCard, Eye, EyeOff, RefreshCw, Smartphone, WalletCards } from 'lucide-react';
+import { AlertCircle, ArrowDownToLine, ArrowUpRight, CheckCircle2, Clock3, CreditCard, Eye, EyeOff, RefreshCw, Search, Smartphone, WalletCards } from 'lucide-react';
 import DashboardLayout from '../Components/DashboardLayout';
 
 type Wallet = { balance_minor: number; available_balance_minor: number; currency: string; status: string } | null;
@@ -29,6 +29,20 @@ export default function CustomerDashboard({ wallet, transactions, orders, fundin
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [balanceVisible, setBalanceVisible] = useState(true);
+  const [transactionQuery, setTransactionQuery] = useState('');
+  const [transactionStatus, setTransactionStatus] = useState('all');
+
+  const filteredTransactions = transactions.filter((item) => {
+    const status = item.status.toLowerCase();
+    const matchesStatus = transactionStatus === 'all'
+      || (transactionStatus === 'pending' && ['pending', 'processing', 'awaiting_reconciliation'].includes(status))
+      || (transactionStatus === 'successful' && ['succeeded', 'successful', 'completed', 'paid'].includes(status))
+      || (transactionStatus === 'failed' && ['failed', 'rejected', 'cancelled'].includes(status));
+    const query = transactionQuery.trim().toLowerCase();
+    const searchableText = [item.description, item.type, item.status, item.reference, item.id]
+      .filter(Boolean).join(' ').toLowerCase();
+    return matchesStatus && (!query || searchableText.includes(query));
+  });
 
   useEffect(() => {
     const status = new URLSearchParams(window.location.search).get('funding');
@@ -113,8 +127,19 @@ export default function CustomerDashboard({ wallet, transactions, orders, fundin
 
       <section id="transactions" className="mt-8 grid gap-5 xl:grid-cols-2">
         <div className="overflow-hidden rounded-3xl border border-[var(--line)] bg-[var(--surface)]">
-          <div className="flex items-center justify-between border-b border-[var(--line)] p-5"><div><h2 className="font-display text-lg font-extrabold">Recent wallet activity</h2><p className="mt-1 text-xs text-[var(--muted)]">Latest posted and pending wallet transactions</p></div><WalletCards size={20} className="text-[var(--brand)]" aria-hidden="true" /></div>
-          {transactions.length === 0 ? <EmptyState message="No wallet transactions yet. Your activity will appear here when you use a supported wallet service." /> : <div className="divide-y divide-[var(--line)]">{transactions.map((item) => <article key={item.id} className="flex items-start justify-between gap-3 p-4 sm:px-5"><div className="min-w-0"><p className="break-words text-sm font-bold">{item.description || item.type.replaceAll('_', ' ')}</p><p className="mt-1 break-all text-xs text-[var(--muted)]">{item.reference || item.id} · {dateLabel(item.created_at)}</p><span className={`mt-2 inline-flex rounded-full px-2.5 py-1 text-[10px] font-bold ${statusClass(item.status)}`}>{item.status.replaceAll('_', ' ')}</span></div><p className="shrink-0 text-sm font-extrabold tabular-nums">{money(item.amount_minor, item.currency)}</p></article>)}</div>}
+          <div className="border-b border-[var(--line)] p-5">
+            <div className="flex items-center justify-between gap-3"><div><h2 className="font-display text-lg font-extrabold">Recent wallet activity</h2><p className="mt-1 text-xs text-[var(--muted)]">Search and filter your latest wallet transactions</p></div><WalletCards size={20} className="shrink-0 text-[var(--brand)]" aria-hidden="true" /></div>
+            {transactions.length > 0 && <div className="mt-4 grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
+              <label className="relative block min-w-0"><span className="sr-only">Search wallet activity</span><Search size={16} aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--muted)]" /><input type="search" value={transactionQuery} onChange={(event) => setTransactionQuery(event.target.value)} placeholder="Search description or reference" className="min-h-11 w-full rounded-xl border border-[var(--line)] bg-[var(--page)] py-2 pl-9 pr-3 text-sm outline-none focus:border-[var(--brand)] focus-visible:ring-2 focus-visible:ring-[var(--brand)] focus-visible:ring-offset-2" /></label>
+              <label className="block"><span className="sr-only">Filter transactions by status</span><select value={transactionStatus} onChange={(event) => setTransactionStatus(event.target.value)} className="min-h-11 w-full rounded-xl border border-[var(--line)] bg-[var(--page)] px-3 py-2 text-sm outline-none focus:border-[var(--brand)] focus-visible:ring-2 focus-visible:ring-[var(--brand)] focus-visible:ring-offset-2"><option value="all">All statuses</option><option value="pending">Pending</option><option value="successful">Successful</option><option value="failed">Failed</option></select></label>
+            </div>}
+            {transactions.length > 0 && <p className="mt-3 text-xs text-[var(--muted)]" aria-live="polite">Showing {filteredTransactions.length} of {transactions.length} recent transactions</p>}
+          </div>
+          {transactions.length === 0
+            ? <EmptyState message="No wallet transactions yet. Your activity will appear here when you use a supported wallet service." />
+            : filteredTransactions.length === 0
+              ? <EmptyState message="No recent transactions match those filters. Try another search or status." />
+              : <div className="divide-y divide-[var(--line)]">{filteredTransactions.map((item) => <article key={item.id} className="flex items-start justify-between gap-3 p-4 sm:px-5"><div className="min-w-0"><p className="break-words text-sm font-bold">{item.description || item.type.replaceAll('_', ' ')}</p><p className="mt-1 break-all text-xs text-[var(--muted)]">{item.reference || item.id} · {dateLabel(item.created_at)}</p><span className={`mt-2 inline-flex rounded-full px-2.5 py-1 text-[10px] font-bold ${statusClass(item.status)}`}>{item.status.replaceAll('_', ' ')}</span></div><p className="shrink-0 text-sm font-extrabold tabular-nums">{money(item.amount_minor, item.currency)}</p></article>)}</div>}
         </div>
 
         <div id="orders" className="overflow-hidden rounded-3xl border border-[var(--line)] bg-[var(--surface)]">
