@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use Illuminate\Http\Request;
 use Inertia\Middleware;
+use App\Services\IntegrationSettings;
 
 class HandleInertiaRequests extends Middleware
 {
@@ -16,9 +17,11 @@ class HandleInertiaRequests extends Middleware
 
     public function share(Request $request): array
     {
+        $settings = app(IntegrationSettings::class);
         return [
             ...parent::share($request),
-            'appName' => config('app.name'),
+            'appName' => (string) $settings->get('site.name', config('app.name')),
+            'platform' => ['name' => (string) $settings->get('site.name', config('app.name', 'Semizzy'))],
             'auth' => [
                 'user' => $request->user(),
             ],

@@ -540,11 +540,13 @@ class VtuOrderWorkflowTest extends TestCase
         Http::fake(fn () => Http::response(['status' => 'success'], 200));
 
         [$user, $wallet, $product] = $this->preparedCustomer(1000, 1500);
+        $user->forceFill(['transaction_pin_hash' => bcrypt('492815')])->save();
 
         $response = $this->actingAs($user)->postJson('/wallet/vtu/orders', [
             'product_code' => $product->code,
             'recipient' => '08012345678',
             'idempotency_key' => 'client-price-tamper-1',
+            'transaction_pin' => '492815',
             'amount_minor' => 1,
         ]);
 

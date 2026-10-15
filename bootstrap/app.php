@@ -18,6 +18,7 @@ return Application::configure(basePath: dirname(__DIR__))
             HandleInertiaRequests::class,
             EnsurePlatformAvailable::class,
         ]);
+        $middleware->api(append: [EnsurePlatformAvailable::class]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

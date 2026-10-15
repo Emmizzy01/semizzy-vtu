@@ -13,6 +13,8 @@ class EnsurePlatformAvailable
 {
     public function handle(Request $request, Closure $next): Response
     {
+        // Provider webhooks must continue through maintenance mode so financial events are not lost.
+        if ($request->is('api/payments/webhooks/*')) return $next($request);
         $settings = app(IntegrationSettings::class);
         if (! filter_var($settings->get('site.maintenance_mode', false), FILTER_VALIDATE_BOOLEAN)) return $next($request);
         $user = $request->user();

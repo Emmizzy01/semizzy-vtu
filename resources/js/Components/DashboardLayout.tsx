@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import ThemeToggle from './ThemeToggle';
-import { Head } from '@inertiajs/react';
+import { Head, usePage } from '@inertiajs/react';
 import {
   Activity,
   ArrowLeftRight,
@@ -39,6 +39,8 @@ export default function DashboardLayout({
   canApproveRefunds = false,
   customerPreview = false,
 }: DashboardLayoutProps) {
+  const { platform } = usePage<{ platform?: { name?: string } }>().props;
+  const platformName = platform?.name || 'SEMIZZY';
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [location, setLocation] = useState(() => ({
     path: typeof window === 'undefined' ? '' : window.location.pathname,
@@ -150,10 +152,10 @@ export default function DashboardLayout({
       <main className="min-h-screen bg-[var(--page)] pb-20 text-[var(--ink)] sm:pb-0">
         <header className="sticky top-0 z-40 border-b border-[var(--line)] bg-[var(--surface)]/95 backdrop-blur">
           <div className="mx-auto flex max-w-[1600px] items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8">
-            <a href={overviewHref} className="flex min-w-0 items-center gap-3" aria-label="SEMIZZY dashboard">
+            <a href={overviewHref} className="flex min-w-0 items-center gap-3" aria-label={`${platformName} dashboard`}>
               <span aria-hidden="true" className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-[var(--brand)] font-display text-lg font-extrabold text-white">S</span>
               <span className="min-w-0">
-                <span className="block font-display text-base font-extrabold tracking-tight">SEMIZZY</span>
+                <span className="block font-display text-base font-extrabold tracking-tight">{platformName}</span>
                 <span className="block text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--muted)]">{admin ? 'Command Center' : customerPreview ? 'Customer preview' : 'Customer workspace'}</span>
               </span>
             </a>
@@ -222,7 +224,7 @@ export default function DashboardLayout({
               <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--muted)] sm:text-base">{description}</p>
             </div>
             {children}
-            <footer className="mt-10 border-t border-[var(--line)] py-5 text-center text-xs text-[var(--muted)]">SEMIZZY · Secure, mobile-first digital services</footer>
+            <footer className="mt-10 border-t border-[var(--line)] py-5 text-center text-xs text-[var(--muted)]">{platformName} · Secure, mobile-first digital services</footer>
           </div>
         </div>
 
