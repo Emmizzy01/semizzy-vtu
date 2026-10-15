@@ -42,7 +42,10 @@ class DashboardRoutingTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page->component('Dashboard')
                 ->where('isAdminPreview', false)
                 ->has('transactions')
+                ->has('transactionPagination')
+                ->where('transactionFilters.status', 'all')
                 ->has('orders')
+                ->has('orderPagination')
                 ->has('fundingHistory'));
     }
 
@@ -80,6 +83,42 @@ class DashboardRoutingTest extends TestCase
                 ->has('transactions', 1)
                 ->where('transactions.0.reference', 'OWN-REFERENCE')
                 ->where('transactions.0.description', 'Own wallet transaction'));
+    }
+
+    public function test_customer_transaction_history_is_paginated_and_searchable_on_the_server(): void
+    {
+        $customer = $this->account('history-customer@example.test');
+        $wallet = Wallet::query()->create(['user_id' => $customer->id, 'currency' => 'NGN']);
+
+        for ($index = 1; $index <= 12; $index++) {
+            $reference = sprintf('ACTIVITY-%02d', $index);
+            WalletTransaction::query()->create([
+                'public_id' => (string) Str::uuid(),
+                'wallet_id' => $wallet->id,
+                'idempotency_key' => 'history-' . $index,
+                'request_hash' => hash('sha256', $reference),
+                'type' => 'credit',
+                'status' => 'succeeded',
+                'currency' => 'NGN',
+                'amount_minor' => 10000,
+                'balance_before_minor' => ($index - 1) * 10000,
+                'balance_after_minor' => $index * 10000,
+                'reference' => $reference,
+                'description' => 'Customer activity history',
+            ]);
+        }
+
+        $this->actingAs($customer)
+            ->get('/dashboard?transactions_page=2&transaction_search=ACTIVITY&transaction_status=successful')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page->component('Dashboard')
+                ->has('transactions', 2)
+                ->where('transactionPagination.currentPage', 2)
+                ->where('transactionPagination.lastPage', 2)
+                ->where('transactionPagination.total', 12)
+                ->where('transactionFilters.search', 'ACTIVITY')
+                ->where('transactionFilters.status', 'successful')
+                ->where('transactions.0.reference', 'ACTIVITY-02'));
     }
 
     public function test_user_with_admin_permission_is_routed_to_admin_command_center(): void
