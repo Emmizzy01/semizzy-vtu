@@ -40,8 +40,13 @@ export default function DashboardLayout({
   canApproveRefunds = false,
   customerPreview = false,
 }: DashboardLayoutProps) {
-  const { platform } = usePage<{ platform?: { name?: string } }>().props;
+  const { platform } = usePage<{ platform?: { name?: string; skin?: 'emerald' | 'blue' | 'violet' | 'teal' | 'amber' } }>().props;
   const platformName = platform?.name || 'SEMIZZY';
+  useEffect(() => {
+    const skin = platform?.skin || 'emerald';
+    if (skin === 'emerald') document.documentElement.removeAttribute('data-brand');
+    else document.documentElement.dataset.brand = skin;
+  }, [platform?.skin]);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [location, setLocation] = useState(() => ({
     path: typeof window === 'undefined' ? '' : window.location.pathname,

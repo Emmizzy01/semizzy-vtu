@@ -83,3 +83,18 @@ body {
     transition-duration: 0.01ms !important;
   }
 }
+
+
+/* Approved global brand skins. Color values are code-defined; site settings never inject arbitrary CSS. */
+:root[data-brand='blue'] { --brand: #1d4ed8; --brand-strong: #1e40af; --brand-soft: #dbeafe; --success: #15803d; }
+:root[data-theme='dark'][data-brand='blue'] { --brand: #93c5fd; --brand-strong: #bfdbfe; --brand-soft: #1e3a8a; --success: #4ade80; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme='light']):not([data-theme='dark'])[data-brand='blue'] { --brand: #93c5fd; --brand-strong: #bfdbfe; --brand-soft: #1e3a8a; --success: #4ade80; } }
+:root[data-brand='violet'] { --brand: #6d28d9; --brand-strong: #5b21b6; --brand-soft: #ede9fe; }
+:root[data-theme='dark'][data-brand='violet'] { --brand: #c4b5fd; --brand-strong: #ddd6fe; --brand-soft: #3b0764; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme='light']):not([data-theme='dark'])[data-brand='violet'] { --brand: #c4b5fd; --brand-strong: #ddd6fe; --brand-soft: #3b0764; } }
+:root[data-brand='teal'] { --brand: #0f766e; --brand-strong: #115e59; --brand-soft: #ccfbf1; }
+:root[data-theme='dark'][data-brand='teal'] { --brand: #5eead4; --brand-strong: #99f6e4; --brand-soft: #134e4a; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme='light']):not([data-theme='dark'])[data-brand='teal'] { --brand: #5eead4; --brand-strong: #99f6e4; --brand-soft: #134e4a; } }
+:root[data-brand='amber'] { --brand: #b45309; --brand-strong: #92400e; --brand-soft: #fef3c7; --warning: #92400e; }
+:root[data-theme='dark'][data-brand='amber'] { --brand: #fcd34d; --brand-strong: #fde68a; --brand-soft: #78350f; --warning: #fbbf24; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme='light']):not([data-theme='dark'])[data-brand='amber'] { --brand: #fcd34d; --brand-strong: #fde68a; --brand-soft: #78350f; --warning: #fbbf24; } }

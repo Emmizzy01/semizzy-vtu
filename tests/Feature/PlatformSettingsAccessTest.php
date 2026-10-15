@@ -23,12 +23,13 @@ class PlatformSettingsAccessTest extends TestCase
         $this->actingAs($admin)->get('/admin/platform-settings')->assertOk();
         $this->actingAs($admin)->put('/admin/platform-settings', [
             'site_name' => 'Semizzy Test', 'support_email' => 'support@example.test',
-            'support_phone' => '+2348000000000', 'maintenance_mode' => false,
+            'support_phone' => '+2348000000000', 'theme_skin' => 'blue', 'maintenance_mode' => false,
             'airtime_data_enabled' => false, 'manual_deposit_enabled' => true,
             'reason' => 'Temporarily pause airtime orders',
         ])->assertRedirect();
 
         $this->assertSame('0', (string) app(IntegrationSettings::class)->get('service.airtime_data.enabled'));
+        $this->assertSame('blue', (string) app(IntegrationSettings::class)->get('site.theme_skin'));
         $this->assertGreaterThanOrEqual(1, PlatformSettingAudit::query()->count());
         $this->assertDatabaseHas('platform_setting_audits', ['setting_key' => 'service.airtime_data.enabled', 'actor_user_id' => $admin->id]);
         $this->actingAs($customer)->getJson('/wallet/vtu/products')->assertStatus(503);

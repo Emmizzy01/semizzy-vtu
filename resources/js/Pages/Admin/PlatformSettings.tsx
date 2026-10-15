@@ -3,7 +3,7 @@ import { Head, router } from '@inertiajs/react';
 import DashboardLayout from '../../Components/DashboardLayout';
 import { AlertTriangle, Globe, Mail, Phone, Save, ShieldCheck, Smartphone, WalletCards } from 'lucide-react';
 
-type Settings = { site_name: string; support_email: string; support_phone: string; maintenance_mode: boolean; airtime_data_enabled: boolean; manual_deposit_enabled: boolean };
+type Settings = { site_name: string; support_email: string; support_phone: string; theme_skin: string; maintenance_mode: boolean; airtime_data_enabled: boolean; manual_deposit_enabled: boolean };
 export default function PlatformSettings({ settings }: { settings: Settings }) {
   const [form, setForm] = useState(settings);
   const [reason, setReason] = useState('');
@@ -17,6 +17,7 @@ export default function PlatformSettings({ settings }: { settings: Settings }) {
       <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-950">
         <h2 className="flex items-center gap-2 font-semibold"><Globe size={18} />Site identity</h2>
         <label className="block text-sm font-medium">Platform name<input className="mt-1 w-full rounded-xl border bg-transparent p-3 dark:border-slate-700" value={form.site_name} onChange={e => update('site_name', e.target.value)} minLength={2} maxLength={120} required /></label>
+        <label className="block text-sm font-medium">Global brand skin<select className="mt-1 w-full rounded-xl border bg-transparent p-3 dark:border-slate-700" value={form.theme_skin} onChange={e => update('theme_skin', e.target.value)}><option value="emerald">Semizzy Emerald</option><option value="blue">Professional Blue</option><option value="violet">Violet</option><option value="teal">Teal</option><option value="amber">Amber</option></select><span className="mt-1 block text-xs font-normal text-slate-500">Uses approved color tokens only; customers retain their light/dark appearance preference.</span></label>
         <div className="grid gap-4 sm:grid-cols-2">
           <label className="block text-sm font-medium"><span className="inline-flex items-center gap-2"><Mail size={15} />Support email</span><input className="mt-1 w-full rounded-xl border bg-transparent p-3 dark:border-slate-700" type="email" value={form.support_email} onChange={e => update('support_email', e.target.value)} maxLength={255} /></label>
           <label className="block text-sm font-medium"><span className="inline-flex items-center gap-2"><Phone size={15} />Support phone</span><input className="mt-1 w-full rounded-xl border bg-transparent p-3 dark:border-slate-700" value={form.support_phone} onChange={e => update('support_phone', e.target.value)} maxLength={32} /></label>
