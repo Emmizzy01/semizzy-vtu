@@ -43,7 +43,7 @@ class ManualDepositSettingsController extends Controller
 
         DB::transaction(function () use ($request, $settings, $data): void {
             $defaults = [
-                'enabled' => '1', 'bank_name' => '', 'account_name' => '', 'account_number' => '',
+                'enabled' => '0', 'bank_name' => '', 'account_name' => '', 'account_number' => '',
                 'instructions' => 'Transfer the exact amount and submit the receipt/reference. Funds are credited only after verification.',
             ];
             foreach (['enabled', 'bank_name', 'account_name', 'account_number', 'instructions'] as $key) {
