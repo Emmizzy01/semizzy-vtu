@@ -24,19 +24,67 @@ class PaystackFundingWorkflowTest extends TestCase
         ]);
     }
 
-    public function test_production_rejects_paystack_test_credentials_before_any_provider_request(): void
+    public function test_live_mode_rejects_test_credentials_before_any_provider_request(): void
     {
         config(['app.env' => 'production']);
+        IntegrationSetting::query()->create(['key' => 'paystack.mode', 'value' => 'live']);
         Http::fake();
 
         try {
             app(\App\Services\Payments\PaystackClient::class)->verifyTransaction('SZF-TEST-REFERENCE');
-            $this->fail('Production must reject Paystack test credentials.');
+            $this->fail('Live mode must reject Paystack test credentials.');
         } catch (\LogicException $exception) {
-            $this->assertStringContainsString('test credentials are disabled in production', $exception->getMessage());
+            $this->assertStringContainsString('selected Paystack mode does not match', $exception->getMessage());
         }
 
         Http::assertNothingSent();
+    }
+
+    public function test_verified_test_mode_success_is_recorded_without_crediting_real_wallet(): void
+    {
+        $user = User::query()->create([
+            'name' => 'Test Mode Customer',
+            'email' => 'test-mode@example.test',
+            'password' => 'not-a-real-password',
+        ]);
+        $wallet = app(WalletAccountService::class)->openForUser($user);
+        $intent = app(PaymentIntentService::class)->create($wallet, 12500, 'paystack');
+        $intent->forceFill(['metadata' => ['gateway_mode' => 'test']])->save();
+
+        $result = app(\App\Services\Payments\PaymentFundingService::class)->processVerifiedEvent('paystack', [
+            'id' => 'test-mode-charge-123',
+            'type' => 'payment.succeeded',
+            'data' => [
+                'reference' => $intent->reference,
+                'transaction_id' => '123',
+                'status' => 'succeeded',
+                'amount_minor' => 12500,
+                'currency' => 'NGN',
+            ],
+        ]);
+
+        $this->assertSame('test_succeeded', $result['outcome']);
+        $this->assertFalse($result['duplicate']);
+        $this->assertSame('test_paid', $intent->fresh()->status);
+        $this->assertSame(0, (int) $wallet->fresh()->balance_minor);
+        $this->assertDatabaseCount('wallet_transactions', 0);
+        $this->assertDatabaseCount('wallet_ledger_entries', 0);
+
+        $duplicate = app(\App\Services\Payments\PaymentFundingService::class)->processVerifiedEvent('paystack', [
+            'id' => 'test-mode-charge-123',
+            'type' => 'payment.succeeded',
+            'data' => [
+                'reference' => $intent->reference,
+                'transaction_id' => '123',
+                'status' => 'succeeded',
+                'amount_minor' => 12500,
+                'currency' => 'NGN',
+            ],
+        ]);
+
+        $this->assertTrue($duplicate['duplicate']);
+        $this->assertSame(0, (int) $wallet->fresh()->balance_minor);
+        $this->assertDatabaseCount('wallet_ledger_entries', 0);
     }
 
     public function test_authenticated_customer_can_initialize_paystack_checkout(): void
