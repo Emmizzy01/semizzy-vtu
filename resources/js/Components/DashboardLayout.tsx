@@ -5,7 +5,7 @@ import {
   Activity,
   ArrowLeftRight,
   CreditCard,
-  Grid2X2,
+  Grid2X2,\n  LifeBuoy,
   LayoutDashboard,
   LogOut,
   Menu,
@@ -86,7 +86,7 @@ export default function DashboardLayout({
   const adminGroups: { title: string; items: NavItem[] }[] = [
     { title: 'Workspace', items: [{ label: 'Command Center', href: '/admin/dashboard', icon: LayoutDashboard, match: '/admin/dashboard' }] },
     ...(canApproveRefunds ? [{ title: 'Finance', items: [{ label: 'Refund operations', href: '/admin/refunds', icon: CreditCard, match: '/admin/refunds' }] }] : []),
-    ...(canManageStaff ? [{ title: 'Operations', items: [{ label: 'VTU order queue', href: '/admin/vtu-orders', icon: Smartphone, match: '/admin/vtu-orders' },
+    ...(canManageStaff ? [{ title: 'Operations', items: [{ label: 'VTU order queue', href: '/admin/vtu-orders', icon: Smartphone, match: '/admin/vtu-orders' },\n      { label: 'Support tickets', href: '/admin/support', icon: LifeBuoy, match: '/admin/support' },
       { label: 'Manual deposits', href: '/admin/manual-deposits', icon: WalletCards, match: '/admin/manual-deposits' }] }] : []),
     ...(canManageStaff ? [{ title: 'Platform', items: [
       { label: 'Payment gateway', href: '/admin/payment-gateway', icon: ShieldCheck, match: '/admin/payment-gateway' },
@@ -99,7 +99,7 @@ export default function DashboardLayout({
       { label: 'User level policies', href: '/admin/user-levels', icon: ShieldCheck, match: '/admin/user-levels' },
       { label: 'Security activity', href: '/admin/security-events', icon: Activity, match: '/admin/security-events' },
     ] }] : []),
-    { title: 'Customer', items: [
+    { title: 'Customer', items: [\n      { label: 'Help & support', href: '/support', icon: LifeBuoy, match: '/support' },
       { label: 'VTU services', href: '/wallet/vtu', icon: Smartphone, match: '/wallet/vtu' },
       { label: 'Customer view', href: '/customer/dashboard', icon: WalletCards, match: '/customer/dashboard' },
       ...(canManageStaff ? [{ label: 'Users, types & levels', href: '/admin/users', icon: Users, match: '/admin/users' }] : []),

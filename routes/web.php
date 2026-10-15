@@ -33,7 +33,7 @@ Route::middleware('guest')->group(function (): void {
 });
 
 Route::middleware('auth')->group(function (): void {
-    Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
+    Route::post('/logout', [AuthController::class, 'logout'])->name('logout');\n    Route::get('/support', [SupportTicketController::class, 'index'])->name('support.index');\n    Route::post('/support', [SupportTicketController::class, 'store'])->middleware('throttle:5,1')->name('support.store');\n    Route::post('/support/{ticket}/reply', [SupportTicketController::class, 'reply'])->middleware('throttle:10,1')->name('support.reply');
     Route::get('/profile', [ProfileController::class, 'show'])->name('profile.show');
     Route::put('/profile', [ProfileController::class, 'update'])->middleware('throttle:10,1')->name('profile.update');
     Route::put('/profile/password', [ProfileController::class, 'updatePassword'])->middleware('throttle:5,1')->name('profile.password.update');
@@ -74,7 +74,7 @@ Route::middleware(['auth', 'can:refunds.approve', 'throttle:20,1'])->post('/admi
     ->name('admin.payment-refunds.approve');
 
 Route::middleware(['auth', 'can:staff.permissions.manage'])->prefix('admin')->name('admin.')->group(function (): void {
-    Route::get('/search', GlobalSearchController::class)->middleware('throttle:30,1')->name('search');
+    Route::get('/search', GlobalSearchController::class)->middleware('throttle:30,1')->name('search');\n    Route::get('/support', [SupportTicketOperationsController::class, 'index'])->middleware('throttle:30,1')->name('support.index');\n    Route::post('/support/{ticket}/reply', [SupportTicketOperationsController::class, 'reply'])->middleware('throttle:10,1')->name('support.reply');\n    Route::put('/support/{ticket}/status', [SupportTicketOperationsController::class, 'updateStatus'])->middleware('throttle:20,1')->name('support.status');
     Route::get('/feature-controls', [FeatureControlController::class, 'index'])->name('feature-controls.index');
     Route::put('/feature-controls/{featureKey}', [FeatureControlController::class, 'update'])->middleware('throttle:20,1')->name('feature-controls.update');
     Route::get('/security-events', [SecurityEventsController::class, 'index'])->middleware('throttle:30,1')->name('security-events');
