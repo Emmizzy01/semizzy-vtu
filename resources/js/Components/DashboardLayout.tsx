@@ -18,6 +18,7 @@ import {
   Smartphone,
   Users,
   UserRound,
+  Headset,
   WalletCards,
   X,
 } from 'lucide-react';
@@ -43,7 +44,12 @@ export default function DashboardLayout({
   canApproveRefunds = false,
   customerPreview = false,
 }: DashboardLayoutProps) {
-  const { platform } = usePage<{ platform?: { name?: string; skin?: 'modern-green' | 'navy-teal' | 'minimal-blue' | 'obsidian-luxe' | 'arctic-light' } }>().props;
+  const { platform, auth } = usePage<{ platform?: { name?: string; skin?: 'modern-green' | 'navy-teal' | 'minimal-blue' | 'obsidian-luxe' | 'arctic-light' }; auth?: { user?: { name?: string; email?: string; tier?: string; level?: string; avatar_url?: string | null; avatarUrl?: string | null } | null } }>().props;
+  const currentUser = auth?.user;
+  const userName = currentUser?.name?.trim() || 'Semizzy user';
+  const userTier = currentUser?.tier || currentUser?.level || 'Customer';
+  const avatarUrl = currentUser?.avatar_url || currentUser?.avatarUrl || null;
+  const userInitials = userName.split(/\s+/).slice(0, 2).map(part => part[0]).join('').toUpperCase() || 'S';
   const platformName = platform?.name || 'SEMIZZY';
   useEffect(() => {
     const skin = platform?.skin || 'emerald';
@@ -170,15 +176,18 @@ export default function DashboardLayout({
     <>
       <Head title={title} />
       <main className="min-h-screen bg-[var(--page)] pb-24 text-[var(--ink)]">
-        {(admin || customerPreview) && <header className="sticky top-0 z-40 border-b border-[var(--line)] bg-[var(--surface)]/95 backdrop-blur">
+        {<header className="sticky top-0 z-40 border-b border-[var(--line)] bg-[var(--surface)]/95 backdrop-blur">
           <div className="mx-auto flex max-w-[1600px] items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8">
-            <a href={overviewHref} className="flex min-w-0 items-center gap-3" aria-label={`${platformName} dashboard`}>
-              <span aria-hidden="true" className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-[var(--brand)] font-display text-lg font-extrabold text-white">S</span>
-              <span className="min-w-0">
-                <span className="block font-display text-base font-extrabold tracking-tight">{platformName}</span>
-                {(admin || customerPreview) && <span className="block text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--muted)]">{admin ? 'Command Center' : 'Customer preview'}</span>}
+            {!admin && !customerPreview ? <a href="/profile" className="flex min-w-0 items-center gap-3" aria-label="Open profile and account level">
+              <span className="relative grid h-11 w-11 shrink-0 place-items-center overflow-hidden rounded-full border-2 border-white bg-emerald-100 text-sm font-extrabold text-emerald-800 shadow-sm dark:border-slate-800 dark:bg-emerald-950 dark:text-emerald-200">
+                {avatarUrl ? <img src={avatarUrl} alt="" className="h-full w-full object-cover" /> : userInitials}
+                <span className="absolute -bottom-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full border border-white bg-amber-100 px-1 text-[8px] font-black text-amber-900 dark:border-slate-900" title={userTier}>{userTier.slice(0, 1).toUpperCase()}</span>
               </span>
-            </a>
+              <span className="min-w-0"><span className="block text-[10px] font-semibold uppercase tracking-wide text-[var(--muted)]">Welcome back</span><span className="block max-w-[38vw] truncate text-sm font-extrabold sm:max-w-none">{userName}</span><span className="block truncate text-[10px] font-bold text-[var(--brand)]">Tier: {userTier}</span></span>
+            </a> : <a href={overviewHref} className="flex min-w-0 items-center gap-3" aria-label={`${platformName} dashboard`}>
+              <span aria-hidden="true" className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-[var(--brand)] font-display text-lg font-extrabold text-white">S</span>
+              <span className="min-w-0"><span className="block font-display text-base font-extrabold tracking-tight">{platformName}</span><span className="block text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--muted)]">{admin ? 'Command Center' : 'Customer preview'}</span></span>
+            </a>}
             {admin && (
               <form action="/admin/search" method="get" className="hidden max-w-sm flex-1 px-6 lg:block">
                 <label className="flex h-10 items-center gap-2 rounded-xl border border-[var(--line)] bg-[var(--page)] px-3 text-sm text-[var(--muted)]">
@@ -188,6 +197,7 @@ export default function DashboardLayout({
               </form>
             )}
             <div className="flex shrink-0 items-center gap-2">
+              {!admin && !customerPreview && <a href="/support" aria-label="Help and support" className="grid h-10 w-10 place-items-center rounded-full hover:bg-[var(--brand-soft)]"><Headset size={22} aria-hidden="true" /></a>}
               {admin && <a href="/customer/dashboard" className="hidden min-h-10 items-center gap-1 rounded-xl border border-[var(--line)] px-3 py-2 text-xs font-semibold hover:border-[var(--brand)] sm:inline-flex"><ArrowLeftRight size={14} aria-hidden="true" /> Customer view</a>}
               <ThemeToggle />
               <form method="post" action="/logout">
