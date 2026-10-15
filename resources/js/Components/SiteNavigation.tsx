@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { usePage } from '@inertiajs/react';
+import MobileAppHeader from './MobileAppHeader';
 import { ClipboardList, CreditCard, LayoutDashboard, Menu, PlugZap, Smartphone, Users, WalletCards, X } from 'lucide-react';
 
 type SiteNavigationProps = {
@@ -21,8 +22,9 @@ export default function SiteNavigation({ children, admin = false, publicPage = f
   const overview = admin ? '/admin/dashboard' : '/dashboard';
 
   return (
-    <div className="min-h-screen bg-[var(--page)] pb-20 text-[var(--ink)] sm:pb-0">
-      <header className="sticky top-0 z-40 border-b border-[var(--line)] bg-[var(--page)]/95 backdrop-blur">
+    <div className="min-h-screen bg-[var(--page)] pb-24 text-[var(--ink)] sm:pb-0">
+      {!publicPage && <MobileAppHeader admin={admin} />}
+      <header className="sticky top-0 z-40 hidden border-b border-[var(--line)] bg-[var(--page)]/95 backdrop-blur sm:block">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8">
           <a href={publicPage ? '/' : overview} className="flex min-w-0 items-center gap-3" aria-label="SEMIZZY home">
             <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-[var(--brand)] font-display text-lg font-extrabold text-white">S</span>
@@ -99,7 +101,7 @@ export default function SiteNavigation({ children, admin = false, publicPage = f
 
       {children}
 
-      <nav aria-label="Quick navigation" className="fixed inset-x-0 bottom-0 z-40 grid border-t border-[var(--line)] bg-[var(--surface)]/95 px-1 pb-[env(safe-area-inset-bottom)] pt-2 backdrop-blur sm:hidden" style={{ gridTemplateColumns: `repeat(${admin ? 4 : 3},minmax(0,1fr))` }}>
+      <nav aria-label="Quick navigation" className="fixed inset-x-0 bottom-0 z-40 grid border-t border-[var(--line)] bg-[var(--surface)]/95 px-1 pb-[env(safe-area-inset-bottom)] pt-2 backdrop-blur sm:hidden" style={{ gridTemplateColumns: `repeat(${admin ? 4 : 5},minmax(0,1fr))` }}>
         {publicPage ? (
           <>
             <a href="/" className="flex min-h-14 flex-col items-center justify-center gap-1 rounded-lg px-1 text-[10px] font-semibold text-[var(--muted)]"><LayoutDashboard size={19} /><span>Home</span></a>
@@ -116,8 +118,10 @@ export default function SiteNavigation({ children, admin = false, publicPage = f
         ) : (
           <>
             <a href="/dashboard" className="flex min-h-14 flex-col items-center justify-center gap-1 rounded-lg px-1 text-[10px] font-semibold text-[var(--muted)]"><LayoutDashboard size={19} /><span>Home</span></a>
-            <a href="/wallet/vtu" className="flex min-h-14 flex-col items-center justify-center gap-1 rounded-lg px-1 text-[10px] font-semibold text-[var(--muted)]"><Smartphone size={19} /><span>Services</span></a>
-            <a href="/dashboard#fund-wallet" className="flex min-h-14 flex-col items-center justify-center gap-1 rounded-lg px-1 text-[10px] font-semibold text-[var(--muted)]"><CreditCard size={19} /><span>Wallet</span></a>
+            <a href="/services" className="flex min-h-14 flex-col items-center justify-center gap-1 rounded-lg px-1 text-[10px] font-semibold text-[var(--muted)]"><Smartphone size={19} /><span>Services</span></a>
+            <a href="/dashboard#rewards" className="flex min-h-14 flex-col items-center justify-center gap-1 rounded-lg px-1 text-[10px] font-semibold text-[var(--muted)]"><CreditCard size={19} /><span>Rewards</span></a>
+            <a href="/wallet/manual-deposits" className="flex min-h-14 flex-col items-center justify-center gap-1 rounded-lg px-1 text-[10px] font-semibold text-[var(--muted)]"><WalletCards size={19} /><span>Wallet</span></a>
+            <a href="/profile" className="flex min-h-14 flex-col items-center justify-center gap-1 rounded-lg px-1 text-[10px] font-semibold text-[var(--muted)]"><Users size={19} /><span>Profile</span></a>
           </>
         )}
       </nav>
