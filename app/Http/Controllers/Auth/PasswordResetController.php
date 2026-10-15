@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Services\Security\TransactionPinService;
-use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -59,7 +58,6 @@ class PasswordResetController extends Controller
                 'transaction_pin_failed_attempts' => 0,
                 'transaction_pin_locked_until' => null,
             ])->save();
-            event(new PasswordReset($user));
             $security->record($user->id, 'password_reset_completed', 'success', ['transaction_pin_cleared' => true]);
         });
 
