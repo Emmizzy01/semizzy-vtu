@@ -34,6 +34,39 @@ class UserLevelPolicyTest extends TestCase
         $this->assertDatabaseHas('user_level_policy_audits', ['level' => 'level_1', 'actor_user_id' => $admin->id]);
     }
 
+    public function test_daily_aggregate_limit_is_enforced_before_any_wallet_debit(): void
+    {
+        config(['services.vtu.name' => 'test_provider', 'services.vtu.endpoint' => 'https://provider.example.test/api', 'services.vtu.token' => 'test-secret']);
+        $provider = new class implements VtuProvider {
+            public function assertConfigured(): void {}
+            public function assertProductConfigured(VtuProduct $product): void {}
+            public function submit(\App\Models\VtuOrder $order): array { return ['status' => 'pending']; }
+            public function lookup(\App\Models\VtuOrder $order): array { return ['status' => 'pending']; }
+        };
+        $this->app->instance(VtuProvider::class, $provider);
+
+        $user = User::query()->create(['name' => 'Daily Limited Customer', 'email' => 'daily-limited@example.test', 'password' => 'not-a-real-password']);
+        $wallet = app(WalletAccountService::class)->openForUser($user);
+        app(WalletLedgerService::class)->post($wallet->id, 'credit', 5000, 'daily-policy-funding');
+        app(WalletLedgerService::class)->post($wallet->id, 'debit', 1000, 'daily-policy-prior-spend');
+        $product = VtuProduct::query()->create([
+            'service_type' => 'airtime', 'network' => 'mtn', 'code' => 'daily-policy-airtime',
+            'name' => 'Daily Policy Airtime', 'price_minor' => 1000, 'face_value_minor' => 1000,
+            'currency' => 'NGN', 'is_active' => true,
+        ]);
+        UserLevelPolicy::query()->where('level', 'level_1')->update(['daily_transaction_limit_minor' => 1500]);
+
+        try {
+            app(VtuOrderService::class)->purchase($user, $product->code, '08012345678', 'daily-policy-order');
+            $this->fail('A purchase exceeding the remaining daily allowance must be rejected.');
+        } catch (InvalidArgumentException $exception) {
+            $this->assertStringContainsString('daily transaction limit', $exception->getMessage());
+            $this->assertSame(4000, (int) $wallet->fresh()->available_balance_minor);
+            $this->assertDatabaseCount('vtu_orders', 0);
+            $this->assertDatabaseCount('wallet_transactions', 2);
+        }
+    }
+
     public function test_single_transaction_limit_is_enforced_before_any_wallet_debit(): void
     {
         config(['services.vtu.name' => 'test_provider', 'services.vtu.endpoint' => 'https://provider.example.test/api', 'services.vtu.token' => 'test-secret']);
