@@ -35,7 +35,7 @@ class TransactionPinController extends Controller
         $wasConfigured = (bool) $user->transaction_pin_hash;
         $data = $request->validate([
             'current_pin' => $wasConfigured ? ['required', 'string', 'regex:/^\\d{4}(?:\\d{2})?$/'] : ['nullable', 'string', 'regex:/^\\d{4}(?:\\d{2})?$/'],
-            'pin' => ['required', 'string', 'digits:6', 'confirmed', 'regex:/^(?!([0-9])\1{5})\d{6}$/'],
+            'pin' => ['required', 'string', 'digits:4', 'confirmed', 'regex:/^(?!([0-9])\1{3})\d{4}$/'],
         ]);
         $pin = (string) $data['pin'];
         if (in_array($pin, ['0123', '1234', '2345', '3456', '4567', '5678', '6789', '9876', '8765', '7654', '6543', '5432', '4321', '3210', '1212', '1122', '2211', '1010'], true)) {
