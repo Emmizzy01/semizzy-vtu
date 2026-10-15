@@ -10,11 +10,11 @@ type SiteNavigationProps = {
 };
 
 export default function SiteNavigation({ children, admin = false, publicPage = false }: SiteNavigationProps) {
-  const { platform } = usePage<{ platform?: { name?: string; skin?: 'emerald' | 'blue' | 'violet' | 'teal' | 'amber' } }>().props;
+  const { platform } = usePage<{ platform?: { name?: string; skin?: 'modern-green' | 'navy-teal' | 'minimal-blue' | 'obsidian-luxe' | 'arctic-light' } }>().props;
   const platformName = platform?.name || 'SEMIZZY';
   useEffect(() => {
-    const skin = platform?.skin || 'emerald';
-    if (skin === 'emerald') document.documentElement.removeAttribute('data-brand');
+    const skin = platform?.skin || 'modern-green';
+    if (skin === 'modern-green') document.documentElement.removeAttribute('data-brand');
     else document.documentElement.dataset.brand = skin;
   }, [platform?.skin]);
   const [menuOpen, setMenuOpen] = useState(false);
