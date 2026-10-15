@@ -179,7 +179,7 @@ export default function DashboardLayout({
               <span aria-hidden="true" className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-[var(--brand)] font-display text-lg font-extrabold text-white">S</span>
               <span className="min-w-0">
                 <span className="block font-display text-base font-extrabold tracking-tight">{platformName}</span>
-                <span className="block text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--muted)]">{admin ? 'Command Center' : customerPreview ? 'Customer preview' : 'Customer workspace'}</span>
+                {(admin || customerPreview) && <span className="block text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--muted)]">{admin ? 'Command Center' : 'Customer preview'}</span>}
               </span>
             </a>
             {admin && (
@@ -242,11 +242,11 @@ export default function DashboardLayout({
           </aside>
 
           <div className="min-w-0 px-4 py-7 sm:px-6 sm:py-9 lg:px-8">
-            <div className="mb-7">
-              <p className="text-xs font-extrabold uppercase tracking-[0.2em] text-[var(--brand)]">{admin ? 'Operations workspace' : 'Customer workspace'}</p>
+            {(admin || customerPreview) && <div className="mb-7">
+              <p className="text-xs font-extrabold uppercase tracking-[0.2em] text-[var(--brand)]">{admin ? 'Operations workspace' : 'Customer preview'}</p>
               <h1 className="mt-2 font-display text-3xl font-extrabold tracking-tight sm:text-4xl">{title}</h1>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--muted)] sm:text-base">{description}</p>
-            </div>
+            </div>}
             {children}
             <footer className="mt-10 border-t border-[var(--line)] py-5 text-center text-xs text-[var(--muted)]">{platformName} · Secure, mobile-first digital services</footer>
           </div>
