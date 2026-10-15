@@ -145,15 +145,15 @@ class AuthFlowTest extends TestCase
             'email' => 'pin-registration@example.test',
             'password' => 'ValidPassword1234',
             'password_confirmation' => 'ValidPassword1234',
-            'transaction_pin' => '492815',
-            'transaction_pin_confirmation' => '492815',
+            'transaction_pin' => '4928',
+            'transaction_pin_confirmation' => '4928',
         ])->assertRedirect('/dashboard');
 
         $user = User::query()->where('email', 'pin-registration@example.test')->firstOrFail();
 
         $this->assertNotNull($user->transaction_pin_hash);
-        $this->assertTrue(Hash::check('492815', $user->transaction_pin_hash));
-        $this->assertNotSame('492815', $user->transaction_pin_hash);
+        $this->assertTrue(Hash::check('4928', $user->transaction_pin_hash));
+        $this->assertNotSame('4928', $user->transaction_pin_hash);
         $this->assertDatabaseHas('transaction_security_events', [
             'user_id' => $user->id,
             'event_type' => 'pin_created',
@@ -169,8 +169,8 @@ class AuthFlowTest extends TestCase
             'email' => 'weak-pin-registration@example.test',
             'password' => 'ValidPassword1234',
             'password_confirmation' => 'ValidPassword1234',
-            'transaction_pin' => '123456',
-            'transaction_pin_confirmation' => '123456',
+            'transaction_pin' => '1234',
+            'transaction_pin_confirmation' => '1234',
         ])->assertRedirect('/register')->assertSessionHasErrors('transaction_pin');
 
         $this->from('/register')->post('/register', [
@@ -178,8 +178,8 @@ class AuthFlowTest extends TestCase
             'email' => 'mismatch-pin-registration@example.test',
             'password' => 'ValidPassword1234',
             'password_confirmation' => 'ValidPassword1234',
-            'transaction_pin' => '492815',
-            'transaction_pin_confirmation' => '492816',
+            'transaction_pin' => '4928',
+            'transaction_pin_confirmation' => '4929',
         ])->assertRedirect('/register')->assertSessionHasErrors('transaction_pin_confirmation');
 
         $this->assertDatabaseMissing('users', ['email' => 'weak-pin-registration@example.test']);
