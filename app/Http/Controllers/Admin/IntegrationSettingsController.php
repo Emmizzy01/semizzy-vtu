@@ -24,7 +24,15 @@ class IntegrationSettingsController extends Controller
         $savedMode = (string) $settings->get('paystack.mode', '');
         $mode = in_array($savedMode, ['test', 'live'], true) ? ucfirst($savedMode) : $detectedMode;
 
-        return Inertia::render('Admin/PaymentGateway', ['gateway' => [
+        return Inertia::render('Admin/PaymentGateway', [
+            'manualDeposit' => [
+                'enabled' => filter_var($settings->get('manual_deposit.enabled', false), FILTER_VALIDATE_BOOLEAN),
+                'bank_name' => (string) $settings->get('manual_deposit.bank_name', ''),
+                'account_name' => (string) $settings->get('manual_deposit.account_name', ''),
+                'account_number' => (string) $settings->get('manual_deposit.account_number', ''),
+                'instructions' => (string) $settings->get('manual_deposit.instructions', 'Transfer the exact amount and submit the receipt/reference. Funds are credited only after verification.'),
+            ],
+            'gateway' => [
             'name' => 'Paystack', 'configured' => $secret !== '',
             'production' => app()->environment('production'),
             'callbackConfigured' => $callback !== '',
