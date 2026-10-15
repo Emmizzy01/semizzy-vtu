@@ -23,6 +23,10 @@ export default function AdminDashboard({ metrics, capabilities }: { metrics: Met
     ...(capabilities.manageStaff ? [{ href: '/admin/staff', icon: <Users size={22} />, title: 'Staff & permissions', description: 'Manage approved staff permissions and review access audit records.', status: 'Permission-gated route', category: 'operations' }] : []),
     ...(capabilities.manageStaff ? [{ href: '/admin/payment-gateway', icon: <CreditCard size={22} />, title: 'Payment gateway settings', description: 'Inspect the saved gateway configuration and callback setup. Provider payments remain subject to separate verification.', status: 'Configuration view', category: 'operations' }] : []),
     ...(capabilities.manageStaff ? [{ href: '/admin/api-providers', icon: <PlugZap size={22} />, title: 'API provider settings', description: 'Review provider configuration and environment selection. Live service readiness is not inferred from saved settings.', status: 'Configuration view', category: 'operations' }] : []),
+    { href: '/admin/platform-settings', icon: <ShieldCheck size={22} />, title: 'Site control & settings', description: 'Site identity, support contacts, appearance defaults and global platform settings. Server permissions remain enforced.', status: capabilities.manageStaff ? 'Permission-gated route' : 'Staff permission required', category: 'platform' },
+    { href: '/admin/feature-controls', icon: <LockKeyhole size={22} />, title: 'Feature controls', description: 'Review implemented service availability and feature switches with dependency and audit safeguards.', status: capabilities.manageStaff ? 'Permission-gated route' : 'Staff permission required', category: 'platform' },
+    { href: '/admin/user-levels', icon: <ShieldCheck size={22} />, title: 'User types & level policies', description: 'Review account classifications and transaction-level policy controls.', status: capabilities.manageStaff ? 'Permission-gated route' : 'Staff permission required', category: 'platform' },
+    { href: '/admin/users', icon: <Users size={22} />, title: 'User management', description: 'Account state, account type and level administration, subject to assigned access.', status: capabilities.manageStaff ? 'Permission-gated route' : 'Staff permission required', category: 'platform' },
     { href: '/wallet/vtu', icon: <Smartphone size={22} />, title: 'VTU customer flow', description: 'Open the signed-in airtime and data purchase experience.', status: 'Customer route', category: 'customer' },
     { href: '/customer/dashboard', icon: <WalletCards size={22} />, title: 'Customer dashboard', description: 'Review the customer-facing wallet, funding, and service links.', status: 'Customer route', category: 'customer' },
   ], [capabilities.approveRefunds, capabilities.manageStaff]);
@@ -37,7 +41,7 @@ export default function AdminDashboard({ metrics, capabilities }: { metrics: Met
   }, [workspaces, workspaceCategory, workspaceQuery]);
 
   return (
-    <DashboardLayout title="Admin Command Center" description="A secure operational overview of SEMIZZY. Administrative sections appear according to your assigned permissions." admin canManageStaff={capabilities.manageStaff} canApproveRefunds={capabilities.approveRefunds}>
+    <DashboardLayout title="Admin Command Center" description="A secure operational overview of SEMIZZY. Implemented administrative sections are listed for discoverability; each protected action still checks your assigned permissions on the server." admin canManageStaff={true} canApproveRefunds={capabilities.approveRefunds}>
       <section aria-label="Operational metrics" className="grid grid-cols-1 gap-3 sm:grid-cols-2 2xl:grid-cols-4">
         <p className="col-span-full text-xs leading-5 text-[var(--muted)]">Snapshot of saved application records; these counts are not live provider health checks.</p>
         {capabilities.manageStaff && <Metric icon={<Users size={19} />} label="Registered accounts" value={metrics.users} detail={metrics.users === null ? "Account count unavailable" : "All customer and staff accounts"} />}
@@ -61,7 +65,7 @@ export default function AdminDashboard({ metrics, capabilities }: { metrics: Met
             <select value={workspaceCategory} onChange={(event) => setWorkspaceCategory(event.target.value)} className="min-h-11 w-full rounded-xl border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-sm outline-none focus:border-[var(--brand)] focus-visible:ring-2 focus-visible:ring-[var(--brand)]">
               <option value="all">All workspaces</option>
               <option value="operations">Operations</option>
-              <option value="customer">Customer experience</option>
+              <option value="customer">Customer experience</option><option value="platform">Platform settings</option>
             </select>
           </label>
         </div>
