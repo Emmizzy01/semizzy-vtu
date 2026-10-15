@@ -1,4 +1,5 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
+import { usePage } from '@inertiajs/react';
 import { ClipboardList, CreditCard, LayoutDashboard, Menu, PlugZap, Smartphone, Users, WalletCards, X } from 'lucide-react';
 import ThemeToggle from './ThemeToggle';
 
@@ -9,6 +10,13 @@ type SiteNavigationProps = {
 };
 
 export default function SiteNavigation({ children, admin = false, publicPage = false }: SiteNavigationProps) {
+  const { platform } = usePage<{ platform?: { name?: string; skin?: 'emerald' | 'blue' | 'violet' | 'teal' | 'amber' } }>().props;
+  const platformName = platform?.name || 'SEMIZZY';
+  useEffect(() => {
+    const skin = platform?.skin || 'emerald';
+    if (skin === 'emerald') document.documentElement.removeAttribute('data-brand');
+    else document.documentElement.dataset.brand = skin;
+  }, [platform?.skin]);
   const [menuOpen, setMenuOpen] = useState(false);
   const linkClass = 'inline-flex min-h-11 items-center gap-2 rounded-xl border border-[var(--line)] px-3 py-2 text-sm font-semibold transition hover:border-[var(--brand)] hover:bg-[var(--brand-soft)]';
   const overview = admin ? '/admin/dashboard' : '/dashboard';
@@ -20,7 +28,7 @@ export default function SiteNavigation({ children, admin = false, publicPage = f
           <a href={publicPage ? '/' : overview} className="flex min-w-0 items-center gap-3" aria-label="SEMIZZY home">
             <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-[var(--brand)] font-display text-lg font-extrabold text-white">S</span>
             <span className="min-w-0">
-              <span className="block font-display text-base font-extrabold tracking-tight">SEMIZZY</span>
+              <span className="block font-display text-base font-extrabold tracking-tight">{platformName}</span>
               <span className="block text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--muted)]">{publicPage ? 'Digital services' : admin ? 'Command Center' : 'Your account'}</span>
             </span>
           </a>
