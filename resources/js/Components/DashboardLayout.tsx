@@ -62,13 +62,13 @@ export default function DashboardLayout({
   }, [mobileMenuOpen]);
   const currentPath = location.path;
   const currentHash = location.hash;
-  const overviewHref = admin ? '/admin/dashboard' : '/dashboard';
+  const overviewHref = customerPreview ? '/customer/dashboard' : admin ? '/admin/dashboard' : '/dashboard';
 
   const customerItems: NavItem[] = [
     { label: customerPreview ? 'Customer overview' : 'Overview', href: customerPreview ? '/customer/dashboard' : '/dashboard', icon: LayoutDashboard, match: customerPreview ? '/customer/dashboard' : '/dashboard' },
     { label: 'Airtime & data', href: '/wallet/vtu', icon: Smartphone, match: '/wallet/vtu' },
-    { label: 'Transactions', href: '/dashboard#transactions', icon: ArrowLeftRight, match: '#transactions' },
-    { label: 'Fund wallet', href: '/dashboard#fund-wallet', icon: CreditCard, match: '#fund-wallet' },
+    { label: 'Transactions', href: '#transactions', icon: ArrowLeftRight, match: '#transactions' },
+    { label: 'Fund wallet', href: '#fund-wallet', icon: CreditCard, match: '#fund-wallet' },
   ];
 
   const adminGroups: { title: string; items: NavItem[] }[] = [
@@ -88,8 +88,8 @@ export default function DashboardLayout({
   ];
 
   const isActive = (item: NavItem) => {
-    if (item.match?.startsWith('#')) return currentPath === '/dashboard' && currentHash === item.match;
-    if (item.href.includes('#')) return currentPath === '/dashboard' && currentHash === item.href.split('#')[1] ? true : false;
+    if (item.match?.startsWith('#')) return (currentPath === '/dashboard' || currentPath === '/customer/dashboard') && currentHash === item.match;
+    if (item.href.includes('#')) return (currentPath === '/dashboard' || currentPath === '/customer/dashboard') && currentHash === item.href.split('#')[1] ? true : false;
     if (item.href === '/dashboard' || item.href === '/admin/dashboard' || item.href === '/customer/dashboard') return currentPath === item.href;
     return item.match === '/wallet/vtu' ? currentPath.startsWith('/wallet/vtu') : item.match ? currentPath === item.match : currentPath === item.href;
   };
