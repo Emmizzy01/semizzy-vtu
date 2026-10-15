@@ -81,6 +81,16 @@ class ManualDepositWorkflowTest extends TestCase
         $this->assertSame(12500, (int) $wallet->fresh()->balance_minor);
         $this->assertDatabaseHas('manual_deposits', ['id' => $deposit->id, 'status' => 'approved']);
         $this->assertDatabaseCount('wallet_ledger_entries', 1);
+
+        // Replaying the same approval must fail because the deposit is no longer pending.
+        $this->actingAs($admin)->post('/admin/manual-deposits/'.$deposit->public_id.'/review', [
+            'decision' => 'approve',
+            'reason' => 'Repeat approval attempt',
+        ])->assertStatus(409);
+
+        $this->assertSame(12500, (int) $wallet->fresh()->balance_minor);
+        $this->assertDatabaseCount('wallet_ledger_entries', 1);
+        $this->assertDatabaseCount('wallet_transactions', 1);
     }
 
     public function test_only_staff_permission_managers_can_access_review_and_settings(): void
