@@ -24,11 +24,26 @@ class PaystackClient
             throw new LogicException('Paystack secret key must be a valid test or live secret key.');
         }
 
-        if (config('app.env') === 'production' && str_starts_with($key, 'sk_test_')) {
-            throw new LogicException('Paystack test credentials are disabled in production. Configure a verified live secret key before processing real payments.');
+        $mode = (string) app(IntegrationSettings::class)->get(
+            'paystack.mode',
+            str_starts_with($key, 'sk_test_') ? 'test' : 'live',
+        );
+        $expectedPrefix = $mode === 'test' ? 'sk_test_' : ($mode === 'live' ? 'sk_live_' : null);
+        if ($expectedPrefix === null || ! str_starts_with($key, $expectedPrefix)) {
+            throw new LogicException('The selected Paystack mode does not match the configured secret key. Choose the matching mode and key before processing payments.');
         }
 
         return $key;
+    }
+
+    public function mode(): string
+    {
+        $key = $this->secretKey();
+
+        return (string) app(IntegrationSettings::class)->get(
+            'paystack.mode',
+            str_starts_with($key, 'sk_test_') ? 'test' : 'live',
+        );
     }
 
     public function initialize(PaymentIntent $intent, string $email): array
