@@ -76,15 +76,11 @@ export default function DashboardLayout({
   const overviewHref = customerPreview ? '/customer/dashboard' : admin ? '/admin/dashboard' : '/dashboard';
 
   const customerItems: NavItem[] = [
-    { label: customerPreview ? 'Customer overview' : 'Overview', href: customerPreview ? '/customer/dashboard' : '/dashboard', icon: LayoutDashboard, match: customerPreview ? '/customer/dashboard' : '/dashboard' },
+    { label: 'Home', href: customerPreview ? '/customer/dashboard' : '/dashboard', icon: LayoutDashboard, match: customerPreview ? '/customer/dashboard' : '/dashboard' },
     { label: 'Services', href: '/services', icon: Grid2X2, match: '/services' },
     { label: 'Airtime & data', href: '/wallet/vtu', icon: Smartphone, match: '/wallet/vtu' },
-    { label: 'Transactions', href: '#transactions', icon: ArrowLeftRight, match: '#transactions' },
-    { label: 'Fund wallet', href: '#fund-wallet', icon: CreditCard, match: '#fund-wallet' },
-    { label: 'Manual deposit', href: '/wallet/manual-deposits', icon: WalletCards, match: '/wallet/manual-deposits' },
-    { label: 'Transaction security', href: '/security/transaction-pin', icon: ShieldCheck, match: '/security/transaction-pin' },
-    { label: 'Profile & password', href: '/profile', icon: UserRound, match: '/profile' },
-    { label: 'Account tiers', href: '/account/tiers', icon: ShieldCheck, match: '/account/tiers' },
+    { label: 'Wallet', href: '/wallet/manual-deposits', icon: WalletCards, match: '/wallet/manual-deposits' },
+    { label: 'Profile', href: '/profile', icon: UserRound, match: '/profile' },
   ];
 
   const adminGroups: { title: string; items: NavItem[] }[] = [
@@ -172,7 +168,7 @@ export default function DashboardLayout({
   return (
     <>
       <Head title={title} />
-      <main className="min-h-screen bg-[var(--page)] pb-20 text-[var(--ink)] sm:pb-0">
+      <main className="min-h-screen bg-[var(--page)] pb-24 text-[var(--ink)]">
         <header className="sticky top-0 z-40 border-b border-[var(--line)] bg-[var(--surface)]/95 backdrop-blur">
           <div className="mx-auto flex max-w-[1600px] items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8">
             <a href={overviewHref} className="flex min-w-0 items-center gap-3" aria-label={`${platformName} dashboard`}>
@@ -252,9 +248,12 @@ export default function DashboardLayout({
           </div>
         </div>
 
-        <nav aria-label="Quick navigation" className="fixed inset-x-0 bottom-0 z-30 flex justify-start gap-1 overflow-x-auto border-t border-[var(--line)] bg-[var(--surface)]/95 px-2 pb-[env(safe-area-inset-bottom)] pt-2 backdrop-blur lg:hidden" style={{ scrollbarWidth: "thin" }}>
+        {!admin && <nav aria-label="Main navigation" className="fixed inset-x-0 bottom-0 z-50 flex justify-around gap-1 border-t border-[var(--line)] bg-[var(--surface)]/95 px-2 pb-[env(safe-area-inset-bottom)] pt-2 backdrop-blur" style={{ scrollbarWidth: "thin" }}>
+          {customerItems.map((item) => renderLink(item, true))}
+        </nav>}
+        {admin && <nav aria-label="Admin quick navigation" className="fixed inset-x-0 bottom-0 z-30 flex justify-start gap-1 overflow-x-auto border-t border-[var(--line)] bg-[var(--surface)]/95 px-2 pb-[env(safe-area-inset-bottom)] pt-2 backdrop-blur lg:hidden" style={{ scrollbarWidth: "thin" }}>
           {mobileItems.map((item) => renderLink(item, true))}
-        </nav>
+        </nav>}
       </main>
     </>
   );
