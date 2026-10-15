@@ -92,7 +92,9 @@ class VtuOrderMariaDbConcurrencyTest extends TestCase
             'Exactly one worker should approve the pending deposit; the competing review should conflict.');
         $this->assertSame('approved', $deposit->fresh()->status);
         $this->assertSame(12500, (int) $wallet->fresh()->balance_minor);
-        $this->assertSame(1, DB::table('wallet_ledger_entries')->where('reference', $deposit->public_id)->count());
+        $transactionId = DB::table('wallet_transactions')->where('reference', $deposit->public_id)->value('id');
+        $this->assertNotNull($transactionId);
+        $this->assertSame(1, DB::table('wallet_ledger_entries')->where('wallet_transaction_id', $transactionId)->count());
         $this->assertSame(1, DB::table('wallet_transactions')->where('reference', $deposit->public_id)->count());
         $this->assertSame(1, DB::table('manual_deposit_audits')->where('manual_deposit_id', $deposit->getKey())->where('event_type', 'approve')->count());
 
