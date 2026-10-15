@@ -169,7 +169,7 @@ export default function DashboardLayout({
     <>
       <Head title={title} />
       <main className="min-h-screen bg-[var(--page)] pb-24 text-[var(--ink)]">
-        <header className="sticky top-0 z-40 border-b border-[var(--line)] bg-[var(--surface)]/95 backdrop-blur">
+        {(admin || customerPreview) && <header className="sticky top-0 z-40 border-b border-[var(--line)] bg-[var(--surface)]/95 backdrop-blur">
           <div className="mx-auto flex max-w-[1600px] items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8">
             <a href={overviewHref} className="flex min-w-0 items-center gap-3" aria-label={`${platformName} dashboard`}>
               <span aria-hidden="true" className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-[var(--brand)] font-display text-lg font-extrabold text-white">S</span>
@@ -200,7 +200,7 @@ export default function DashboardLayout({
               </button>
             </div>
           </div>
-        </header>
+        </header>}
 
         {mobileMenuOpen && (
           <nav id="semizzy-mobile-navigation" aria-label="Mobile navigation menu" className="border-b border-[var(--line)] bg-[var(--surface)] px-4 py-4 lg:hidden">
@@ -217,8 +217,8 @@ export default function DashboardLayout({
           </nav>
         )}
 
-        <div className="mx-auto grid max-w-[1600px] lg:grid-cols-[250px_minmax(0,1fr)]">
-          <aside className="sticky top-[65px] hidden h-[calc(100vh-65px)] overflow-y-auto border-r border-[var(--line)] bg-[var(--surface)] px-4 py-6 lg:block">
+        <div className={`mx-auto grid max-w-[1600px] ${(admin || customerPreview) ? 'lg:grid-cols-[250px_minmax(0,1fr)]' : ''}`}>
+          {(admin || customerPreview) && <aside className="sticky top-[65px] hidden h-[calc(100vh-65px)] overflow-y-auto border-r border-[var(--line)] bg-[var(--surface)] px-4 py-6 lg:block">
             {admin ? adminGroups.map((group) => (
               <section key={group.title} className="mb-6">
                 <p className="mb-2 px-3 text-[10px] font-extrabold uppercase tracking-[0.18em] text-[var(--muted)]">{group.title}</p>
@@ -235,7 +235,7 @@ export default function DashboardLayout({
                 </div>
               </>
             )}
-          </aside>
+          </aside>}
 
           <div className="min-w-0 px-4 py-7 sm:px-6 sm:py-9 lg:px-8">
             {(admin || customerPreview) && <div className="mb-7">
