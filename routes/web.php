@@ -143,3 +143,10 @@ Route::middleware(['auth', 'throttle:60,1'])->prefix('wallet/vtu')->name('wallet
     Route::post('/orders', [VtuOrderController::class, 'purchase'])->middleware('throttle:10,1')->name('orders.create');
     Route::get('/orders/{publicId}', [VtuOrderController::class, 'show'])->name('orders.show');
 });
+
+
+Route::middleware(['auth', 'can:staff.permissions.manage'])->prefix('admin')->name('admin.')->group(function (): void {
+    Route::get('/vtu-products', [\App\Http\Controllers\Admin\VtuProductCatalogueController::class, 'index'])->name('vtu-products.index');
+    Route::post('/vtu-products', [\App\Http\Controllers\Admin\VtuProductCatalogueController::class, 'store'])->middleware('throttle:20,1')->name('vtu-products.store');
+    Route::put('/vtu-products/{product}', [\App\Http\Controllers\Admin\VtuProductCatalogueController::class, 'update'])->whereNumber('product')->middleware('throttle:20,1')->name('vtu-products.update');
+});
