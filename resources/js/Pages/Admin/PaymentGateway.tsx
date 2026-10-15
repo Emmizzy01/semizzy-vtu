@@ -1,5 +1,7 @@
-import { ArrowLeft, Copy, CreditCard, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, Copy, CreditCard, ShieldCheck, WalletCards } from 'lucide-react';
 import { Head, useForm } from '@inertiajs/react';
+
+type ManualDepositSettings = { enabled: boolean; bank_name: string; account_name: string; account_number: string; instructions: string };
 
 type Gateway = {
   name: string;
@@ -13,8 +15,9 @@ type Gateway = {
   webhookUrl: string;
 };
 
-export default function PaymentGateway({ gateway }: { gateway: Gateway }) {
+export default function PaymentGateway({ gateway, manualDeposit }: { gateway: Gateway; manualDeposit: ManualDepositSettings }) {
   const form = useForm({ mode: gateway.mode === 'Live' ? 'live' : 'test', secret_key: '', callback_url: gateway.callbackUrl || '', confirm_live: false });
+  const depositForm = useForm({ ...manualDeposit, reason: '' });
 
   return (
     <>
@@ -40,6 +43,24 @@ export default function PaymentGateway({ gateway }: { gateway: Gateway }) {
             <Endpoint label="Callback URL" value={gateway.callbackUrl} help="Used by the checkout redirect. This URL is also saved in the settings below." />
             <Endpoint label="Webhook URL" value={gateway.webhookUrl} help="Paste this into Paystack Dashboard → Developers → Webhooks. Listen for charge.success." />
           </div>
+        </section>
+
+
+        <section className="mt-7 max-w-4xl rounded-3xl border border-[var(--line)] bg-[var(--surface)] p-5 sm:p-7">
+          <div className="flex items-start gap-3"><span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[var(--brand-soft)] text-[var(--brand)]"><WalletCards size={22} /></span><div><h2 className="font-display text-lg font-extrabold">Manual bank deposit</h2><p className="mt-1 text-sm leading-6 text-[var(--muted)]">Configure customer-facing bank transfer instructions here alongside the online payment gateway. Manual deposits stay unavailable until valid bank details are saved and the channel is enabled.</p></div></div>
+          <form onSubmit={e => { e.preventDefault(); depositForm.put('/admin/manual-deposits/settings', { preserveScroll: true }); }} className="mt-5 space-y-4">
+            <label className="flex items-center justify-between gap-4 rounded-xl border border-[var(--line)] p-4"><span><span className="block text-sm font-bold">Enable manual deposits</span><span className="mt-1 block text-xs text-[var(--muted)]">Users can submit bank-transfer evidence only when enabled.</span></span><input type="checkbox" checked={depositForm.data.enabled} onChange={e => depositForm.setData('enabled', e.target.checked)} className="h-5 w-5 accent-[var(--brand)]" /></label>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <DepositField label="Bank name" value={depositForm.data.bank_name} onChange={v => depositForm.setData('bank_name', v)} error={depositForm.errors.bank_name} />
+              <DepositField label="Account name" value={depositForm.data.account_name} onChange={v => depositForm.setData('account_name', v)} error={depositForm.errors.account_name} />
+              <DepositField label="Account number" value={depositForm.data.account_number} onChange={v => depositForm.setData('account_number', v)} error={depositForm.errors.account_number} />
+            </div>
+            <label className="block space-y-2"><span className="text-sm font-bold">Customer transfer instructions</span><textarea value={depositForm.data.instructions} onChange={e => depositForm.setData('instructions', e.target.value)} required minLength={10} maxLength={1500} rows={4} className="w-full rounded-xl border border-[var(--line)] bg-[var(--surface)] px-3 py-3 text-sm" /></label>
+            <label className="block space-y-2"><span className="text-sm font-bold">Reason for settings change (audit note)</span><textarea value={depositForm.data.reason} onChange={e => depositForm.setData('reason', e.target.value)} required minLength={8} maxLength={500} rows={2} placeholder="e.g. Configure verified Semizzy funding account" className="w-full rounded-xl border border-[var(--line)] bg-[var(--surface)] px-3 py-3 text-sm" /></label>
+            {depositForm.hasErrors && <p role="alert" className="text-sm text-rose-600">Please correct the highlighted deposit settings. Enabling requires bank name, account name, and account number.</p>}
+            <button type="submit" disabled={depositForm.processing} className="min-h-11 rounded-xl bg-[var(--brand)] px-5 py-3 text-sm font-bold text-white disabled:opacity-60">{depositForm.processing ? 'Saving…' : 'Save manual deposit settings'}</button>
+            {depositForm.recentlySuccessful && <p role="status" className="text-sm font-semibold text-emerald-600">Manual deposit settings saved.</p>}
+          </form>
         </section>
 
         <form onSubmit={e => { e.preventDefault(); form.put('/admin/payment-gateway'); }} className="mt-7 max-w-3xl space-y-5 rounded-3xl border border-[var(--line)] bg-[var(--surface)] p-5 sm:p-7">
@@ -83,4 +104,8 @@ function Field({ label, value, onChange, error, placeholder, type = 'text' }: { 
 
 function Status({ title, value, detail }: { title: string; value: string; detail: string }) {
   return <article className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-5"><p className="text-xs font-bold text-[var(--muted)]">{title}</p><h2 className="mt-3 break-words font-display text-xl font-extrabold">{value}</h2><p className="mt-2 text-sm leading-6 text-[var(--muted)]">{detail}</p></article>;
+}
+
+function DepositField({ label, value, onChange, error }: { label: string; value: string; onChange: (value: string) => void; error?: string }) {
+  return <label className="block space-y-2"><span className="text-sm font-bold">{label}</span><input value={value} onChange={e => onChange(e.target.value)} maxLength={160} className="min-h-11 w-full rounded-xl border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-sm" />{error && <span className="block text-xs text-rose-600">{error}</span>}</label>;
 }
