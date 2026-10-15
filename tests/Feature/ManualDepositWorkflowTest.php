@@ -7,6 +7,7 @@ use App\Models\UserPermission;
 use App\Models\ManualDeposit;
 use App\Models\Wallet;
 use App\Services\Wallets\WalletAccountService;
+use App\Services\IntegrationSettings;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -22,6 +23,7 @@ class ManualDepositWorkflowTest extends TestCase
         Storage::fake('local');
         $customer = User::query()->create(['name' => 'Deposit Customer', 'email' => 'deposit-customer@example.test', 'password' => 'not-a-real-password']);
         $wallet = app(WalletAccountService::class)->openForUser($customer);
+        app(IntegrationSettings::class)->set('manual_deposit.enabled', '1', $customer->id);
 
         $this->actingAs($customer)->post('/wallet/manual-deposits', [
             'amount_minor' => 250000,
@@ -34,12 +36,29 @@ class ManualDepositWorkflowTest extends TestCase
     }
 
 
+    public function test_manual_deposits_are_disabled_until_admin_configures_instructions(): void
+    {
+        Storage::fake('local');
+        $customer = User::query()->create(['name' => 'Safe Defaults Customer', 'email' => 'safe-deposit-default@example.test', 'password' => 'not-a-real-password']);
+        $this->actingAs($customer)->get('/wallet/manual-deposits')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->component('Wallet/ManualDeposit')->where('instructions.enabled', false));
+
+        $this->actingAs($customer)->post('/wallet/manual-deposits', [
+            'amount_minor' => 250000,
+            'transfer_reference' => 'SAFE-DEFAULT-TRANSFER-001',
+            'evidence' => UploadedFile::fake()->image('receipt.png'),
+        ])->assertForbidden();
+        $this->assertDatabaseCount('manual_deposits', 0);
+    }
+
     public function test_duplicate_receipt_evidence_is_flagged_and_cannot_be_approved(): void
     {
         Storage::fake('local');
         $customer = User::query()->create(['name' => 'Duplicate Receipt Customer', 'email' => 'duplicate-receipt@example.test', 'password' => 'not-a-real-password']);
         $receiptContent = '%PDF-1.4\nSemizzy duplicate receipt test\n%%EOF';
         $wallet = app(WalletAccountService::class)->openForUser($customer);
+        app(IntegrationSettings::class)->set('manual_deposit.enabled', '1', $customer->id);
 
         $this->actingAs($customer)->post('/wallet/manual-deposits', [
             'amount_minor' => 150000,
