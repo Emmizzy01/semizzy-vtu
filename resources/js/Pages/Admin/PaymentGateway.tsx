@@ -3,6 +3,7 @@ import { Head, useForm } from '@inertiajs/react';
 
 type Gateway = {
   name: string;
+  production: boolean;
   configured: boolean;
   callbackConfigured: boolean;
   mode: 'Test' | 'Live' | 'Unknown';
@@ -23,6 +24,8 @@ export default function PaymentGateway({ gateway }: { gateway: Gateway }) {
           <span className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-[var(--brand-soft)] text-[var(--brand)]"><CreditCard size={26} /></span>
           <div><p className="text-xs font-extrabold uppercase tracking-[0.18em] text-[var(--brand)]">Finance integrations</p><h1 className="mt-1 font-display text-3xl font-extrabold tracking-tight sm:text-4xl">Payment gateway</h1><p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--muted)]">Manage Paystack wallet funding, return customers to Semizzy after checkout, and configure the server notification endpoint.</p></div>
         </div>
+        {gateway.production && gateway.mode === 'Test' && <section role="alert" className="mt-6 rounded-2xl border border-amber-500/50 bg-amber-500/10 p-5 text-sm leading-6"><strong>Production payment safety hold:</strong> the saved Paystack key is a test key. Real wallet funding is blocked while these credentials are active. Replace it with the live secret key issued by Paystack and confirm live mode; do not use test credentials for customer payments.</section>}
+        {gateway.production && gateway.mode === 'Unknown' && gateway.configured && <section role="alert" className="mt-6 rounded-2xl border border-amber-500/50 bg-amber-500/10 p-5 text-sm leading-6"><strong>Production payment safety hold:</strong> the saved Paystack key mode cannot be verified. Real wallet funding will be rejected until a valid live secret key is configured.</section>}
         <section className="mt-7 grid gap-4 sm:grid-cols-3">
           <Status title="Provider" value={gateway.name} detail="Wallet funding and verification" />
           <Status title="Current key" value={gateway.configured ? 'Configured · hidden' : 'Missing'} detail={`Detected mode: ${gateway.mode}`} />

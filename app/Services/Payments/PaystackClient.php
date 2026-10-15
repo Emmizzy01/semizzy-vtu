@@ -24,6 +24,10 @@ class PaystackClient
             throw new LogicException('Paystack secret key must be a valid test or live secret key.');
         }
 
+        if (config('app.env') === 'production' && str_starts_with($key, 'sk_test_')) {
+            throw new LogicException('Paystack test credentials are disabled in production. Configure a verified live secret key before processing real payments.');
+        }
+
         return $key;
     }
 

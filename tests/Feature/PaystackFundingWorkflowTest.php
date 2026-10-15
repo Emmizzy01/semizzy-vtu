@@ -24,6 +24,21 @@ class PaystackFundingWorkflowTest extends TestCase
         ]);
     }
 
+    public function test_production_rejects_paystack_test_credentials_before_any_provider_request(): void
+    {
+        config(['app.env' => 'production']);
+        Http::fake();
+
+        try {
+            app(\App\Services\Payments\PaystackClient::class)->verifyTransaction('SZF-TEST-REFERENCE');
+            $this->fail('Production must reject Paystack test credentials.');
+        } catch (\LogicException $exception) {
+            $this->assertStringContainsString('test credentials are disabled in production', $exception->getMessage());
+        }
+
+        Http::assertNothingSent();
+    }
+
     public function test_authenticated_customer_can_initialize_paystack_checkout(): void
     {
         Http::fake([

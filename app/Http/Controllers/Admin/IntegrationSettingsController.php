@@ -22,6 +22,7 @@ class IntegrationSettingsController extends Controller
 
         return Inertia::render('Admin/PaymentGateway', ['gateway' => [
             'name' => 'Paystack', 'configured' => $secret !== '',
+            'production' => app()->environment('production'),
             'callbackConfigured' => $callback !== '',
             'mode' => str_starts_with($secret, 'sk_test_') ? 'Test' : (str_starts_with($secret, 'sk_live_') ? 'Live' : 'Unknown'),
             'callbackHost' => parse_url($callback, PHP_URL_HOST) ?: null,
@@ -40,6 +41,9 @@ class IntegrationSettingsController extends Controller
         $secret = trim((string) ($data['secret_key'] ?? ''));
         if ($secret !== '' && ! preg_match('/^sk_(?:test|live)_[^\s]+$/', $secret)) {
             return back()->withErrors(['secret_key' => 'Enter a valid Paystack secret key beginning with sk_test_ or sk_live_.']);
+        }
+        if (app()->environment('production') && $secret !== '' && str_starts_with($secret, 'sk_test_')) {
+            return back()->withErrors(['secret_key' => 'Test credentials cannot be saved for production. Use the live secret key issued by Paystack.']);
         }
         if ($secret !== '' && str_starts_with($secret, 'sk_live_') && ! $request->boolean('confirm_live')) {
             return back()->withErrors(['confirm_live' => 'Confirm live payment mode before saving.']);
