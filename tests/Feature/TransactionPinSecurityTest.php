@@ -87,6 +87,21 @@ class TransactionPinSecurityTest extends TestCase
         $this->assertDatabaseHas('transaction_security_events', ['user_id' => $user->id, 'event_type' => 'pin_created', 'outcome' => 'success']);
     }
 
+    public function test_legacy_six_digit_pin_can_be_changed_to_the_new_four_digit_format(): void
+    {
+        $user = User::query()->create(['name' => 'Legacy PIN Customer', 'email' => 'legacy-pin@example.test', 'password' => 'not-a-real-password']);
+        $user->forceFill(['transaction_pin_hash' => Hash::make('492815')])->save();
+
+        $this->actingAs($user)->put('/security/transaction-pin', [
+            'current_pin' => '492815',
+            'pin' => '7359',
+            'pin_confirmation' => '7359',
+        ])->assertRedirect();
+
+        $this->assertTrue(Hash::check('7359', $user->fresh()->transaction_pin_hash));
+        $this->assertDatabaseHas('transaction_security_events', ['user_id' => $user->id, 'event_type' => 'pin_changed', 'outcome' => 'success']);
+    }
+
     public function test_repeated_pin_and_simple_sequences_are_rejected(): void
     {
         $user = User::query()->create(['name' => 'PIN Customer', 'email' => 'pin-customer2@example.test', 'password' => 'not-a-real-password']);
