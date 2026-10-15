@@ -13,13 +13,13 @@ class VtuProductCatalogueTest extends TestCase
 
     public function test_catalogue_management_requires_authorised_staff_permission(): void
     {
-        $user = User::factory()->create();
+        $user = User::query()->create(['name' => 'Catalogue Customer', 'email' => 'catalogue-customer@example.test', 'password' => 'not-a-real-password']);
         $this->actingAs($user)->get('/admin/vtu-products')->assertForbidden();
     }
 
     public function test_authorised_staff_can_create_inactive_data_plan_with_duration_and_provider_mapping(): void
     {
-        $staff = User::factory()->create();
+        $staff = User::query()->create(['name' => 'Catalogue Staff', 'email' => 'catalogue-staff@example.test', 'password' => 'not-a-real-password']);
         $staff->permissions()->create(['permission' => 'staff.permissions.manage']);
         $this->actingAs($staff)->post('/admin/vtu-products', [
             'service_type' => 'data', 'network' => 'MTN', 'code' => 'mtn-test-plan',
@@ -38,7 +38,7 @@ class VtuProductCatalogueTest extends TestCase
 
     public function test_data_plan_cannot_be_activated_without_provider_variation_code(): void
     {
-        $staff = User::factory()->create();
+        $staff = User::query()->create(['name' => 'Catalogue Staff Two', 'email' => 'catalogue-staff-two@example.test', 'password' => 'not-a-real-password']);
         $staff->permissions()->create(['permission' => 'staff.permissions.manage']);
         $this->actingAs($staff)->post('/admin/vtu-products', [
             'service_type' => 'data', 'network' => 'MTN', 'code' => 'mtn-missing-map',
