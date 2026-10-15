@@ -167,7 +167,7 @@ class WalletLedgerServiceTest extends TestCase
         try {
             app(WalletLedgerService::class)->post($wallet->id, 'credit', 101, 'over-cap-credit');
             $this->fail('A credit that exceeds the configured wallet balance limit must be rejected.');
-        } catch (\\DomainException $exception) {
+        } catch (\DomainException $exception) {
             $this->assertStringContainsString('account level would be exceeded', $exception->getMessage());
         }
 
