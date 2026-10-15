@@ -6,6 +6,7 @@ type Metrics = {
   users: number | null;
   wallets: number;
   pendingFunding: number;
+  pendingManualDeposits: number | null;
   refundsNeedingAction: number | null;
   unresolvedVtuOrders: number;
 };
@@ -18,6 +19,7 @@ export default function AdminDashboard({ metrics, capabilities }: { metrics: Met
   const workspaces = useMemo(() => [
     ...(capabilities.approveRefunds ? [{ href: '/admin/refunds', icon: <CreditCard size={22} />, title: 'Refund operations', description: 'Review refund requests, monitor provider outcomes, and approve eligible requests.', status: 'Permission-gated route', category: 'operations' }] : []),
     ...(capabilities.manageStaff ? [{ href: '/admin/vtu-orders', icon: <Smartphone size={22} />, title: 'VTU order operations', description: 'Inspect pending and ambiguous VTU orders, provider references, and reconciliation context without changing wallet balances.', status: 'Read-only · restricted access', category: 'operations' }] : []),
+    ...(capabilities.manageStaff ? [{ href: '/admin/manual-deposits', icon: <WalletCards size={22} />, title: 'Manual deposit review', description: 'Inspect submitted transfer evidence and review pending deposits. Wallet credits require an audited, verified approval.', status: 'Permission-gated route', category: 'operations' }] : []),
     ...(capabilities.manageStaff ? [{ href: '/admin/staff', icon: <Users size={22} />, title: 'Staff & permissions', description: 'Manage approved staff permissions and review access audit records.', status: 'Permission-gated route', category: 'operations' }] : []),
     ...(capabilities.manageStaff ? [{ href: '/admin/payment-gateway', icon: <CreditCard size={22} />, title: 'Payment gateway settings', description: 'Inspect the saved gateway configuration and callback setup. Provider payments remain subject to separate verification.', status: 'Configuration view', category: 'operations' }] : []),
     ...(capabilities.manageStaff ? [{ href: '/admin/api-providers', icon: <PlugZap size={22} />, title: 'API provider settings', description: 'Review provider configuration and environment selection. Live service readiness is not inferred from saved settings.', status: 'Configuration view', category: 'operations' }] : []),
@@ -41,6 +43,7 @@ export default function AdminDashboard({ metrics, capabilities }: { metrics: Met
         {capabilities.manageStaff && <Metric icon={<Users size={19} />} label="Registered accounts" value={metrics.users} detail={metrics.users === null ? "Account count unavailable" : "All customer and staff accounts"} />}
         <Metric icon={<WalletCards size={19} />} label="Wallet accounts" value={metrics.wallets} detail="Wallet records across currencies" />
         <Metric icon={<CreditCard size={19} />} label="Funding in progress" value={metrics.pendingFunding} detail="Pending or processing intents" status={metrics.pendingFunding > 0 ? "in-progress" : "clear"} />
+        {capabilities.manageStaff && <Metric icon={<WalletCards size={19} />} label="Manual deposits to review" value={metrics.pendingManualDeposits} detail="Pending bank-transfer evidence reviews" status={metrics.pendingManualDeposits === null ? "unavailable" : metrics.pendingManualDeposits > 0 ? "attention" : "clear"} />}
         {capabilities.approveRefunds && <Metric icon={<ShieldCheck size={19} />} label="Refunds needing action" value={metrics.refundsNeedingAction} detail={metrics.refundsNeedingAction === null ? "Refund count unavailable" : "Requested, blocked, or review required"} status={metrics.refundsNeedingAction === null ? "unavailable" : metrics.refundsNeedingAction > 0 ? "attention" : "clear"} />}
         <Metric icon={<Smartphone size={19} />} label="Unresolved VTU orders" value={metrics.unresolvedVtuOrders} detail="Processing or awaiting reconciliation" status={metrics.unresolvedVtuOrders > 0 ? "attention" : "clear"} />
       </section>
