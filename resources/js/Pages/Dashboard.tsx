@@ -124,7 +124,7 @@ export default function CustomerDashboard({ wallet, transactions, orders, fundin
       <section id="transactions" className="mt-8 grid gap-5 xl:grid-cols-2">
         <div className="overflow-hidden rounded-3xl border border-[var(--line)] bg-[var(--surface)]">
           <div className="border-b border-[var(--line)] p-5">
-            <div className="flex items-center justify-between gap-3"><div><h2 className="font-display text-lg font-extrabold">Recent wallet activity</h2><p className="mt-1 text-xs text-[var(--muted)]">Search and filter your latest wallet transactions</p></div><WalletCards size={20} className="shrink-0 text-[var(--brand)]" aria-hidden="true" /></div>
+            <div className="flex items-center justify-between gap-3"><div><h2 className="font-display text-lg font-extrabold">Wallet transaction history</h2><p className="mt-1 text-xs text-[var(--muted)]">Search and filter your wallet transactions</p></div><WalletCards size={20} className="shrink-0 text-[var(--brand)]" aria-hidden="true" /></div>
             <form method="get" action={isAdminPreview ? '/customer/dashboard' : '/dashboard'} className="mt-4 grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto_auto]">
               <input type="hidden" name="orders_page" value={orderPagination.currentPage} />
               <input type="hidden" name="order_search" value={orderFilters.search} />
@@ -136,10 +136,8 @@ export default function CustomerDashboard({ wallet, transactions, orders, fundin
             <p className="mt-3 text-xs text-[var(--muted)]" aria-live="polite">Showing {transactions.length} of {transactionPagination.total} matching transactions · Page {transactionPagination.currentPage} of {transactionPagination.lastPage}</p>
           </div>
           {transactions.length === 0
-            ? <EmptyState message="No wallet transactions yet. Your activity will appear here when you use a supported wallet service." />
-            : filteredTransactions.length === 0
-              ? <EmptyState message="No recent transactions match those filters. Try another search or status." />
-              : <div className="divide-y divide-[var(--line)]">{filteredTransactions.map((item) => <article key={item.id} className="flex items-start justify-between gap-3 p-4 sm:px-5"><div className="min-w-0"><p className="break-words text-sm font-bold">{item.description || item.type.replaceAll('_', ' ')}</p><p className="mt-1 break-all text-xs text-[var(--muted)]">{item.reference || item.id} · {dateLabel(item.created_at)}</p><span className={`mt-2 inline-flex rounded-full px-2.5 py-1 text-[10px] font-bold ${statusClass(item.status)}`}>{item.status.replaceAll('_', ' ')}</span></div><p className="shrink-0 text-sm font-extrabold tabular-nums">{money(item.amount_minor, item.currency)}</p></article>)}</div>}
+            ? <EmptyState message={transactionFilters.search || transactionFilters.status !== 'all' ? 'No transactions match these filters. Clear the search or choose all statuses to see more.' : 'No wallet transactions yet. Your activity will appear here when you use a supported wallet service.'} />
+            : <div className="divide-y divide-[var(--line)]">{filteredTransactions.map((item) => <article key={item.id} className="flex items-start justify-between gap-3 p-4 sm:px-5"><div className="min-w-0"><p className="break-words text-sm font-bold">{item.description || item.type.replaceAll('_', ' ')}</p><p className="mt-1 break-all text-xs text-[var(--muted)]">{item.reference || item.id} · {dateLabel(item.created_at)}</p><span className={`mt-2 inline-flex rounded-full px-2.5 py-1 text-[10px] font-bold ${statusClass(item.status)}`}>{item.status.replaceAll('_', ' ')}</span></div><p className="shrink-0 text-sm font-extrabold tabular-nums">{money(item.amount_minor, item.currency)}</p></article>)}</div>}
           <HistoryPager page={transactionPagination.currentPage} lastPage={transactionPagination.lastPage} pageName="transactions_page" anchor="transactions" isAdminPreview={isAdminPreview} />
         </div>
 
