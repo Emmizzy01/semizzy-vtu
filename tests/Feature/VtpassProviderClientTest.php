@@ -11,6 +11,8 @@ use Tests\TestCase;
 
 class VtpassProviderClientTest extends TestCase
 {
+    use RefreshDatabase;
+
     protected function setUp(): void
     {
         parent::setUp();
