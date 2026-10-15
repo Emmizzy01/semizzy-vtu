@@ -115,6 +115,8 @@ export default function CustomerDashboard({ wallet, transactions, orders, fundin
       </section>
 
       <section className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <QuickLink href="/services" icon={<WalletCards size={20} />} title="All services" detail="Browse the organized service catalogue" />
+        <QuickLink href="/wallet/manual-deposits" icon={<ArrowDownToLine size={20} />} title="Manual bank deposit" detail="Transfer and submit proof for review" />
         <QuickLink href="/wallet/vtu" icon={<Smartphone size={20} />} title="Airtime & data" detail="Buy mobile services" />
         <QuickLink href="#transactions" icon={<ArrowDownToLine size={20} />} title="Transactions" detail="Review wallet activity" />
         <QuickLink href="#funding-history" icon={<CreditCard size={20} />} title="Funding history" detail="See payment attempts" />
