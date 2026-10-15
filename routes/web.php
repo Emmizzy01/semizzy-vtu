@@ -16,6 +16,7 @@ use App\Http\Controllers\Admin\GlobalSearchController;
 use App\Http\Controllers\Admin\UserLevelPolicyController;
 use App\Http\Controllers\Admin\SecurityEventsController;
 use App\Http\Controllers\Admin\FeatureControlController;
+use App\Models\PlatformFeatureControl;
 use App\Http\Controllers\Security\TransactionPinController;
 use App\Http\Controllers\Account\ProfileController;
 use App\Http\Controllers\Support\SupportTicketController;
@@ -51,7 +52,14 @@ Route::middleware('auth')->group(function (): void {
     Route::get('/dashboard', [DashboardController::class, 'customer'])->name('dashboard');
     Route::get('/security/transaction-pin', [TransactionPinController::class, 'show'])->name('security.transaction-pin');
     Route::put('/security/transaction-pin', [TransactionPinController::class, 'update'])->middleware('throttle:5,1')->name('security.transaction-pin.update');
-    Route::get('/services', function (IntegrationSettings $settings) { return Inertia::render('Services/Index', ['availability' => ['airtimeData' => filter_var($settings->get('service.airtime_data.enabled', true), FILTER_VALIDATE_BOOLEAN), 'manualDeposit' => filter_var($settings->get('manual_deposit.enabled', true), FILTER_VALIDATE_BOOLEAN)]]); })->name('services.index');
+    Route::get('/services', function (IntegrationSettings $settings) {
+    $manualDepositFeature = PlatformFeatureControl::query()->where('feature_key', 'service.manual_deposit')->value('is_enabled');
+    return Inertia::render('Services/Index', ['availability' => [
+        'airtimeData' => filter_var($settings->get('service.airtime_data.enabled', true), FILTER_VALIDATE_BOOLEAN),
+        'manualDeposit' => filter_var($settings->get('manual_deposit.enabled', true), FILTER_VALIDATE_BOOLEAN)
+            && ($manualDepositFeature === null || (bool) $manualDepositFeature),
+    ]]);
+})->name('services.index');
     Route::get('/customer/dashboard', [DashboardController::class, 'customerPreview'])->name('customer.dashboard');
     Route::get('/admin/dashboard', [DashboardController::class, 'admin'])
         ->middleware('can:admin.dashboard')
