@@ -33,10 +33,24 @@ createInertiaApp({
       import.meta.glob('./Pages/**/*.tsx') as Record<string, () => Promise<PageWithLayout>>,
     );
 
-    // These pages own their complete layout. Wrapping them in SiteNavigation
-    // duplicates headers and mobile navigation, which can crowd or obscure auth forms.
     const PageComponent = page.default;
-    if (name === 'Dashboard' || name === 'Admin/Dashboard' || name === 'Welcome' || name.startsWith('Auth/') || name === 'Wallet/VtuPurchase') {
+
+    // These page families render their own complete dashboard/header layout.
+    // Wrapping them in SiteNavigation creates two stacked headers and duplicate
+    // navigation. Keep the global theme synchronizer, but only one layout owner.
+    const ownsDashboardLayout =
+      name === 'Dashboard' ||
+      name === 'Admin/Dashboard' ||
+      name.startsWith('Admin/') ||
+      name.startsWith('Account/') ||
+      name.startsWith('Security/') ||
+      name.startsWith('Services/') ||
+      name.startsWith('Support/') ||
+      name === 'Wallet/ManualDeposit' ||
+      name === 'Wallet/VtuPurchase';
+
+    // Public/auth pages and dashboard-layout pages own their complete layout.
+    if (ownsDashboardLayout || name === 'Welcome' || name.startsWith('Auth/')) {
       PageComponent.layout = (content) => <GlobalThemeSync>{content}</GlobalThemeSync>;
       return page;
     }
