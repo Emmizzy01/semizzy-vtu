@@ -74,6 +74,7 @@ export default function DashboardLayout({
   const adminGroups: { title: string; items: NavItem[] }[] = [
     { title: 'Workspace', items: [{ label: 'Command Center', href: '/admin/dashboard', icon: LayoutDashboard, match: '/admin/dashboard' }] },
     ...(canApproveRefunds ? [{ title: 'Finance', items: [{ label: 'Refund operations', href: '/admin/refunds', icon: CreditCard, match: '/admin/refunds' }] }] : []),
+    ...(canManageStaff ? [{ title: 'Operations', items: [{ label: 'VTU order queue', href: '/admin/vtu-orders', icon: Smartphone, match: '/admin/vtu-orders' }] }] : []),
     ...(canManageStaff ? [{ title: 'Platform', items: [
       { label: 'Payment gateway', href: '/admin/payment-gateway', icon: ShieldCheck, match: '/admin/payment-gateway' },
       { label: 'API providers', href: '/admin/api-providers', icon: PlugZap, match: '/admin/api-providers' },
@@ -124,6 +125,7 @@ export default function DashboardLayout({
         { label: 'Home', href: '/admin/dashboard', icon: LayoutDashboard, match: '/admin/dashboard' },
         ...(canApproveRefunds ? [{ label: 'Refunds', href: '/admin/refunds', icon: CreditCard, match: '/admin/refunds' }] : []),
         ...(canManageStaff ? [
+          { label: 'VTU orders', href: '/admin/vtu-orders', icon: Smartphone, match: '/admin/vtu-orders' },
           { label: 'Gateway', href: '/admin/payment-gateway', icon: ShieldCheck, match: '/admin/payment-gateway' },
           { label: 'Providers', href: '/admin/api-providers', icon: PlugZap, match: '/admin/api-providers' },
           { label: 'Staff', href: '/admin/staff', icon: Users, match: '/admin/staff' },

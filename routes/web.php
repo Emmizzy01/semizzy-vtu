@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Admin\IntegrationSettingsController;
 use App\Http\Controllers\Admin\StaffAccessController;
+use App\Http\Controllers\Admin\VtuOrderOperationsController;
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\Payments\PaymentFundingController;
@@ -58,6 +59,9 @@ Route::middleware(['auth', 'can:staff.permissions.manage'])->prefix('admin')->na
     Route::get('/api-providers', [IntegrationSettingsController::class, 'apiProviders'])->name('api-providers');
     Route::put('/api-providers', [IntegrationSettingsController::class, 'updateApiProviders'])->name('api-providers.update');
 });
+
+Route::middleware(['auth', 'can:staff.permissions.manage', 'throttle:30,1'])->get('/admin/vtu-orders', [VtuOrderOperationsController::class, 'index'])
+    ->name('admin.vtu-orders');
 
 Route::middleware(['auth', 'can:staff.permissions.manage'])->prefix('admin/staff')->name('admin.staff.')->group(function (): void {
     Route::get('/', [StaffAccessController::class, 'dashboard'])->name('index');
