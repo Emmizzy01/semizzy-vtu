@@ -115,13 +115,9 @@ export default function CustomerDashboard({ wallet, transactions, orders, fundin
         <section id="rewards" className="scroll-mt-6 rounded-[26px] bg-gradient-to-r from-emerald-50 to-amber-50 p-5 text-slate-800 dark:from-emerald-950 dark:to-slate-900 dark:text-white"><div className="flex items-center justify-between"><div><h2 className="font-extrabold">Complete Tasks, Earn Rewards</h2><p className="mt-1 text-xs text-slate-600 dark:text-slate-300">Discover available Semizzy benefits</p></div><Gift size={26} className="text-emerald-600"/></div><div className="mt-4 flex items-center gap-3 border-t border-dashed border-emerald-700/20 pt-4"><span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-white text-emerald-600"><Sparkles size={25}/></span><span className="min-w-0 flex-1"><span className="block text-sm font-extrabold">Rewards & promotions</span><span className="mt-1 block text-[10px] text-slate-600 dark:text-slate-300">Check eligible offers as they become available.</span></span><a href="/account/tiers" className="rounded-full bg-emerald-600 px-4 py-2.5 text-xs font-extrabold text-white">View tiers</a></div></section>
 
         <a href="#rewards" className="flex items-center gap-3 rounded-[24px] bg-[var(--surface)] p-4 shadow-sm"><span className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-emerald-50 text-emerald-600"><HandCoins size={25}/></span><span className="min-w-0 flex-1"><span className="block font-extrabold">Invite friends to Semizzy</span><span className="mt-1 block text-xs text-[var(--muted)]">View the rewards and benefits section.</span></span><span className="rounded-full bg-emerald-600 px-4 py-2 text-xs font-extrabold text-white">GO</span></a>
-
-        <article id="fund-wallet" className="rounded-[24px] border border-[var(--line)] bg-[var(--surface)] p-5">
-          <div className="flex items-center gap-3"><span className="grid h-10 w-10 place-items-center rounded-xl bg-[var(--brand-soft)] text-[var(--brand)]"><CreditCard size={20}/></span><div><h2 className="font-display text-lg font-extrabold">Add money to wallet</h2><p className="text-xs text-[var(--muted)]">Secure provider checkout</p></div></div>
-          <form onSubmit={startFunding} className="mt-4"><label htmlFor="fund-amount" className="text-xs font-bold text-[var(--muted)]">Amount in naira (₦)</label><div className="mt-2 flex gap-2"><input id="fund-amount" type="number" min="1" max="5000000" step="0.01" inputMode="decimal" required value={amount} onChange={(event) => setAmount(event.target.value)} className="min-w-0 flex-1 rounded-xl border border-[var(--line)] bg-[var(--page)] px-3 py-3 text-sm outline-none focus:border-[var(--brand)]" /><button type="submit" disabled={funding} className="min-h-11 rounded-xl bg-[var(--brand)] px-4 text-sm font-bold text-white disabled:opacity-60">{funding ? 'Starting…' : 'Continue'}</button></div><p className="mt-2 text-xs text-[var(--muted)]">Wallet credits only after payment verification.</p></form>
-          {error && <p role="alert" className="mt-3 rounded-xl bg-rose-500/10 p-3 text-xs text-rose-700">{error}</p>}{notice && <p role="status" className="mt-3 text-xs text-emerald-700">{notice}</p>}
-        </article>
       </section>
+      {false && <>
+
       <section id="transactions" className="mt-8 grid gap-5 xl:grid-cols-2">
         <div className="overflow-hidden rounded-3xl border border-[var(--line)] bg-[var(--surface)]">
           <div className="border-b border-[var(--line)] p-5">
@@ -163,6 +159,8 @@ export default function CustomerDashboard({ wallet, transactions, orders, fundin
         <div className="flex items-center justify-between border-b border-[var(--line)] p-5"><div><h2 className="font-display text-lg font-extrabold">Wallet funding history</h2><p className="mt-1 text-xs text-[var(--muted)]">Payment attempts linked to your wallet</p></div><Clock3 size={20} className="text-[var(--brand)]" aria-hidden="true" /></div>
         {fundingHistory.length === 0 ? <EmptyState message="No wallet funding attempts yet." /> : <div className="divide-y divide-[var(--line)]">{fundingHistory.map((item) => <article key={item.id} className="flex flex-wrap items-center justify-between gap-3 p-4 sm:px-5"><div><p className="text-sm font-bold">{money(item.amount_minor, item.currency)}</p><p className="mt-1 break-all text-xs text-[var(--muted)]">{item.reference} · {dateLabel(item.created_at)}</p></div><span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${statusClass(item.status)}`}>{item.status.replaceAll('_', ' ')}</span></article>)}</div>}
       </section>
+
+      </>}
     </DashboardLayout>
   );
 }
