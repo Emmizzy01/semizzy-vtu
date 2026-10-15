@@ -120,6 +120,7 @@ class PaymentRefundService
                         'reason' => $refund->reason,
                     ],
                     correlationId: $refund->public_id,
+                    isFinancialRecovery: true,
                 );
 
                 $refund->forceFill([
