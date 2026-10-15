@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { Head, router } from '@inertiajs/react';
 import DashboardLayout from '../../Components/DashboardLayout';
-import { LifeBuoy, MessageCircle, PlusCircle, Send } from 'lucide-react';
+import { LifeBuoy, PlusCircle, Send } from 'lucide-react';
 
 type Ticket = { id:number; public_id:string; category:string; subject:string; status:string; priority:string; messages_count:number; updated_at:string|null };
 type Message = { id:number; author:string; is_staff:boolean; body:string; created_at:string|null };
