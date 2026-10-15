@@ -11,6 +11,7 @@ use App\Http\Controllers\Payments\ManualDepositController;
 use App\Http\Controllers\Admin\ManualDepositSettingsController;
 use App\Http\Controllers\Admin\PlatformSettingsController;
 use App\Http\Controllers\Admin\UserManagementController;
+use App\Http\Middleware\EnsureAccountIsActive;
 use App\Http\Controllers\Admin\GlobalSearchController;
 use App\Http\Controllers\Admin\UserLevelPolicyController;
 use App\Http\Controllers\Admin\SecurityEventsController;
@@ -95,6 +96,7 @@ Route::middleware(['auth', 'can:staff.permissions.manage'])->prefix('admin')->na
     Route::put('/user-levels/{level}', [UserLevelPolicyController::class, 'update'])->middleware('throttle:20,1')->name('user-levels.update');
     Route::get('/users', [UserManagementController::class, 'index'])->middleware('throttle:60,1')->name('users.index');
     Route::put('/users/{user}/classification', [UserManagementController::class, 'update'])->middleware('throttle:20,1')->name('users.classification.update');
+    Route::put('/users/{user}/status', [UserManagementController::class, 'updateStatus'])->middleware('throttle:10,1')->name('users.status.update');
     Route::get('/platform-settings', [PlatformSettingsController::class, 'edit'])->name('platform-settings');
     Route::put('/platform-settings', [PlatformSettingsController::class, 'update'])->middleware('throttle:10,1')->name('platform-settings.update');
     Route::get('/manual-deposits', [ManualDepositController::class, 'adminIndex'])->middleware('throttle:30,1')->name('manual-deposits.index');

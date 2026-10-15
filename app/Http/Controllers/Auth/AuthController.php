@@ -33,6 +33,7 @@ class AuthController extends Controller
         if (! Auth::attempt([
             'email' => strtolower($credentials['email']),
             'password' => $credentials['password'],
+            'account_status' => 'active',
         ], (bool) ($credentials['remember'] ?? false))) {
             return back()->withErrors([
                 'email' => 'These credentials do not match our records.',

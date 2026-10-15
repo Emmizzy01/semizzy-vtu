@@ -25,7 +25,7 @@ class UserManagementController extends Controller
             'level' => ['nullable', 'string', 'in:all,level_1,level_2,level_3,level_4'],
             'kyc' => ['nullable', 'string', 'in:all,unverified,pending,verified,rejected,manual_review'],
         ]);
-        $query = User::query()->select(['id', 'name', 'email', 'user_type', 'user_level', 'kyc_status', 'created_at'])->orderByDesc('id');
+        $query = User::query()->select(['id', 'name', 'email', 'user_type', 'user_level', 'kyc_status', 'account_status', 'account_status_reason', 'account_status_changed_at', 'created_at'])->orderByDesc('id');
         $search = trim((string) ($filters['search'] ?? ''));
         if ($search !== '') $query->where(fn ($q) => $q->where('name', 'like', '%'.$search.'%')->orWhere('email', 'like', '%'.$search.'%'));
         if (($filters['type'] ?? 'all') !== 'all') $query->where('user_type', $filters['type']);
@@ -36,11 +36,39 @@ class UserManagementController extends Controller
             'users' => $page->through(fn (User $user): array => [
                 'id' => $user->id, 'name' => $user->name, 'email' => $user->email,
                 'user_type' => $user->user_type, 'user_level' => $user->user_level,
-                'kyc_status' => $user->kyc_status, 'created_at' => $user->created_at?->toISOString(),
+                'kyc_status' => $user->kyc_status, 'account_status' => $user->account_status, 'account_status_reason' => $user->account_status_reason, 'account_status_changed_at' => $user->account_status_changed_at?->toISOString(), 'created_at' => $user->created_at?->toISOString(),
             ]),
             'filters' => ['search' => $search, 'type' => $filters['type'] ?? 'all', 'level' => $filters['level'] ?? 'all', 'kyc' => $filters['kyc'] ?? 'all'],
             'options' => ['types' => self::TYPES, 'levels' => self::LEVELS, 'kyc' => self::KYC],
         ]);
+    }
+
+    public function updateStatus(Request $request, User $user): RedirectResponse
+    {
+        $data = $request->validate([
+            'account_status' => ['required', 'in:active,suspended'],
+            'reason' => ['required', 'string', 'min:8', 'max:500'],
+        ]);
+        abort_if((int) $request->user()->id === (int) $user->id, 403, 'You cannot suspend or reactivate your own account.');
+        DB::transaction(function () use ($request, $user, $data): void {
+            $target = User::query()->whereKey($user->id)->lockForUpdate()->firstOrFail();
+            $oldStatus = $target->account_status ?: 'active';
+            if ($oldStatus === $data['account_status']) return;
+            $target->forceFill([
+                'account_status' => $data['account_status'],
+                'account_status_reason' => trim($data['reason']),
+                'account_status_changed_at' => now(),
+            ])->save();
+            DB::table('user_account_status_audits')->insert([
+                'actor_user_id' => $request->user()->id,
+                'target_user_id' => $target->id,
+                'old_status' => $oldStatus,
+                'new_status' => $data['account_status'],
+                'reason' => trim($data['reason']),
+                'created_at' => now(),
+            ]);
+        }, attempts: 3);
+        return back()->with('status', 'Account status updated and recorded in the audit trail.');
     }
 
     public function update(Request $request, User $user): RedirectResponse
