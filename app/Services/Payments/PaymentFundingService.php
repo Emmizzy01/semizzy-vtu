@@ -78,18 +78,19 @@ class PaymentFundingService
                     throw new UnprocessableEntityHttpException('Payment reference was not found for this provider.');
                 }
 
-                if ($intent->status === 'paid') {
+                if (in_array($intent->status, ['paid', 'test_paid'], true)) {
                     if ($intent->provider_transaction_id !== $providerTransactionId) {
                         throw new ConflictHttpException('Payment intent was already settled by another provider transaction.');
                     }
 
+                    $duplicateOutcome = $intent->status === 'test_paid' ? 'test_succeeded' : 'duplicate_payment';
                     $event->forceFill([
-                        'outcome' => 'duplicate_payment',
+                        'outcome' => $duplicateOutcome,
                         'payment_intent_id' => $intent->id,
                         'processed_at' => now(),
                     ])->save();
 
-                    return ['outcome' => 'duplicate_payment', 'duplicate' => true];
+                    return ['outcome' => $duplicateOutcome, 'duplicate' => true];
                 }
 
                 // A provider-verified Paystack success must still be reconciled after checkout expiry.
@@ -106,6 +107,24 @@ class PaymentFundingService
 
                 if ($intent->amount_minor !== $amount || $intent->currency !== strtoupper($currency)) {
                     throw new ConflictHttpException('Payment amount or currency does not match the intent.');
+                }
+
+                // Test-mode successes are recorded for end-to-end verification, but must never
+                // become real production wallet funds. Only explicitly selected Live intents post to the ledger.
+                if (($intent->metadata['gateway_mode'] ?? null) === 'test') {
+                    $intent->forceFill([
+                        'status' => 'test_paid',
+                        'provider_transaction_id' => $providerTransactionId,
+                        'paid_at' => now(),
+                    ])->save();
+
+                    $event->forceFill([
+                        'outcome' => 'test_succeeded',
+                        'payment_intent_id' => $intent->id,
+                        'processed_at' => now(),
+                    ])->save();
+
+                    return ['outcome' => 'test_succeeded', 'duplicate' => false];
                 }
 
                 $intent->forceFill([
