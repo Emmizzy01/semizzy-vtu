@@ -43,6 +43,40 @@ class TransactionPinSecurityTest extends TestCase
         $this->assertDatabaseCount('wallet_transactions', 0);
     }
 
+    public function test_pin_lockout_is_enforced_at_purchase_endpoint_even_with_correct_pin(): void
+    {
+        $user = User::query()->create(['name' => 'PIN Locked Customer', 'email' => 'pin-locked@example.test', 'password' => 'not-a-real-password']);
+        $user->forceFill(['transaction_pin_hash' => Hash::make('492815')])->save();
+
+        for ($attempt = 0; $attempt < 4; $attempt++) {
+            $this->actingAs($user)->postJson('/wallet/vtu/orders', [
+                'product_code' => 'not-looked-up-before-pin',
+                'recipient' => '08012345678',
+                'idempotency_key' => 'pin-lockout-'.$attempt,
+                'transaction_pin' => '111111',
+            ])->assertStatus(422);
+        }
+
+        $this->actingAs($user)->postJson('/wallet/vtu/orders', [
+            'product_code' => 'not-looked-up-before-pin',
+            'recipient' => '08012345678',
+            'idempotency_key' => 'pin-lockout-fifth',
+            'transaction_pin' => '111111',
+        ])->assertStatus(423);
+
+        // A correct PIN must not bypass the active lockout window.
+        $this->actingAs($user)->postJson('/wallet/vtu/orders', [
+            'product_code' => 'not-looked-up-before-pin',
+            'recipient' => '08012345678',
+            'idempotency_key' => 'pin-lockout-correct-pin',
+            'transaction_pin' => '492815',
+        ])->assertStatus(423);
+
+        $this->assertSame(5, (int) $user->fresh()->transaction_pin_failed_attempts);
+        $this->assertDatabaseCount('vtu_orders', 0);
+        $this->assertDatabaseCount('wallet_transactions', 0);
+    }
+
     public function test_user_can_set_a_separate_hashed_transaction_pin(): void
     {
         $user = User::query()->create(['name' => 'PIN Customer', 'email' => 'pin-customer@example.test', 'password' => 'not-a-real-password']);
