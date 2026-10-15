@@ -164,7 +164,7 @@ class ManualDepositController extends Controller
         try {
             DB::transaction(function () use ($publicId, $validated, $actor, $ledger): void {
             $deposit = ManualDeposit::query()->where('public_id', $publicId)->lockForUpdate()->firstOrFail();
-            abort_unless($deposit->status === 'pending', 409, 'Only pending deposits can be reviewed.');
+            abort_unless(in_array($deposit->status, ['pending', 'review_required'], true), 409, 'Only pending or reconciliation-required deposits can be reviewed.');
             abort_if((int) $deposit->user_id === (int) $actor->id, 403, 'You cannot review your own deposit.');
             abort_unless((int) $deposit->evidence_viewed_by_user_id === (int) $actor->id, 422, 'Open and inspect the transfer evidence yourself before reviewing.');
             abort_if($deposit->duplicate_evidence && $validated['decision'] === 'approve', 422, 'Duplicate receipt evidence cannot be approved here; investigate and reject or escalate it.');
