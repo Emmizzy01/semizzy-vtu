@@ -63,6 +63,7 @@ class UserLevelPolicyTest extends TestCase
             $this->assertSame(5000, (int) $wallet->fresh()->available_balance_minor);
             $this->assertDatabaseCount('vtu_orders', 0);
             $this->assertDatabaseCount('wallet_transactions', 1);
+            $this->assertDatabaseCount('wallet_ledger_entries', 1);
         }
     }
 
@@ -96,6 +97,7 @@ class UserLevelPolicyTest extends TestCase
             $this->assertSame(4000, (int) $wallet->fresh()->available_balance_minor);
             $this->assertDatabaseCount('vtu_orders', 0);
             $this->assertDatabaseCount('wallet_transactions', 2);
+            $this->assertDatabaseCount('wallet_ledger_entries', 2);
         }
     }
 
@@ -122,6 +124,8 @@ class UserLevelPolicyTest extends TestCase
             $this->assertStringContainsString('single-transaction limit', $exception->getMessage());
             $this->assertSame(5000, (int) $wallet->fresh()->available_balance_minor);
             $this->assertDatabaseCount('vtu_orders', 0);
+            $this->assertDatabaseCount('wallet_transactions', 1);
+            $this->assertDatabaseCount('wallet_ledger_entries', 1);
         }
     }
 }
