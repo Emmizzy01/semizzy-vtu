@@ -160,11 +160,12 @@ export default function DashboardLayout({
               </span>
             </a>
             {admin && (
-              <div className="hidden max-w-sm flex-1 px-6 lg:block">
-                <div role="note" aria-label="Global search is not available yet; searchable admin records are not connected" title="Global search will be added when searchable admin records are available" className="flex h-10 items-center gap-2 rounded-xl border border-[var(--line)] bg-[var(--page)] px-3 text-sm text-[var(--muted)]">
-                  <Search size={16} aria-hidden="true" /><span className="flex-1">Global search</span><span className="rounded-md border border-[var(--line)] px-1.5 py-0.5 text-[10px]">Soon</span>
-                </div>
-              </div>
+              <form action="/admin/search" method="get" className="hidden max-w-sm flex-1 px-6 lg:block">
+                <label className="flex h-10 items-center gap-2 rounded-xl border border-[var(--line)] bg-[var(--page)] px-3 text-sm text-[var(--muted)]">
+                  <Search size={16} aria-hidden="true" /><input name="q" minLength={2} maxLength={100} required aria-label="Search admin records" placeholder="Global search…" className="min-w-0 flex-1 bg-transparent outline-none placeholder:text-[var(--muted)]" />
+                  <button type="submit" className="rounded-md border border-[var(--line)] px-2 py-1 text-[10px] font-bold">Search</button>
+                </label>
+              </form>
             )}
             <div className="flex shrink-0 items-center gap-2">
               {admin && <a href="/customer/dashboard" className="hidden min-h-10 items-center gap-1 rounded-xl border border-[var(--line)] px-3 py-2 text-xs font-semibold hover:border-[var(--brand)] sm:inline-flex"><ArrowLeftRight size={14} aria-hidden="true" /> Customer view</a>}
