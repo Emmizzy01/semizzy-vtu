@@ -39,12 +39,12 @@ class FeatureControlRegistryTest extends TestCase
         $admin = User::query()->create(['name' => 'Dependency Admin', 'email' => 'feature-dependency@example.test', 'password' => 'not-a-real-password']);
         UserPermission::query()->create(['user_id' => $admin->id, 'permission' => 'staff.permissions.manage']);
         PlatformFeatureControl::query()->create([
-            'feature_key' => 'test.dependency', 'label' => 'Dependency', 'category' => 'test',
+            'feature_key' => 'test.dependency', 'label' => 'Dependency', 'category' => 'test', 'owner' => 'test-suite', 'description' => 'Temporary dependency test fixture',
             'dependencies' => [], 'default_enabled' => false, 'is_enabled' => false,
             'is_core' => false, 'is_implemented' => true,
         ]);
         PlatformFeatureControl::query()->create([
-            'feature_key' => 'test.dependent', 'label' => 'Dependent', 'category' => 'test',
+            'feature_key' => 'test.dependent', 'label' => 'Dependent', 'category' => 'test', 'owner' => 'test-suite', 'description' => 'Temporary dependent test fixture',
             'dependencies' => ['test.dependency'], 'default_enabled' => false, 'is_enabled' => false,
             'is_core' => false, 'is_implemented' => true,
         ]);
@@ -61,12 +61,12 @@ class FeatureControlRegistryTest extends TestCase
         $admin = User::query()->create(['name' => 'Dependency Admin', 'email' => 'feature-dependent@example.test', 'password' => 'not-a-real-password']);
         UserPermission::query()->create(['user_id' => $admin->id, 'permission' => 'staff.permissions.manage']);
         PlatformFeatureControl::query()->create([
-            'feature_key' => 'test.dependency', 'label' => 'Dependency', 'category' => 'test',
+            'feature_key' => 'test.dependency', 'label' => 'Dependency', 'category' => 'test', 'owner' => 'test-suite', 'description' => 'Temporary dependency test fixture',
             'dependencies' => [], 'default_enabled' => true, 'is_enabled' => true,
             'is_core' => false, 'is_implemented' => true,
         ]);
         PlatformFeatureControl::query()->create([
-            'feature_key' => 'test.dependent', 'label' => 'Dependent', 'category' => 'test',
+            'feature_key' => 'test.dependent', 'label' => 'Dependent', 'category' => 'test', 'owner' => 'test-suite', 'description' => 'Temporary dependent test fixture',
             'dependencies' => ['test.dependency'], 'default_enabled' => true, 'is_enabled' => true,
             'is_core' => false, 'is_implemented' => true,
         ]);
