@@ -78,19 +78,72 @@ class DashboardController extends Controller
             ->where('currency', 'NGN')
             ->first();
 
-        $transactions = $wallet
-            ? WalletTransaction::query()
-                ->where('wallet_id', $wallet->id)
-                ->latest('id')
-                ->limit(5)
-                ->get(['public_id', 'type', 'status', 'currency', 'amount_minor', 'description', 'reference', 'created_at'])
-            : collect();
+        $transactionSearch = trim((string) $request->query('transaction_search', ''));
+        $transactionSearch = mb_substr($transactionSearch, 0, 100);
+        $transactionStatus = (string) $request->query('transaction_status', 'all');
+        if (! in_array($transactionStatus, ['all', 'pending', 'successful', 'failed'], true)) {
+            $transactionStatus = 'all';
+        }
+        $transactionPage = max(1, min(100000, (int) $request->query('transactions_page', 1)));
 
-        $orders = VtuOrder::query()
-            ->where('user_id', $user->id)
+        $transactionQuery = $wallet
+            ? WalletTransaction::query()->where('wallet_id', $wallet->id)
+            : WalletTransaction::query()->whereRaw('1 = 0');
+
+        if ($transactionSearch !== '') {
+            $transactionQuery->where(function ($query) use ($transactionSearch): void {
+                $term = '%' . addcslashes($transactionSearch, '\\%_') . '%';
+                $query->where('description', 'like', $term)
+                    ->orWhere('type', 'like', $term)
+                    ->orWhere('status', 'like', $term)
+                    ->orWhere('reference', 'like', $term)
+                    ->orWhere('public_id', 'like', $term);
+            });
+        }
+
+        match ($transactionStatus) {
+            'pending' => $transactionQuery->whereIn('status', ['pending', 'processing', 'awaiting_reconciliation']),
+            'successful' => $transactionQuery->whereIn('status', ['succeeded', 'successful', 'completed', 'paid']),
+            'failed' => $transactionQuery->whereIn('status', ['failed', 'rejected', 'cancelled']),
+            default => null,
+        };
+
+        $transactionPaginator = $transactionQuery
             ->latest('id')
-            ->limit(5)
-            ->get(['public_id', 'service_type', 'network', 'recipient', 'amount_minor', 'currency', 'status', 'created_at']);
+            ->paginate(10, ['public_id', 'type', 'status', 'currency', 'amount_minor', 'description', 'reference', 'created_at'], 'transactions_page', $transactionPage);
+
+        $orderSearch = trim((string) $request->query('order_search', ''));
+        $orderSearch = mb_substr($orderSearch, 0, 100);
+        $orderStatus = (string) $request->query('order_status', 'all');
+        if (! in_array($orderStatus, ['all', 'pending', 'processing', 'successful', 'failed'], true)) {
+            $orderStatus = 'all';
+        }
+        $orderPage = max(1, min(100000, (int) $request->query('orders_page', 1)));
+
+        $orderQuery = VtuOrder::query()->where('user_id', $user->id);
+        if ($orderSearch !== '') {
+            $orderQuery->where(function ($query) use ($orderSearch): void {
+                $term = '%' . addcslashes($orderSearch, '\\%_') . '%';
+                $query->where('network', 'like', $term)
+                    ->orWhere('service_type', 'like', $term)
+                    ->orWhere('recipient', 'like', $term)
+                    ->orWhere('status', 'like', $term)
+                    ->orWhere('public_id', 'like', $term)
+                    ->orWhere('provider_reference', 'like', $term);
+            });
+        }
+
+        match ($orderStatus) {
+            'pending' => $orderQuery->whereIn('status', ['pending', 'processing', 'awaiting_reconciliation']),
+            'processing' => $orderQuery->whereIn('status', ['processing', 'awaiting_reconciliation']),
+            'successful' => $orderQuery->where('status', 'successful'),
+            'failed' => $orderQuery->whereIn('status', ['failed', 'cancelled']),
+            default => null,
+        };
+
+        $orderPaginator = $orderQuery
+            ->latest('id')
+            ->paginate(10, ['public_id', 'service_type', 'network', 'recipient', 'amount_minor', 'currency', 'status', 'created_at'], 'orders_page', $orderPage);
 
         return Inertia::render('Dashboard', [
             'isAdminPreview' => $this->hasAdminAccess($user->id),
@@ -100,7 +153,7 @@ class DashboardController extends Controller
                 'currency' => $wallet->currency,
                 'status' => $wallet->status,
             ] : null,
-            'transactions' => $transactions->map(fn (WalletTransaction $transaction): array => [
+            'transactions' => $transactionPaginator->getCollection()->map(fn (WalletTransaction $transaction): array => [
                 'id' => $transaction->public_id,
                 'type' => $transaction->type,
                 'status' => $transaction->status,
@@ -110,7 +163,13 @@ class DashboardController extends Controller
                 'reference' => $transaction->reference,
                 'created_at' => $transaction->created_at?->toISOString(),
             ])->values(),
-            'orders' => $orders->map(fn (VtuOrder $order): array => [
+            'transactionPagination' => [
+                'currentPage' => $transactionPaginator->currentPage(),
+                'lastPage' => $transactionPaginator->lastPage(),
+                'total' => $transactionPaginator->total(),
+            ],
+            'transactionFilters' => ['search' => $transactionSearch, 'status' => $transactionStatus],
+            'orders' => $orderPaginator->getCollection()->map(fn (VtuOrder $order): array => [
                 'id' => $order->public_id,
                 'service_type' => $order->service_type,
                 'network' => $order->network,
@@ -120,6 +179,12 @@ class DashboardController extends Controller
                 'status' => $order->status,
                 'created_at' => $order->created_at?->toISOString(),
             ])->values(),
+            'orderPagination' => [
+                'currentPage' => $orderPaginator->currentPage(),
+                'lastPage' => $orderPaginator->lastPage(),
+                'total' => $orderPaginator->total(),
+            ],
+            'orderFilters' => ['search' => $orderSearch, 'status' => $orderStatus],
             'fundingHistory' => $wallet
                 ? PaymentIntent::query()->where('wallet_id', $wallet->id)->latest('id')->limit(5)
                     ->get(['public_id', 'reference', 'amount_minor', 'currency', 'status', 'created_at'])
