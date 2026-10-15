@@ -14,6 +14,7 @@ use App\Http\Controllers\Admin\UserManagementController;
 use App\Http\Middleware\EnsureAccountIsActive;
 use App\Http\Controllers\Admin\GlobalSearchController;
 use App\Http\Controllers\Admin\UserLevelPolicyController;
+use App\Http\Controllers\Admin\UserLevelUpgradeReviewController;
 use App\Http\Controllers\Admin\SecurityEventsController;
 use App\Http\Controllers\Admin\FeatureControlController;
 use App\Models\PlatformFeatureControl;
@@ -104,6 +105,8 @@ Route::middleware(['auth', 'can:staff.permissions.manage'])->prefix('admin')->na
     Route::put('/feature-controls/{featureKey}', [FeatureControlController::class, 'update'])->middleware('throttle:20,1')->name('feature-controls.update');
     Route::get('/security-events', [SecurityEventsController::class, 'index'])->middleware('throttle:30,1')->name('security-events');
     Route::get('/user-levels', [UserLevelPolicyController::class, 'index'])->name('user-levels.index');
+    Route::get('/user-level-upgrade-requests', [UserLevelUpgradeReviewController::class, 'index'])->name('user-level-upgrade-requests.index');
+    Route::post('/user-level-upgrade-requests/{upgradeRequest}/review', [UserLevelUpgradeReviewController::class, 'review'])->middleware('throttle:10,1')->name('user-level-upgrade-requests.review');
     Route::put('/user-levels/{level}', [UserLevelPolicyController::class, 'update'])->middleware('throttle:20,1')->name('user-levels.update');
     Route::get('/users', [UserManagementController::class, 'index'])->middleware('throttle:60,1')->name('users.index');
     Route::put('/users/{user}/classification', [UserManagementController::class, 'update'])->middleware('throttle:20,1')->name('users.classification.update');
