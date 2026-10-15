@@ -123,7 +123,13 @@ export default function DashboardLayout({
     ? [
         { label: 'Home', href: '/admin/dashboard', icon: LayoutDashboard, match: '/admin/dashboard' },
         ...(canApproveRefunds ? [{ label: 'Refunds', href: '/admin/refunds', icon: CreditCard, match: '/admin/refunds' }] : []),
-        ...(canManageStaff ? [{ label: 'Staff', href: '/admin/staff', icon: Users, match: '/admin/staff' }] : []),
+        ...(canManageStaff ? [
+          { label: 'Gateway', href: '/admin/payment-gateway', icon: ShieldCheck, match: '/admin/payment-gateway' },
+          { label: 'Providers', href: '/admin/api-providers', icon: PlugZap, match: '/admin/api-providers' },
+          { label: 'Staff', href: '/admin/staff', icon: Users, match: '/admin/staff' },
+          { label: 'Staff users', href: '/admin/staff/users', icon: Users, match: '/admin/staff/users' },
+          { label: 'Audits', href: '/admin/staff/permission-audits', icon: Activity, match: '/admin/staff/permission-audits' },
+        ] : []),
         { label: 'VTU', href: '/wallet/vtu', icon: Smartphone, match: '/wallet/vtu' },
         { label: 'Customer', href: '/customer/dashboard', icon: WalletCards, match: '/customer/dashboard' },
       ]
