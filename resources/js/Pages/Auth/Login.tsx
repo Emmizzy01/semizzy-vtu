@@ -1,6 +1,6 @@
 import { Head, Link, useForm } from '@inertiajs/react';
 import type { FormEvent } from 'react';
-import { LoaderCircle, ShieldCheck } from 'lucide-react';
+import { LoaderCircle } from 'lucide-react';
 
 export default function Login() {
   const form = useForm({ email: '', password: '', remember: false });
