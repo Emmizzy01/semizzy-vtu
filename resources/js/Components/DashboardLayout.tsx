@@ -68,13 +68,13 @@ export default function DashboardLayout({
     { label: customerPreview ? 'Customer overview' : 'Overview', href: customerPreview ? '/customer/dashboard' : '/dashboard', icon: LayoutDashboard, match: customerPreview ? '/customer/dashboard' : '/dashboard' },
     { label: 'Airtime & data', href: '/wallet/vtu', icon: Smartphone, match: '/wallet/vtu' },
     { label: 'Transactions', href: '#transactions', icon: ArrowLeftRight, match: '#transactions' },
-    { label: 'Fund wallet', href: '#fund-wallet', icon: CreditCard, match: '#fund-wallet' },
+    { label: 'Fund wallet', href: '#fund-wallet', icon: CreditCard, match: '#fund-wallet' },\n    { label: 'Manual deposit', href: '/wallet/manual-deposits', icon: WalletCards, match: '/wallet/manual-deposits' },
   ];
 
   const adminGroups: { title: string; items: NavItem[] }[] = [
     { title: 'Workspace', items: [{ label: 'Command Center', href: '/admin/dashboard', icon: LayoutDashboard, match: '/admin/dashboard' }] },
     ...(canApproveRefunds ? [{ title: 'Finance', items: [{ label: 'Refund operations', href: '/admin/refunds', icon: CreditCard, match: '/admin/refunds' }] }] : []),
-    ...(canManageStaff ? [{ title: 'Operations', items: [{ label: 'VTU order queue', href: '/admin/vtu-orders', icon: Smartphone, match: '/admin/vtu-orders' }] }] : []),
+    ...(canManageStaff ? [{ title: 'Operations', items: [{ label: 'VTU order queue', href: '/admin/vtu-orders', icon: Smartphone, match: '/admin/vtu-orders' },\n      { label: 'Manual deposits', href: '/admin/manual-deposits', icon: WalletCards, match: '/admin/manual-deposits' }] }] : []),
     ...(canManageStaff ? [{ title: 'Platform', items: [
       { label: 'Payment gateway', href: '/admin/payment-gateway', icon: ShieldCheck, match: '/admin/payment-gateway' },
       { label: 'API providers', href: '/admin/api-providers', icon: PlugZap, match: '/admin/api-providers' },
