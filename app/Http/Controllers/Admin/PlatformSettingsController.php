@@ -20,6 +20,7 @@ class PlatformSettingsController extends Controller
             'site_name' => (string) $settings->get('site.name', config('app.name', 'Semizzy')),
             'support_email' => (string) $settings->get('site.support_email', ''),
             'support_phone' => (string) $settings->get('site.support_phone', ''),
+            'theme_mode' => in_array((string) $settings->get('site.theme_mode', 'light'), ['light', 'dark'], true) ? (string) $settings->get('site.theme_mode', 'light') : 'light',
             'theme_skin' => match ((string) $settings->get('site.theme_skin', 'modern-green')) { 'emerald' => 'modern-green', 'teal' => 'navy-teal', 'blue' => 'minimal-blue', 'violet' => 'obsidian-luxe', 'amber' => 'arctic-light', default => (string) $settings->get('site.theme_skin', 'modern-green') },
             'maintenance_mode' => filter_var($settings->get('site.maintenance_mode', false), FILTER_VALIDATE_BOOLEAN),
             'airtime_data_enabled' => filter_var($settings->get('service.airtime_data.enabled', true), FILTER_VALIDATE_BOOLEAN),
