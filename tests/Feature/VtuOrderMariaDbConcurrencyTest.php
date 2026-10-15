@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\User;
+use App\Models\ManualDeposit;
 use App\Models\VtuOrder;
 use App\Models\VtuProduct;
 use App\Services\Wallets\WalletAccountService;
@@ -52,6 +53,50 @@ class VtuOrderMariaDbConcurrencyTest extends TestCase
         }
 
         parent::tearDown();
+    }
+
+    public function test_two_independent_staff_workers_approve_a_manual_deposit_and_credit_once(): void
+    {
+        $customer = User::query()->create([
+            'name' => 'Concurrent Deposit Customer',
+            'email' => 'deposit-customer-'.Str::uuid().'@example.test',
+            'password' => Hash::make('test-only-password'),
+        ]);
+        $admin = User::query()->create([
+            'name' => 'Concurrent Deposit Admin',
+            'email' => 'deposit-admin-'.Str::uuid().'@example.test',
+            'password' => Hash::make('test-only-password'),
+        ]);
+        $wallet = app(WalletAccountService::class)->openForUser($customer);
+        $deposit = ManualDeposit::query()->create([
+            'public_id' => (string) Str::uuid(),
+            'user_id' => $customer->getKey(),
+            'wallet_id' => $wallet->getKey(),
+            'amount_minor' => 12500,
+            'transfer_reference' => 'CONCURRENT-'.Str::uuid(),
+            'evidence_path' => 'manual-deposits/concurrency-test.pdf',
+            'evidence_sha256' => hash('sha256', 'concurrency-evidence-'.Str::uuid()),
+            'status' => 'pending',
+            'idempotency_key' => 'manual-deposit:'.Str::uuid(),
+            'evidence_viewed_at' => now(),
+            'evidence_viewed_by_user_id' => $admin->getKey(),
+        ]);
+
+        $state = $this->newStateFile();
+        $results = $this->runWorkers([
+            ['review-deposit', $state, (string) $admin->getKey(), $deposit->public_id],
+            ['review-deposit', $state, (string) $admin->getKey(), $deposit->public_id],
+        ], assertSuccessful: false);
+
+        $this->assertSame([0, 1], collect(array_column($results, 'exit'))->sort()->values()->all(),
+            'Exactly one worker should approve the pending deposit; the competing review should conflict.');
+        $this->assertSame('approved', $deposit->fresh()->status);
+        $this->assertSame(12500, (int) $wallet->fresh()->balance_minor);
+        $this->assertSame(1, DB::table('wallet_ledger_entries')->where('reference', $deposit->public_id)->count());
+        $this->assertSame(1, DB::table('wallet_transactions')->where('reference', $deposit->public_id)->count());
+        $this->assertSame(1, DB::table('manual_deposit_audits')->where('manual_deposit_id', $deposit->getKey())->where('event_type', 'approve')->count());
+
+        @unlink($state);
     }
 
     public function test_two_independent_workers_open_only_one_first_wallet_for_a_user(): void
