@@ -16,6 +16,8 @@ use App\Http\Controllers\Admin\SecurityEventsController;
 use App\Http\Controllers\Admin\FeatureControlController;
 use App\Http\Controllers\Security\TransactionPinController;
 use App\Http\Controllers\Account\ProfileController;
+use App\Http\Controllers\Support\SupportTicketController;
+use App\Http\Controllers\Admin\SupportTicketOperationsController;
 use App\Services\IntegrationSettings;
 use App\Http\Controllers\Payments\PaymentRefundController;
 use App\Http\Controllers\Vtu\VtuOrderController;
