@@ -5,6 +5,7 @@ import {
   Activity,
   ArrowLeftRight,
   CreditCard,
+  Grid2X2,
   LayoutDashboard,
   LogOut,
   Menu,
@@ -66,6 +67,7 @@ export default function DashboardLayout({
 
   const customerItems: NavItem[] = [
     { label: customerPreview ? 'Customer overview' : 'Overview', href: customerPreview ? '/customer/dashboard' : '/dashboard', icon: LayoutDashboard, match: customerPreview ? '/customer/dashboard' : '/dashboard' },
+    { label: 'Services', href: '/services', icon: Grid2X2, match: '/services' },
     { label: 'Airtime & data', href: '/wallet/vtu', icon: Smartphone, match: '/wallet/vtu' },
     { label: 'Transactions', href: '#transactions', icon: ArrowLeftRight, match: '#transactions' },
     { label: 'Fund wallet', href: '#fund-wallet', icon: CreditCard, match: '#fund-wallet' },

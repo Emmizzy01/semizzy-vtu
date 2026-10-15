@@ -26,6 +26,7 @@ Route::middleware('guest')->group(function (): void {
 Route::middleware('auth')->group(function (): void {
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
     Route::get('/dashboard', [DashboardController::class, 'customer'])->name('dashboard');
+    Route::get('/services', fn () => Inertia::render('Services/Index'))->name('services.index');
     Route::get('/customer/dashboard', [DashboardController::class, 'customerPreview'])->name('customer.dashboard');
     Route::get('/admin/dashboard', [DashboardController::class, 'admin'])
         ->middleware('can:admin.dashboard')
