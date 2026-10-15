@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Exceptions\Wallet\IdempotencyConflict;
 use App\Exceptions\Wallet\InsufficientWalletFunds;
 use App\Models\User;
+use App\Models\UserLevelPolicy;
 use App\Models\Wallet;
 use App\Models\WalletLedgerEntry;
 use App\Models\WalletTransaction;
@@ -124,4 +125,36 @@ class WalletLedgerServiceTest extends TestCase
         $this->assertSame(2, WalletTransaction::query()->count());
         $this->assertSame(2, WalletLedgerEntry::query()->count());
     }
+    public function test_credit_can_reach_exact_user_level_wallet_balance_limit(): void
+    {
+        $user = User::query()->create(['name' => 'Exact Cap Customer', 'email' => 'exact-cap@example.test', 'password' => 'not-a-real-password']);
+        $wallet = app(WalletAccountService::class)->openForUser($user);
+        app(WalletLedgerService::class)->post($wallet->id, 'credit', 400, 'exact-cap-seed');
+        UserLevelPolicy::query()->where('level', 'level_1')->update(['wallet_balance_limit_minor' => 1000, 'is_active' => true]);
+
+        app(WalletLedgerService::class)->post($wallet->id, 'credit', 600, 'exact-cap-credit');
+
+        $this->assertSame(1000, (int) $wallet->fresh()->balance_minor);
+        $this->assertDatabaseCount('wallet_ledger_entries', 2);
+    }
+
+    public function test_credit_over_user_level_wallet_balance_limit_is_rejected_atomically(): void
+    {
+        $user = User::query()->create(['name' => 'Over Cap Customer', 'email' => 'over-cap@example.test', 'password' => 'not-a-real-password']);
+        $wallet = app(WalletAccountService::class)->openForUser($user);
+        app(WalletLedgerService::class)->post($wallet->id, 'credit', 900, 'over-cap-seed');
+        UserLevelPolicy::query()->where('level', 'level_1')->update(['wallet_balance_limit_minor' => 1000, 'is_active' => true]);
+
+        try {
+            app(WalletLedgerService::class)->post($wallet->id, 'credit', 101, 'over-cap-credit');
+            $this->fail('A credit that exceeds the configured wallet balance limit must be rejected.');
+        } catch (\\DomainException $exception) {
+            $this->assertStringContainsString('account level would be exceeded', $exception->getMessage());
+        }
+
+        $this->assertSame(900, (int) $wallet->fresh()->balance_minor);
+        $this->assertDatabaseCount('wallet_ledger_entries', 1);
+        $this->assertDatabaseCount('wallet_transactions', 1);
+    }
+
 }
