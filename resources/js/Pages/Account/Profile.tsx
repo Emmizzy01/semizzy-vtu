@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { Head, router } from '@inertiajs/react';
 import DashboardLayout from '../../Components/DashboardLayout';
-import { KeyRound, ShieldCheck, UserRound } from 'lucide-react';
+import { KeyRound, ShieldCheck, UserRound, ChevronRight } from 'lucide-react';
 
 type Profile = { name: string; email: string; user_type: string; user_level: string; kyc_status: string; transaction_pin_configured: boolean; transaction_pin_changed_at: string | null };
 export default function ProfilePage({ profile }: { profile: Profile }) {
@@ -22,7 +22,7 @@ export default function ProfilePage({ profile }: { profile: Profile }) {
         <form onSubmit={submitProfile} className="space-y-4">
           <label className="block text-sm font-medium">Display name<input className="mt-1 w-full rounded-xl border bg-transparent p-3 dark:border-slate-700" value={name} onChange={e => setName(e.target.value)} minLength={2} maxLength={120} required /></label>
           <label className="block text-sm font-medium">Email address<input className="mt-1 w-full rounded-xl border bg-slate-100 p-3 text-slate-500 dark:border-slate-700 dark:bg-slate-900" value={profile.email} readOnly /></label>
-          <div className="grid gap-3 sm:grid-cols-3">{[['Account type',profile.user_type],['Account level',profile.user_level],['KYC status',profile.kyc_status]].map(([label,value])=><div key={label} className="rounded-xl bg-slate-50 p-3 dark:bg-slate-900"><p className="text-xs text-slate-500">{label}</p><p className="mt-1 font-semibold">{titleCase(value)}</p></div>)}</div>
+          <a href="/account/tiers" className="flex items-center justify-between rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm font-semibold text-amber-900 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-200"><span>Account tier, limits & upgrade</span><ChevronRight size={18}/></a><div className="grid gap-3 sm:grid-cols-3">{[['Account type',profile.user_type],['Account level',profile.user_level],['KYC status',profile.kyc_status]].map(([label,value])=><div key={label} className="rounded-xl bg-slate-50 p-3 dark:bg-slate-900"><p className="text-xs text-slate-500">{label}</p><p className="mt-1 font-semibold">{titleCase(value)}</p></div>)}</div>
           <button disabled={busy || name.trim().length<2} className="rounded-xl bg-emerald-700 px-4 py-3 font-semibold text-white disabled:opacity-50">{busy?'Saving…':'Save profile'}</button>
         </form>
       </section>
