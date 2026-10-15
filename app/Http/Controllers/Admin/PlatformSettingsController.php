@@ -39,6 +39,14 @@ class PlatformSettingsController extends Controller
             'manual_deposit_enabled' => ['required', 'boolean'],
             'reason' => ['required', 'string', 'min:8', 'max:500'],
         ]);
+        if ($data['manual_deposit_enabled'] && (
+            trim((string) $settings->get('manual_deposit.bank_name', '')) === ''
+            || trim((string) $settings->get('manual_deposit.account_name', '')) === ''
+            || trim((string) $settings->get('manual_deposit.account_number', '')) === ''
+        )) {
+            return back()->withErrors(['manual_deposit_enabled' => 'Configure the manual deposit bank name, account name and account number in Manual deposit settings before enabling this service.']);
+        }
+
         $map = [
             'site_name' => 'site.name', 'support_email' => 'site.support_email',
             'support_phone' => 'site.support_phone', 'theme_skin' => 'site.theme_skin', 'maintenance_mode' => 'site.maintenance_mode',
