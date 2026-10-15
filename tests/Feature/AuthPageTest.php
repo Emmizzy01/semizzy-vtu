@@ -20,4 +20,20 @@ class AuthPageTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page->component('Auth/Register'));
     }
+    public function test_forgot_password_page_renders_without_server_error(): void
+    {
+        $this->get('/forgot-password')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page->component('Auth/ForgotPassword'));
+    }
+
+    public function test_reset_password_page_renders_without_server_error(): void
+    {
+        $this->get('/reset-password/test-token?email=reset%40example.test')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page->component('Auth/ResetPassword')
+                ->where('token', 'test-token')
+                ->where('email', 'reset@example.test'));
+    }
+
 }
