@@ -96,6 +96,8 @@ Route::middleware(['auth', 'can:refunds.approve', 'throttle:30,1'])->get('/admin
 Route::middleware(['auth', 'can:refunds.approve', 'throttle:20,1'])->post('/admin/payment-refunds/{refund}/approve', [PaymentRefundController::class, 'approveRefund'])
     ->name('admin.payment-refunds.approve');
 
+Route::put('/admin/platform-theme', [PlatformSettingsController::class, 'updateTheme'])->middleware(['auth', 'can:admin.dashboard', 'throttle:10,1'])->name('admin.platform-theme.update');
+
 Route::middleware(['auth', 'can:staff.permissions.manage'])->prefix('admin')->name('admin.')->group(function (): void {
     Route::get('/search', GlobalSearchController::class)->middleware('throttle:30,1')->name('search');
     Route::get('/support', [SupportTicketOperationsController::class, 'index'])->middleware('throttle:30,1')->name('support.index');
