@@ -7,6 +7,7 @@ use App\Models\VtuProduct;
 use App\Services\Vtu\VtpassProviderClient;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class VtpassProviderClientTest extends TestCase
