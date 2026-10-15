@@ -83,6 +83,7 @@ class IntegrationSettingsAccessTest extends TestCase
         UserPermission::query()->create(['user_id' => $admin->id, 'permission' => 'staff.permissions.manage']);
 
         $this->actingAs($admin)->put('/admin/payment-gateway', [
+            'mode' => 'test',
             'secret_key' => 'sk_test_example123',
             'callback_url' => 'https://semizzy.example.test/wallet/funding/return',
             'confirm_live' => false,
@@ -92,6 +93,7 @@ class IntegrationSettingsAccessTest extends TestCase
         $this->assertNotSame('sk_test_example123', $stored->getRawOriginal('value'));
         $this->assertSame('sk_test_example123', $stored->value);
         $this->assertSame($admin->id, $stored->updated_by_user_id);
+        $this->assertSame('test', app(\App\Services\IntegrationSettings::class)->get('paystack.mode'));
     }
 
     public function test_staff_admin_can_save_provider_settings_without_returning_credentials(): void
@@ -132,6 +134,7 @@ class IntegrationSettingsAccessTest extends TestCase
         UserPermission::query()->create(['user_id' => $admin->id, 'permission' => 'staff.permissions.manage']);
 
         $this->actingAs($admin)->put('/admin/payment-gateway', [
+            'mode' => 'test',
             'secret_key' => 'not-a-paystack-key',
             'callback_url' => 'https://semizzy.example.test/wallet/funding/return',
             'confirm_live' => false,
@@ -150,6 +153,7 @@ class IntegrationSettingsAccessTest extends TestCase
         UserPermission::query()->create(['user_id' => $admin->id, 'permission' => 'staff.permissions.manage']);
 
         $this->actingAs($admin)->put('/admin/payment-gateway', [
+            'mode' => 'live',
             'secret_key' => 'sk_live_semizzy_live_test_key',
             'callback_url' => 'https://semizzy.example.test/wallet/funding/return',
             'confirm_live' => false,
@@ -158,6 +162,7 @@ class IntegrationSettingsAccessTest extends TestCase
         $this->assertDatabaseMissing('integration_settings', ['key' => 'paystack.secret_key']);
 
         $this->actingAs($admin)->put('/admin/payment-gateway', [
+            'mode' => 'live',
             'secret_key' => 'sk_live_semizzy_live_test_key',
             'callback_url' => 'https://semizzy.example.test/wallet/funding/return',
             'confirm_live' => true,
