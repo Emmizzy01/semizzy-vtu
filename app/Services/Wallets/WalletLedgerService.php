@@ -35,7 +35,7 @@ class WalletLedgerService
         ?int $actorUserId = null,
         array $metadata = [],
         ?string $correlationId = null,
-        bool $bypassWalletBalanceLimit = false,
+        bool $isFinancialRecovery = false,
     ): WalletTransaction {
         $type = strtolower($type);
 
@@ -76,7 +76,7 @@ class WalletLedgerService
                 $actorUserId,
                 $metadata,
                 $correlationId,
-                $bypassWalletBalanceLimit,
+                $isFinancialRecovery,
             ): WalletTransaction {
                 /** @var Wallet $wallet */
                 $wallet = Wallet::query()->whereKey($walletId)->lockForUpdate()->firstOrFail();
@@ -105,7 +105,7 @@ class WalletLedgerService
 
                 // The wallet row lock serializes credits, so this check and the balance
                 // update are atomic even when two deposits arrive at the same time.
-                if ($type === 'credit' && ! $bypassWalletBalanceLimit) {
+                if ($type === 'credit' && ! $isFinancialRecovery) {
                     $owner = User::query()->whereKey($wallet->user_id)->first();
                     $level = (string) ($owner?->user_level ?: 'level_1');
                     $policy = UserLevelPolicy::query()->where('level', $level)->lockForUpdate()->first();
