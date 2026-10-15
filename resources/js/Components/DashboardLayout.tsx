@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import ThemeToggle from './ThemeToggle';
+import MobileAppHeader from './MobileAppHeader';
 import { applyThemePreference } from './theme';
 import { Head, usePage } from '@inertiajs/react';
 import {
@@ -173,7 +174,8 @@ export default function DashboardLayout({
     <>
       <Head title={title} />
       <main className="min-h-screen bg-[var(--page)] pb-24 text-[var(--ink)]">
-        {<header className="sticky top-0 z-40 border-b border-[var(--line)] bg-[var(--surface)]/95 backdrop-blur">
+        <MobileAppHeader admin={admin} customerPreview={customerPreview} />
+        {<header className="sticky top-0 z-40 hidden border-b border-[var(--line)] bg-[var(--surface)]/95 backdrop-blur sm:block">
           <div className="mx-auto flex max-w-[1600px] items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8">
             {!admin && !customerPreview ? <a href="/profile" className="flex min-w-0 items-center gap-3" aria-label="Open profile and account level">
               <span className="relative grid h-11 w-11 shrink-0 place-items-center overflow-hidden rounded-full border-2 border-white bg-emerald-100 text-sm font-extrabold text-emerald-800 shadow-sm dark:border-slate-800 dark:bg-emerald-950 dark:text-emerald-200">
