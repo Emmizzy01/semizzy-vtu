@@ -18,6 +18,8 @@ class UserLevelPolicyController extends Controller
         return Inertia::render('Admin/UserLevelPolicies', [
             'policies' => UserLevelPolicy::query()->orderBy('level')->get()->map(fn (UserLevelPolicy $policy): array => [
                 'level' => $policy->level, 'label' => $policy->label,
+                'wallet_balance_limit_minor' => $policy->wallet_balance_limit_minor,
+                'wallet_balance_limit_minor' => $policy->wallet_balance_limit_minor,
                 'max_single_transaction_minor' => $policy->max_single_transaction_minor,
                 'daily_transaction_limit_minor' => $policy->daily_transaction_limit_minor,
                 'requires_verified_kyc' => $policy->requires_verified_kyc,
@@ -30,6 +32,7 @@ class UserLevelPolicyController extends Controller
     {
         abort_unless(in_array($level, ['level_1', 'level_2', 'level_3', 'level_4'], true), 404);
         $data = $request->validate([
+            'wallet_balance_limit_minor' => ['nullable', 'integer', 'min:1', 'max:5000000000'],
             'max_single_transaction_minor' => ['nullable', 'integer', 'min:1', 'max:500000000'],
             'daily_transaction_limit_minor' => ['nullable', 'integer', 'min:1', 'max:5000000000'],
             'requires_verified_kyc' => ['required', 'boolean'],
@@ -49,6 +52,7 @@ class UserLevelPolicyController extends Controller
                 'is_active' => $policy->is_active,
             ];
             $new = [
+                'wallet_balance_limit_minor' => $data['wallet_balance_limit_minor'] === null ? null : (int) $data['wallet_balance_limit_minor'],
                 'max_single_transaction_minor' => $data['max_single_transaction_minor'] === null ? null : (int) $data['max_single_transaction_minor'],
                 'daily_transaction_limit_minor' => $data['daily_transaction_limit_minor'] === null ? null : (int) $data['daily_transaction_limit_minor'],
                 'requires_verified_kyc' => (bool) $data['requires_verified_kyc'],
