@@ -4,6 +4,7 @@ use App\Http\Controllers\Admin\IntegrationSettingsController;
 use App\Http\Controllers\Admin\StaffAccessController;
 use App\Http\Controllers\Admin\VtuOrderOperationsController;
 use App\Http\Controllers\Auth\AuthController;
+use App\Http\Controllers\Auth\PasswordResetController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\Payments\PaymentFundingController;
 use App\Http\Controllers\Payments\ManualDepositController;
@@ -32,6 +33,10 @@ Route::middleware('guest')->group(function (): void {
     Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:5,1')->name('login.store');
     Route::get('/register', [AuthController::class, 'registerForm'])->name('register');
     Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:3,1')->name('register.store');
+    Route::get('/forgot-password', [PasswordResetController::class, 'requestForm'])->name('password.request');
+    Route::post('/forgot-password', [PasswordResetController::class, 'sendLink'])->middleware('throttle:3,1')->name('password.email');
+    Route::get('/reset-password/{token}', [PasswordResetController::class, 'resetForm'])->name('password.reset');
+    Route::post('/reset-password', [PasswordResetController::class, 'reset'])->middleware('throttle:5,1')->name('password.update');
 });
 
 Route::middleware('auth')->group(function (): void {

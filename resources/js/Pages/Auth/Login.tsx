@@ -40,6 +40,7 @@ export default function Login() {
               {form.processing && <LoaderCircle size={18} className="animate-spin" aria-hidden="true" />} Sign in
             </button>
           </form>
+          <p className="mt-4 text-center text-sm"><Link href="/forgot-password" className="font-semibold text-[var(--brand)]">Forgot your password?</Link></p>
           <p className="mt-6 text-center text-sm text-[var(--muted)]">New to Semizzy? <Link href="/register" className="font-bold text-[var(--brand)]">Create an account</Link></p>
           <p className="mt-5 flex items-center justify-center gap-2 text-xs text-[var(--muted)]"><ShieldCheck size={14} aria-hidden="true" /> Your password is sent only over your site's HTTPS connection.</p>
         </section>
