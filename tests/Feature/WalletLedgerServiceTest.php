@@ -138,6 +138,25 @@ class WalletLedgerServiceTest extends TestCase
         $this->assertDatabaseCount('wallet_ledger_entries', 2);
     }
 
+    public function test_competing_credits_recheck_balance_after_the_first_credit(): void
+    {
+        $user = User::query()->create(['name' => 'Competing Credit Customer', 'email' => 'competing-credit@example.test', 'password' => 'not-a-real-password']);
+        $wallet = app(WalletAccountService::class)->openForUser($user);
+        app(WalletLedgerService::class)->post($wallet->id, 'credit', 800, 'competing-credit-seed');
+        UserLevelPolicy::query()->where('level', 'level_1')->update(['wallet_balance_limit_minor' => 1000, 'is_active' => true]);
+
+        app(WalletLedgerService::class)->post($wallet->id, 'credit', 100, 'competing-credit-a');
+        try {
+            app(WalletLedgerService::class)->post($wallet->id, 'credit', 200, 'competing-credit-b');
+            $this->fail('The second credit must recheck the updated balance and be rejected.');
+        } catch (\DomainException $exception) {
+            $this->assertStringContainsString('account level would be exceeded', $exception->getMessage());
+        }
+
+        $this->assertSame(900, (int) $wallet->fresh()->balance_minor);
+        $this->assertDatabaseCount('wallet_ledger_entries', 2);
+    }
+
     public function test_credit_over_user_level_wallet_balance_limit_is_rejected_atomically(): void
     {
         $user = User::query()->create(['name' => 'Over Cap Customer', 'email' => 'over-cap@example.test', 'password' => 'not-a-real-password']);
