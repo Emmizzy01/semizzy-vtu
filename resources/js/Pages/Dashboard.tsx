@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { AlertCircle, ArrowDownToLine, ArrowUpRight, CheckCircle2, Clock3, CreditCard, Eye, EyeOff, RefreshCw, Search, Smartphone, WalletCards } from 'lucide-react';
+import { AlertCircle, ArrowDownToLine, ArrowUpRight, Activity, BookOpen, CheckCircle2, Clock3, CreditCard, Eye, EyeOff, GraduationCap, ShieldCheck, Smartphone, Tv, Wifi, Zap, Building2, Megaphone, Sparkles, WalletCards } from 'lucide-react';
 import DashboardLayout from '../Components/DashboardLayout';
 
 type Wallet = { balance_minor: number; available_balance_minor: number; currency: string; status: string } | null;
@@ -114,10 +114,39 @@ export default function CustomerDashboard({ wallet, transactions, orders, fundin
         </article>
       </section>
 
-      <section className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <QuickLink href="/services" icon={<WalletCards size={20} />} title="All services" detail="Browse the organized service catalogue" />
-        <QuickLink href="/wallet/manual-deposits" icon={<ArrowDownToLine size={20} />} title="Manual bank deposit" detail="Transfer and submit proof for review" />
-        <QuickLink href="/wallet/vtu" icon={<Smartphone size={20} />} title="Airtime & data" detail="Buy mobile services" />
+      <section className="mt-7" aria-labelledby="dashboard-services-heading">
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <div><h2 id="dashboard-services-heading" className="font-display text-lg font-extrabold">Our services</h2><p className="mt-1 text-xs text-[var(--muted)]">Choose a service or browse by category.</p></div>
+          <a href="/services" className="inline-flex min-h-10 shrink-0 items-center gap-1 rounded-xl border border-[var(--line)] px-3 py-2 text-sm font-bold text-[var(--brand)] hover:bg-[var(--brand-soft)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)]">More <ArrowUpRight size={15} aria-hidden="true" /></a>
+        </div>
+        <div className="grid grid-cols-4 gap-2 sm:grid-cols-2 sm:gap-3 lg:grid-cols-6" aria-label="Popular services">
+          {[
+            { title: 'Airtime & data', href: '/wallet/vtu', icon: <Smartphone size={22} />, ready: true },
+            { title: 'Manual deposit', href: '/wallet/manual-deposits', icon: <WalletCards size={22} />, ready: true },
+            { title: 'Transactions', href: '#transactions', icon: <Activity size={22} />, ready: true },
+            { title: 'Electricity', href: '/services', icon: <Zap size={22} />, ready: false },
+            { title: 'Cable TV', href: '/services', icon: <Tv size={22} />, ready: false },
+            { title: 'Internet', href: '/services', icon: <Wifi size={22} />, ready: false },
+            { title: 'Education', href: '/services', icon: <GraduationCap size={22} />, ready: false },
+            { title: 'Government', href: '/services', icon: <Building2 size={22} />, ready: false },
+            { title: 'Streaming', href: '/services', icon: <Tv size={22} />, ready: false },
+            { title: 'Social media', href: '/services', icon: <Megaphone size={22} />, ready: false },
+            { title: 'Security', href: '/security/transaction-pin', icon: <ShieldCheck size={22} />, ready: true },
+            { title: 'Support', href: '/services', icon: <Sparkles size={22} />, ready: false },
+            { title: 'Exam services', href: '/services', icon: <BookOpen size={22} />, ready: false },
+            { title: 'Funding history', href: '#funding-history', icon: <CreditCard size={22} />, ready: true },
+            { title: 'Order history', href: '#orders', icon: <Clock3 size={22} />, ready: true },
+            { title: 'Bills & payments', href: '/services', icon: <ArrowDownToLine size={22} />, ready: false },
+            { title: 'Rewards', href: '/services', icon: <Sparkles size={22} />, ready: false },
+            { title: 'More services', href: '/services', icon: <ArrowUpRight size={22} />, ready: true },
+          ].map((service, index) => <a key={service.title} href={service.href} aria-label={service.ready ? service.title : service.title + ', see availability in all services'} className={'group flex min-w-0 flex-col items-center justify-center gap-2 rounded-2xl border border-[var(--line)] bg-[var(--surface)] px-1.5 py-3 text-center transition hover:border-[var(--brand)] hover:bg-[var(--brand-soft)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)] sm:px-2 sm:py-4 ' + (index >= 16 ? 'hidden lg:flex ' : index >= 6 ? 'hidden sm:flex ' : '')}>
+            <span className="grid h-11 w-11 place-items-center rounded-2xl bg-[var(--brand-soft)] text-[var(--brand)] transition group-hover:scale-105 sm:h-12 sm:w-12">{service.icon}</span>
+            <span className="w-full break-words text-[10px] font-bold leading-tight sm:text-xs">{service.title}</span>
+            {!service.ready && <span className="text-[9px] leading-tight text-[var(--muted)]">Details</span>}
+          </a>)}
+        </div>
+      </section>
+      <section className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <QuickLink href="#transactions" icon={<ArrowDownToLine size={20} />} title="Transactions" detail="Review wallet activity" />
         <QuickLink href="#funding-history" icon={<CreditCard size={20} />} title="Funding history" detail="See payment attempts" />
         <QuickLink href="#orders" icon={<Clock3 size={20} />} title="Order history" detail="Review recent service orders" />
