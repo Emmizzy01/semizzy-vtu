@@ -11,6 +11,13 @@ class AuthFlowTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_guest_authentication_pages_render_without_server_errors(): void
+    {
+        $this->get('/login')->assertOk()->assertInertia(fn ($page) => $page->component('Auth/Login'));
+        $this->get('/register')->assertOk()->assertInertia(fn ($page) => $page->component('Auth/Register'));
+        $this->get('/forgot-password')->assertOk()->assertInertia(fn ($page) => $page->component('Auth/ForgotPassword'));
+    }
+
     public function test_authenticated_users_are_redirected_away_from_login_and_registration(): void
     {
         $user = User::query()->create([
