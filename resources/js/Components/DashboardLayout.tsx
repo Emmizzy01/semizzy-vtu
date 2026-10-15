@@ -93,7 +93,7 @@ export default function DashboardLayout({
     { title: 'Customer', items: [
       { label: 'VTU services', href: '/wallet/vtu', icon: Smartphone, match: '/wallet/vtu' },
       { label: 'Customer view', href: '/customer/dashboard', icon: WalletCards, match: '/customer/dashboard' },
-      ...(canManageStaff ? [{ label: 'Users, types & levels', href: '/admin/users', icon: Users, match: '/admin/users' }] : []),
+      ...(canManageStaff ? [{ label: 'Users, types & levels', href: '/admin/users', icon: Users, match: '/admin/users' }, { label: 'User level policies', href: '/admin/user-levels', icon: ShieldCheck, match: '/admin/user-levels' }] : []),
     ] },
   ];
 

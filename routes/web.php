@@ -11,6 +11,7 @@ use App\Http\Controllers\Admin\ManualDepositSettingsController;
 use App\Http\Controllers\Admin\PlatformSettingsController;
 use App\Http\Controllers\Admin\UserManagementController;
 use App\Http\Controllers\Admin\GlobalSearchController;
+use App\Http\Controllers\Admin\UserLevelPolicyController;
 use App\Http\Controllers\Security\TransactionPinController;
 use App\Services\IntegrationSettings;
 use App\Http\Controllers\Payments\PaymentRefundController;
@@ -68,6 +69,8 @@ Route::middleware(['auth', 'can:refunds.approve', 'throttle:20,1'])->post('/admi
 
 Route::middleware(['auth', 'can:staff.permissions.manage'])->prefix('admin')->name('admin.')->group(function (): void {
     Route::get('/search', GlobalSearchController::class)->middleware('throttle:30,1')->name('search');
+    Route::get('/user-levels', [UserLevelPolicyController::class, 'index'])->name('user-levels.index');
+    Route::put('/user-levels/{level}', [UserLevelPolicyController::class, 'update'])->middleware('throttle:20,1')->name('user-levels.update');
     Route::get('/users', [UserManagementController::class, 'index'])->middleware('throttle:60,1')->name('users.index');
     Route::put('/users/{user}/classification', [UserManagementController::class, 'update'])->middleware('throttle:20,1')->name('users.classification.update');
     Route::get('/platform-settings', [PlatformSettingsController::class, 'edit'])->name('platform-settings');

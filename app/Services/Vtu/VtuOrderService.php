@@ -9,6 +9,7 @@ use App\Models\VtuProduct;
 use App\Models\Wallet;
 use App\Services\Wallets\WalletAccountService;
 use App\Services\Wallets\WalletLedgerService;
+use App\Services\Security\UserLevelPolicyService;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\DB;
@@ -23,6 +24,7 @@ class VtuOrderService
         private readonly WalletAccountService $walletAccounts,
         private readonly WalletLedgerService $ledger,
         private readonly VtuProvider $provider,
+        private readonly UserLevelPolicyService $levelPolicies,
     ) {
     }
 
@@ -109,6 +111,9 @@ class VtuOrderService
                 }
 
                 $this->provider->assertProductConfigured($lockedProduct);
+                $lockedWallet = Wallet::query()->whereKey($wallet->getKey())->lockForUpdate()->firstOrFail();
+                $policyRejection = $this->levelPolicies->rejectionReason($user, $lockedProduct, (int) $lockedWallet->getKey());
+                if ($policyRejection !== null) throw new InvalidArgumentException($policyRejection);
 
                 $order = VtuOrder::query()->create([
                     'public_id' => (string) Str::uuid(),
