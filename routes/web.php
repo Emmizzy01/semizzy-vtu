@@ -5,7 +5,7 @@ use App\Http\Controllers\Admin\StaffAccessController;
 use App\Http\Controllers\Admin\VtuOrderOperationsController;
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\DashboardController;
-use App\Http\Controllers\Payments\PaymentFundingController;
+use App\Http\Controllers\Payments\PaymentFundingController;\nuse App\Http\Controllers\Payments\ManualDepositController;\nuse App\Http\Controllers\Admin\ManualDepositSettingsController;
 use App\Http\Controllers\Payments\PaymentRefundController;
 use App\Http\Controllers\Vtu\VtuOrderController;
 use Illuminate\Support\Facades\Route;

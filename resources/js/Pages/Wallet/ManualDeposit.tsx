@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { Head, router } from '@inertiajs/react';
 import DashboardLayout from '../../Components/DashboardLayout';
-import { ArrowLeftRight, Building2, Clock3, Upload, WalletCards } from 'lucide-react';
+import { Building2, Clock3, Upload } from 'lucide-react';
 
 type Deposit = { id: string; amount_minor: number; reference: string; status: string; created_at: string | null; reviewed_at: string | null; review_reason: string | null };
 type Instructions = { bank_name: string; account_name: string; account_number: string; instructions: string; enabled: boolean };
