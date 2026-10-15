@@ -12,6 +12,7 @@ import {
   PlugZap,
   Search,
   ShieldCheck,
+  SlidersHorizontal,
   Smartphone,
   Users,
   WalletCards,

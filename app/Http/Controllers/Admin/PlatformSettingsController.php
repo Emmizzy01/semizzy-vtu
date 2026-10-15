@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\PlatformSettingAudit;
+use App\Models\PlatformFeatureControl;
 use App\Services\IntegrationSettings;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -52,13 +53,31 @@ class PlatformSettingsController extends Controller
                 $old = (string) $settings->get($key, $fallback);
                 $new = in_array($field, ['maintenance_mode', 'airtime_data_enabled', 'manual_deposit_enabled'], true)
                     ? ($data[$field] ? '1' : '0') : trim((string) ($data[$field] ?? ''));
-                if (hash_equals(hash('sha256', $old), hash('sha256', $new))) continue;
-                $settings->set($key, $new, (int) $request->user()->id);
-                PlatformSettingAudit::query()->create([
-                    'actor_user_id' => $request->user()->id, 'setting_key' => $key,
-                    'old_value_hash' => hash('sha256', $old), 'new_value_hash' => hash('sha256', $new),
-                    'reason' => trim($data['reason']), 'created_at' => now(),
-                ]);
+                if (! hash_equals(hash('sha256', $old), hash('sha256', $new))) {
+                    $settings->set($key, $new, (int) $request->user()->id);
+                    PlatformSettingAudit::query()->create([
+                        'actor_user_id' => $request->user()->id, 'setting_key' => $key,
+                        'old_value_hash' => hash('sha256', $old), 'new_value_hash' => hash('sha256', $new),
+                        'reason' => trim($data['reason']), 'created_at' => now(),
+                    ]);
+                }
+                $featureKey = match ($field) {
+                    'airtime_data_enabled' => 'service.airtime_data',
+                    'manual_deposit_enabled' => 'service.manual_deposit',
+                    default => null,
+                };
+                if ($featureKey !== null) {
+                    $feature = PlatformFeatureControl::query()->where('feature_key', $featureKey)->lockForUpdate()->first();
+                    if ($feature && $feature->is_enabled !== ($new === '1')) {
+                        $oldFeatureValue = $feature->is_enabled ? '1' : '0';
+                        $feature->forceFill(['is_enabled' => $new === '1', 'updated_by_user_id' => $request->user()->id])->save();
+                        PlatformSettingAudit::query()->create([
+                            'actor_user_id' => $request->user()->id, 'setting_key' => 'feature.'.$featureKey,
+                            'old_value_hash' => hash('sha256', $oldFeatureValue), 'new_value_hash' => hash('sha256', $new),
+                            'reason' => trim($data['reason']), 'created_at' => now(),
+                        ]);
+                    }
+                }
             }
         }, attempts: 3);
         return back()->with('status', 'Platform settings saved and changes recorded in the audit trail.');
