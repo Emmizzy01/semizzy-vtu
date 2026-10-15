@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import ThemeToggle from './ThemeToggle';
+import { applyThemePreference } from './theme';
 import { Head, usePage } from '@inertiajs/react';
 import {
   Activity,
@@ -43,13 +44,15 @@ export default function DashboardLayout({
   canApproveRefunds = false,
   customerPreview = false,
 }: DashboardLayoutProps) {
-  const { platform, auth } = usePage<{ platform?: { name?: string; skin?: 'modern-green' | 'navy-teal' | 'minimal-blue' | 'obsidian-luxe' | 'arctic-light' }; auth?: { user?: { name?: string; email?: string; tier?: string; level?: string; user_level?: string; user_type?: string; avatar_url?: string | null; avatarUrl?: string | null } | null } }>().props;
+  const { platform, auth } = usePage<{ platform?: { name?: string; theme_mode?: 'light' | 'dark'; skin?: 'modern-green' | 'navy-teal' | 'minimal-blue' | 'obsidian-luxe' | 'arctic-light' }; auth?: { user?: { name?: string; email?: string; tier?: string; level?: string; user_level?: string; user_type?: string; avatar_url?: string | null; avatarUrl?: string | null } | null } }>().props;
   const currentUser = auth?.user;
   const userName = currentUser?.name?.trim() || 'Semizzy user';
   const userTier = currentUser?.tier || currentUser?.user_level || currentUser?.level || currentUser?.user_type || 'Customer';
   const avatarUrl = currentUser?.avatar_url || currentUser?.avatarUrl || null;
   const userInitials = userName.split(/\s+/).slice(0, 2).map(part => part[0]).join('').toUpperCase() || 'S';
   const platformName = platform?.name || 'SEMIZZY';
+  const globalThemeMode = platform?.theme_mode === 'dark' ? 'dark' : 'light';
+  useEffect(() => { applyThemePreference(globalThemeMode); }, [globalThemeMode]);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [location, setLocation] = useState(() => ({
     path: typeof window === 'undefined' ? '' : window.location.pathname,
@@ -192,7 +195,7 @@ export default function DashboardLayout({
             )}
             <div className="flex shrink-0 items-center gap-2">
               {admin && <a href="/customer/dashboard" className="hidden min-h-10 items-center gap-1 rounded-xl border border-[var(--line)] px-3 py-2 text-xs font-semibold hover:border-[var(--brand)] sm:inline-flex"><ArrowLeftRight size={14} aria-hidden="true" /> Customer view</a>}
-              {admin && <ThemeToggle />}
+              {admin && <ThemeToggle themeMode={globalThemeMode} />}
               <form method="post" action="/logout">
                 <input type="hidden" name="_token" value={typeof document === 'undefined' ? '' : (document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ?? '')} />
                 <button type="submit" aria-label="Sign out" className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-[var(--brand)] px-3 text-sm font-bold text-white hover:opacity-90">
