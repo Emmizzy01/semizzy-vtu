@@ -109,7 +109,7 @@ class ManualDepositController extends Controller
     public function adminIndex(Request $request): InertiaResponse
     {
         $status = (string) $request->query('status', 'pending');
-        if (! in_array($status, ['pending', 'approved', 'rejected', 'all'], true)) $status = 'pending';
+        if (! in_array($status, ['pending', 'review_required', 'approved', 'rejected', 'all'], true)) $status = 'pending';
         $search = mb_substr(trim((string) $request->query('search', '')), 0, 100);
         $query = ManualDeposit::query()->with(['user:id,name,email'])->select([
             'id', 'public_id', 'user_id', 'wallet_id', 'amount_minor', 'transfer_reference', 'status',
