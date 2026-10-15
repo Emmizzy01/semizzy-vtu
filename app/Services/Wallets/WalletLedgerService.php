@@ -5,11 +5,14 @@ namespace App\Services\Wallets;
 use App\Exceptions\Wallet\IdempotencyConflict;
 use App\Exceptions\Wallet\InsufficientWalletFunds;
 use App\Models\Wallet;
+use App\Models\User;
+use App\Models\UserLevelPolicy;
 use App\Models\WalletAuditEvent;
 use App\Models\WalletLedgerEntry;
 use App\Models\WalletTransaction;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use DomainException;
 use InvalidArgumentException;
 
 class WalletLedgerService
@@ -32,6 +35,7 @@ class WalletLedgerService
         ?int $actorUserId = null,
         array $metadata = [],
         ?string $correlationId = null,
+        bool $bypassWalletBalanceLimit = false,
     ): WalletTransaction {
         $type = strtolower($type);
 
@@ -72,6 +76,7 @@ class WalletLedgerService
                 $actorUserId,
                 $metadata,
                 $correlationId,
+                $bypassWalletBalanceLimit,
             ): WalletTransaction {
                 /** @var Wallet $wallet */
                 $wallet = Wallet::query()->whereKey($walletId)->lockForUpdate()->firstOrFail();
@@ -97,6 +102,19 @@ class WalletLedgerService
 
                 $balanceBefore = (int) $wallet->balance_minor;
                 $availableBefore = (int) $wallet->available_balance_minor;
+
+                // The wallet row lock serializes credits, so this check and the balance
+                // update are atomic even when two deposits arrive at the same time.
+                if ($type === 'credit' && ! $bypassWalletBalanceLimit) {
+                    $owner = User::query()->whereKey($wallet->user_id)->first();
+                    $level = (string) ($owner?->user_level ?: 'level_1');
+                    $policy = UserLevelPolicy::query()->where('level', $level)->lockForUpdate()->first();
+
+                    if ($policy?->is_active && $policy->wallet_balance_limit_minor !== null
+                        && $balanceBefore + $amountMinor > (int) $policy->wallet_balance_limit_minor) {
+                        throw new DomainException('Wallet balance limit for this account level would be exceeded; credit requires reconciliation review.');
+                    }
+                }
 
                 if ($type === 'debit' && $availableBefore < $amountMinor) {
                     throw new InsufficientWalletFunds('Insufficient available wallet funds.');
