@@ -20,7 +20,7 @@ class PlatformSettingsController extends Controller
             'site_name' => (string) $settings->get('site.name', config('app.name', 'Semizzy')),
             'support_email' => (string) $settings->get('site.support_email', ''),
             'support_phone' => (string) $settings->get('site.support_phone', ''),
-            'theme_skin' => (string) $settings->get('site.theme_skin', 'emerald'),
+            'theme_skin' => (string) $settings->get('site.theme_skin', 'modern-green'),
             'maintenance_mode' => filter_var($settings->get('site.maintenance_mode', false), FILTER_VALIDATE_BOOLEAN),
             'airtime_data_enabled' => filter_var($settings->get('service.airtime_data.enabled', true), FILTER_VALIDATE_BOOLEAN),
             'manual_deposit_enabled' => filter_var($settings->get('manual_deposit.enabled', true), FILTER_VALIDATE_BOOLEAN),
@@ -33,7 +33,7 @@ class PlatformSettingsController extends Controller
             'site_name' => ['required', 'string', 'min:2', 'max:120'],
             'support_email' => ['nullable', 'email', 'max:255'],
             'support_phone' => ['nullable', 'string', 'max:32', 'regex:/^[+0-9() .-]*$/'],
-            'theme_skin' => ['required', 'in:emerald,blue,violet,teal,amber'],
+            'theme_skin' => ['required', 'in:modern-green,navy-teal,minimal-blue,obsidian-luxe,arctic-light'],
             'maintenance_mode' => ['required', 'boolean'],
             'airtime_data_enabled' => ['required', 'boolean'],
             'manual_deposit_enabled' => ['required', 'boolean'],
@@ -48,7 +48,7 @@ class PlatformSettingsController extends Controller
             foreach ($map as $field => $key) {
                 $fallback = match ($field) {
                     'site_name' => config('app.name', 'Semizzy'),
-                    'theme_skin' => 'emerald',
+                    'theme_skin' => 'modern-green',
                     'maintenance_mode' => '0',
                     'airtime_data_enabled', 'manual_deposit_enabled' => '1',
                     default => '',
