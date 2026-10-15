@@ -59,7 +59,7 @@ class ManualDepositController extends Controller
             'evidence' => ['required', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
         ]);
 
-        abort_unless((bool) app(IntegrationSettings::class)->get('manual_deposit.enabled', true), 403, 'Manual deposits are temporarily disabled.');
+        abort_unless(filter_var(app(IntegrationSettings::class)->get('manual_deposit.enabled', true), FILTER_VALIDATE_BOOLEAN), 403, 'Manual deposits are temporarily disabled.');
         $user = $request->user();
         abort_unless($user, 401);
         $wallet = $wallets->openForUser($user, 'NGN');
