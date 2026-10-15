@@ -11,7 +11,7 @@ return [
         // Whole-naira airtime face values; data prices always come from VTpass variations.
         'airtime_denominations' => array_values(array_filter(array_map('intval', explode(',', (string) env('VTU_AIRTIME_DENOMINATIONS', '100,200,500,1000'))))),
         'vtpass' => [
-            'base_url' => env('VTU_VTPASS_BASE_URL', 'https://sandbox.vtpass.com/api'),
+            'base_url' => env('VTU_VTPASS_BASE_URL', env('APP_ENV', 'production') === 'production' ? 'https://vtpass.com/api' : 'https://sandbox.vtpass.com/api'),
             'api_key' => env('VTU_VTPASS_API_KEY'),
             'secret_key' => env('VTU_VTPASS_SECRET_KEY'),
         ],

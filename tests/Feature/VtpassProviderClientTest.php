@@ -22,6 +22,21 @@ class VtpassProviderClientTest extends TestCase
         ]);
     }
 
+    public function test_production_rejects_sandbox_before_any_provider_request(): void
+    {
+        config(['app.env' => 'production']);
+        Http::fake();
+
+        try {
+            app(VtpassProviderClient::class)->assertConfigured();
+            $this->fail('Production must not submit purchases to the VTpass sandbox.');
+        } catch (\LogicException $exception) {
+            $this->assertStringContainsString('sandbox is disabled in production', $exception->getMessage());
+        }
+
+        Http::assertNothingSent();
+    }
+
     public function test_airtime_uses_official_vtpass_payload_and_auth_headers(): void
     {
         Http::fake(fn () => Http::response([

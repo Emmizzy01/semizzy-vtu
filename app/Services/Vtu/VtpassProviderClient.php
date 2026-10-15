@@ -26,6 +26,10 @@ class VtpassProviderClient implements VtuProvider
         ) {
             throw new LogicException('VTpass requires its official HTTPS API base URL and server-side API credentials.');
         }
+
+        if (config('app.env') === 'production' && $baseUrl === 'https://sandbox.vtpass.com/api') {
+            throw new LogicException('VTpass sandbox is disabled in production. Configure the official live endpoint and live credentials before enabling real purchases.');
+        }
     }
 
     public function assertProductConfigured(VtuProduct $product): void
