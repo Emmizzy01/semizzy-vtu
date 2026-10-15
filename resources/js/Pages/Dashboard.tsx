@@ -100,7 +100,7 @@ export default function CustomerDashboard({ wallet, transactions, orders, fundin
           <div className="flex shrink-0 items-center gap-3 text-[var(--ink)]">
             <a href="/support" aria-label="Help and support" className="relative grid h-10 w-10 place-items-center rounded-full hover:bg-[var(--brand-soft)]"><Headset size={23}/><span className="absolute -right-1 -top-1 rounded-full bg-pink-200 px-1.5 py-0.5 text-[8px] font-extrabold text-pink-800">HELP</span></a>
             <button type="button" aria-label="Scan code" onClick={() => setNotice('QR scanning is not enabled yet. Use the available service links for now.')} className="grid h-10 w-10 place-items-center rounded-full hover:bg-[var(--brand-soft)]"><ScanLine size={23}/></button>
-            <button type="button" aria-label="Notifications" onClick={() => setNotice("Notifications are not available yet.")} className="relative grid h-10 w-10 place-items-center rounded-full hover:bg-[var(--brand-soft)]"><Bell size={23}/><span className="absolute right-0 top-0 grid h-4 min-w-4 place-items-center rounded-full bg-rose-500 px-1 text-[9px] font-extrabold text-white">!</span></button>
+            <button type="button" aria-label="Notifications are not available yet" title="Notifications are not available yet" disabled className="relative grid h-10 w-10 cursor-not-allowed place-items-center rounded-full opacity-50"><Bell size={23}/></button>
           </div>
         </div>
 
