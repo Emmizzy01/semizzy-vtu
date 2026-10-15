@@ -52,9 +52,9 @@ class UserLevelPolicyController extends Controller
                 'is_active' => $policy->is_active,
             ];
             $new = [
-                'wallet_balance_limit_minor' => $data['wallet_balance_limit_minor'] === null ? null : (int) $data['wallet_balance_limit_minor'],
-                'max_single_transaction_minor' => $data['max_single_transaction_minor'] === null ? null : (int) $data['max_single_transaction_minor'],
-                'daily_transaction_limit_minor' => $data['daily_transaction_limit_minor'] === null ? null : (int) $data['daily_transaction_limit_minor'],
+                'wallet_balance_limit_minor' => ($data['wallet_balance_limit_minor'] ?? null) === null ? null : (int) $data['wallet_balance_limit_minor'],
+                'max_single_transaction_minor' => ($data['max_single_transaction_minor'] ?? null) === null ? null : (int) $data['max_single_transaction_minor'],
+                'daily_transaction_limit_minor' => ($data['daily_transaction_limit_minor'] ?? null) === null ? null : (int) $data['daily_transaction_limit_minor'],
                 'requires_verified_kyc' => (bool) $data['requires_verified_kyc'],
                 'is_active' => (bool) $data['is_active'],
             ];
