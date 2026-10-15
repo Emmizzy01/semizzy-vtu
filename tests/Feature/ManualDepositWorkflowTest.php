@@ -120,7 +120,7 @@ class ManualDepositWorkflowTest extends TestCase
         $admin = User::query()->create(['name' => 'Capped Deposit Admin', 'email' => 'capped-deposit-admin@example.test', 'password' => 'not-a-real-password']);
         UserPermission::query()->create(['user_id' => $admin->id, 'permission' => 'staff.permissions.manage']);
         $wallet = app(WalletAccountService::class)->openForUser($customer);
-        app(\\App\\Services\\Wallets\\WalletLedgerService::class)->post($wallet->id, 'credit', 9500, 'manual-cap-seed');
+        app(\App\Services\Wallets\WalletLedgerService::class)->post($wallet->id, 'credit', 9500, 'manual-cap-seed');
         UserLevelPolicy::query()->where('level', 'level_1')->update(['wallet_balance_limit_minor' => 10000, 'is_active' => true]);
         $path = UploadedFile::fake()->image('proof.png')->store('manual-deposits', 'local');
         $deposit = ManualDeposit::query()->create([
