@@ -18,7 +18,7 @@ class TransactionPinSecurityTest extends TestCase
 
         $this->actingAs($user)->postJson('/wallet/vtu/orders', [
             'product_code' => 'not-looked-up-before-pin',
-            'recipient' => '080123478',
+            'recipient' => '08012345678',
             'idempotency_key' => 'pin-required-order',
         ])->assertStatus(428)
           ->assertJsonPath('setup_url', '/security/transaction-pin');
@@ -34,7 +34,7 @@ class TransactionPinSecurityTest extends TestCase
 
         $this->actingAs($user)->postJson('/wallet/vtu/orders', [
             'product_code' => 'not-looked-up-before-pin',
-            'recipient' => '080123478',
+            'recipient' => '08012345678',
             'idempotency_key' => 'pin-incorrect-order',
             'transaction_pin' => '1111',
         ])->assertStatus(422)->assertJsonPath('message', 'Transaction PIN is incorrect.');
@@ -51,7 +51,7 @@ class TransactionPinSecurityTest extends TestCase
         for ($attempt = 0; $attempt < 4; $attempt++) {
             $this->actingAs($user)->postJson('/wallet/vtu/orders', [
                 'product_code' => 'not-looked-up-before-pin',
-                'recipient' => '080123478',
+                'recipient' => '08012345678',
                 'idempotency_key' => 'pin-lockout-'.$attempt,
                 'transaction_pin' => '1111',
             ])->assertStatus(422);
@@ -59,7 +59,7 @@ class TransactionPinSecurityTest extends TestCase
 
         $this->actingAs($user)->postJson('/wallet/vtu/orders', [
             'product_code' => 'not-looked-up-before-pin',
-            'recipient' => '080123478',
+            'recipient' => '08012345678',
             'idempotency_key' => 'pin-lockout-fifth',
             'transaction_pin' => '1111',
         ])->assertStatus(423);
@@ -67,7 +67,7 @@ class TransactionPinSecurityTest extends TestCase
         // A correct PIN must not bypass the active lockout window.
         $this->actingAs($user)->postJson('/wallet/vtu/orders', [
             'product_code' => 'not-looked-up-before-pin',
-            'recipient' => '080123478',
+            'recipient' => '08012345678',
             'idempotency_key' => 'pin-lockout-correct-pin',
             'transaction_pin' => '4928',
         ])->assertStatus(429);
