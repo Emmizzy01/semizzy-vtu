@@ -1,0 +1,52 @@
+name: Semizzy verification and cPanel assets
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - 'public/build/**'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: true
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mbstring, pdo_sqlite, sqlite3, dom, curl, fileinfo, intl, openssl, tokenizer, xml
+          coverage: none
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install PHP dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+      - name: Prepare test environment
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+          echo "DB_CONNECTION=sqlite" >> .env
+          echo "DB_DATABASE=:memory:" >> .env
+      - name: Run Laravel tests
+        run: php artisan test
+      - name: Install frontend dependencies
+        run: npm install --no-audit --no-fund --no-package-lock
+      - name: Build production frontend
+        run: npm run build
+      - name: Commit compiled assets to main
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/build
+          if git diff --cached --quiet; then
+            echo "Compiled assets are already current."
+          else
+            git commit -m "Build production frontend assets [skip ci]"
+            git push origin HEAD:main
+          fi
