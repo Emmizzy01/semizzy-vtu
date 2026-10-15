@@ -46,6 +46,7 @@ class PaymentFundingController extends Controller
         }
 
         try {
+            $gatewayMode = $paystack->mode();
             $intent = $intents->create($wallet, (int) $validated['amount_minor'], 'paystack');
             $checkout = $paystack->initialize($intent, (string) $user->email);
         } catch (InvalidArgumentException $exception) {
@@ -59,6 +60,7 @@ class PaymentFundingController extends Controller
         $intent->forceFill([
             'checkout_url' => $checkout['authorization_url'],
             'metadata' => [
+                'gateway_mode' => $gatewayMode,
                 'paystack_access_code' => $checkout['access_code'] ?? null,
             ],
         ])->save();
@@ -224,10 +226,12 @@ class PaymentFundingController extends Controller
             ],
         ]);
 
-        $settled = $intent->fresh()->status === 'paid';
+        $finalStatus = $intent->fresh()->status;
 
         return redirect()->route('dashboard', [
-            'funding' => $settled ? 'success' : 'pending',
+            'funding' => $finalStatus === 'paid'
+                ? 'success'
+                : ($finalStatus === 'test_paid' ? 'test-success' : 'pending'),
         ]);
     }
 }
