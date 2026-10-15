@@ -34,6 +34,7 @@ class PlatformSettingsController extends Controller
             'support_email' => ['nullable', 'email', 'max:255'],
             'support_phone' => ['nullable', 'string', 'max:32', 'regex:/^[+0-9() .-]*$/'],
             'theme_skin' => ['required', 'in:modern-green,navy-teal,minimal-blue,obsidian-luxe,arctic-light'],
+            'theme_mode' => ['required', 'in:light,dark'],
             'maintenance_mode' => ['required', 'boolean'],
             'airtime_data_enabled' => ['required', 'boolean'],
             'manual_deposit_enabled' => ['required', 'boolean'],
@@ -49,7 +50,7 @@ class PlatformSettingsController extends Controller
 
         $map = [
             'site_name' => 'site.name', 'support_email' => 'site.support_email',
-            'support_phone' => 'site.support_phone', 'theme_skin' => 'site.theme_skin', 'maintenance_mode' => 'site.maintenance_mode',
+            'support_phone' => 'site.support_phone', 'theme_skin' => 'site.theme_skin', 'theme_mode' => 'site.theme_mode', 'maintenance_mode' => 'site.maintenance_mode',
             'airtime_data_enabled' => 'service.airtime_data.enabled', 'manual_deposit_enabled' => 'manual_deposit.enabled',
         ];
         DB::transaction(function () use ($request, $settings, $data, $map): void {
@@ -57,6 +58,7 @@ class PlatformSettingsController extends Controller
                 $fallback = match ($field) {
                     'site_name' => config('app.name', 'Semizzy'),
                     'theme_skin' => 'modern-green',
+                    'theme_mode' => 'light',
                     'maintenance_mode' => '0',
                     'airtime_data_enabled' => '1',
                     'manual_deposit_enabled' => '0',
