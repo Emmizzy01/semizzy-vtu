@@ -33,11 +33,11 @@ class AuthFlowTest extends TestCase
     public function test_invalid_login_returns_a_field_error_without_authenticating(): void
     {
         $this->from('/login')->post('/login', [
-            'email' => 'missing@example.test',
+            'identifier' => 'missing@example.test',
             'password' => 'WrongPassword1234',
         ])
             ->assertRedirect('/login')
-            ->assertSessionHasErrors('email');
+            ->assertSessionHasErrors('identifier');
 
         $this->assertGuest();
     }
@@ -45,13 +45,81 @@ class AuthFlowTest extends TestCase
     public function test_login_requires_a_valid_email_and_password(): void
     {
         $this->from('/login')->post('/login', [
-            'email' => 'not-an-email',
+            'identifier' => '',
             'password' => '',
         ])
             ->assertRedirect('/login')
-            ->assertSessionHasErrors(['email', 'password']);
+            ->assertSessionHasErrors(['identifier', 'password']);
 
         $this->assertGuest();
+    }
+
+    public function test_user_can_sign_in_with_username(): void
+    {
+        $user = User::query()->create([
+            'name' => 'Username Customer',
+            'email' => 'username-customer@example.test',
+            'username' => 'semizzycustomer',
+            'password' => 'CorrectPassword1234',
+        ]);
+
+        $this->post('/login', [
+            'identifier' => 'SemizzyCustomer',
+            'password' => 'CorrectPassword1234',
+        ])->assertRedirect('/dashboard');
+
+        $this->assertAuthenticatedAs($user);
+    }
+
+    public function test_user_can_sign_in_with_a_verified_whatsapp_number_only(): void
+    {
+        $user = User::query()->create([
+            'name' => 'WhatsApp Customer',
+            'email' => 'whatsapp-customer@example.test',
+            'whatsapp_number' => '+2348012345678',
+            'whatsapp_verified_at' => now(),
+            'password' => 'CorrectPassword1234',
+        ]);
+
+        $this->post('/login', [
+            'identifier' => '+234 801 234 5678',
+            'password' => 'CorrectPassword1234',
+        ])->assertRedirect('/dashboard');
+
+        $this->assertAuthenticatedAs($user);
+    }
+
+    public function test_unverified_whatsapp_number_cannot_be_used_to_sign_in(): void
+    {
+        User::query()->create([
+            'name' => 'Unverified WhatsApp Customer',
+            'email' => 'unverified-whatsapp@example.test',
+            'whatsapp_number' => '+2348098765432',
+            'password' => 'CorrectPassword1234',
+        ]);
+
+        $this->from('/login')->post('/login', [
+            'identifier' => '+2348098765432',
+            'password' => 'CorrectPassword1234',
+        ])->assertRedirect('/login')->assertSessionHasErrors('identifier');
+
+        $this->assertGuest();
+    }
+
+    public function test_user_can_sign_in_with_email_address(): void
+    {
+        $user = User::query()->create([
+            'name' => 'Email Customer',
+            'email' => 'email-customer@example.test',
+            'password' => 'CorrectPassword1234',
+        ]);
+
+        $this->post('/login', [
+            'identifier' => ' EMAIL-CUSTOMER@EXAMPLE.TEST ',
+            'password' => 'CorrectPassword1234',
+        ])->assertRedirect('/dashboard');
+
+        $this->assertAuthenticatedAs($user);
     }
 
     public function test_registration_normalizes_email_and_authenticates_the_new_customer(): void
