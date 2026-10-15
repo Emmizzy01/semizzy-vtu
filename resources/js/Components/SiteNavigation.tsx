@@ -1,7 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { usePage } from '@inertiajs/react';
 import { ClipboardList, CreditCard, LayoutDashboard, Menu, PlugZap, Smartphone, Users, WalletCards, X } from 'lucide-react';
-import ThemeToggle from './ThemeToggle';
 
 type SiteNavigationProps = {
   children: ReactNode;
@@ -33,7 +32,6 @@ export default function SiteNavigation({ children, admin = false, publicPage = f
             </span>
           </a>
           <div className="flex shrink-0 items-center gap-2">
-            <ThemeToggle />
             {publicPage && <a href="/login" className={linkClass + ' hidden sm:inline-flex'}>Sign in</a>}
             {publicPage && <a href="/register" className="hidden min-h-11 items-center rounded-xl bg-[var(--brand)] px-4 py-2 text-sm font-bold text-white sm:inline-flex">Create account</a>}
             <button type="button" onClick={() => setMenuOpen((open) => !open)} aria-label={menuOpen ? 'Close navigation menu' : 'Open navigation menu'} aria-expanded={menuOpen} aria-controls="semizzy-site-mobile-navigation" className="inline-flex min-h-10 min-w-10 items-center justify-center rounded-xl border border-[var(--line)] bg-[var(--surface)] hover:border-[var(--brand)] sm:hidden">
