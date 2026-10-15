@@ -378,7 +378,7 @@ export default function VtuPurchase() {
 
                 <label className="block text-sm font-semibold">
                   Transaction PIN
-                  <input type="password" inputMode="numeric" autoComplete="off" value={transactionPin} onChange={(event) => setTransactionPin(event.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="Six digits" maxLength={6} minLength={6} required className="mt-2 w-full rounded-xl border border-[var(--line)] bg-[var(--page)] px-4 py-3 font-normal outline-none focus:border-[var(--brand)]" />
+                  <input type="password" inputMode="numeric" autoComplete="off" value={transactionPin} onChange={(event) => setTransactionPin(event.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="4 digits (or 6 for an older PIN)" maxLength={6} minLength={4} required className="mt-2 w-full rounded-xl border border-[var(--line)] bg-[var(--page)] px-4 py-3 font-normal outline-none focus:border-[var(--brand)]" />
                   <span className="mt-1 block text-xs font-normal text-[var(--muted)]">Separate from your login password. PIN is not saved in the pending-order browser record.</span>
                 </label>
 
