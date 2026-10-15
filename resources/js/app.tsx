@@ -14,9 +14,14 @@ type PageWithLayout = {
 };
 
 function GlobalThemeSync({ children }: { children: ReactNode }) {
-  const { platform } = usePage<{ platform?: { theme_mode?: 'light' | 'dark' } }>().props;
+  const { platform } = usePage<{ platform?: { theme_mode?: 'light' | 'dark'; skin?: string } }>().props;
   const mode = platform?.theme_mode === 'dark' ? 'dark' : 'light';
-  useEffect(() => { applyThemePreference(mode); }, [mode]);
+  const skin = platform?.skin || 'modern-green';
+  useEffect(() => {
+    applyThemePreference(mode);
+    if (skin === 'modern-green') document.documentElement.removeAttribute('data-brand');
+    else document.documentElement.dataset.brand = skin;
+  }, [mode, skin]);
   return <>{children}</>;
 }
 
