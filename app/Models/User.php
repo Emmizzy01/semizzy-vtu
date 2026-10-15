@@ -23,6 +23,10 @@ class User extends Authenticatable
     protected $hidden = [
         'password',
         'remember_token',
+        'transaction_pin_hash',
+        'transaction_pin_failed_attempts',
+        'transaction_pin_locked_until',
+        'transaction_pin_changed_at',
     ];
 
     protected function casts(): array
@@ -30,6 +34,8 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'transaction_pin_locked_until' => 'datetime',
+            'transaction_pin_changed_at' => 'datetime',
         ];
     }
 

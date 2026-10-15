@@ -87,6 +87,7 @@ export default function VtuPurchase() {
   const [products, setProducts] = useState<Product[]>([]);
   const [productCode, setProductCode] = useState(restoredPending?.productCode ?? '');
   const [recipient, setRecipient] = useState(restoredPending?.recipient ?? '');
+  const [transactionPin, setTransactionPin] = useState('');
   const [requestKey, setRequestKey] = useState(restoredPending?.requestKey ?? newRequestKey);
   const [order, setOrder] = useState<Order | null>(null);
   const [loadingProducts, setLoadingProducts] = useState(true);
@@ -155,6 +156,7 @@ export default function VtuPurchase() {
           product_code: selectedProduct.code,
           recipient,
           idempotency_key: requestKey,
+          transaction_pin: transactionPin,
         }),
       });
 
@@ -181,6 +183,7 @@ export default function VtuPurchase() {
       setError(cause instanceof Error ? cause.message : 'The result is unknown. Keep this form unchanged and retry safely.');
     } finally {
       setSubmitting(false);
+      setTransactionPin('');
     }
   }
 
@@ -240,7 +243,7 @@ export default function VtuPurchase() {
             {error && (
               <div role="alert" className="mb-5 flex items-start gap-3 rounded-2xl border border-rose-500/30 bg-rose-500/5 p-4 text-sm">
                 <AlertCircle size={18} className="mt-0.5 shrink-0 text-rose-500" />
-                <p>{error}</p>
+                <div><p>{error}</p><a className="mt-2 inline-block font-semibold text-[var(--brand)] underline" href="/security/transaction-pin">Set up or manage transaction PIN</a></div>
               </div>
             )}
 
@@ -371,6 +374,12 @@ export default function VtuPurchase() {
                     disabled={submissionUncertain}
                     className="mt-2 w-full rounded-xl border border-[var(--line)] bg-[var(--page)] px-4 py-3 font-normal outline-none focus:border-[var(--brand)] focus-visible:ring-2 focus-visible:ring-[var(--brand)] focus-visible:ring-offset-2"
                   />
+                </label>
+
+                <label className="block text-sm font-semibold">
+                  Transaction PIN
+                  <input type="password" inputMode="numeric" autoComplete="off" value={transactionPin} onChange={(event) => setTransactionPin(event.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="Six digits" maxLength={6} minLength={6} required className="mt-2 w-full rounded-xl border border-[var(--line)] bg-[var(--page)] px-4 py-3 font-normal outline-none focus:border-[var(--brand)]" />
+                  <span className="mt-1 block text-xs font-normal text-[var(--muted)]">Separate from your login password. PIN is not saved in the pending-order browser record.</span>
                 </label>
 
                 {loadingProducts ? (

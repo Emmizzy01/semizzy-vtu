@@ -10,6 +10,7 @@ use App\Http\Controllers\Payments\ManualDepositController;
 use App\Http\Controllers\Admin\ManualDepositSettingsController;
 use App\Http\Controllers\Admin\PlatformSettingsController;
 use App\Http\Controllers\Admin\UserManagementController;
+use App\Http\Controllers\Security\TransactionPinController;
 use App\Services\IntegrationSettings;
 use App\Http\Controllers\Payments\PaymentRefundController;
 use App\Http\Controllers\Vtu\VtuOrderController;
@@ -29,6 +30,8 @@ Route::middleware('guest')->group(function (): void {
 Route::middleware('auth')->group(function (): void {
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
     Route::get('/dashboard', [DashboardController::class, 'customer'])->name('dashboard');
+    Route::get('/security/transaction-pin', [TransactionPinController::class, 'show'])->name('security.transaction-pin');
+    Route::put('/security/transaction-pin', [TransactionPinController::class, 'update'])->middleware('throttle:5,1')->name('security.transaction-pin.update');
     Route::get('/services', function (IntegrationSettings $settings) { return Inertia::render('Services/Index', ['availability' => ['airtimeData' => filter_var($settings->get('service.airtime_data.enabled', true), FILTER_VALIDATE_BOOLEAN), 'manualDeposit' => filter_var($settings->get('manual_deposit.enabled', true), FILTER_VALIDATE_BOOLEAN)]]); })->name('services.index');
     Route::get('/customer/dashboard', [DashboardController::class, 'customerPreview'])->name('customer.dashboard');
     Route::get('/admin/dashboard', [DashboardController::class, 'admin'])

@@ -8,6 +8,7 @@ use App\Models\VtuOrder;
 use App\Models\VtuProduct;
 use App\Services\Vtu\VtuOrderService;
 use App\Services\IntegrationSettings;
+use App\Services\Security\TransactionPinService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use InvalidArgumentException;
@@ -44,10 +45,16 @@ class VtuOrderController extends Controller
             'product_code' => ['required', 'string', 'max:80'],
             'recipient' => ['required', 'string', 'max:32'],
             'idempotency_key' => ['required', 'string', 'max:128'],
+            'transaction_pin' => ['nullable', 'string', 'digits:6'],
         ]);
 
         $user = $request->user();
         abort_unless($user, 401);
+        if (! $user->transaction_pin_hash) return response()->json(['message' => 'Set up a transaction PIN before making wallet-funded purchases.', 'setup_url' => '/security/transaction-pin'], 428);
+        if (! isset($validated['transaction_pin'])) return response()->json(['message' => 'Enter your six-digit transaction PIN.'], 422);
+        $pinStatus = app(TransactionPinService::class)->verify($user, (string) $validated['transaction_pin']);
+        if ($pinStatus === 'locked') return response()->json(['message' => 'Transaction PIN is locked for 15 minutes after repeated failures.'], 423);
+        if ($pinStatus !== 'verified') return response()->json(['message' => 'Transaction PIN is incorrect.'], 422);
 
         try {
             $order = $orders->purchase(

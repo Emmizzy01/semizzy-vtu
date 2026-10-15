@@ -72,6 +72,7 @@ export default function DashboardLayout({
     { label: 'Transactions', href: '#transactions', icon: ArrowLeftRight, match: '#transactions' },
     { label: 'Fund wallet', href: '#fund-wallet', icon: CreditCard, match: '#fund-wallet' },
     { label: 'Manual deposit', href: '/wallet/manual-deposits', icon: WalletCards, match: '/wallet/manual-deposits' },
+    { label: 'Transaction security', href: '/security/transaction-pin', icon: ShieldCheck, match: '/security/transaction-pin' },
   ];
 
   const adminGroups: { title: string; items: NavItem[] }[] = [
