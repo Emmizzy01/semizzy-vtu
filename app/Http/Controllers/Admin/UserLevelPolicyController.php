@@ -19,7 +19,6 @@ class UserLevelPolicyController extends Controller
             'policies' => UserLevelPolicy::query()->orderBy('level')->get()->map(fn (UserLevelPolicy $policy): array => [
                 'level' => $policy->level, 'label' => $policy->label,
                 'wallet_balance_limit_minor' => $policy->wallet_balance_limit_minor,
-                'wallet_balance_limit_minor' => $policy->wallet_balance_limit_minor,
                 'max_single_transaction_minor' => $policy->max_single_transaction_minor,
                 'daily_transaction_limit_minor' => $policy->daily_transaction_limit_minor,
                 'requires_verified_kyc' => $policy->requires_verified_kyc,
@@ -46,6 +45,7 @@ class UserLevelPolicyController extends Controller
         DB::transaction(function () use ($request, $level, $data): void {
             $policy = UserLevelPolicy::query()->where('level', $level)->lockForUpdate()->firstOrFail();
             $old = [
+                'wallet_balance_limit_minor' => $policy->wallet_balance_limit_minor,
                 'max_single_transaction_minor' => $policy->max_single_transaction_minor,
                 'daily_transaction_limit_minor' => $policy->daily_transaction_limit_minor,
                 'requires_verified_kyc' => $policy->requires_verified_kyc,
