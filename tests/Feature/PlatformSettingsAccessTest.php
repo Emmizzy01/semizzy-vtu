@@ -38,6 +38,21 @@ class PlatformSettingsAccessTest extends TestCase
         $this->actingAs($customer)->getJson('/wallet/vtu/products')->assertStatus(503);
     }
 
+    public function test_global_site_control_cannot_enable_manual_deposits_without_bank_instructions(): void
+    {
+        $admin = User::query()->create(['name' => 'Safe Site Admin', 'email' => 'safe-site-admin@example.test', 'password' => 'not-a-real-password']);
+        UserPermission::query()->create(['user_id' => $admin->id, 'permission' => 'staff.permissions.manage']);
+
+        $this->actingAs($admin)->put('/admin/platform-settings', [
+            'site_name' => 'Semizzy', 'support_email' => 'support@example.test',
+            'support_phone' => '+2348000000000', 'theme_skin' => 'modern-green',
+            'maintenance_mode' => false, 'airtime_data_enabled' => true,
+            'manual_deposit_enabled' => true, 'reason' => 'Enable manual bank deposit',
+        ])->assertSessionHasErrors('manual_deposit_enabled');
+
+        $this->assertSame('0', (string) app(IntegrationSettings::class)->get('manual_deposit.enabled', '0'));
+    }
+
     public function test_maintenance_mode_blocks_customers_but_allows_platform_admins(): void
     {
         $customer = User::query()->create(['name' => 'Maintenance Customer', 'email' => 'maintenance-customer@example.test', 'password' => 'not-a-real-password']);
