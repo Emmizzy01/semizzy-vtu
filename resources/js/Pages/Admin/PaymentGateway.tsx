@@ -7,13 +7,14 @@ type Gateway = {
   configured: boolean;
   callbackConfigured: boolean;
   mode: 'Test' | 'Live' | 'Unknown';
+  keyMode: 'Test' | 'Live' | 'Unknown';
   callbackHost: string | null;
   callbackUrl: string;
   webhookUrl: string;
 };
 
 export default function PaymentGateway({ gateway }: { gateway: Gateway }) {
-  const form = useForm({ secret_key: '', callback_url: gateway.callbackUrl || '', confirm_live: false });
+  const form = useForm({ mode: gateway.mode === 'Live' ? 'live' : 'test', secret_key: '', callback_url: gateway.callbackUrl || '', confirm_live: false });
 
   return (
     <>
@@ -24,7 +25,7 @@ export default function PaymentGateway({ gateway }: { gateway: Gateway }) {
           <span className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-[var(--brand-soft)] text-[var(--brand)]"><CreditCard size={26} /></span>
           <div><p className="text-xs font-extrabold uppercase tracking-[0.18em] text-[var(--brand)]">Finance integrations</p><h1 className="mt-1 font-display text-3xl font-extrabold tracking-tight sm:text-4xl">Payment gateway</h1><p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--muted)]">Manage Paystack wallet funding, return customers to Semizzy after checkout, and configure the server notification endpoint.</p></div>
         </div>
-        {gateway.production && gateway.mode === 'Test' && <section role="alert" className="mt-6 rounded-2xl border border-amber-500/50 bg-amber-500/10 p-5 text-sm leading-6"><strong>Production payment safety hold:</strong> the saved Paystack key is a test key. Real wallet funding is blocked while these credentials are active. Replace it with the live secret key issued by Paystack and confirm live mode; do not use test credentials for customer payments.</section>}
+        {gateway.production && gateway.mode === 'Test' && <section role="status" className="mt-6 rounded-2xl border border-amber-500/50 bg-amber-500/10 p-5 text-sm leading-6"><strong>Test mode is active:</strong> you can test the Paystack checkout with test credentials. Verified test payments are recorded as test successes only and never credit real customer wallets. Switch to Live and confirm before enabling real-money funding.</section>}
         {gateway.production && gateway.mode === 'Unknown' && gateway.configured && <section role="alert" className="mt-6 rounded-2xl border border-amber-500/50 bg-amber-500/10 p-5 text-sm leading-6"><strong>Production payment safety hold:</strong> the saved Paystack key mode cannot be verified. Real wallet funding will be rejected until a valid live secret key is configured.</section>}
         <section className="mt-7 grid gap-4 sm:grid-cols-3">
           <Status title="Provider" value={gateway.name} detail="Wallet funding and verification" />
@@ -42,10 +43,11 @@ export default function PaymentGateway({ gateway }: { gateway: Gateway }) {
         </section>
 
         <form onSubmit={e => { e.preventDefault(); form.put('/admin/payment-gateway'); }} className="mt-7 max-w-3xl space-y-5 rounded-3xl border border-[var(--line)] bg-[var(--surface)] p-5 sm:p-7">
-          <div className="flex items-start gap-3"><ShieldCheck className="mt-1 shrink-0 text-[var(--brand)]" size={22} /><div><h2 className="font-display text-lg font-extrabold">Paystack settings</h2><p className="mt-1 text-sm leading-6 text-[var(--muted)]">Leave the secret field empty to keep the saved key. To switch modes, replace it with a matching Paystack secret key: sk_test_ for Test mode or sk_live_ for Live mode. Test a complete funding flow before enabling real payments.</p></div></div>
+          <div className="flex items-start gap-3"><ShieldCheck className="mt-1 shrink-0 text-[var(--brand)]" size={22} /><div><h2 className="font-display text-lg font-extrabold">Paystack settings</h2><p className="mt-1 text-sm leading-6 text-[var(--muted)]">Choose Test mode to validate checkout with Paystack test credentials first. Test successes never credit a real wallet. When you are ready, choose Live, enter the matching live secret key, and explicitly confirm real-money mode.</p></div></div>
+          <label className="block space-y-2"><span className="text-sm font-bold">Payment mode</span><select value={form.data.mode} onChange={e => { form.setData('mode', e.target.value); form.setData('confirm_live', false); }} className="min-h-11 w-full rounded-xl border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-sm"><option value="test">Test — no real wallet credits</option><option value="live">Live — real payments</option></select><span className="block text-xs leading-5 text-[var(--muted)]">Selected mode: {form.data.mode === 'test' ? 'Test' : 'Live'} · Key detected: {gateway.keyMode}</span></label>
           <Field label="Replace secret key (optional)" value={form.data.secret_key} onChange={v => form.setData('secret_key', v)} error={form.errors.secret_key} placeholder={gateway.configured ? 'Saved key is hidden — enter only to replace' : 'Enter Paystack test or live secret key'} type="password" />
           <Field label="HTTPS callback URL" value={form.data.callback_url} onChange={v => form.setData('callback_url', v)} error={form.errors.callback_url} placeholder="https://your-domain.example/wallet/funding/return" />
-          {gateway.mode === 'Live' || form.data.secret_key.startsWith('sk_live_') ? <label className="flex items-start gap-3 rounded-xl border border-amber-500/40 p-4 text-sm"><input type="checkbox" checked={form.data.confirm_live} onChange={e => form.setData('confirm_live', e.target.checked)} className="mt-1" /><span><strong>Confirm live payment credentials.</strong><br />I understand this can enable real-money payment operations once the deployment is configured.</span></label> : null}
+          {form.data.mode === 'live' ? <label className="flex items-start gap-3 rounded-xl border border-amber-500/40 p-4 text-sm"><input type="checkbox" checked={form.data.confirm_live} onChange={e => form.setData('confirm_live', e.target.checked)} className="mt-1" /><span><strong>Confirm live payment credentials.</strong><br />I understand this can enable real-money payment operations once the deployment is configured.</span></label> : null}
           {form.errors.confirm_live && <p className="text-sm text-red-600">{form.errors.confirm_live}</p>}
           {form.hasErrors && <p className="text-sm text-red-600">Please correct the highlighted fields before saving.</p>}
           <button disabled={form.processing} className="min-h-11 rounded-xl bg-[var(--brand)] px-5 py-3 text-sm font-bold text-white disabled:opacity-60">{form.processing ? 'Saving…' : 'Save payment settings'}</button>
