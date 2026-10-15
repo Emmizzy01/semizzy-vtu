@@ -35,12 +35,14 @@ class PlatformSettingsController extends Controller
             'support_email' => ['nullable', 'email', 'max:255'],
             'support_phone' => ['nullable', 'string', 'max:32', 'regex:/^[+0-9() .-]*$/'],
             'theme_skin' => ['required', 'in:modern-green,navy-teal,minimal-blue,obsidian-luxe,arctic-light'],
-            'theme_mode' => ['required', 'in:light,dark'],
+            'theme_mode' => ['sometimes', 'in:light,dark'],
             'maintenance_mode' => ['required', 'boolean'],
             'airtime_data_enabled' => ['required', 'boolean'],
             'manual_deposit_enabled' => ['required', 'boolean'],
             'reason' => ['required', 'string', 'min:8', 'max:500'],
         ]);
+        $data['theme_mode'] = $data['theme_mode'] ?? (string) $settings->get('site.theme_mode', 'light');
+
         if ($data['manual_deposit_enabled'] && (
             trim((string) $settings->get('manual_deposit.bank_name', '')) === ''
             || trim((string) $settings->get('manual_deposit.account_name', '')) === ''
