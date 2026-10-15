@@ -1,9 +1,11 @@
 import { Head, Link, useForm } from '@inertiajs/react';
+import { useState } from 'react';
 import type { FormEvent } from 'react';
-import { LoaderCircle } from 'lucide-react';
+import { Eye, EyeOff, LoaderCircle } from 'lucide-react';
 
 export default function Login() {
-  const form = useForm({ email: '', password: '', remember: false });
+  const [showPassword, setShowPassword] = useState(false);
+  const form = useForm({ identifier: '', password: '', remember: false });
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -24,12 +26,18 @@ export default function Login() {
             <p className="mt-2 text-sm leading-6 text-[var(--muted)]">Sign in to access your wallet and VTU services.</p>
           </div>
           <form onSubmit={submit} className="space-y-5">
-            <label className="block text-sm font-semibold">Email address
-              <input id="login-email" name="email" type="email" autoComplete="username" autoCapitalize="none" spellCheck={false} required value={form.data.email} onChange={(event) => form.setData('email', event.target.value)} aria-invalid={Boolean(form.errors.email)} aria-describedby={form.errors.email ? 'login-email-error' : undefined} className="mt-2 w-full rounded-xl border border-[var(--line)] bg-[var(--page)] px-4 py-3 font-normal outline-none focus:border-[var(--brand)] focus-visible:ring-2 focus-visible:ring-[var(--brand)] focus-visible:ring-offset-2" />
-              {form.errors.email && <span id="login-email-error" role="alert" className="mt-1 block text-xs text-rose-500">{form.errors.email}</span>}
+            <label className="block text-sm font-semibold">Username, email or WhatsApp number
+              <input id="login-identifier" name="identifier" type="text" autoComplete="username" autoCapitalize="none" spellCheck={false} required value={form.data.identifier} onChange={(event) => form.setData('identifier', event.target.value)} aria-invalid={Boolean(form.errors.identifier)} aria-describedby={form.errors.identifier ? 'login-identifier-error' : 'login-identifier-hint'} className="mt-2 w-full rounded-xl border border-[var(--line)] bg-[var(--page)] px-4 py-3 font-normal outline-none focus:border-[var(--brand)] focus-visible:ring-2 focus-visible:ring-[var(--brand)] focus-visible:ring-offset-2" />
+              {form.errors.identifier && <span id="login-identifier-error" role="alert" className="mt-1 block text-xs text-rose-500">{form.errors.identifier}</span>}
+              <span id="login-identifier-hint" className="mt-1 block text-xs font-normal text-[var(--muted)]">WhatsApp sign-in requires a verified number linked to your account.</span>
             </label>
             <label className="block text-sm font-semibold">Password
-              <input id="login-password" name="password" type="password" autoComplete="current-password" required value={form.data.password} onChange={(event) => form.setData('password', event.target.value)} aria-invalid={Boolean(form.errors.password)} aria-describedby={form.errors.password ? 'login-password-error' : undefined} className="mt-2 w-full rounded-xl border border-[var(--line)] bg-[var(--page)] px-4 py-3 font-normal outline-none focus:border-[var(--brand)] focus-visible:ring-2 focus-visible:ring-[var(--brand)] focus-visible:ring-offset-2" />
+              <span className="relative mt-2 block">
+                <input id="login-password" name="password" type={showPassword ? 'text' : 'password'} autoComplete="current-password" required value={form.data.password} onChange={(event) => form.setData('password', event.target.value)} aria-invalid={Boolean(form.errors.password)} aria-describedby={form.errors.password ? 'login-password-error' : undefined} className="w-full rounded-xl border border-[var(--line)] bg-[var(--page)] px-4 py-3 pr-12 font-normal outline-none focus:border-[var(--brand)] focus-visible:ring-2 focus-visible:ring-[var(--brand)] focus-visible:ring-offset-2" />
+                <button type="button" onClick={() => setShowPassword((visible) => !visible)} aria-label={showPassword ? 'Hide password' : 'Show password'} aria-pressed={showPassword} className="absolute inset-y-0 right-3 inline-flex items-center text-[var(--muted)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)] rounded-md">
+                  {showPassword ? <EyeOff size={19} aria-hidden="true" /> : <Eye size={19} aria-hidden="true" />}
+                </button>
+              </span>
               {form.errors.password && <span id="login-password-error" role="alert" className="mt-1 block text-xs text-rose-500">{form.errors.password}</span>}
             </label>
             <label className="flex items-center gap-2 text-sm text-[var(--muted)]">
