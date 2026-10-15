@@ -81,6 +81,32 @@ class PaymentFundingWorkflowTest extends TestCase
         $this->assertDatabaseCount('payment_webhook_events', 1);
     }
 
+    public function test_verified_gateway_payment_over_wallet_limit_is_preserved_for_reconciliation(): void
+    {
+        config(['services.semizzy_payments.webhook_secrets.semizzy' => 'test-secret-that-is-long-enough-for-tests']);
+        $user = User::query()->create(['name' => 'Capped Funding Customer', 'email' => 'capped-funding@example.test', 'password' => 'not-a-real-password']);
+        $wallet = app(WalletAccountService::class)->openForUser($user);
+        app(WalletLedgerService::class)->post($wallet->id, 'credit', 9500, 'capped-funding-seed');
+        UserLevelPolicy::query()->where('level', 'level_1')->update(['wallet_balance_limit_minor' => 10000, 'is_active' => true]);
+        $intent = app(PaymentIntentService::class)->create($wallet, 1000, 'semizzy');
+        $payload = ['id' => 'evt_limit_review_0001', 'type' => 'payment.succeeded', 'data' => [
+            'reference' => $intent->reference, 'transaction_id' => 'provider_tx_limit_review_0001',
+            'status' => 'succeeded', 'amount_minor' => 1000, 'currency' => 'NGN',
+        ]];
+        $raw = json_encode($payload, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES);
+        $timestamp = now()->timestamp;
+        $signature = hash_hmac('sha256', $timestamp.'.'.$raw, 'test-secret-that-is-long-enough-for-tests');
+        $response = $this->call('POST', '/api/payments/webhooks/semizzy', [], [], [], [
+            'HTTP_X_SEMIZZY_SIGNATURE' => 't='.$timestamp.',v1='.$signature, 'CONTENT_TYPE' => 'application/json',
+        ], $raw);
+
+        $response->assertOk()->assertJsonPath('outcome', 'wallet_limit_review');
+        $this->assertSame(9500, (int) $wallet->fresh()->balance_minor);
+        $this->assertSame('review_required', $intent->fresh()->status);
+        $this->assertDatabaseHas('payment_webhook_events', ['event_id' => 'evt_limit_review_0001', 'outcome' => 'wallet_limit_review']);
+        $this->assertDatabaseCount('wallet_ledger_entries', 1);
+    }
+
     public function test_invalid_signature_never_credits_wallet(): void
     {
         config(['services.semizzy_payments.webhook_secrets.semizzy' => 'test-secret-that-is-long-enough-for-tests']);
