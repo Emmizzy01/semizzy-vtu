@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { AlertCircle, ArrowDownToLine, ArrowUpRight, Activity, BookOpen, CheckCircle2, Clock3, CreditCard, Eye, EyeOff, GraduationCap, ShieldCheck, Smartphone, Tv, Wifi, Zap, Building2, Megaphone, Sparkles, WalletCards, Bell, Headset, ScanLine, Landmark, PiggyBank, CircleHelp, Gift, CircleUserRound, BadgeCheck, ChevronRight, CircleAlert, HandCoins, PlaySquare, Users, SmartphoneNfc, Search, RefreshCw } from 'lucide-react';
+import { ArrowDownToLine, ArrowUpRight, Activity, BookOpen, CheckCircle2, Clock3, CreditCard, Eye, EyeOff, GraduationCap, ShieldCheck, Smartphone, Tv, Wifi, Zap, Megaphone, Sparkles, WalletCards, Bell, Headset, ScanLine, Landmark, PiggyBank, CircleHelp, Gift, ChevronRight, CircleAlert, HandCoins, PlaySquare, Users, SmartphoneNfc, Search, } from 'lucide-react';
 import DashboardLayout from '../Components/DashboardLayout';
 
 type Wallet = { balance_minor: number; available_balance_minor: number; currency: string; status: string } | null;
@@ -197,9 +197,6 @@ function HistoryPager({ page, lastPage, pageName, anchor, isAdminPreview }: { pa
   </nav>;
 }
 
-function QuickLink({ href, icon, title, detail }: { href: string; icon: React.ReactNode; title: string; detail: string }) {
-  return <a href={href} className="flex min-h-24 items-center gap-3 rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4 transition hover:-translate-y-0.5 hover:border-[var(--brand)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)]"><span aria-hidden="true" className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[var(--brand-soft)] text-[var(--brand)]">{icon}</span><span><span className="block text-sm font-extrabold">{title}</span><span className="mt-1 block text-xs text-[var(--muted)]">{detail}</span></span><ArrowUpRight size={16} className="ml-auto shrink-0 text-[var(--muted)]" aria-hidden="true" /></a>;
-}
 function EmptyState({ message }: { message: string }) {
   return <div className="px-5 py-10 text-center"><span className="mx-auto grid h-10 w-10 place-items-center rounded-xl bg-[var(--page)] text-[var(--muted)]"><WalletCards size={20} aria-hidden="true" /></span><p className="mx-auto mt-3 max-w-sm text-sm leading-6 text-[var(--muted)]">{message}</p></div>;
 }
