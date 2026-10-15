@@ -18,7 +18,7 @@ class TransactionPinSecurityTest extends TestCase
 
         $this->actingAs($user)->postJson('/wallet/vtu/orders', [
             'product_code' => 'not-looked-up-before-pin',
-            'recipient' => '08012345678',
+            'recipient' => '080123478',
             'idempotency_key' => 'pin-required-order',
         ])->assertStatus(428)
           ->assertJsonPath('setup_url', '/security/transaction-pin');
@@ -30,13 +30,13 @@ class TransactionPinSecurityTest extends TestCase
     public function test_wallet_funded_purchase_is_rejected_for_an_incorrect_transaction_pin(): void
     {
         $user = User::query()->create(['name' => 'PIN Incorrect Customer', 'email' => 'pin-incorrect@example.test', 'password' => 'not-a-real-password']);
-        $user->forceFill(['transaction_pin_hash' => Hash::make('492815')])->save();
+        $user->forceFill(['transaction_pin_hash' => Hash::make('4928')])->save();
 
         $this->actingAs($user)->postJson('/wallet/vtu/orders', [
             'product_code' => 'not-looked-up-before-pin',
             'recipient' => '08012345678',
             'idempotency_key' => 'pin-incorrect-order',
-            'transaction_pin' => '111111',
+            'transaction_pin' => '1111',
         ])->assertStatus(422)->assertJsonPath('message', 'Transaction PIN is incorrect.');
 
         $this->assertDatabaseCount('vtu_orders', 0);
