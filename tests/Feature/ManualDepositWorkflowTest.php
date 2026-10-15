@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use App\Models\UserPermission;
+use App\Models\UserLevelPolicy;
 use App\Models\ManualDeposit;
 use App\Models\Wallet;
 use App\Services\Wallets\WalletAccountService;
@@ -110,6 +111,34 @@ class ManualDepositWorkflowTest extends TestCase
         $this->assertSame(12500, (int) $wallet->fresh()->balance_minor);
         $this->assertDatabaseCount('wallet_ledger_entries', 1);
         $this->assertDatabaseCount('wallet_transactions', 1);
+    }
+
+    public function test_over_limit_manual_deposit_is_preserved_for_review_without_credit(): void
+    {
+        Storage::fake('local');
+        $customer = User::query()->create(['name' => 'Capped Deposit Customer', 'email' => 'capped-deposit@example.test', 'password' => 'not-a-real-password']);
+        $admin = User::query()->create(['name' => 'Capped Deposit Admin', 'email' => 'capped-deposit-admin@example.test', 'password' => 'not-a-real-password']);
+        UserPermission::query()->create(['user_id' => $admin->id, 'permission' => 'staff.permissions.manage']);
+        $wallet = app(WalletAccountService::class)->openForUser($customer);
+        app(\\App\\Services\\Wallets\\WalletLedgerService::class)->post($wallet->id, 'credit', 9500, 'manual-cap-seed');
+        UserLevelPolicy::query()->where('level', 'level_1')->update(['wallet_balance_limit_minor' => 10000, 'is_active' => true]);
+        $path = UploadedFile::fake()->image('proof.png')->store('manual-deposits', 'local');
+        $deposit = ManualDeposit::query()->create([
+            'public_id' => 'a6a56f32-3cc5-42bd-9c28-4b4f94c6ad24', 'user_id' => $customer->id,
+            'wallet_id' => $wallet->id, 'amount_minor' => 1000, 'transfer_reference' => 'TRANSFER-LIMIT-0001',
+            'evidence_path' => $path, 'evidence_sha256' => hash_file('sha256', Storage::disk('local')->path($path)),
+            'status' => 'pending', 'idempotency_key' => 'manual-deposit:limit-test-0001',
+            'evidence_viewed_at' => now(), 'evidence_viewed_by_user_id' => $admin->id,
+        ]);
+
+        $this->actingAs($admin)->post('/admin/manual-deposits/'.$deposit->public_id.'/review', [
+            'decision' => 'approve', 'reason' => 'Verified bank transfer evidence',
+        ])->assertSessionHasErrors('amount');
+
+        $this->assertSame(9500, (int) $wallet->fresh()->balance_minor);
+        $this->assertDatabaseHas('manual_deposits', ['id' => $deposit->id, 'status' => 'review_required']);
+        $this->assertDatabaseHas('manual_deposit_audits', ['manual_deposit_id' => $deposit->id, 'event_type' => 'wallet_limit_review', 'outcome' => 'review_required']);
+        $this->assertDatabaseCount('wallet_ledger_entries', 1);
     }
 
     public function test_only_staff_permission_managers_can_access_review_and_settings(): void
