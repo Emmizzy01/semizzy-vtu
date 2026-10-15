@@ -44,7 +44,7 @@ class ManualDepositController extends Controller
                 'account_name' => (string) $settings->get('manual_deposit.account_name', ''),
                 'account_number' => (string) $settings->get('manual_deposit.account_number', ''),
                 'instructions' => (string) $settings->get('manual_deposit.instructions', 'Transfer the exact amount, then submit your transfer reference and proof. Your wallet is credited only after staff verify the payment.'),
-                'enabled' => (bool) $settings->get('manual_deposit.enabled', true),
+                'enabled' => filter_var($settings->get('manual_deposit.enabled', true), FILTER_VALIDATE_BOOLEAN),
             ],
             'walletCurrency' => $wallet?->currency ?? 'NGN',
             'deposits' => $deposits,
