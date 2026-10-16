@@ -127,6 +127,49 @@ class VtuProductCatalogueTest extends TestCase
         $this->assertDatabaseHas('vtu_products', ['code' => 'vtpass-data-mtn-plan-1', 'is_active' => true]);
     }
 
+    public function test_customer_can_see_mapped_inactive_vtpass_airtime_and_data_without_unmapped_drafts(): void
+    {
+        $user = User::query()->create([
+            'name' => 'Catalogue Viewer',
+            'email' => 'catalogue-viewer@example.test',
+            'password' => 'not-a-real-password',
+        ]);
+
+        VtuProduct::query()->create([
+            'service_type' => 'data',
+            'network' => 'mtn',
+            'code' => 'vtpass-hidden-unmapped',
+            'name' => 'Unmapped draft',
+            'price_minor' => 50000,
+            'currency' => 'NGN',
+            'is_active' => false,
+            'metadata' => [],
+        ]);
+
+        VtuProduct::query()->create([
+            'service_type' => 'data',
+            'network' => 'mtn',
+            'code' => 'vtpass-mapped-inactive',
+            'name' => 'MTN 1GB 7 Days',
+            'price_minor' => 50000,
+            'currency' => 'NGN',
+            'is_active' => false,
+            'metadata' => [
+                'provider_service_id' => 'mtn-sme-data',
+                'provider_variation_code' => 'plan-1',
+                'catalog_source' => 'vtpass',
+                'purchase_approved' => false,
+            ],
+        ]);
+
+        $this->actingAs($user)
+            ->getJson('/wallet/vtu/products?service_type=data')
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.code', 'vtpass-mapped-inactive')
+            ->assertJsonPath('data.0.is_active', false);
+    }
+
     public function test_data_plan_cannot_be_activated_without_provider_variation_code(): void
     {
         $staff = User::query()->create(['name' => 'Catalogue Staff Two', 'email' => 'catalogue-staff-two@example.test', 'password' => 'not-a-real-password']);
