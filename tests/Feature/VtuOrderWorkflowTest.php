@@ -891,7 +891,7 @@ class VtuOrderWorkflowTest extends TestCase
                     'unsupported-'.$serviceType.'-'.uniqid(),
                 );
                 $this->fail(ucfirst($serviceType).' purchases must remain disabled until their provider flow is verified.');
-            } catch (\\Illuminate\\Database\\Eloquent\\ModelNotFoundException) {
+            } catch (\Illuminate\Database\Eloquent\ModelNotFoundException) {
                 $this->assertSame(1500, (int) $wallet->fresh()->available_balance_minor);
             }
 
