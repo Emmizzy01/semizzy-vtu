@@ -941,7 +941,6 @@ class VtuOrderWorkflowTest extends TestCase
         $this->assertDatabaseCount('vtu_orders', 1);
         $this->assertDatabaseCount('wallet_transactions', 2);
         Http::assertSentCount(2);
-        Http::assertSentCount(2);
         $requests = Http::recorded();
         $this->assertSame('/merchant-verify', parse_url($requests[0][0]->url(), PHP_URL_PATH));
         $this->assertSame('/pay', parse_url($requests[1][0]->url(), PHP_URL_PATH));
@@ -982,7 +981,7 @@ class VtuOrderWorkflowTest extends TestCase
                 ['contact_phone' => '08012345678'],
             );
             $this->fail('An unverified smartcard must never reach purchase dispatch.');
-        } catch (\\InvalidArgumentException $exception) {
+        } catch (\InvalidArgumentException $exception) {
             $this->assertStringContainsString('could not confirm', $exception->getMessage());
         }
 
