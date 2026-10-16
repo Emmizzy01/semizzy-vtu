@@ -26,16 +26,32 @@ class VtuOrderController extends Controller
         ]);
 
         $products = VtuProduct::query()
-            ->where('is_active', true)
             ->where('currency', 'NGN')
             ->when(isset($validated['service_type']), fn ($query) => $query->where('service_type', $validated['service_type']))
             ->when(isset($validated['network']), fn ($query) => $query->where('network', $validated['network']))
             ->orderBy('service_type')
             ->orderBy('network')
             ->orderBy('price_minor')
-            ->get(['code', 'service_type', 'network', 'name', 'price_minor', 'face_value_minor', 'currency', 'metadata'])
-            ->filter(fn (VtuProduct $product) => in_array($product->service_type, ['airtime', 'data'], true)
-                || ($product->metadata['purchase_supported'] ?? false) === true)
+            ->get(['code', 'service_type', 'network', 'name', 'price_minor', 'face_value_minor', 'currency', 'metadata', 'is_active'])
+            ->filter(function (VtuProduct $product): bool {
+                if ($product->is_active) {
+                    return in_array($product->service_type, ['airtime', 'data'], true)
+                        || ($product->metadata['purchase_supported'] ?? false) === true;
+                }
+
+                // Let customers see mapped VTpass airtime/data catalogue entries
+                // before sales are enabled, while purchase() still rejects inactive
+                // products server-side. Unmapped drafts remain admin-only.
+                $metadata = $product->metadata ?? [];
+                $hasProviderService = is_string($metadata['provider_service_id'] ?? null)
+                    && $metadata['provider_service_id'] !== '';
+                $hasDataVariation = is_string($metadata['provider_variation_code'] ?? null)
+                    && $metadata['provider_variation_code'] !== '';
+
+                return in_array($product->service_type, ['airtime', 'data'], true)
+                    && $hasProviderService
+                    && ($product->service_type === 'airtime' || $hasDataVariation);
+            })
             ->values();
 
         return response()->json(['data' => $products]);
