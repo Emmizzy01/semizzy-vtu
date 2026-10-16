@@ -42,6 +42,16 @@ For each sandbox product intended for testing, verify against the current VTpass
 
 Do not activate a product with an unverified variation code.
 
+## Catalogue visibility and activation gate
+
+The VTpass sync imports **airtime and data only**. It is a discovery step, not purchase approval.
+
+- Newly discovered products are stored as inactive and can be displayed to customers when the provider service mapping (and data variation code for data plans) is present. The purchase action stays disabled.
+- Existing operator selling prices and activation state are preserved by sync; provider-listed price is retained as reference metadata rather than silently overwriting an operator's selling price.
+- Before enabling a VTpass-sourced product, an authorised operator must test that exact service ID and variation against the official sandbox, confirm the recipient/input flow and expected amount, and record a meaningful audit reason in the admin catalogue.
+- Use the admin catalogue's **VTpass sandbox verified and approved** control only after that check. The server enforces the approval metadata at the provider purchase boundary; a legacy active flag alone is not sufficient.
+- Do not mark products approved based only on a successful catalogue fetch or a mocked automated test. Keep unverified products inactive.
+
 ## Stage 3 — controlled transaction scenarios
 
 Run only with VTpass-approved sandbox test products and recipients. Record the Semizzy order ID, provider request ID, expected outcome, and observed outcome without recording secrets.
