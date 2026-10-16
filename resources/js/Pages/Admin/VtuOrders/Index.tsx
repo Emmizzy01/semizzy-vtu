@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Activity, AlertTriangle, Search, Smartphone, RefreshCw } from 'lucide-react';
+import { Activity, AlertTriangle, Search, RefreshCw } from 'lucide-react';
 import { router } from '@inertiajs/react';
 import DashboardLayout from '../../../Components/DashboardLayout';
 
