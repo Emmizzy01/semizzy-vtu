@@ -2,18 +2,21 @@ import { Head } from '@inertiajs/react';
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { AlertCircle, CheckCircle2, Clock3, LoaderCircle, RefreshCw, Smartphone, ShieldCheck } from 'lucide-react';
 
+type ServiceType = 'airtime' | 'data' | 'electricity-bill' | 'tv-subscription';
+
 type Product = {
   code: string;
-  service_type: 'airtime' | 'data';
+  service_type: ServiceType;
   network: string;
   name: string;
   price_minor: number;
   face_value_minor: number | null;
   currency: string;
+  metadata?: Record<string, unknown>;
 };
 
 type PendingPurchase = {
-  serviceType: 'airtime' | 'data';
+  serviceType: ServiceType;
   productCode: string;
   recipient: string;
   requestKey: string;
@@ -27,7 +30,7 @@ function readPendingPurchase(): PendingPurchase | null {
     const raw = window.sessionStorage.getItem(PENDING_PURCHASE_KEY);
     if (!raw) return null;
     const value = JSON.parse(raw) as Partial<PendingPurchase>;
-    if ((value.serviceType !== 'airtime' && value.serviceType !== 'data')
+    if ((!['airtime', 'data', 'electricity-bill', 'tv-subscription'].includes(value.serviceType ?? ''))
       || typeof value.productCode !== 'string'
       || typeof value.recipient !== 'string'
       || typeof value.requestKey !== 'string'
@@ -83,11 +86,16 @@ async function readMessage(response: Response) {
 
 export default function VtuPurchase() {
   const [restoredPending] = useState(readPendingPurchase);
-  const [serviceType, setServiceType] = useState<'airtime' | 'data'>(restoredPending?.serviceType ?? 'airtime');
+  const [serviceType, setServiceType] = useState<ServiceType>(restoredPending?.serviceType ?? 'airtime');
   const [products, setProducts] = useState<Product[]>([]);
   const [productCode, setProductCode] = useState(restoredPending?.productCode ?? '');
   const [recipient, setRecipient] = useState(restoredPending?.recipient ?? '');
   const [transactionPin, setTransactionPin] = useState('');
+  const [meterType, setMeterType] = useState<'prepaid' | 'postpaid'>('prepaid');
+  const [contactPhone, setContactPhone] = useState('');
+  const [electricityAmount, setElectricityAmount] = useState('');
+  const [verification, setVerification] = useState<{ status: string; customer_name: string | null; customer_address: string | null } | null>(null);
+  const [verifying, setVerifying] = useState(false);
   const [requestKey, setRequestKey] = useState(restoredPending?.requestKey ?? newRequestKey);
   const [order, setOrder] = useState<Order | null>(null);
   const [loadingProducts, setLoadingProducts] = useState(true);
@@ -101,6 +109,7 @@ export default function VtuPurchase() {
     setLoadingProducts(true);
     setError('');
     setProductCode('');
+    setVerification(null);
 
     fetch(`/wallet/vtu/products?service_type=${encodeURIComponent(serviceType)}`, {
       headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
@@ -131,10 +140,14 @@ export default function VtuPurchase() {
     [products],
   );
   const selectedProduct = products.find((product) => product.code === productCode);
+  const isElectricity = serviceType === 'electricity-bill';
+  const isTv = serviceType === 'tv-subscription';
+  const needsVerification = isElectricity || isTv;
+  const displayedAmountMinor = isElectricity ? Math.round(Number(electricityAmount || 0) * 100) : (selectedProduct?.price_minor ?? 0);
 
   async function submitPurchase(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (submitting || !selectedProduct || !recipient.trim()) return;
+    if (submitting || !selectedProduct || !recipient.trim() || (needsVerification && verification?.status !== 'verified')) return;
 
     setSubmitting(true);
     setError('');
@@ -157,6 +170,7 @@ export default function VtuPurchase() {
           recipient,
           idempotency_key: requestKey,
           transaction_pin: transactionPin,
+          ...(needsVerification ? { contact_phone: contactPhone, ...(isElectricity ? { meter_type: meterType, amount: electricityAmount } : {}) } : {}),
         }),
       });
 
@@ -210,7 +224,7 @@ export default function VtuPurchase() {
 
   return (
     <>
-      <Head title="Buy airtime and data" />
+      <Head title="Buy services" />
       <main className="min-h-screen bg-[var(--page)] px-4 py-8 text-[var(--ink)] sm:px-6 lg:px-8">
         <div className="mx-auto max-w-3xl">
           <header className="mb-8 flex items-center justify-between gap-4">
@@ -218,7 +232,7 @@ export default function VtuPurchase() {
               <span className="grid h-11 w-11 place-items-center rounded-2xl bg-[var(--brand)] font-display text-lg font-extrabold text-white">S</span>
               <span>
                 <span className="block font-display text-lg font-extrabold">SEMIZZY</span>
-                <span className="block text-xs text-[var(--muted)]">Airtime & data</span>
+                <span className="block text-xs text-[var(--muted)]">Digital services</span>
               </span>
             </a>
             <div className="flex shrink-0 items-center gap-2">
@@ -235,8 +249,8 @@ export default function VtuPurchase() {
                 <Smartphone size={24} />
               </span>
               <div>
-                <h1 className="font-display text-2xl font-extrabold tracking-tight sm:text-3xl">Buy airtime or data</h1>
-                <p className="mt-2 text-sm leading-6 text-[var(--muted)]">Choose a listed product and confirm the recipient number before submitting.</p>
+                <h1 className="font-display text-2xl font-extrabold tracking-tight sm:text-3xl">Buy digital services</h1>
+                <p className="mt-2 text-sm leading-6 text-[var(--muted)]">Choose a service and verify the meter or smartcard before any bill payment.</p>
               </div>
             </div>
 
@@ -302,7 +316,7 @@ export default function VtuPurchase() {
                 <fieldset>
                   <legend className="mb-3 text-sm font-bold">What do you want to buy?</legend>
                   <div className="grid grid-cols-2 gap-3">
-                    {(['airtime', 'data'] as const).map((type) => (
+                    {(['airtime', 'data', 'electricity-bill', 'tv-subscription'] as const).map((type) => (
                       <button
                         key={type}
                         type="button"
@@ -314,9 +328,9 @@ export default function VtuPurchase() {
                         }}
                         aria-pressed={serviceType === type}
                         disabled={submissionUncertain}
-                        className={`rounded-xl border px-4 py-3 text-sm font-bold capitalize transition ${serviceType === type ? 'border-[var(--brand)] bg-[var(--brand)]/10 text-[var(--brand)]' : 'border-[var(--line)] hover:bg-[var(--page)]'}`}
+                        className={`rounded-xl border px-4 py-3 text-sm font-bold transition ${serviceType === type ? 'border-[var(--brand)] bg-[var(--brand)]/10 text-[var(--brand)]' : 'border-[var(--line)] hover:bg-[var(--page)]'}`}
                       >
-                        {type}
+                        {{ airtime: 'Airtime', data: 'Mobile data', 'electricity-bill': 'Electricity', 'tv-subscription': 'TV subscription' }[type]}
                       </button>
                     ))}
                   </div>
@@ -324,7 +338,7 @@ export default function VtuPurchase() {
 
                 <div className="grid gap-5 sm:grid-cols-2">
                   <label className="block text-sm font-semibold">
-                    Network
+                    Provider
                     <select
                       value={selectedProduct?.network ?? ''}
                       onChange={(event) => {
@@ -358,7 +372,7 @@ export default function VtuPurchase() {
                 </div>
 
                 <label className="block text-sm font-semibold">
-                  Recipient phone number
+                  {isElectricity ? 'Meter number' : isTv ? 'TV smartcard / decoder number' : 'Recipient phone number'}
                   <input
                     type="tel"
                     inputMode="tel"
@@ -368,13 +382,60 @@ export default function VtuPurchase() {
                       setRecipient(event.target.value);
                       setRequestKey(newRequestKey());
                     }}
-                    placeholder="e.g. 08012345678"
-                    maxLength={32}
+                    placeholder={isElectricity ? "Enter your electricity meter number" : isTv ? "Enter your TV smartcard number" : "e.g. 08012345678"}
+                    maxLength={40}
                     required
                     disabled={submissionUncertain}
                     className="mt-2 w-full rounded-xl border border-[var(--line)] bg-[var(--page)] px-4 py-3 font-normal outline-none focus:border-[var(--brand)] focus-visible:ring-2 focus-visible:ring-[var(--brand)] focus-visible:ring-offset-2"
                   />
                 </label>
+
+                {needsVerification && (
+                  <div className="space-y-4 rounded-2xl border border-[var(--line)] p-4">
+                    {isElectricity && (
+                      <>
+                        <label className="block text-sm font-semibold">Meter type
+                          <select value={meterType} onChange={(event) => { setMeterType(event.target.value as 'prepaid' | 'postpaid'); setVerification(null); setRequestKey(newRequestKey()); }} className="mt-2 w-full rounded-xl border border-[var(--line)] bg-[var(--page)] px-3 py-3 font-normal">
+                            <option value="prepaid">Prepaid</option><option value="postpaid">Postpaid</option>
+                          </select>
+                        </label>
+                        <label className="block text-sm font-semibold">Amount (₦)
+                          <input type="number" inputMode="decimal" min={1} max={1000000} step="1" value={electricityAmount} onChange={(event) => { setElectricityAmount(event.target.value); setRequestKey(newRequestKey()); }} required className="mt-2 w-full rounded-xl border border-[var(--line)] bg-[var(--page)] px-4 py-3 font-normal" placeholder="Enter purchase amount" />
+                        </label>
+                      </>
+                    )}
+                    <label className="block text-sm font-semibold">Contact phone number
+                      <input type="tel" inputMode="tel" value={contactPhone} onChange={(event) => { setContactPhone(event.target.value); setVerification(null); }} required maxLength={20} placeholder="08012345678" className="mt-2 w-full rounded-xl border border-[var(--line)] bg-[var(--page)] px-4 py-3 font-normal" />
+                    </label>
+                    <button type="button" disabled={verifying || !selectedProduct || !recipient.trim() || !contactPhone.trim() || (isElectricity && !electricityAmount)} onClick={async () => {
+                      setVerifying(true); setError(''); setVerification(null);
+                      try {
+                        const csrf = document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ?? '';
+                        const response = await fetch('/wallet/vtu/verify-biller', {
+                          method: 'POST', credentials: 'same-origin',
+                          headers: { Accept: 'application/json', 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'X-CSRF-TOKEN': csrf },
+                          body: JSON.stringify({ product_code: selectedProduct?.code, biller_code: recipient, ...(isElectricity ? { meter_type: meterType } : {}) }),
+                        });
+                        const body = await response.json().catch(() => ({}));
+                        if (!response.ok && response.status !== 503) throw new Error(typeof body.message === 'string' ? body.message : 'Account verification failed.');
+                        setVerification(body.data ?? { status: 'unknown', customer_name: null, customer_address: null });
+                        if (body.data?.status !== 'verified') setError(typeof body.message === 'string' ? body.message : 'Account verification is inconclusive. Do not purchase yet.');
+                      } catch (cause: unknown) {
+                        setError(cause instanceof Error ? cause.message : 'Account verification failed.');
+                      } finally { setVerifying(false); }
+                    }} className="w-full rounded-xl border border-[var(--brand)] px-4 py-3 font-bold text-[var(--brand)] disabled:opacity-50">
+                      {verifying ? 'Verifying account…' : verification?.status === 'verified' ? 'Verify again' : 'Verify account details'}
+                    </button>
+                    {verification?.status === 'verified' && (
+                      <div role="status" className="rounded-xl bg-emerald-500/10 p-3 text-sm">
+                        <p className="font-semibold text-emerald-700">Account verified</p>
+                        {verification.customer_name && <p className="mt-1">Customer: {verification.customer_name}</p>}
+                        {verification.customer_address && <p className="mt-1">{verification.customer_address}</p>}
+                        <p className="mt-1 text-xs">Semizzy will verify again before debiting your wallet.</p>
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 <label className="block text-sm font-semibold">
                   Transaction PIN
@@ -392,19 +453,19 @@ export default function VtuPurchase() {
                   <div className="rounded-2xl bg-[var(--page)] p-4">
                     <div className="flex items-center justify-between gap-4 text-sm">
                       <span className="text-[var(--muted)]">Total charge</span>
-                      <strong className="text-lg">{naira(selectedProduct.price_minor)}</strong>
+                      <strong className="text-lg">{naira(displayedAmountMinor)}</strong>
                     </div>
-                    <p className="mt-2 text-xs leading-5 text-[var(--muted)]">Check the phone number carefully. Once provider dispatch begins, cancellation may not be possible.</p>
+                    <p className="mt-2 text-xs leading-5 text-[var(--muted)]">Check the account number and customer details carefully. Once provider dispatch begins, cancellation may not be possible.</p>
                   </div>
                 ) : null}
 
                 <button
                   type="submit"
-                  disabled={submitting || loadingProducts || !selectedProduct || !recipient.trim()}
+                  disabled={submitting || loadingProducts || !selectedProduct || !recipient.trim() || (needsVerification && verification?.status !== 'verified') || (isElectricity && displayedAmountMinor < 100)}
                   className="flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--brand)] px-4 py-3.5 font-bold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {submitting && <LoaderCircle className="animate-spin" size={18} />}
-                  {submitting ? 'Submitting securely…' : submissionUncertain ? 'Retry same request safely' : selectedProduct ? `Buy for ${naira(selectedProduct.price_minor)}` : 'Choose a product'}
+                  {submitting ? 'Submitting securely…' : submissionUncertain ? 'Retry same request safely' : selectedProduct ? `Continue for ${naira(displayedAmountMinor)}` : 'Choose a product'}
                 </button>
                 <p className="text-center text-xs leading-5 text-[var(--muted)]">Duplicate requests use the same idempotency key. If the result is uncertain, Semizzy will reconcile the existing order rather than submit another one.</p>
               </form>

@@ -34,13 +34,28 @@ class VtpassProviderClient implements VtuProvider
 
     public function assertProductConfigured(VtuProduct $product): void
     {
-        if (! in_array($product->service_type, ['airtime', 'data'], true)) {
-            throw new LogicException('VTpass only supports configured airtime and data products in this adapter.');
+        if (! in_array($product->service_type, ['airtime', 'data', 'electricity-bill', 'tv-subscription'], true)) {
+            throw new LogicException('This VTpass service category is not supported for purchases yet.');
+        }
+
+        if (($product->metadata['purchase_supported'] ?? null) !== true) {
+            throw new LogicException('This VTpass product has not been approved for its service-specific purchase flow.');
         }
 
         $this->serviceId($product);
 
-        if ($product->service_type === 'data') {
+        if ($product->service_type === 'electricity-bill') {
+            $minimum = (float) ($product->metadata['provider_minimum_amount'] ?? 1);
+            $maximum = (float) ($product->metadata['provider_maximum_amount'] ?? 1000000);
+            if ($minimum < 1 || $maximum < $minimum) {
+                throw new LogicException('VTpass electricity amount limits are not configured safely.');
+            }
+        } elseif ($product->service_type === 'tv-subscription') {
+            $variationCode = $product->metadata['provider_variation_code'] ?? null;
+            if (! is_string($variationCode) || $variationCode === '') {
+                throw new LogicException('VTpass TV product is missing its verified subscription variation code.');
+            }
+        } elseif ($product->service_type === 'data') {
             $variationCode = $product->metadata['provider_variation_code'] ?? null;
             if (! is_string($variationCode) || $variationCode === '') {
                 throw new LogicException('VTpass data product is missing its verified variation code.');
@@ -66,13 +81,25 @@ class VtpassProviderClient implements VtuProvider
         }
         $this->assertProductConfigured($product);
 
+        $details = is_array($order->service_details) ? $order->service_details : [];
         $payload = [
             'request_id' => $this->requestId($order),
             'serviceID' => $this->serviceId($product),
-            'phone' => $order->recipient,
+            'phone' => is_string($details['contact_phone'] ?? null) ? $details['contact_phone'] : $order->recipient,
         ];
 
-        if ($order->service_type === 'airtime') {
+        if ($order->service_type === 'electricity-bill') {
+            $meterType = $details['meter_type'] ?? null;
+            if (! in_array($meterType, ['prepaid', 'postpaid'], true) || $order->amount_minor < 100) {
+                throw new LogicException('Electricity purchase requires a verified meter type and positive amount.');
+            }
+            $payload['billersCode'] = $order->recipient;
+            $payload['variation_code'] = $meterType;
+            $payload['amount'] = intdiv((int) $order->amount_minor, 100);
+        } elseif ($order->service_type === 'tv-subscription') {
+            $payload['billersCode'] = $order->recipient;
+            $payload['variation_code'] = (string) $product->metadata['provider_variation_code'];
+        } elseif ($order->service_type === 'airtime') {
             $faceValueMinor = (int) ($product->face_value_minor ?? $order->amount_minor);
             $payload['amount'] = intdiv($faceValueMinor, 100);
         } else {

@@ -197,7 +197,7 @@ class VtpassCatalogService
                     'provider_category' => $identifier,
                     'provider_category_name' => is_string($categoryName) ? $categoryName : $identifier,
                     'recipient_type' => 'provider_specific',
-                    'purchase_supported' => false,
+                    'purchase_supported' => in_array(strtolower($identifier), ['electricity-bill', 'tv-subscription'], true),
                     'catalog_source' => 'vtpass',
                 ];
 

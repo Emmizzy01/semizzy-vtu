@@ -117,6 +117,89 @@ class VtpassProviderClientTest extends TestCase
         Http::assertNothingSent();
     }
 
+    public function test_electricity_purchase_uses_meter_type_amount_and_contact_phone_payload(): void
+    {
+        Http::fake(fn () => Http::response([
+            'code' => '000',
+            'content' => ['transactions' => ['status' => 'delivered', 'transactionId' => 'electricity-txn']],
+        ], 200));
+
+        $order = $this->order('electricity-bill', 'ikeja-electric', [
+            'price_minor' => 500000,
+            'metadata' => [
+                'provider_service_id' => 'ikeja-electric',
+                'provider_minimum_amount' => 100,
+                'provider_maximum_amount' => 100000,
+                'purchase_supported' => true,
+            ],
+        ]);
+        $order->recipient = '12345678901';
+        $order->amount_minor = 500000;
+        $order->service_details = ['meter_type' => 'prepaid', 'contact_phone' => '08012345678'];
+
+        $result = app(VtpassProviderClient::class)->submit($order);
+
+        $this->assertSame('success', $result['status']);
+        Http::assertSent(fn ($request) => str_ends_with($request->url(), '/pay')
+            && $request['serviceID'] === 'ikeja-electric'
+            && $request['billersCode'] === '12345678901'
+            && $request['variation_code'] === 'prepaid'
+            && $request['amount'] === 5000
+            && $request['phone'] === '08012345678');
+    }
+
+    public function test_tv_purchase_uses_smartcard_variation_and_contact_phone(): void
+    {
+        Http::fake(fn () => Http::response([
+            'code' => '000',
+            'content' => ['transactions' => ['status' => 'delivered', 'transactionId' => 'tv-txn']],
+        ], 200));
+
+        $order = $this->order('tv-subscription', 'dstv', [
+            'price_minor' => 250000,
+            'metadata' => [
+                'provider_service_id' => 'dstv',
+                'provider_variation_code' => 'dstv-padi',
+                'purchase_supported' => true,
+            ],
+        ]);
+        $order->recipient = '1234567890';
+        $order->service_details = ['contact_phone' => '08012345678'];
+
+        $result = app(VtpassProviderClient::class)->submit($order);
+
+        $this->assertSame('success', $result['status']);
+        Http::assertSent(fn ($request) => str_ends_with($request->url(), '/pay')
+            && $request['serviceID'] === 'dstv'
+            && $request['billersCode'] === '1234567890'
+            && $request['variation_code'] === 'dstv-padi'
+            && $request['phone'] === '08012345678'
+            && ! array_key_exists('amount', $request->data()));
+    }
+
+    public function test_electricity_and_tv_products_without_purchase_approval_are_blocked_before_provider_request(): void
+    {
+        Http::fake();
+
+        foreach ([
+            $this->order('electricity-bill', 'ikeja-electric', [
+                'metadata' => ['provider_service_id' => 'ikeja-electric', 'purchase_supported' => false],
+            ]),
+            $this->order('tv-subscription', 'dstv', [
+                'metadata' => ['provider_service_id' => 'dstv', 'provider_variation_code' => 'dstv-padi', 'purchase_supported' => false],
+            ]),
+        ] as $order) {
+            try {
+                app(VtpassProviderClient::class)->submit($order);
+                $this->fail('Unapproved biller products must not be submitted.');
+            } catch (\LogicException $exception) {
+                $this->assertStringContainsString('not been approved', $exception->getMessage());
+            }
+        }
+
+        Http::assertNothingSent();
+    }
+
     public function test_unknown_or_non_definitive_response_is_never_marked_failed(): void
     {
         Http::fake(fn () => Http::response([

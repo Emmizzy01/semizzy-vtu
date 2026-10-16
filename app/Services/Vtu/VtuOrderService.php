@@ -38,28 +38,75 @@ class VtuOrderService
         string $productCode,
         string $recipient,
         string $idempotencyKey,
+        array $serviceDetails = [],
+        ?int $amountMinor = null,
     ): VtuOrder {
         if ($idempotencyKey === '' || strlen($idempotencyKey) > 128) {
             throw new InvalidArgumentException('Idempotency key must contain 1 to 128 characters.');
         }
 
-        $recipient = preg_replace('/[\s-]+/', '', $recipient) ?? '';
-        if (! preg_match('/^\+?[0-9]{10,15}$/', $recipient)) {
-            throw new InvalidArgumentException('Recipient must be a valid phone number.');
+        $recipient = preg_replace('/[\s-]+/', '', trim($recipient)) ?? '';
+        if (! preg_match('/^[a-zA-Z0-9+]{5,40}$/', $recipient)) {
+            throw new InvalidArgumentException('Enter a valid phone number, meter number, or smartcard number.');
         }
 
         /** @var VtuProduct $product */
         $product = VtuProduct::query()
             ->where('code', $productCode)
-            ->whereIn('service_type', ['airtime', 'data'])
+            ->whereIn('service_type', ['airtime', 'data', 'electricity-bill', 'tv-subscription'])
             ->where('currency', 'NGN')
             ->firstOrFail();
 
-        $requestHash = hash('sha256', json_encode([
-            'user_id' => $user->getKey(),
-            'product_code' => $product->code,
-            'recipient' => $recipient,
-        ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES));
+        if (! in_array($product->service_type, ['airtime', 'data'], true)) {
+            if (($product->metadata['purchase_supported'] ?? null) !== true) {
+                throw new InvalidArgumentException('This service is not yet enabled for customer purchases.');
+            }
+            $contactPhone = preg_replace('/[\s-]+/', '', (string) ($serviceDetails['contact_phone'] ?? '')) ?? '';
+            if (! preg_match('/^\+?[0-9]{10,15}$/', $contactPhone)) {
+                throw new InvalidArgumentException('Enter a valid contact phone number for the provider transaction.');
+            }
+            $serviceDetails['contact_phone'] = $contactPhone;
+            if ($product->service_type === 'electricity-bill') {
+                if (! in_array($serviceDetails['meter_type'] ?? null, ['prepaid', 'postpaid'], true)) {
+                    throw new InvalidArgumentException('Select prepaid or postpaid for the electricity meter.');
+                }
+                if ($amountMinor === null || $amountMinor < 100) {
+                    throw new InvalidArgumentException('Enter a valid electricity purchase amount.');
+                }
+                $minimum = (int) round((float) ($product->metadata['provider_minimum_amount'] ?? 1) * 100);
+                $maximum = (int) round((float) ($product->metadata['provider_maximum_amount'] ?? 1000000) * 100);
+                if ($amountMinor < $minimum || $amountMinor > $maximum) {
+                    throw new InvalidArgumentException('The electricity amount is outside the provider limits.');
+                }
+            } elseif ($product->service_type === 'tv-subscription') {
+                $amountMinor = (int) $product->price_minor;
+                if ($amountMinor < 1) {
+                    throw new InvalidArgumentException('This TV subscription has no valid provider price.');
+                }
+            }
+        } else {
+            if (! preg_match('/^\+?[0-9]{10,15}$/', $recipient)) {
+                throw new InvalidArgumentException('Recipient must be a valid phone number.');
+            }
+            $amountMinor = (int) $product->price_minor;
+        }
+
+        $requestHash = hash('sha256', json_encode(
+            in_array($product->service_type, ['airtime', 'data'], true)
+                ? [
+                    'user_id' => $user->getKey(),
+                    'product_code' => $product->code,
+                    'recipient' => $recipient,
+                ]
+                : [
+                    'user_id' => $user->getKey(),
+                    'product_code' => $product->code,
+                    'recipient' => $recipient,
+                    'service_details' => $serviceDetails,
+                    'amount_minor' => $amountMinor,
+                ],
+            JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES
+        ));
 
         $existing = VtuOrder::query()
             ->where('user_id', $user->getKey())
@@ -76,6 +123,7 @@ class VtuOrderService
 
         $this->provider->assertConfigured();
         $this->provider->assertProductConfigured($product);
+        $this->verifyBillerBeforePurchase($product, $recipient, $serviceDetails);
 
         $wallet = Wallet::query()
             ->where('user_id', $user->getKey())
@@ -87,7 +135,7 @@ class VtuOrderService
         }
 
         try {
-            $order = DB::transaction(function () use ($user, $wallet, $product, $recipient, $idempotencyKey, $requestHash): VtuOrder {
+            $order = DB::transaction(function () use ($user, $wallet, $product, $recipient, $idempotencyKey, $requestHash, $serviceDetails, $amountMinor): VtuOrder {
                 $duplicate = VtuOrder::query()
                     ->where('user_id', $user->getKey())
                     ->where('idempotency_key', $idempotencyKey)
@@ -126,7 +174,8 @@ class VtuOrderService
                     'network' => $lockedProduct->network,
                     'product_code' => $lockedProduct->code,
                     'recipient' => $recipient,
-                    'amount_minor' => $lockedProduct->price_minor,
+                    'amount_minor' => $amountMinor ?? $lockedProduct->price_minor,
+                    'service_details' => $serviceDetails,
                     'currency' => $lockedProduct->currency,
                     'status' => VtuOrderStatus::Pending->value,
                     'provider' => app(\App\Services\IntegrationSettings::class)->get('vtu.driver', config('services.vtu.driver')) === 'vtpass'
@@ -137,7 +186,7 @@ class VtuOrderService
                 $transaction = $this->ledger->post(
                     walletId: (int) $wallet->getKey(),
                     type: 'debit',
-                    amountMinor: (int) $lockedProduct->price_minor,
+                    amountMinor: (int) ($amountMinor ?? $lockedProduct->price_minor),
                     idempotencyKey: 'vtu-purchase:'.$order->public_id,
                     reference: $order->public_id,
                     description: 'VTU purchase: '.$lockedProduct->name,
@@ -197,6 +246,26 @@ class VtuOrderService
         $updated->setAttribute('_created_for_request', true);
 
         return $updated;
+    }
+
+    /** Re-verify biller details immediately before debiting the wallet. */
+    private function verifyBillerBeforePurchase(VtuProduct $product, string $recipient, array $details): void
+    {
+        if (in_array($product->service_type, ['airtime', 'data'], true)) {
+            return;
+        }
+
+        if (! $this->provider instanceof VtpassProviderClient) {
+            throw new LogicException('Electricity and TV purchases require the VTpass verification adapter.');
+        }
+
+        $result = $product->service_type === 'electricity-bill'
+            ? $this->provider->verifyElectricityMeter($product, $recipient, (string) ($details['meter_type'] ?? ''))
+            : $this->provider->verifyTvSmartcard($product, $recipient);
+
+        if (($result['status'] ?? null) !== 'verified') {
+            throw new InvalidArgumentException('The provider could not confirm this meter or smartcard. No purchase was created.');
+        }
     }
 
     public function reconcile(VtuOrder $order): VtuOrder

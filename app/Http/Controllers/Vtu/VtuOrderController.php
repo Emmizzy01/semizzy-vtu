@@ -21,7 +21,7 @@ class VtuOrderController extends Controller
     {
         if (! filter_var(app(IntegrationSettings::class)->get('service.airtime_data.enabled', true), FILTER_VALIDATE_BOOLEAN)) return response()->json(['message' => 'Airtime and data purchases are temporarily unavailable.'], 503);
         $validated = $request->validate([
-            'service_type' => ['sometimes', 'string', 'in:airtime,data'],
+            'service_type' => ['sometimes', 'string', 'in:airtime,data,electricity-bill,tv-subscription'],
             'network' => ['sometimes', 'string', 'max:40'],
         ]);
 
@@ -33,7 +33,10 @@ class VtuOrderController extends Controller
             ->orderBy('service_type')
             ->orderBy('network')
             ->orderBy('price_minor')
-            ->get(['code', 'service_type', 'network', 'name', 'price_minor', 'face_value_minor', 'currency']);
+            ->get(['code', 'service_type', 'network', 'name', 'price_minor', 'face_value_minor', 'currency', 'metadata'])
+            ->filter(fn (VtuProduct $product) => in_array($product->service_type, ['airtime', 'data'], true)
+                || ($product->metadata['purchase_supported'] ?? false) === true)
+            ->values();
 
         return response()->json(['data' => $products]);
     }
@@ -43,9 +46,12 @@ class VtuOrderController extends Controller
         if (! filter_var(app(IntegrationSettings::class)->get('service.airtime_data.enabled', true), FILTER_VALIDATE_BOOLEAN)) return response()->json(['message' => 'Airtime and data purchases are temporarily unavailable.'], 503);
         $validated = $request->validate([
             'product_code' => ['required', 'string', 'max:80'],
-            'recipient' => ['required', 'string', 'max:32'],
+            'recipient' => ['required', 'string', 'max:40', 'regex:/^[a-zA-Z0-9+\\s-]+$/'],
             'idempotency_key' => ['required', 'string', 'max:128'],
             'transaction_pin' => ['nullable', 'string', 'regex:/^\\d{4}(?:\\d{2})?$/'],
+            'meter_type' => ['nullable', 'string', 'in:prepaid,postpaid'],
+            'contact_phone' => ['nullable', 'string', 'max:20', 'regex:/^\\+?[0-9\\s-]{10,20}$/'],
+            'amount' => ['nullable', 'numeric', 'min:1', 'max:1000000'],
         ]);
 
         $user = $request->user();
@@ -62,6 +68,11 @@ class VtuOrderController extends Controller
                 $validated['product_code'],
                 $validated['recipient'],
                 $validated['idempotency_key'],
+                array_filter([
+                    'meter_type' => $validated['meter_type'] ?? null,
+                    'contact_phone' => $validated['contact_phone'] ?? null,
+                ], fn ($value) => $value !== null),
+                isset($validated['amount']) ? (int) round((float) $validated['amount'] * 100) : null,
             );
         } catch (InvalidArgumentException|InsufficientWalletFunds $exception) {
             return response()->json(['message' => $exception->getMessage()], 422);

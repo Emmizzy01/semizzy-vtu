@@ -29,6 +29,7 @@ class VtuOrder extends Model
         'dispatch_started_at',
         'completed_at',
         'safe_provider_response',
+        'service_details',
     ];
 
     protected function casts(): array
@@ -38,6 +39,7 @@ class VtuOrder extends Model
             'dispatch_started_at' => 'datetime',
             'completed_at' => 'datetime',
             'safe_provider_response' => 'array',
+            'service_details' => 'array',
         ];
     }
 
