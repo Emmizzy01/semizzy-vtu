@@ -136,7 +136,7 @@ class VtuOrderWorkflowTest extends TestCase
                 'vtpass-awaiting-approval-1',
             );
             $this->fail('A VTpass product without recorded sandbox approval must not be submitted.');
-        } catch (\\LogicException $exception) {
+        } catch (\LogicException $exception) {
             $this->assertStringContainsString('sandbox verification', $exception->getMessage());
             $this->assertSame(1500, (int) $wallet->fresh()->available_balance_minor);
             $this->assertDatabaseCount('vtu_orders', 0);
