@@ -901,6 +901,99 @@ class VtuOrderWorkflowTest extends TestCase
         Http::assertNothingSent();
     }
 
+    public function test_electricity_purchase_verifies_before_debit_and_duplicate_key_submits_once(): void
+    {
+        config([
+            'services.vtu.driver' => 'vtpass',
+            'services.vtu.vtpass.base_url' => 'https://sandbox.vtpass.com/api',
+            'services.vtu.vtpass.api_key' => 'sandbox-api-key',
+            'services.vtu.vtpass.secret_key' => 'sandbox-secret-key',
+        ]);
+
+        $sequence = Http::sequence()
+            ->push(['code' => '000', 'content' => ['Customer_Name' => 'Meter Customer']], 200)
+            ->push(['code' => '000', 'content' => ['transactions' => [
+                'status' => 'delivered',
+                'transactionId' => 'electricity-workflow-order',
+            ]]], 200);
+        Http::fake(['https://sandbox.vtpass.com/api/*' => $sequence]);
+
+        [$user, $wallet, $product] = $this->preparedCustomer(1000, 150000);
+        $product->forceFill([
+            'service_type' => 'electricity-bill',
+            'network' => 'ikeja-electric',
+            'metadata' => [
+                'provider_service_id' => 'ikeja-electric',
+                'provider_minimum_amount' => 100,
+                'provider_maximum_amount' => 100000,
+                'purchase_supported' => true,
+            ],
+        ])->save();
+
+        $service = app(VtuOrderService::class);
+        $details = ['meter_type' => 'prepaid', 'contact_phone' => '08012345678'];
+        $first = $service->purchase($user, $product->code, '12345678901', 'electricity-idempotency-1', $details, 50000);
+        $duplicate = $service->purchase($user, $product->code, '12345678901', 'electricity-idempotency-1', $details, 50000);
+
+        $this->assertSame('successful', $first->status);
+        $this->assertSame($first->id, $duplicate->id);
+        $this->assertSame(100000, (int) $wallet->fresh()->available_balance_minor);
+        $this->assertDatabaseCount('vtu_orders', 1);
+        $this->assertDatabaseCount('wallet_transactions', 2);
+        Http::assertSentCount(2);
+        Http::assertSentCount(2);
+        $requests = Http::recorded();
+        $this->assertSame('/merchant-verify', parse_url($requests[0][0]->url(), PHP_URL_PATH));
+        $this->assertSame('/pay', parse_url($requests[1][0]->url(), PHP_URL_PATH));
+        $this->assertSame(1, Http::recorded(fn ($request) => str_ends_with($request->url(), '/pay'))->count());
+    }
+
+    public function test_tv_smartcard_verification_failure_cannot_create_order_or_debit_wallet(): void
+    {
+        config([
+            'services.vtu.driver' => 'vtpass',
+            'services.vtu.vtpass.base_url' => 'https://sandbox.vtpass.com/api',
+            'services.vtu.vtpass.api_key' => 'sandbox-api-key',
+            'services.vtu.vtpass.secret_key' => 'sandbox-secret-key',
+        ]);
+        Http::fake(fn () => Http::response([
+            'code' => '099',
+            'response_description' => 'Smartcard not found',
+        ], 200));
+
+        [$user, $wallet, $product] = $this->preparedCustomer(1000, 300000);
+        $product->forceFill([
+            'service_type' => 'tv-subscription',
+            'network' => 'dstv',
+            'price_minor' => 250000,
+            'metadata' => [
+                'provider_service_id' => 'dstv',
+                'provider_variation_code' => 'dstv-padi',
+                'purchase_supported' => true,
+            ],
+        ])->save();
+
+        try {
+            app(VtuOrderService::class)->purchase(
+                $user,
+                $product->code,
+                '1234567890',
+                'tv-unverified-smartcard-1',
+                ['contact_phone' => '08012345678'],
+            );
+            $this->fail('An unverified smartcard must never reach purchase dispatch.');
+        } catch (\\InvalidArgumentException $exception) {
+            $this->assertStringContainsString('could not confirm', $exception->getMessage());
+        }
+
+        $this->assertSame(300000, (int) $wallet->fresh()->available_balance_minor);
+        $this->assertDatabaseCount('vtu_orders', 0);
+        $this->assertDatabaseCount('wallet_transactions', 1);
+        Http::assertSentCount(1);
+        Http::assertSent(fn ($request) => str_ends_with($request->url(), '/merchant-verify'));
+        Http::assertNotSent(fn ($request) => str_ends_with($request->url(), '/pay'));
+    }
+
     private function preparedCustomer(int $productPriceMinor, int $initialBalanceMinor): array
     {
         $user = User::query()->create([
