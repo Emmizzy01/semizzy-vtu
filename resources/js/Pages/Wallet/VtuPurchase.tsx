@@ -165,6 +165,12 @@ export default function VtuPurchase() {
   const isTv = serviceType === 'tv-subscription';
   const needsVerification = isElectricity || isTv;
   const displayedAmountMinor = isElectricity ? Math.round(Number(electricityAmount || 0) * 100) : (selectedProduct?.price_minor ?? 0);
+  const electricityMinimum = isElectricity && typeof selectedProduct?.metadata?.provider_minimum_amount === 'number'
+    ? selectedProduct.metadata.provider_minimum_amount
+    : 1;
+  const electricityMaximum = isElectricity && typeof selectedProduct?.metadata?.provider_maximum_amount === 'number'
+    ? selectedProduct.metadata.provider_maximum_amount
+    : 1000000;
 
   async function submitPurchase(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -451,7 +457,7 @@ export default function VtuPurchase() {
                           </select>
                         </label>
                         <label className="block text-sm font-semibold">Amount (₦)
-                          <input type="number" inputMode="decimal" min={1} max={1000000} step="1" value={electricityAmount} onChange={(event) => { setElectricityAmount(event.target.value); setRequestKey(newRequestKey()); }} required disabled={submissionUncertain} className="mt-2 w-full rounded-xl border border-[var(--line)] bg-[var(--page)] px-4 py-3 font-normal" placeholder="Enter purchase amount" />
+                          <input type="number" inputMode="decimal" min={electricityMinimum} max={electricityMaximum} step="1" value={electricityAmount} onChange={(event) => { setElectricityAmount(event.target.value); setRequestKey(newRequestKey()); }} required disabled={submissionUncertain} className="mt-2 w-full rounded-xl border border-[var(--line)] bg-[var(--page)] px-4 py-3 font-normal" placeholder="Enter purchase amount" />
                         </label>
                       </>
                     )}
@@ -521,7 +527,7 @@ export default function VtuPurchase() {
                 )}
                 <button
                   type="submit"
-                  disabled={submissionUncertain || submitting || loadingProducts || !selectedProduct || !recipient.trim() || (needsVerification && verification?.status !== 'verified') || (isElectricity && displayedAmountMinor < 100)}
+                  disabled={submissionUncertain || submitting || loadingProducts || !selectedProduct || !recipient.trim() || (needsVerification && verification?.status !== 'verified') || (isElectricity && (displayedAmountMinor < electricityMinimum * 100 || displayedAmountMinor > electricityMaximum * 100))}
                   className="flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--brand)] px-4 py-3.5 font-bold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {submitting && <LoaderCircle className="animate-spin" size={18} />}
