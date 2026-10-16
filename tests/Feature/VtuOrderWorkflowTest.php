@@ -867,6 +867,40 @@ class VtuOrderWorkflowTest extends TestCase
             ->assertForbidden();
     }
 
+    public function test_education_and_insurance_catalogue_entries_cannot_debit_or_submit_before_service_flows_are_implemented(): void
+    {
+        Http::fake();
+
+        foreach (['education', 'insurance'] as $serviceType) {
+            [$user, $wallet, $product] = $this->preparedCustomer(1000, 1500);
+            $product->forceFill([
+                'service_type' => $serviceType,
+                'network' => $serviceType,
+                'metadata' => [
+                    'provider_service_id' => $serviceType === 'education' ? 'waec' : 'third-party',
+                    'purchase_supported' => false,
+                    'setup_required' => ['customer_verification', 'recipient_fields', 'purchase_payload'],
+                ],
+            ])->save();
+
+            try {
+                app(VtuOrderService::class)->purchase(
+                    $user,
+                    $product->code,
+                    '1234567890',
+                    'unsupported-'.$serviceType.'-'.uniqid(),
+                );
+                $this->fail(ucfirst($serviceType).' purchases must remain disabled until their provider flow is verified.');
+            } catch (\\Illuminate\\Database\\Eloquent\\ModelNotFoundException) {
+                $this->assertSame(1500, (int) $wallet->fresh()->available_balance_minor);
+            }
+
+            $this->assertDatabaseMissing('vtu_orders', ['product_code' => $product->code]);
+        }
+
+        Http::assertNothingSent();
+    }
+
     private function preparedCustomer(int $productPriceMinor, int $initialBalanceMinor): array
     {
         $user = User::query()->create([
