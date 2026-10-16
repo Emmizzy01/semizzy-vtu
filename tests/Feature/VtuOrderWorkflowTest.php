@@ -1536,7 +1536,7 @@ class VtuOrderWorkflowTest extends TestCase
                 ['contact_phone' => '08012345678'],
             );
             $this->fail('An idempotency key must not be reused for a different smartcard.');
-        } catch (\\Symfony\\Component\\HttpKernel\\Exception\\ConflictHttpException $exception) {
+        } catch (\Symfony\Component\HttpKernel\Exception\ConflictHttpException $exception) {
             $this->assertStringContainsString('different purchase', $exception->getMessage());
         }
 
