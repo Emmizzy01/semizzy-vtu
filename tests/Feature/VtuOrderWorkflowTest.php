@@ -45,7 +45,7 @@ class VtuOrderWorkflowTest extends TestCase
                 'inactive-catalogue-product-1',
             );
             $this->fail('Inactive catalogue products must not be purchasable.');
-        } catch (\\InvalidArgumentException $exception) {
+        } catch (\InvalidArgumentException $exception) {
             $this->assertStringContainsString('no longer available', $exception->getMessage());
             $this->assertSame(1500, (int) $wallet->fresh()->available_balance_minor);
             $this->assertDatabaseCount('vtu_orders', 0);
