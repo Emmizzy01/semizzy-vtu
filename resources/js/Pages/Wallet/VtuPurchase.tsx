@@ -135,6 +135,27 @@ export default function VtuPurchase() {
     return () => { cancelled = true; };
   }, [serviceType]);
 
+  useEffect(() => {
+    if (!restoredPending?.uncertain) return;
+    let cancelled = false;
+    fetch(`/wallet/vtu/orders/recover?idempotency_key=${encodeURIComponent(restoredPending.requestKey)}`, {
+      headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+      credentials: 'same-origin',
+    }).then(async (response) => {
+      if (!response.ok) return null;
+      const body = await response.json().catch(() => ({}));
+      return body.data as Order | null;
+    }).then((existingOrder) => {
+      if (cancelled || !existingOrder) return;
+      setOrder(existingOrder);
+      setSubmissionUncertain(false);
+      clearPendingPurchase();
+    }).catch(() => {
+      // Preserve the uncertain request. The customer can check again manually.
+    });
+    return () => { cancelled = true; };
+  }, [restoredPending]);
+
   const networks = useMemo(
     () => Array.from(new Set(products.map((product) => product.network))),
     [products],
@@ -198,6 +219,33 @@ export default function VtuPurchase() {
     } finally {
       setSubmitting(false);
       setTransactionPin('');
+    }
+  }
+
+  async function recoverOrder() {
+    if (!restoredPending && !submissionUncertain) return;
+    const key = restoredPending?.requestKey ?? requestKey;
+    setRefreshing(true);
+    setError('');
+    try {
+      const response = await fetch(`/wallet/vtu/orders/recover?idempotency_key=${encodeURIComponent(key)}`, {
+        headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+        credentials: 'same-origin',
+      });
+      const body = await response.json().catch(() => ({}));
+      if (response.status === 404) {
+        throw new Error(typeof body.message === 'string' ? body.message : 'No saved order is visible yet. Check again before starting another purchase.');
+      }
+      if (!response.ok || !body.data) {
+        throw new Error(typeof body.message === 'string' ? body.message : 'The existing order could not be found. Keep this request unchanged and check again.');
+      }
+      setOrder(body.data as Order);
+      setSubmissionUncertain(false);
+      clearPendingPurchase();
+    } catch (cause: unknown) {
+      setError(cause instanceof Error ? cause.message : 'Could not check the existing order. Do not submit another purchase yet.');
+    } finally {
+      setRefreshing(false);
     }
   }
 
@@ -398,19 +446,19 @@ export default function VtuPurchase() {
                     {isElectricity && (
                       <>
                         <label className="block text-sm font-semibold">Meter type
-                          <select value={meterType} onChange={(event) => { setMeterType(event.target.value as 'prepaid' | 'postpaid'); setVerification(null); setRequestKey(newRequestKey()); }} className="mt-2 w-full rounded-xl border border-[var(--line)] bg-[var(--page)] px-3 py-3 font-normal">
+                          <select value={meterType} onChange={(event) => { setMeterType(event.target.value as 'prepaid' | 'postpaid'); setVerification(null); setRequestKey(newRequestKey()); }} disabled={submissionUncertain} className="mt-2 w-full rounded-xl border border-[var(--line)] bg-[var(--page)] px-3 py-3 font-normal">
                             <option value="prepaid">Prepaid</option><option value="postpaid">Postpaid</option>
                           </select>
                         </label>
                         <label className="block text-sm font-semibold">Amount (₦)
-                          <input type="number" inputMode="decimal" min={1} max={1000000} step="1" value={electricityAmount} onChange={(event) => { setElectricityAmount(event.target.value); setRequestKey(newRequestKey()); }} required className="mt-2 w-full rounded-xl border border-[var(--line)] bg-[var(--page)] px-4 py-3 font-normal" placeholder="Enter purchase amount" />
+                          <input type="number" inputMode="decimal" min={1} max={1000000} step="1" value={electricityAmount} onChange={(event) => { setElectricityAmount(event.target.value); setRequestKey(newRequestKey()); }} required disabled={submissionUncertain} className="mt-2 w-full rounded-xl border border-[var(--line)] bg-[var(--page)] px-4 py-3 font-normal" placeholder="Enter purchase amount" />
                         </label>
                       </>
                     )}
                     <label className="block text-sm font-semibold">Contact phone number
-                      <input type="tel" inputMode="tel" value={contactPhone} onChange={(event) => { setContactPhone(event.target.value); setVerification(null); }} required maxLength={20} placeholder="08012345678" className="mt-2 w-full rounded-xl border border-[var(--line)] bg-[var(--page)] px-4 py-3 font-normal" />
+                      <input type="tel" inputMode="tel" value={contactPhone} onChange={(event) => { setContactPhone(event.target.value); setVerification(null); }} required disabled={submissionUncertain} maxLength={20} placeholder="08012345678" className="mt-2 w-full rounded-xl border border-[var(--line)] bg-[var(--page)] px-4 py-3 font-normal" />
                     </label>
-                    <button type="button" disabled={verifying || !selectedProduct || !recipient.trim() || !contactPhone.trim() || (isElectricity && !electricityAmount)} onClick={async () => {
+                    <button type="button" disabled={submissionUncertain || verifying || !selectedProduct || !recipient.trim() || !contactPhone.trim() || (isElectricity && !electricityAmount)} onClick={async () => {
                       setVerifying(true); setError(''); setVerification(null);
                       try {
                         const csrf = document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ?? '';
@@ -442,7 +490,7 @@ export default function VtuPurchase() {
 
                 <label className="block text-sm font-semibold">
                   Transaction PIN
-                  <input type="password" inputMode="numeric" autoComplete="off" value={transactionPin} onChange={(event) => setTransactionPin(event.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="4 digits (or 6 for an older PIN)" maxLength={6} minLength={4} required className="mt-2 w-full rounded-xl border border-[var(--line)] bg-[var(--page)] px-4 py-3 font-normal outline-none focus:border-[var(--brand)]" />
+                  <input type="password" inputMode="numeric" autoComplete="off" value={transactionPin} onChange={(event) => setTransactionPin(event.target.value.replace(/\D/g, '').slice(0, 6))} disabled={submissionUncertain} placeholder="4 digits (or 6 for an older PIN)" maxLength={6} minLength={4} required className="mt-2 w-full rounded-xl border border-[var(--line)] bg-[var(--page)] px-4 py-3 font-normal outline-none focus:border-[var(--brand)]" />
                   <span className="mt-1 block text-xs font-normal text-[var(--muted)]">Separate from your login password. PIN is not saved in the pending-order browser record.</span>
                 </label>
 
@@ -462,9 +510,18 @@ export default function VtuPurchase() {
                   </div>
                 ) : null}
 
+                {submissionUncertain && (
+                  <div className="space-y-3 rounded-2xl border border-amber-500/30 bg-amber-500/5 p-4">
+                    <p className="text-sm leading-6 text-amber-700">The previous request may already have reached the provider. Semizzy is checking for its existing order. Do not submit a second purchase while the result is uncertain.</p>
+                    <button type="button" onClick={recoverOrder} disabled={refreshing} className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-amber-600 px-4 py-3 font-bold text-amber-700 disabled:opacity-60">
+                      {refreshing ? <LoaderCircle className="animate-spin" size={18} /> : <RefreshCw size={18} />}
+                      Check existing order status
+                    </button>
+                  </div>
+                )}
                 <button
                   type="submit"
-                  disabled={submitting || loadingProducts || !selectedProduct || !recipient.trim() || (needsVerification && verification?.status !== 'verified') || (isElectricity && displayedAmountMinor < 100)}
+                  disabled={submissionUncertain || submitting || loadingProducts || !selectedProduct || !recipient.trim() || (needsVerification && verification?.status !== 'verified') || (isElectricity && displayedAmountMinor < 100)}
                   className="flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--brand)] px-4 py-3.5 font-bold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {submitting && <LoaderCircle className="animate-spin" size={18} />}
