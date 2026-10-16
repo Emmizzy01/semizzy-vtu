@@ -19,7 +19,7 @@ export default function CustomerDashboard({ wallet, transactions, isAdminPreview
         <header className="flex items-center gap-3 rounded-[24px] bg-[var(--surface)] p-4 shadow-sm">
           {customer?.avatarUrl
             ? <img src={customer.avatarUrl} alt="" className="h-14 w-14 shrink-0 rounded-full object-cover" />
-            : <span aria-hidden="true" className="grid h-14 w-14 shrink-0 place-items-center rounded-full bg-emerald-100 text-lg font-black text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200">{(customer?.name || 'S').trim().split(/\\s+/).map(part => part[0]).join('').slice(0, 2).toUpperCase()}</span>}
+            : <span aria-hidden="true" className="grid h-14 w-14 shrink-0 place-items-center rounded-full bg-emerald-100 text-lg font-black text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200">{(customer?.name || 'S').trim().split(/\s+/).map(part => part[0]).join('').slice(0, 2).toUpperCase()}</span>}
           <div className="min-w-0 flex-1">
             <p className="text-xs font-semibold text-[var(--muted)]">Welcome back</p>
             <h1 className="truncate text-lg font-extrabold">{customer?.name || 'Semizzy user'}</h1>
