@@ -1,0 +1,88 @@
+name: Build and publish Semizzy frontend assets
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - 'public/build/**'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: semizzy-public-build-main
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: true
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mbstring, pdo_sqlite, sqlite3, dom, curl, fileinfo, intl, openssl, tokenizer, xml
+          coverage: none
+
+      - name: Prepare Laravel writable cache directories
+        run: mkdir -p bootstrap/cache storage/framework/cache/data storage/framework/sessions storage/framework/views storage/logs
+
+      - name: Install PHP dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Prepare test environment
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+          echo "DB_CONNECTION=sqlite" >> .env
+          echo "DB_DATABASE=:memory:" >> .env
+
+      - name: Run Laravel tests
+        run: php artisan test
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: package.json
+
+      - name: Install frontend dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Build production assets
+        run: npm run build
+
+      - name: Verify build output
+        run: |
+          test -s public/build/manifest.json
+          echo "Production Vite manifest found."
+          find public/build -maxdepth 2 -type f -print
+
+      - name: Package build ZIP
+        run: zip -r semizzy-public-build.zip public/build
+
+      - name: Upload build ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: semizzy-public-build
+          path: semizzy-public-build.zip
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Commit built assets to main
+        run: |
+          git add -f public/build
+          if git diff --cached --quiet; then
+            echo "public/build is already up to date."
+            exit 0
+          fi
+          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" commit -m "Build and publish frontend assets"
+          git push origin HEAD:main
