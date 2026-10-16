@@ -116,7 +116,10 @@ class VtpassCatalogService
                 $minor = (int) round((float) $amount * 100);
                 $safeService = preg_replace('/[^A-Za-z0-9_-]/', '-', strtolower($serviceId));
                 $safeVariation = preg_replace('/[^A-Za-z0-9_-]/', '-', $variationCode);
-                $code = substr('vtpass-data-'.$network.'-'.$safeService.'-'.$safeVariation, 0, 67).'-'.substr(hash('sha256', $serviceId.'|'.$variationCode), 0, 10);
+                $legacyServiceIds = ['mtn' => 'mtn-data', 'glo' => 'glo-data', 'airtel' => 'airtel-data', '9mobile' => 'etisalat-data'];
+                $code = ($legacyServiceIds[$network] ?? null) === strtolower($serviceId)
+                    ? 'vtpass-data-'.$network.'-'.$safeVariation
+                    : substr('vtpass-data-'.$network.'-'.$safeService.'-'.$safeVariation, 0, 67).'-'.substr(hash('sha256', $serviceId.'|'.$variationCode), 0, 10);
                 $displayNetwork = strtoupper($network);
                 $products[] = [
                     'service_type' => 'data',
