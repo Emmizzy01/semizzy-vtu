@@ -37,7 +37,7 @@ class VtuProductCatalogueTest extends TestCase
         $this->assertDatabaseHas('platform_setting_audits', ['setting_key' => 'vtu_product.created.'.$product->id]);
     }
 
-    public function test_provider_catalogue_sync_activates_mapped_products_imports_data_families_and_preserves_existing_operator_price_and_status(): void
+    public function test_provider_catalogue_sync_imports_only_inactive_airtime_and_data_and_preserves_existing_operator_price_and_status(): void
     {
         config([
             'services.vtu.vtpass.base_url' => 'https://sandbox.vtpass.com/api',
@@ -97,25 +97,27 @@ class VtuProductCatalogueTest extends TestCase
             ]]], 200);
         });
         $this->actingAs($staff)->post('/admin/vtu-products/sync')->assertRedirect()->assertSessionHasNoErrors();
-        $this->assertDatabaseHas('vtu_products', ['code' => 'vtpass-airtime-mtn-100', 'is_active' => true]);
-        $this->assertDatabaseHas('vtu_products', ['service_type' => 'data', 'is_active' => true, 'metadata->provider_service_id' => 'mtn-sme-data']);
+        $this->assertDatabaseHas('vtu_products', ['code' => 'vtpass-airtime-mtn-100', 'is_active' => false]);
+        $this->assertDatabaseHas('vtu_products', ['service_type' => 'data', 'is_active' => false, 'metadata->provider_service_id' => 'mtn-sme-data']);
         $smePlan = VtuProduct::query()->where('metadata->provider_service_id', 'mtn-sme-data')->firstOrFail();
         $this->assertSame('7 days', $smePlan->metadata['validity']);
         $this->assertSame('SME', $smePlan->metadata['data_type']);
         $this->assertTrue($smePlan->metadata['purchase_supported']);
+        $this->assertFalse($smePlan->is_active);
+        $this->assertFalse($smePlan->metadata['purchase_approved']);
         $corporateGiftingPlan = VtuProduct::query()
             ->where('metadata->provider_service_id', 'mtn-sme-data')
             ->where('metadata->provider_variation_code', 'plan-corporate-gifting')
             ->firstOrFail();
         $this->assertSame('30 days', $corporateGiftingPlan->metadata['validity']);
         $this->assertSame('Corporate/Gifting', $corporateGiftingPlan->metadata['data_type']);
-        $this->assertDatabaseHas('vtu_products', ['service_type' => 'data', 'is_active' => true, 'metadata->provider_service_id' => 'lebara-data']);
+        $this->assertDatabaseHas('vtu_products', ['service_type' => 'data', 'is_active' => false, 'metadata->provider_service_id' => 'lebara-data']);
         $this->assertDatabaseHas('vtu_products', ['service_type' => 'data', 'network' => 'smile', 'is_active' => false, 'metadata->provider_service_id' => 'smile-direct']);
         $this->assertDatabaseHas('vtu_products', ['service_type' => 'data', 'network' => 'spectranet', 'is_active' => false, 'metadata->provider_service_id' => 'spectranet']);
-        $this->assertDatabaseHas('vtu_products', ['service_type' => 'tv-subscription', 'is_active' => false, 'metadata->provider_service_id' => 'dstv']);
-        $this->assertDatabaseHas('vtu_products', ['service_type' => 'electricity-bill', 'is_active' => false, 'metadata->provider_service_id' => 'ikeja-electric']);
-        $this->assertDatabaseHas('vtu_products', ['service_type' => 'education', 'is_active' => false, 'metadata->provider_service_id' => 'waec']);
-        $this->assertDatabaseHas('vtu_products', ['service_type' => 'insurance', 'is_active' => false, 'metadata->provider_service_id' => 'third-party']);
+        $this->assertDatabaseMissing('vtu_products', ['service_type' => 'tv-subscription']);
+        $this->assertDatabaseMissing('vtu_products', ['service_type' => 'electricity-bill']);
+        $this->assertDatabaseMissing('vtu_products', ['service_type' => 'education']);
+        $this->assertDatabaseMissing('vtu_products', ['service_type' => 'insurance']);
         $existing->refresh();
         $this->assertSame(99000, $existing->price_minor);
         $this->assertTrue($existing->is_active);
