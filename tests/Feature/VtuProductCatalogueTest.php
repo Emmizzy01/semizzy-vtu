@@ -61,6 +61,7 @@ class VtuProductCatalogueTest extends TestCase
                     ['identifier' => 'electricity-bill', 'name' => 'Electricity Bill'],
                     ['identifier' => 'education', 'name' => 'Education'],
                     ['identifier' => 'insurance', 'name' => 'Insurance'],
+                    ['identifier' => 'other-services', 'name' => 'Other Merchants/Services'],
                 ]], 200);
             }
             if (str_contains($request->url(), '/services?')) {
@@ -85,6 +86,7 @@ class VtuProductCatalogueTest extends TestCase
                     'electricity-bill' => [['serviceID' => 'ikeja-electric', 'name' => 'Ikeja Electric']],
                     'education' => [['serviceID' => 'waec', 'name' => 'WAEC PIN']],
                     'insurance' => [['serviceID' => 'third-party', 'name' => 'Third Party Insurance']],
+                    'other-services' => [['serviceID' => 'bank-deposit', 'name' => 'Bank Transfer']],
                     default => [],
                 };
 
@@ -118,6 +120,7 @@ class VtuProductCatalogueTest extends TestCase
         $this->assertDatabaseHas('vtu_products', ['service_type' => 'electricity-bill', 'network' => 'Ikeja Electric', 'is_active' => false, 'metadata->provider_category_name' => 'Electricity Bill']);
         $this->assertDatabaseHas('vtu_products', ['service_type' => 'education', 'is_active' => false, 'metadata->provider_service_id' => 'waec']);
         $this->assertDatabaseHas('vtu_products', ['service_type' => 'insurance', 'is_active' => false, 'metadata->provider_service_id' => 'third-party']);
+        $this->assertDatabaseHas('vtu_products', ['service_type' => 'other-services', 'is_active' => false, 'metadata->provider_service_id' => 'bank-deposit', 'metadata->provider_category_name' => 'Other Merchants/Services']);
         $existing->refresh();
         $this->assertSame(99000, $existing->price_minor);
         $this->assertTrue($existing->is_active);
