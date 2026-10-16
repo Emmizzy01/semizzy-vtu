@@ -23,7 +23,7 @@ class VtuOrderController extends Controller
             'service_type' => ['sometimes', 'string', 'in:airtime,data,electricity-bill,tv-subscription'],
             'network' => ['sometimes', 'string', 'max:40'],
         ]);
-        if (isset($validated['service_type']) && in_array($validated['service_type'], ['airtime', 'data'], true)
+        if ((! isset($validated['service_type']) || in_array($validated['service_type'], ['airtime', 'data'], true))
             && ! filter_var(app(IntegrationSettings::class)->get('service.airtime_data.enabled', true), FILTER_VALIDATE_BOOLEAN)) {
             return response()->json(['message' => 'Airtime and data purchases are temporarily unavailable.'], 503);
         }
