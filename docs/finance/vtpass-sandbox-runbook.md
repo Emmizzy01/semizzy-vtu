@@ -44,9 +44,10 @@ Do not activate a product with an unverified variation code.
 
 ## Catalogue visibility and activation gate
 
-The VTpass sync imports **airtime and data only**. It is a discovery step, not purchase approval.
+The VTpass sync discovers every category returned by `/service-categories`, then imports each category's service IDs and variation records where available. Airtime denominations and data plans are retained; other categories (including TV, electricity, education, insurance, and other services returned by the account) are imported under their VTpass category identifier with provider metadata. This is catalogue discovery, not purchase approval.
 
-- Newly discovered products are stored as inactive and can be displayed to customers when the provider service mapping (and data variation code for data plans) is present. The purchase action stays disabled.
+- Every newly discovered product is stored as inactive. Each record retains provider category, service ID, service/variation details, listed amount, available minimum/maximum, convenience fee, product type, and provider image when VTpass returns them.
+- Categories without validated customer purchase flows are admin catalogue records only; they cannot be purchased. Service types remain grouped by the VTpass category identifier.
 - Existing operator selling prices and activation state are preserved by sync; provider-listed price is retained as reference metadata rather than silently overwriting an operator's selling price.
 - Before enabling a VTpass-sourced product, an authorised operator must test that exact service ID and variation against the official sandbox, confirm the recipient/input flow and expected amount, and record a meaningful audit reason in the admin catalogue.
 - Use the admin catalogue's **VTpass sandbox verified and approved** control only after that check. The server enforces the approval metadata at the provider purchase boundary; a legacy active flag alone is not sufficient.
@@ -75,6 +76,7 @@ Live rollout remains blocked until all of the following are confirmed:
 - latest CI run passes PHP tests and frontend build;
 - the real sandbox account authenticates successfully;
 - supported airtime and data products are verified;
+- the current category sync has imported and reviewed every category/service/variation exposed by the configured VTpass account;
 - success, failure, pending, timeout, and repeated-reconciliation outcomes are tested;
 - the hosting scheduler runs Laravel's reconciliation command correctly;
 - production database migration state and deployment plan have been reviewed and explicitly approved;

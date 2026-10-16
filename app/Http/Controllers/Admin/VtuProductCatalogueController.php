@@ -20,7 +20,7 @@ class VtuProductCatalogueController extends Controller
     {
         $filters = $request->validate([
             'search' => ['nullable', 'string', 'max:100'],
-            'service_type' => ['nullable', Rule::in(['all', 'airtime', 'data'])],
+            'service_type' => ['nullable', 'string', 'max:24', 'regex:/^(all|[a-z0-9][a-z0-9-]*)$/i'],
             'status' => ['nullable', Rule::in(['all', 'active', 'inactive'])],
         ]);
         $search = trim((string) ($filters['search'] ?? ''));
@@ -49,6 +49,7 @@ class VtuProductCatalogueController extends Controller
             'pagination' => ['currentPage' => $products->currentPage(), 'lastPage' => $products->lastPage(), 'total' => $products->total()],
             'filters' => ['search' => $search, 'service_type' => $type, 'status' => $status],
             'networks' => ['MTN', 'Airtel', 'Glo', '9mobile', 'Lebara'],
+            'serviceTypes' => VtuProduct::query()->select('service_type')->distinct()->orderBy('service_type')->pluck('service_type')->values(),
         ]);
     }
 

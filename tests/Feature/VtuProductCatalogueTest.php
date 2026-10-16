@@ -37,7 +37,7 @@ class VtuProductCatalogueTest extends TestCase
         $this->assertDatabaseHas('platform_setting_audits', ['setting_key' => 'vtu_product.created.'.$product->id]);
     }
 
-    public function test_provider_catalogue_sync_imports_only_inactive_airtime_and_data_and_preserves_existing_operator_price_and_status(): void
+    public function test_provider_catalogue_sync_imports_all_categories_and_variations_inactive_and_preserves_existing_operator_price_and_status(): void
     {
         config([
             'services.vtu.vtpass.base_url' => 'https://sandbox.vtpass.com/api',
@@ -114,10 +114,10 @@ class VtuProductCatalogueTest extends TestCase
         $this->assertDatabaseHas('vtu_products', ['service_type' => 'data', 'is_active' => false, 'metadata->provider_service_id' => 'lebara-data']);
         $this->assertDatabaseHas('vtu_products', ['service_type' => 'data', 'network' => 'smile', 'is_active' => false, 'metadata->provider_service_id' => 'smile-direct']);
         $this->assertDatabaseHas('vtu_products', ['service_type' => 'data', 'network' => 'spectranet', 'is_active' => false, 'metadata->provider_service_id' => 'spectranet']);
-        $this->assertDatabaseMissing('vtu_products', ['service_type' => 'tv-subscription']);
-        $this->assertDatabaseMissing('vtu_products', ['service_type' => 'electricity-bill']);
-        $this->assertDatabaseMissing('vtu_products', ['service_type' => 'education']);
-        $this->assertDatabaseMissing('vtu_products', ['service_type' => 'insurance']);
+        $this->assertDatabaseHas('vtu_products', ['service_type' => 'tv-subscription', 'network' => 'DStv', 'is_active' => false, 'metadata->provider_service_id' => 'dstv']);
+        $this->assertDatabaseHas('vtu_products', ['service_type' => 'electricity-bill', 'network' => 'Ikeja Electric', 'is_active' => false, 'metadata->provider_category_name' => 'Electricity Bill']);
+        $this->assertDatabaseHas('vtu_products', ['service_type' => 'education', 'is_active' => false, 'metadata->provider_service_id' => 'waec']);
+        $this->assertDatabaseHas('vtu_products', ['service_type' => 'insurance', 'is_active' => false, 'metadata->provider_service_id' => 'third-party']);
         $existing->refresh();
         $this->assertSame(99000, $existing->price_minor);
         $this->assertTrue($existing->is_active);
