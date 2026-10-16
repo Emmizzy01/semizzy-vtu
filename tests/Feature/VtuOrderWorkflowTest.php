@@ -30,6 +30,30 @@ class VtuOrderWorkflowTest extends TestCase
         ]);
     }
 
+    public function test_inactive_catalogue_product_cannot_be_purchased_or_debited(): void
+    {
+        Http::fake();
+
+        [$user, $wallet, $product] = $this->preparedCustomer(1000, 1500);
+        $product->forceFill(['is_active' => false])->save();
+
+        try {
+            app(VtuOrderService::class)->purchase(
+                $user,
+                $product->code,
+                '08012345678',
+                'inactive-catalogue-product-1',
+            );
+            $this->fail('Inactive catalogue products must not be purchasable.');
+        } catch (\\InvalidArgumentException $exception) {
+            $this->assertStringContainsString('no longer available', $exception->getMessage());
+            $this->assertSame(1500, (int) $wallet->fresh()->available_balance_minor);
+            $this->assertDatabaseCount('vtu_orders', 0);
+            $this->assertDatabaseCount('wallet_transactions', 1);
+            Http::assertNothingSent();
+        }
+    }
+
     public function test_purchase_rechecks_catalogue_price_under_lock_before_debiting(): void
     {
         [$user, $wallet, $product] = $this->preparedCustomer(1000, 1500);
