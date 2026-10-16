@@ -68,7 +68,8 @@ class VtuProductCatalogueTest extends TestCase
         $this->assertTrue($existing->is_active);
         $this->assertSame('keep', $existing->metadata['custom']);
         $this->assertSame('plan-1', $existing->metadata['provider_variation_code']);
-        $this->assertDatabaseHas('vtu_products', ['code' => 'vtpass-data-mtn-plan-1', 'is_active' => false]);
+        // This code already existed and was active before sync; refreshes must preserve operator status.
+        $this->assertDatabaseHas('vtu_products', ['code' => 'vtpass-data-mtn-plan-1', 'is_active' => true]);
     }
 
     public function test_data_plan_cannot_be_activated_without_provider_variation_code(): void
