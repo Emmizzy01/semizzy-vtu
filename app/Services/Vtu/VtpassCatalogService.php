@@ -185,8 +185,10 @@ class VtpassCatalogService
                 }
                 $response = $this->get('/service-variations', ['serviceID' => $serviceId]);
                 $body = $response->json();
-                if (! $response->successful()) throw new RuntimeException("VTpass variation lookup failed for {$serviceId}; no catalogue changes were applied.");
-                $content = is_array($body) ? ($body['content'] ?? null) : null;
+                if (! $response->successful() && ! in_array($response->status(), [400, 404], true)) {
+                    throw new RuntimeException("VTpass variation lookup failed for {$serviceId}; no catalogue changes were applied.");
+                }
+                $content = $response->successful() && is_array($body) ? ($body['content'] ?? null) : null;
                 $variations = is_array($content) ? ($content['variations'] ?? $content['varations'] ?? null) : null;
                 $count = 0;
                 if (is_array($variations)) foreach ($variations as $variation) {

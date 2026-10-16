@@ -153,6 +153,9 @@ class VtuProductCatalogueController extends Controller
     private function assertActivatable(string $type, string $network, array $metadata, bool $active): void
     {
         if (! $active) return;
+        if (! in_array($type, ['airtime', 'data'], true)) {
+            abort(422, 'This VTpass category is catalogue-only until its dedicated purchase flow has been implemented and verified.');
+        }
         if (($metadata['catalog_source'] ?? null) === 'vtpass' && ($metadata['purchase_approved'] ?? false) !== true) {
             abort(422, 'A VTpass product cannot be activated until sandbox verification is recorded and an authorised operator approves sales.');
         }

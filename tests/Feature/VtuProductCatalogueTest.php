@@ -127,6 +127,36 @@ class VtuProductCatalogueTest extends TestCase
         $this->assertDatabaseHas('vtu_products', ['code' => 'vtpass-data-mtn-plan-1', 'is_active' => true]);
     }
 
+    public function test_vtpass_categories_without_validated_purchase_flows_cannot_be_activated(): void
+    {
+        $staff = User::query()->create(['name' => 'Category Approval Staff', 'email' => 'category-approval@example.test', 'password' => 'not-a-real-password']);
+        $staff->permissions()->create(['permission' => 'staff.permissions.manage']);
+        $product = VtuProduct::query()->create([
+            'service_type' => 'tv-subscription',
+            'network' => 'DStv',
+            'code' => 'vtpass-tv-catalogue-only',
+            'name' => 'DStv Premium',
+            'price_minor' => 100000,
+            'currency' => 'NGN',
+            'is_active' => false,
+            'metadata' => ['catalog_source' => 'vtpass', 'provider_service_id' => 'dstv', 'provider_variation_code' => 'premium', 'purchase_supported' => false, 'purchase_approved' => false],
+        ]);
+
+        $this->actingAs($staff)->put('/admin/vtu-products/'.$product->id, [
+            'name' => $product->name,
+            'price_minor' => 100000,
+            'face_value_minor' => null,
+            'is_active' => true,
+            'purchase_approved' => true,
+            'provider_service_id' => 'dstv',
+            'provider_variation_code' => 'premium',
+            'reason' => 'Attempt unsupported category activation',
+        ])->assertUnprocessable();
+
+        $this->assertFalse($product->fresh()->is_active);
+        $this->assertFalse($product->fresh()->metadata['purchase_approved']);
+    }
+
     public function test_customer_can_see_mapped_inactive_vtpass_airtime_and_data_without_unmapped_drafts(): void
     {
         $user = User::query()->create([
