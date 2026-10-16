@@ -942,8 +942,8 @@ class VtuOrderWorkflowTest extends TestCase
         $this->assertDatabaseCount('wallet_transactions', 2);
         Http::assertSentCount(2);
         $requests = Http::recorded();
-        $this->assertSame('/merchant-verify', parse_url($requests[0][0]->url(), PHP_URL_PATH));
-        $this->assertSame('/pay', parse_url($requests[1][0]->url(), PHP_URL_PATH));
+        $this->assertSame('/api/merchant-verify', parse_url($requests[0][0]->url(), PHP_URL_PATH));
+        $this->assertSame('/api/pay', parse_url($requests[1][0]->url(), PHP_URL_PATH));
         $this->assertSame(1, Http::recorded(fn ($request) => str_ends_with($request->url(), '/pay'))->count());
     }
 
