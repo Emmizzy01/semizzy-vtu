@@ -159,6 +159,12 @@ class VtuOrderService
                 }
 
                 $this->provider->assertProductConfigured($lockedProduct);
+                $lockedAmountMinor = $lockedProduct->service_type === 'electricity-bill'
+                    ? $amountMinor
+                    : (int) $lockedProduct->price_minor;
+                if (! is_int($lockedAmountMinor) || $lockedAmountMinor < 1) {
+                    throw new InvalidArgumentException('The locked product price or purchase amount is invalid.');
+                }
                 $lockedWallet = Wallet::query()->whereKey($wallet->getKey())->lockForUpdate()->firstOrFail();
                 $policyRejection = $this->levelPolicies->rejectionReason($user, $lockedProduct, (int) $lockedWallet->getKey());
                 if ($policyRejection !== null) throw new InvalidArgumentException($policyRejection);
@@ -174,7 +180,7 @@ class VtuOrderService
                     'network' => $lockedProduct->network,
                     'product_code' => $lockedProduct->code,
                     'recipient' => $recipient,
-                    'amount_minor' => $amountMinor ?? $lockedProduct->price_minor,
+                    'amount_minor' => $lockedAmountMinor,
                     'service_details' => $serviceDetails,
                     'currency' => $lockedProduct->currency,
                     'status' => VtuOrderStatus::Pending->value,
@@ -186,7 +192,7 @@ class VtuOrderService
                 $transaction = $this->ledger->post(
                     walletId: (int) $wallet->getKey(),
                     type: 'debit',
-                    amountMinor: (int) ($amountMinor ?? $lockedProduct->price_minor),
+                    amountMinor: $lockedAmountMinor,
                     idempotencyKey: 'vtu-purchase:'.$order->public_id,
                     reference: $order->public_id,
                     description: 'VTU purchase: '.$lockedProduct->name,
