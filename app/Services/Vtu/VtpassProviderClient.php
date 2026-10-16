@@ -45,6 +45,9 @@ class VtpassProviderClient implements VtuProvider
             if (! is_string($variationCode) || $variationCode === '') {
                 throw new LogicException('VTpass data product is missing its verified variation code.');
             }
+            if (($product->metadata['purchase_supported'] ?? true) === false) {
+                throw new LogicException('This VTpass data service requires provider-specific recipient validation that is not yet supported for purchases.');
+            }
         } else {
             $faceValueMinor = (int) ($product->face_value_minor ?? $product->price_minor);
             if ($faceValueMinor < 1 || $faceValueMinor % 100 !== 0) {
