@@ -147,6 +147,7 @@ Route::middleware(['auth', 'throttle:60,1'])->prefix('wallet/vtu')->name('wallet
     Route::get('/', fn () => Inertia::render('Wallet/VtuPurchase'))->name('index');
     Route::get('/products', [VtuOrderController::class, 'products'])->name('products');
     Route::post('/orders', [VtuOrderController::class, 'purchase'])->middleware('throttle:10,1')->name('orders.create');
+    Route::get('/orders/recover', [VtuOrderController::class, 'recover'])->middleware('throttle:30,1')->name('orders.recover');
     Route::get('/orders/{publicId}', [VtuOrderController::class, 'show'])->name('orders.show');
 });
 
