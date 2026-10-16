@@ -26,6 +26,7 @@ use App\Http\Controllers\Admin\SupportTicketOperationsController;
 use App\Services\IntegrationSettings;
 use App\Http\Controllers\Payments\PaymentRefundController;
 use App\Http\Controllers\Vtu\VtuOrderController;
+use App\Http\Controllers\Vtu\VtuBillerVerificationController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -142,6 +143,7 @@ Route::middleware(['auth', 'can:staff.permissions.manage'])->prefix('admin/staff
 });
 
 Route::middleware(['auth', 'throttle:60,1'])->prefix('wallet/vtu')->name('wallet.vtu.')->group(function (): void {
+    Route::post('/verify-biller', [VtuBillerVerificationController::class, 'verify'])->middleware('throttle:10,1')->name('verify-biller');
     Route::get('/', fn () => Inertia::render('Wallet/VtuPurchase'))->name('index');
     Route::get('/products', [VtuOrderController::class, 'products'])->name('products');
     Route::post('/orders', [VtuOrderController::class, 'purchase'])->middleware('throttle:10,1')->name('orders.create');
