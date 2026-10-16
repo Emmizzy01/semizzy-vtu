@@ -19,11 +19,14 @@ class VtuOrderController extends Controller
 {
     public function products(Request $request): JsonResponse
     {
-        if (! filter_var(app(IntegrationSettings::class)->get('service.airtime_data.enabled', true), FILTER_VALIDATE_BOOLEAN)) return response()->json(['message' => 'Airtime and data purchases are temporarily unavailable.'], 503);
         $validated = $request->validate([
             'service_type' => ['sometimes', 'string', 'in:airtime,data,electricity-bill,tv-subscription'],
             'network' => ['sometimes', 'string', 'max:40'],
         ]);
+        if (isset($validated['service_type']) && in_array($validated['service_type'], ['airtime', 'data'], true)
+            && ! filter_var(app(IntegrationSettings::class)->get('service.airtime_data.enabled', true), FILTER_VALIDATE_BOOLEAN)) {
+            return response()->json(['message' => 'Airtime and data purchases are temporarily unavailable.'], 503);
+        }
 
         $products = VtuProduct::query()
             ->where('currency', 'NGN')
@@ -69,7 +72,6 @@ class VtuOrderController extends Controller
 
     public function purchase(Request $request, VtuOrderService $orders): JsonResponse
     {
-        if (! filter_var(app(IntegrationSettings::class)->get('service.airtime_data.enabled', true), FILTER_VALIDATE_BOOLEAN)) return response()->json(['message' => 'Airtime and data purchases are temporarily unavailable.'], 503);
         $validated = $request->validate([
             'product_code' => ['required', 'string', 'max:80'],
             'recipient' => ['required', 'string', 'max:40', 'regex:/^[a-zA-Z0-9+\\s-]+$/'],
@@ -80,10 +82,16 @@ class VtuOrderController extends Controller
             'amount' => ['nullable', 'numeric', 'min:1', 'max:1000000'],
         ]);
 
+        $productType = VtuProduct::query()->where('code', $validated['product_code'])->value('service_type');
+        if (in_array($productType, ['airtime', 'data'], true)
+            && ! filter_var(app(IntegrationSettings::class)->get('service.airtime_data.enabled', true), FILTER_VALIDATE_BOOLEAN)) {
+            return response()->json(['message' => 'Airtime and data purchases are temporarily unavailable.'], 503);
+        }
+
         $user = $request->user();
         abort_unless($user, 401);
         if (! $user->transaction_pin_hash) return response()->json(['message' => 'Set up a transaction PIN before making wallet-funded purchases.', 'setup_url' => '/security/transaction-pin'], 428);
-        if (! isset($validated['transaction_pin'])) return response()->json(['message' => 'Enter your six-digit transaction PIN. Legacy four-digit PINs are temporarily supported.'], 422);
+        if (! isset($validated['transaction_pin'])) return response()->json(['message' => 'Enter your four-digit transaction PIN.'], 422);
         $pinStatus = app(TransactionPinService::class)->verify($user, (string) $validated['transaction_pin']);
         if ($pinStatus === 'locked') return response()->json(['message' => 'Transaction PIN is locked for 15 minutes after repeated failures.'], 423);
         if ($pinStatus !== 'verified') return response()->json(['message' => 'Transaction PIN is incorrect.'], 422);
