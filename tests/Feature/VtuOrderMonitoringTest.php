@@ -67,6 +67,31 @@ class VtuOrderMonitoringTest extends TestCase
         Http::assertNothingSent();
     }
 
+
+    public function test_old_order_without_dispatch_marker_is_not_misreported_as_a_dispatched_purchase(): void
+    {
+        Cache::flush();
+        Http::fake();
+        Log::spy();
+        config([
+            'services.vtu.stuck_order_minutes' => 60,
+            'services.payments.alert_webhook_url' => 'https://alerts.example.test/semizzy',
+        ]);
+
+        $order = $this->createOrder('awaiting_reconciliation', now()->subHours(3), now());
+        DB::table('vtu_orders')->where('id', $order->getKey())->update([
+            'dispatch_started_at' => null,
+        ]);
+
+        $stats = app(VtuOrderMonitoringService::class)->monitor();
+
+        $this->assertSame(0, $stats['stuck_total']);
+        Http::assertNothingSent();
+        Log::shouldNotHaveReceived('critical');
+        $this->assertSame('awaiting_reconciliation', $order->fresh()->status);
+        $this->assertNull($order->fresh()->dispatch_started_at);
+    }
+
     private function createOrder(string $status, $createdAt, $updatedAt): VtuOrder
     {
         $user = User::query()->create([
