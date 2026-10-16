@@ -1,0 +1,79 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Models\User;
+use App\Models\VtuProduct;
+use App\Services\IntegrationSettings;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Hash;
+use Tests\TestCase;
+
+class VtuServiceFeatureGateTest extends TestCase
+{
+    use RefreshDatabase;
+
+    public function test_airtime_data_toggle_does_not_hide_electricity_catalogue(): void
+    {
+        $user = User::query()->create([
+            'name' => 'Feature Gate Customer',
+            'email' => 'feature-gate-customer@example.test',
+            'password' => 'not-a-real-password',
+        ]);
+        app(IntegrationSettings::class)->set('service.airtime_data.enabled', '0', $user->id);
+
+        VtuProduct::query()->create([
+            'service_type' => 'electricity-bill',
+            'network' => 'ikeja-electric',
+            'code' => 'feature-gate-electricity',
+            'name' => 'Ikeja Electric',
+            'price_minor' => 10000,
+            'face_value_minor' => 10000,
+            'currency' => 'NGN',
+            'is_active' => true,
+            'metadata' => ['purchase_supported' => true, 'provider_service_id' => 'ikeja-electric'],
+        ]);
+
+        $this->actingAs($user)->getJson('/wallet/vtu/products?service_type=airtime')->assertStatus(503);
+        $this->actingAs($user)->getJson('/wallet/vtu/products?service_type=electricity-bill')
+            ->assertOk()
+            ->assertJsonPath('data.0.code', 'feature-gate-electricity');
+    }
+
+    public function test_airtime_data_toggle_does_not_override_electricity_provider_purchase_gate(): void
+    {
+        $user = User::query()->create([
+            'name' => 'Provider Gate Customer',
+            'email' => 'provider-gate-customer@example.test',
+            'password' => 'not-a-real-password',
+            'transaction_pin_hash' => Hash::make('4928'),
+        ]);
+        app(IntegrationSettings::class)->set('service.airtime_data.enabled', '0', $user->id);
+
+        VtuProduct::query()->create([
+            'service_type' => 'electricity-bill',
+            'network' => 'ikeja-electric',
+            'code' => 'provider-gated-electricity',
+            'name' => 'Ikeja Electric',
+            'price_minor' => 10000,
+            'face_value_minor' => 10000,
+            'currency' => 'NGN',
+            'is_active' => true,
+            'metadata' => ['purchase_supported' => false, 'provider_service_id' => 'ikeja-electric'],
+        ]);
+
+        $this->actingAs($user)->postJson('/wallet/vtu/orders', [
+            'product_code' => 'provider-gated-electricity',
+            'recipient' => '12345678901',
+            'idempotency_key' => 'provider-gate-no-purchase',
+            'transaction_pin' => '4928',
+            'meter_type' => 'prepaid',
+            'contact_phone' => '08012345678',
+            'amount' => 100,
+        ])->assertStatus(422)
+          ->assertJsonPath('message', 'This service is not yet enabled for customer purchases.');
+
+        $this->assertDatabaseCount('vtu_orders', 0);
+        $this->assertDatabaseCount('wallet_transactions', 0);
+    }
+}
