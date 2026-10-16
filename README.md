@@ -39,6 +39,10 @@ A modular Nigerian VTU and fintech platform foundation designed for secure, reli
 
 The repository contains an evolving Laravel/Inertia application foundation, including authentication, wallet funding/deposit review, transaction PIN controls, VTU ordering, account classification/level policies, support, and administrative settings/workspaces. The exact completion state varies by workflow: use the [Semizzy Product & Implementation Blueprint](docs/SEMIZZY-BLUEPRINT.md) as the canonical acceptance checklist, and do not consider a feature complete until its backend, UI, authorization, tests, and deployment notes are verified.
 
+## Binding project rules
+
+Production-readiness, database evolution, deployment safety, financial integrity, verification, and main-branch-only rules are documented in [docs/PROJECT-RULES.md](docs/PROJECT-RULES.md). These rules apply to all future work alongside the [Semizzy Product & Implementation Blueprint](docs/SEMIZZY-BLUEPRINT.md).
+
 ## Local setup target
 
 The project will use a standard Laravel application with Node.js for frontend assets and MySQL/MariaDB for persistence. Exact setup commands will be documented as the application scaffold is added.
