@@ -136,9 +136,9 @@ class WalletBalanceLimitConcurrencyTest extends TestCase
                         idempotencyKey: $key,
                     );
                     exit(0); // debit accepted
-                } catch (\\App\\Exceptions\\Wallet\\InsufficientWalletFunds) {
+                } catch (\App\Exceptions\Wallet\InsufficientWalletFunds) {
                     exit(10); // second debit sees the reduced available balance
-                } catch (\\Throwable) {
+                } catch (\Throwable) {
                     exit(20); // unexpected worker failure
                 }
             }
