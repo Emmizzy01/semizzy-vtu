@@ -6,6 +6,7 @@ use App\Enums\VtuOrderStatus;
 use App\Models\User;
 use App\Models\VtuOrder;
 use App\Models\VtuProduct;
+use App\Models\PlatformFeatureControl;
 use App\Models\Wallet;
 use App\Services\Wallets\WalletAccountService;
 use App\Services\Wallets\WalletLedgerService;
@@ -61,6 +62,7 @@ class VtuOrderService
             if (($product->metadata['purchase_supported'] ?? null) !== true) {
                 throw new InvalidArgumentException('This service is not yet enabled for customer purchases.');
             }
+            $this->assertServiceFeatureEnabled($product);
             $contactPhone = preg_replace('/[\s-]+/', '', (string) ($serviceDetails['contact_phone'] ?? '')) ?? '';
             if (! preg_match('/^\+?[0-9]{10,15}$/', $contactPhone)) {
                 throw new InvalidArgumentException('Enter a valid contact phone number for the provider transaction.');
@@ -158,6 +160,9 @@ class VtuOrderService
                     throw new InvalidArgumentException('This product is no longer available.');
                 }
 
+                if (! in_array($lockedProduct->service_type, ['airtime', 'data'], true)) {
+                    $this->assertServiceFeatureEnabled($lockedProduct);
+                }
                 $this->provider->assertProductConfigured($lockedProduct);
                 $lockedAmountMinor = $lockedProduct->service_type === 'electricity-bill'
                     ? $amountMinor
@@ -262,6 +267,24 @@ class VtuOrderService
         $updated->setAttribute('_created_for_request', true);
 
         return $updated;
+    }
+
+    /** Fail closed until electricity/TV workflows are explicitly implemented and enabled. */
+    private function assertServiceFeatureEnabled(VtuProduct $product): void
+    {
+        $featureKey = match ($product->service_type) {
+            'electricity-bill' => 'service.electricity',
+            'tv-subscription' => 'service.tv',
+            default => null,
+        };
+        if ($featureKey === null) {
+            return;
+        }
+
+        $feature = PlatformFeatureControl::query()->where('feature_key', $featureKey)->first();
+        if ($feature === null || ! $feature->is_enabled || ! $feature->is_implemented) {
+            throw new InvalidArgumentException('This service is not yet enabled for customer purchases.');
+        }
     }
 
     /** Re-verify biller details immediately before debiting the wallet. */

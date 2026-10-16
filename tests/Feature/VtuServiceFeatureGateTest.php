@@ -40,7 +40,7 @@ class VtuServiceFeatureGateTest extends TestCase
             ->assertJsonPath('data.0.code', 'feature-gate-electricity');
     }
 
-    public function test_airtime_data_toggle_does_not_override_electricity_provider_purchase_gate(): void
+    public function test_unimplemented_electricity_feature_blocks_purchase_even_if_product_metadata_allows_it(): void
     {
         $user = User::query()->create([
             'name' => 'Provider Gate Customer',
@@ -59,7 +59,7 @@ class VtuServiceFeatureGateTest extends TestCase
             'face_value_minor' => 10000,
             'currency' => 'NGN',
             'is_active' => true,
-            'metadata' => ['purchase_supported' => false, 'provider_service_id' => 'ikeja-electric'],
+            'metadata' => ['purchase_supported' => true, 'provider_service_id' => 'ikeja-electric'],
         ]);
 
         $this->actingAs($user)->postJson('/wallet/vtu/orders', [
