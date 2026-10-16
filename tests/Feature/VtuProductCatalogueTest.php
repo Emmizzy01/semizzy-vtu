@@ -37,7 +37,7 @@ class VtuProductCatalogueTest extends TestCase
         $this->assertDatabaseHas('platform_setting_audits', ['setting_key' => 'vtu_product.created.'.$product->id]);
     }
 
-    public function test_provider_catalogue_sync_adds_products_inactive_and_preserves_existing_operator_price_and_status(): void
+    public function test_provider_catalogue_sync_activates_mapped_products_imports_data_families_and_preserves_existing_operator_price_and_status(): void
     {
         config([
             'services.vtu.vtpass.base_url' => 'https://sandbox.vtpass.com/api',
@@ -55,20 +55,22 @@ class VtuProductCatalogueTest extends TestCase
         Http::fake([
             'sandbox.vtpass.com/api/services*' => Http::response(['content' => [
                 ['serviceID' => 'mtn'], ['serviceID' => 'glo'], ['serviceID' => 'airtel'], ['serviceID' => 'etisalat'],
-                ['serviceID' => 'mtn-data'], ['serviceID' => 'glo-data'], ['serviceID' => 'airtel-data'], ['serviceID' => 'etisalat-data'],
+                ['serviceID' => 'mtn-data'], ['serviceID' => 'mtn-sme-data'], ['serviceID' => 'glo-data'], ['serviceID' => 'glo-sme-data'], ['serviceID' => 'airtel-data'], ['serviceID' => 'etisalat-data'], ['serviceID' => 'lebara-data'],
             ]], 200),
             'sandbox.vtpass.com/api/service-variations*' => Http::response(['content' => ['variations' => [
                 ['variation_code' => 'plan-1', 'name' => '1GB SME 7 Days', 'variation_amount' => '500'],
             ]]], 200),
         ]);
         $this->actingAs($staff)->post('/admin/vtu-products/sync')->assertRedirect()->assertSessionHasNoErrors();
-        $this->assertDatabaseHas('vtu_products', ['code' => 'vtpass-airtime-mtn-100', 'is_active' => false]);
+        $this->assertDatabaseHas('vtu_products', ['code' => 'vtpass-airtime-mtn-100', 'is_active' => true]);
+        $this->assertDatabaseHas('vtu_products', ['service_type' => 'data', 'is_active' => true, 'metadata->provider_service_id' => 'mtn-sme-data']);
+        $this->assertDatabaseHas('vtu_products', ['service_type' => 'data', 'is_active' => true, 'metadata->provider_service_id' => 'lebara-data']);
         $existing->refresh();
         $this->assertSame(99000, $existing->price_minor);
         $this->assertTrue($existing->is_active);
         $this->assertSame('keep', $existing->metadata['custom']);
         $this->assertSame('plan-1', $existing->metadata['provider_variation_code']);
-        // This code already existed and was active before sync; refreshes must preserve operator status.
+        // This code already existed and was active before sync; refreshes must preserve operator status and price.
         $this->assertDatabaseHas('vtu_products', ['code' => 'vtpass-data-mtn-plan-1', 'is_active' => true]);
     }
 
