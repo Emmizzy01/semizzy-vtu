@@ -110,7 +110,7 @@ class VtpassProviderClientTest extends TestCase
         try {
             app(VtpassProviderClient::class)->submit($order);
             $this->fail('A provider-specific data service must not be purchasable through the phone-only flow.');
-        } catch (\\LogicException $exception) {
+        } catch (\LogicException $exception) {
             $this->assertStringContainsString('provider-specific recipient validation', $exception->getMessage());
         }
 
