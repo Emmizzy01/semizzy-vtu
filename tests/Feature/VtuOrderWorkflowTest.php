@@ -1037,6 +1037,96 @@ class VtuOrderWorkflowTest extends TestCase
         Http::assertNotSent(fn ($request) => str_ends_with($request->url(), '/pay'));
     }
 
+    public function test_electricity_meter_verification_failure_cannot_debit_wallet_or_create_order(): void
+    {
+        config([
+            'services.vtu.driver' => 'vtpass',
+            'services.vtu.vtpass.base_url' => 'https://sandbox.vtpass.com/api',
+            'services.vtu.vtpass.api_key' => 'sandbox-api-key',
+            'services.vtu.vtpass.secret_key' => 'sandbox-secret-key',
+        ]);
+        Http::fake(fn () => Http::response([
+            'code' => '000',
+            'content' => [],
+            'response_description' => 'Meter verification did not return customer details',
+        ], 200));
+
+        [$user, $wallet, $product] = $this->preparedCustomer(1000, 200000);
+        $product->forceFill([
+            'service_type' => 'electricity-bill',
+            'network' => 'ikeja-electric',
+            'metadata' => [
+                'provider_service_id' => 'ikeja-electric',
+                'provider_minimum_amount' => 100,
+                'provider_maximum_amount' => 100000,
+                'purchase_supported' => true,
+            ],
+        ])->save();
+
+        try {
+            app(VtuOrderService::class)->purchase(
+                $user,
+                $product->code,
+                '12345678901',
+                'electricity-unverified-meter-1',
+                ['meter_type' => 'prepaid', 'contact_phone' => '08012345678'],
+                50000,
+            );
+            $this->fail('An unverified meter must never be debited or submitted for payment.');
+        } catch (\InvalidArgumentException $exception) {
+            $this->assertStringContainsString('could not confirm', $exception->getMessage());
+        }
+
+        $this->assertSame(200000, (int) $wallet->fresh()->available_balance_minor);
+        $this->assertDatabaseCount('vtu_orders', 0);
+        $this->assertDatabaseCount('wallet_transactions', 1);
+        Http::assertSentCount(1);
+        Http::assertSent(fn ($request) => str_ends_with($request->url(), '/merchant-verify'));
+        Http::assertNotSent(fn ($request) => str_ends_with($request->url(), '/pay'));
+    }
+
+    public function test_electricity_amount_outside_provider_limits_is_rejected_before_verification_or_debit(): void
+    {
+        config([
+            'services.vtu.driver' => 'vtpass',
+            'services.vtu.vtpass.base_url' => 'https://sandbox.vtpass.com/api',
+            'services.vtu.vtpass.api_key' => 'sandbox-api-key',
+            'services.vtu.vtpass.secret_key' => 'sandbox-secret-key',
+        ]);
+        Http::fake();
+
+        [$user, $wallet, $product] = $this->preparedCustomer(1000, 200000);
+        $product->forceFill([
+            'service_type' => 'electricity-bill',
+            'network' => 'ikeja-electric',
+            'metadata' => [
+                'provider_service_id' => 'ikeja-electric',
+                'provider_minimum_amount' => 100,
+                'provider_maximum_amount' => 100000,
+                'purchase_supported' => true,
+            ],
+        ])->save();
+
+        try {
+            app(VtuOrderService::class)->purchase(
+                $user,
+                $product->code,
+                '12345678901',
+                'electricity-out-of-range-1',
+                ['meter_type' => 'prepaid', 'contact_phone' => '08012345678'],
+                10000,
+            );
+            $this->fail('An amount below the configured provider minimum must be rejected.');
+        } catch (\InvalidArgumentException $exception) {
+            $this->assertStringContainsString('outside the provider limits', $exception->getMessage());
+        }
+
+        $this->assertSame(200000, (int) $wallet->fresh()->available_balance_minor);
+        $this->assertDatabaseCount('vtu_orders', 0);
+        $this->assertDatabaseCount('wallet_transactions', 1);
+        Http::assertNothingSent();
+    }
+
     private function preparedCustomer(int $productPriceMinor, int $initialBalanceMinor): array
     {
         $user = User::query()->create([
