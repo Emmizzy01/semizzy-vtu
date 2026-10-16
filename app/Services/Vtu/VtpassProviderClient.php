@@ -34,6 +34,11 @@ class VtpassProviderClient implements VtuProvider
 
     public function assertProductConfigured(VtuProduct $product): void
     {
+        if (($product->metadata['catalog_source'] ?? null) === 'vtpass'
+            && ($product->metadata['purchase_approved'] ?? false) !== true) {
+            throw new LogicException('This VTpass catalogue product requires recorded sandbox verification and authorised approval before purchase.');
+        }
+
         if (! in_array($product->service_type, ['airtime', 'data', 'electricity-bill', 'tv-subscription'], true)) {
             throw new LogicException('This VTpass service category is not supported for purchases yet.');
         }
