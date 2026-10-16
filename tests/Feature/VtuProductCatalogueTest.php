@@ -114,7 +114,7 @@ class VtuProductCatalogueTest extends TestCase
         $this->assertDatabaseHas('vtu_products', ['service_type' => 'data', 'is_active' => false, 'metadata->provider_service_id' => 'lebara-data']);
         $this->assertDatabaseHas('vtu_products', ['service_type' => 'data', 'network' => 'smile', 'is_active' => false, 'metadata->provider_service_id' => 'smile-direct']);
         $this->assertDatabaseHas('vtu_products', ['service_type' => 'data', 'network' => 'spectranet', 'is_active' => false, 'metadata->provider_service_id' => 'spectranet']);
-        $this->assertDatabaseHas('vtu_products', ['service_type' => 'tv-subscription', 'network' => 'DStv', 'is_active' => false, 'metadata->provider_service_id' => 'dstv']);
+        $this->assertDatabaseHas('vtu_products', ['service_type' => 'tv-subscription', 'network' => 'DStv Subscription', 'is_active' => false, 'metadata->provider_service_id' => 'dstv']);
         $this->assertDatabaseHas('vtu_products', ['service_type' => 'electricity-bill', 'network' => 'Ikeja Electric', 'is_active' => false, 'metadata->provider_category_name' => 'Electricity Bill']);
         $this->assertDatabaseHas('vtu_products', ['service_type' => 'education', 'is_active' => false, 'metadata->provider_service_id' => 'waec']);
         $this->assertDatabaseHas('vtu_products', ['service_type' => 'insurance', 'is_active' => false, 'metadata->provider_service_id' => 'third-party']);
