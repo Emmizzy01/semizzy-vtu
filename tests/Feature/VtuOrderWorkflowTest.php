@@ -1493,6 +1493,62 @@ class VtuOrderWorkflowTest extends TestCase
         $this->assertSame(1, Http::recorded(fn ($request) => str_ends_with($request->url(), '/merchant-verify'))->count());
     }
 
+    public function test_reusing_tv_idempotency_key_for_a_different_smartcard_is_rejected_without_resubmission(): void
+    {
+        config([
+            'services.vtu.driver' => 'vtpass',
+            'services.vtu.vtpass.base_url' => 'https://sandbox.vtpass.com/api',
+            'services.vtu.vtpass.api_key' => 'sandbox-api-key',
+            'services.vtu.vtpass.secret_key' => 'sandbox-secret-key',
+        ]);
+
+        $responses = Http::sequence()
+            ->push(['code' => '000', 'content' => ['Customer_Name' => 'TV Holder']], 200)
+            ->push(['code' => '000', 'content' => ['transactions' => ['status' => 'delivered', 'transactionId' => 'tv-idempotency-order']]], 200);
+        Http::fake(['https://sandbox.vtpass.com/api/*' => $responses]);
+
+        [$user, $wallet, $product] = $this->preparedCustomer(50000, 200000);
+        $product->forceFill([
+            'service_type' => 'tv-subscription',
+            'network' => 'dstv',
+            'metadata' => [
+                'provider_service_id' => 'dstv',
+                'provider_variation_code' => 'dstv-padi',
+                'purchase_supported' => true,
+            ],
+        ])->save();
+
+        $service = app(VtuOrderService::class);
+        $first = $service->purchase(
+            $user,
+            $product->code,
+            '1234567890',
+            'tv-idempotency-payload-mismatch',
+            ['contact_phone' => '08012345678'],
+        );
+
+        try {
+            $service->purchase(
+                $user,
+                $product->code,
+                '9876543210',
+                'tv-idempotency-payload-mismatch',
+                ['contact_phone' => '08012345678'],
+            );
+            $this->fail('An idempotency key must not be reused for a different smartcard.');
+        } catch (\\Symfony\\Component\\HttpKernel\\Exception\\ConflictHttpException $exception) {
+            $this->assertStringContainsString('different purchase', $exception->getMessage());
+        }
+
+        $this->assertSame('successful', $first->status);
+        $this->assertSame(150000, (int) $wallet->fresh()->available_balance_minor);
+        $this->assertDatabaseCount('vtu_orders', 1);
+        $this->assertDatabaseCount('wallet_transactions', 2);
+        Http::assertSentCount(2);
+        $this->assertSame(1, Http::recorded(fn ($request) => str_ends_with($request->url(), '/merchant-verify'))->count());
+        $this->assertSame(1, Http::recorded(fn ($request) => str_ends_with($request->url(), '/pay'))->count());
+    }
+
     private function preparedCustomer(int $productPriceMinor, int $initialBalanceMinor): array
     {
         $user = User::query()->create([
