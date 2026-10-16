@@ -61,6 +61,48 @@ class VtuBillerVerificationTest extends TestCase
         Http::assertNotSent(fn ($request) => str_ends_with($request->url(), '/pay'));
     }
 
+    public function test_tv_smartcard_verification_success_and_failure_never_create_purchase_orders(): void
+    {
+        $user = User::query()->create([
+            'name' => 'TV Verification User',
+            'email' => 'tv-verification-user@example.test',
+            'password' => 'not-a-real-password',
+        ]);
+        VtuProduct::query()->create([
+            'service_type' => 'tv-subscription',
+            'network' => 'dstv',
+            'code' => 'dstv-smartcard-check',
+            'name' => 'DStv Subscription',
+            'price_minor' => 500000,
+            'currency' => 'NGN',
+            'is_active' => true,
+            'metadata' => ['provider_service_id' => 'dstv'],
+        ]);
+
+        Http::fake([
+            'https://sandbox.vtpass.com/api/merchant-verify' => Http::sequence()
+                ->push(['code' => '000', 'content' => ['Customer_Name' => 'TV Customer']], 200)
+                ->push(['code' => '099', 'response_description' => 'Invalid smartcard'], 200),
+        ]);
+
+        $this->actingAs($user)->postJson('/wallet/vtu/verify-biller', [
+            'product_code' => 'dstv-smartcard-check',
+            'biller_code' => '123456789012',
+        ])->assertOk()
+            ->assertJsonPath('data.status', 'verified')
+            ->assertJsonPath('data.customer_name', 'TV Customer');
+
+        $this->actingAs($user)->postJson('/wallet/vtu/verify-biller', [
+            'product_code' => 'dstv-smartcard-check',
+            'biller_code' => '999999999999',
+        ])->assertOk()
+            ->assertJsonPath('data.status', 'unverified');
+
+        $this->assertDatabaseCount('vtu_orders', 0);
+        Http::assertSentCount(2);
+        Http::assertNotSent(fn ($request) => str_ends_with($request->url(), '/pay'));
+    }
+
     public function test_electricity_verification_requires_meter_type_and_rejects_non_biller_products(): void
     {
         Http::fake();
