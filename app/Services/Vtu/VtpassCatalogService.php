@@ -176,7 +176,13 @@ class VtpassCatalogService
                         $metadata[$key] = $providerMetadata[$key];
                     }
                 }
-                $existing->forceFill(['metadata' => $metadata])->save();
+                $attributes = ['metadata' => $metadata];
+                if (($incoming['service_type'] ?? null) === 'data' && empty($providerMetadata['purchase_supported'])) {
+                    // Existing plans requiring unsupported account/recipient fields must
+                    // not remain purchasable merely because they were previously active.
+                    $attributes['is_active'] = false;
+                }
+                $existing->forceFill($attributes)->save();
                 $updated++;
             }
 
