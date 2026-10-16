@@ -82,14 +82,16 @@ class VtpassCatalogService
             }
 
             $serviceId = $service['serviceID'] ?? null;
-            if (! is_string($serviceId) || ! preg_match('/^(mtn|glo|airtel|etisalat|9mobile|lebara)(?:-[a-z0-9]+)*-data$/i', $serviceId)) {
+            if (! is_string($serviceId) || ! preg_match('/^[a-z0-9][a-z0-9-]{1,79}$/i', $serviceId)) {
                 continue;
             }
 
             $network = $this->networkFromService($serviceId);
+            $serviceName = is_string($service['name'] ?? null) ? $service['name'] : strtoupper($network).' Data';
+            $phoneRecipientSupported = $this->supportsPhoneRecipient($serviceId);
             $response = $this->get('/service-variations', ['serviceID' => $serviceId]);
             $body = $response->json();
-            $variations = is_array($body) ? ($body['content']['variations'] ?? null) : null;
+            $variations = is_array($body) ? ($body['content']['variations'] ?? $body['content']['varations'] ?? null) : null;
             if (! $response->successful() || ! is_array($variations)) {
                 throw new RuntimeException("VTpass did not return valid data variations for {$serviceId}; no catalogue changes were applied.");
             }
@@ -119,13 +121,17 @@ class VtpassCatalogService
                     'service_type' => 'data',
                     'network' => $network,
                     'code' => $code,
-                    'name' => $displayNetwork.' '.$name,
+                    'name' => $serviceName.' — '.$name,
                     'price_minor' => $minor,
                     'face_value_minor' => null,
                     'currency' => 'NGN',
-                    'is_active' => true,
+                    'is_active' => $phoneRecipientSupported,
                     'metadata' => [
                         'provider_service_id' => $serviceId,
+                        'provider_service_name' => $serviceName,
+                        'provider_category' => 'data',
+                        'recipient_type' => $phoneRecipientSupported ? 'phone' : 'provider_specific',
+                        'purchase_supported' => $phoneRecipientSupported,
                         'provider_variation_code' => $variationCode,
                         'catalog_source' => 'vtpass',
                         'provider_listed_price_minor' => $minor,
@@ -165,7 +171,7 @@ class VtpassCatalogService
                 }
 
                 $metadata = $existing->metadata ?? [];
-                foreach (['provider_service_id', 'provider_variation_code', 'catalog_source', 'provider_listed_price_minor', 'validity', 'data_type'] as $key) {
+                foreach (['provider_service_id', 'provider_service_name', 'provider_category', 'recipient_type', 'purchase_supported', 'provider_variation_code', 'catalog_source', 'provider_listed_price_minor', 'validity', 'data_type'] as $key) {
                     if (array_key_exists($key, $providerMetadata)) {
                         $metadata[$key] = $providerMetadata[$key];
                     }
@@ -185,8 +191,17 @@ class VtpassCatalogService
             return false;
         }
 
-        return ($product['service_type'] ?? null) !== 'data'
-            || ! empty($metadata['provider_variation_code']);
+        if (($product['service_type'] ?? null) === 'data') {
+            return ! empty($metadata['provider_variation_code'])
+                && ! empty($metadata['purchase_supported']);
+        }
+
+        return true;
+    }
+
+    private function supportsPhoneRecipient(string $serviceId): bool
+    {
+        return (bool) preg_match('/^(mtn|glo|airtel|etisalat|9mobile|lebara)(?:-[a-z0-9]+)*-data$/i', $serviceId);
     }
 
     private function airtimeNetworkFromService(string $serviceId): ?string
@@ -208,12 +223,14 @@ class VtpassCatalogService
             return '9mobile';
         }
         foreach (['mtn', 'glo', 'airtel', 'lebara'] as $network) {
-            if (str_starts_with($id, $network.'-')) {
+            if ($id === $network || str_starts_with($id, $network.'-')) {
                 return $network;
             }
         }
 
-        return 'unknown';
+        // Preserve all other VTpass data-category services (e.g. Smile,
+        // Spectranet) under their own stable service family instead of dropping them.
+        return strtolower((string) strtok($id, '-'));
     }
 
     private function inferValidity(string $name): ?string
