@@ -1160,7 +1160,7 @@ class VtuOrderWorkflowTest extends TestCase
             ->assertJsonPath('data', null);
 
         $this->assertDatabaseCount('vtu_orders', 1);
-        $this->assertSame(1, (int) $wallet->fresh()->available_balance_minor / 4000);
+        $this->assertSame(4000, (int) $wallet->fresh()->available_balance_minor);
     }
 
     public function test_electricity_provider_minimum_and_maximum_amount_boundaries_are_accepted(): void
