@@ -81,3 +81,21 @@ Live rollout remains blocked until all of the following are confirmed:
 - live credentials, provider balance, limits, and product permissions are checked by the operator.
 
 Never use `migrate:fresh`, `db:wipe`, or fake migrations to resolve a migration-table warning. Do not enable live provider credentials as part of sandbox testing.
+
+## Request IDs and requery code 015
+
+The current official VTpass response-code documentation describes:
+
+- `014`: the request ID already exists. Do not create a second purchase using that ID; reconcile the existing order.
+- `015`: invalid request ID on a requery operation—the supplied ID was not used on VTpass. This is not proof that an earlier timed-out purchase failed.
+- `000`: inspect `content.transactions.status`; only `delivered` confirms success.
+- `016` and `091`: documented transaction-failure/not-processed codes. The adapter maps these to failure; all unrecognized codes or response shapes remain unresolved.
+
+For `015`, Semizzy keeps the customer order awaiting reconciliation, preserves the same provider request ID, and does not refund or resubmit automatically. Repeated `015` results must remain visible for controlled investigation; do not convert them into a failure solely because a retry count was reached. If the provider continues not to recognize the ID, an operator must investigate using the order/request ID and provider records before a manual resolution.
+
+This policy follows the published response-code and requery guidance, but it cannot establish what happened inside VTpass when their platform returns `015`. Real sandbox verification is still required before activating products for sale.
+
+Official references:
+- https://vtpass.com/documentation/response-codes/
+- https://vtpass.com/documentation/re-query-services/
+- https://vtpass.com/documentation/buying-services/
