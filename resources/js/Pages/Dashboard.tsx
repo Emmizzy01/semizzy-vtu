@@ -37,7 +37,7 @@ export default function CustomerDashboard({ wallet, transactions, isAdminPreview
             <p className="mt-5 text-xs text-white/75">Wallet balance</p>
             {wallet && <p className="mt-1 text-[10px] text-white/75">Ledger balance: {balanceVisible ? money(wallet.balance_minor,wallet.currency) : '••••••'}</p>}
           </div>
-          <a href="/wallet/manual-deposits" className="flex items-center justify-between gap-3 bg-white/90 px-5 py-3 text-xs text-slate-800 dark:bg-slate-950/90 dark:text-slate-100"><span className="flex min-w-0 items-center gap-2"><CheckCircle2 size={18} className="shrink-0 text-emerald-600"/><span className="truncate">{transactions[0] ? (transactions[0].description || transactions[0].type.replaceAll('_',' ')) + ' ' + money(transactions[0].amount_minor,transactions[0].currency) : 'Your latest wallet activity will appear here'}</span></span><span className="flex shrink-0 items-center gap-1 font-bold">Wallet <ChevronRight size={16}/></span></a>
+          <a id="activity" href="/wallet/manual-deposits" className="flex items-center justify-between gap-3 bg-white/90 px-5 py-3 text-xs text-slate-800 dark:bg-slate-950/90 dark:text-slate-100"><span className="flex min-w-0 items-center gap-2"><CheckCircle2 size={18} className="shrink-0 text-emerald-600"/><span className="truncate">{transactions[0] ? (transactions[0].description || transactions[0].type.replaceAll('_',' ')) + ' ' + money(transactions[0].amount_minor,transactions[0].currency) : 'Your latest wallet activity will appear here'}</span></span><span className="flex shrink-0 items-center gap-1 font-bold">Wallet <ChevronRight size={16}/></span></a>
         </article>
 
         <div className="grid grid-cols-4 gap-2 rounded-[26px] bg-[var(--surface)] p-4 shadow-sm">

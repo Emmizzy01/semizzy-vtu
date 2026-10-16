@@ -83,7 +83,7 @@ class VtuOrderController extends Controller
         $user = $request->user();
         abort_unless($user, 401);
         if (! $user->transaction_pin_hash) return response()->json(['message' => 'Set up a transaction PIN before making wallet-funded purchases.', 'setup_url' => '/security/transaction-pin'], 428);
-        if (! isset($validated['transaction_pin'])) return response()->json(['message' => 'Enter your four-digit transaction PIN (or your existing six-digit PIN).'], 422);
+        if (! isset($validated['transaction_pin'])) return response()->json(['message' => 'Enter your six-digit transaction PIN. Legacy four-digit PINs are temporarily supported.'], 422);
         $pinStatus = app(TransactionPinService::class)->verify($user, (string) $validated['transaction_pin']);
         if ($pinStatus === 'locked') return response()->json(['message' => 'Transaction PIN is locked for 15 minutes after repeated failures.'], 423);
         if ($pinStatus !== 'verified') return response()->json(['message' => 'Transaction PIN is incorrect.'], 422);
