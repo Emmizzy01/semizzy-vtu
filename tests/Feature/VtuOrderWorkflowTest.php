@@ -1114,7 +1114,7 @@ class VtuOrderWorkflowTest extends TestCase
                 '12345678901',
                 'electricity-out-of-range-1',
                 ['meter_type' => 'prepaid', 'contact_phone' => '08012345678'],
-                10000,
+                5000,
             );
             $this->fail('An amount below the configured provider minimum must be rejected.');
         } catch (\InvalidArgumentException $exception) {
