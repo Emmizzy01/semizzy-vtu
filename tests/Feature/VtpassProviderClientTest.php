@@ -198,9 +198,10 @@ class VtpassProviderClientTest extends TestCase
             ],
         ];
 
+        $responses = Http::fakeSequence();
         foreach (['electricity-bill', 'tv-subscription'] as $serviceType) {
             foreach ($cases as $index => $case) {
-                Http::fake(fn () => Http::response($case['body'], 200));
+                $responses->push($case['body'], 200);
 
                 $productOverrides = [
                     'metadata' => [
