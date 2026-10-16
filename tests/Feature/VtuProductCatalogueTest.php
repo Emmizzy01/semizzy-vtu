@@ -153,8 +153,9 @@ class VtuProductCatalogueTest extends TestCase
             'name' => 'MTN 1GB 7 Days',
             'price_minor' => 50000,
             'currency' => 'NGN',
-            'is_active' => false,
+            'is_active' => true,
             'metadata' => [
+                'catalog_source' => 'vtpass',
                 'provider_service_id' => 'mtn-sme-data',
                 'provider_variation_code' => 'plan-1',
                 'catalog_source' => 'vtpass',
