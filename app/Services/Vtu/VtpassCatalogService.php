@@ -174,7 +174,7 @@ class VtpassCatalogService
                 }
 
                 $metadata = $existing->metadata ?? [];
-                foreach (['provider_service_id', 'provider_service_name', 'provider_category', 'recipient_type', 'purchase_supported', 'provider_variation_code', 'catalog_source', 'provider_listed_price_minor', 'validity', 'data_type''] as $key) {
+                foreach (['provider_service_id', 'provider_service_name', 'provider_category', 'recipient_type', 'purchase_supported', 'provider_variation_code', 'catalog_source', 'provider_listed_price_minor', 'validity', 'data_type'] as $key) {
                     if (array_key_exists($key, $providerMetadata)) {
                         $metadata[$key] = $providerMetadata[$key];
                     }
