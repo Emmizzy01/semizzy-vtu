@@ -262,6 +262,18 @@ class VtuOrderWorkflowTest extends TestCase
         $this->assertSame(500, (int) $wallet->fresh()->available_balance_minor);
         $this->assertDatabaseCount('vtu_orders', 1);
         $this->assertDatabaseCount('wallet_transactions', 2);
+        $order = VtuOrder::query()->sole();
+        $debit = \\App\\Models\\WalletTransaction::query()
+            ->where('reference', $order->public_id)
+            ->where('type', 'debit')
+            ->sole();
+        $this->assertSame(1, \\Illuminate\\Support\\Facades\\DB::table('wallet_ledger_entries')
+            ->where('wallet_transaction_id', $debit->getKey())
+            ->count(), 'The purchase debit must have exactly one ledger entry.');
+        $this->assertSame('posted', $debit->status);
+        $this->assertSame(1, \\App\\Models\\WalletTransaction::query()
+            ->where('idempotency_key', 'vtu-purchase:'.$order->public_id)
+            ->count(), 'The order debit idempotency key must be unique.');
         $this->assertSame(1, $attempts, 'A duplicate successful purchase must not be resubmitted.');
     }
 
