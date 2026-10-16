@@ -46,8 +46,8 @@ class VtuServiceFeatureGateTest extends TestCase
             'name' => 'Provider Gate Customer',
             'email' => 'provider-gate-customer@example.test',
             'password' => 'not-a-real-password',
-            'transaction_pin_hash' => Hash::make('4928'),
         ]);
+        $user->forceFill(['transaction_pin_hash' => Hash::make('4928')])->save();
         app(IntegrationSettings::class)->set('service.airtime_data.enabled', '0', $user->id);
 
         VtuProduct::query()->create([
