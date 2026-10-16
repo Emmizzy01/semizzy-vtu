@@ -125,6 +125,87 @@ class VtpassProviderClient implements VtuProvider
         return $this->normalize($response->json());
     }
 
+    /**
+     * Verify an electricity meter without creating a bill payment.
+     *
+     * @return array{status:string, message_code:?string, customer_name:?string, customer_address:?string}
+     */
+    public function verifyElectricityMeter(VtuProduct $product, string $meterNumber, string $meterType): array
+    {
+        if ($product->service_type !== 'electricity-bill') {
+            throw new LogicException('Choose an electricity product to verify a meter.');
+        }
+
+        if (! in_array($meterType, ['prepaid', 'postpaid'], true)) {
+            throw new LogicException('Electricity meter type must be prepaid or postpaid.');
+        }
+
+        return $this->verifyBiller($product, $meterNumber, $meterType);
+    }
+
+    /**
+     * Verify a TV smartcard without purchasing a subscription.
+     *
+     * @return array{status:string, message_code:?string, customer_name:?string, customer_address:?string}
+     */
+    public function verifyTvSmartcard(VtuProduct $product, string $smartcardNumber): array
+    {
+        if ($product->service_type !== 'tv-subscription') {
+            throw new LogicException('Choose a TV subscription product to verify a smartcard.');
+        }
+
+        return $this->verifyBiller($product, $smartcardNumber, null);
+    }
+
+    /**
+     * @return array{status:string, message_code:?string, customer_name:?string, customer_address:?string}
+     */
+    private function verifyBiller(VtuProduct $product, string $billerCode, ?string $type): array
+    {
+        $billerCode = trim($billerCode);
+        if (! preg_match('/^[a-zA-Z0-9-]{5,40}$/', $billerCode)) {
+            throw new LogicException('Enter a valid meter or smartcard number before verification.');
+        }
+
+        $this->assertConfigured();
+        $serviceId = $product->metadata['provider_service_id'] ?? null;
+        if (! is_string($serviceId) || ! preg_match('/^[a-z0-9-]{2,80}$/i', $serviceId)) {
+            throw new LogicException('The selected VTpass service is missing its verified provider service ID.');
+        }
+
+        $requestId = CarbonImmutable::now('Africa/Lagos')->format('YmdHi').str_replace('-', '', (string) \Illuminate\Support\Str::uuid());
+        $payload = [
+            'request_id' => $requestId,
+            'serviceID' => $serviceId,
+            'billersCode' => $billerCode,
+        ];
+        if ($type !== null) {
+            $payload['type'] = $type;
+        }
+
+        try {
+            $response = $this->post('/merchant-verify', $payload);
+        } catch (ConnectionException $exception) {
+            // A failed connection is not proof that the biller number is invalid.
+            throw $exception;
+        }
+
+        $body = $response->json();
+        $code = is_array($body) && is_string($body['code'] ?? null) ? $body['code'] : null;
+        $content = is_array($body) && is_array($body['content'] ?? null) ? $body['content'] : [];
+        $verified = $response->successful() && $code === '000' && $content !== [];
+
+        $customerName = $content['Customer_Name'] ?? $content['customer_name'] ?? $content['name'] ?? null;
+        $customerAddress = $content['Customer_Address'] ?? $content['customer_address'] ?? $content['address'] ?? null;
+
+        return [
+            'status' => $verified ? 'verified' : ($response->successful() ? 'unverified' : 'unknown'),
+            'message_code' => $code ?? 'http_'.$response->status(),
+            'customer_name' => is_string($customerName) ? substr($customerName, 0, 160) : null,
+            'customer_address' => is_string($customerAddress) ? substr($customerAddress, 0, 240) : null,
+        ];
+    }
+
     private function post(string $path, array $payload): \Illuminate\Http\Client\Response
     {
         $baseUrl = rtrim((string) app(IntegrationSettings::class)->get('vtu.vtpass.base_url', config('services.vtu.vtpass.base_url')), '/');
