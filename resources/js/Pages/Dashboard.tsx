@@ -9,7 +9,7 @@ function money(minor: number, currency = 'NGN') {
   return new Intl.NumberFormat('en-NG', { style: 'currency', currency, maximumFractionDigits: 2 }).format(minor / 100);
 }
 export default function CustomerDashboard({ wallet, transactions, isAdminPreview = false, customer }: {
-  wallet: Wallet; transactions: Transaction[]; isAdminPreview?: boolean; customer?: { name?: string; tier?: string; level?: string; avatarUrl?: string | null; kycStatus?: string };
+  wallet: Wallet; transactions: Transaction[]; isAdminPreview?: boolean; customer?: { name?: string; type?: string; tier?: string | null; level?: string; avatarUrl?: string | null; kycStatus?: string };
 }) {
   const [balanceVisible, setBalanceVisible] = useState(true);
   return (
@@ -24,8 +24,9 @@ export default function CustomerDashboard({ wallet, transactions, isAdminPreview
             <p className="text-xs font-semibold text-[var(--muted)]">Welcome back</p>
             <h1 className="truncate text-lg font-extrabold">{customer?.name || 'Semizzy user'}</h1>
             <div className="mt-1 flex flex-wrap gap-2">
-              {customer?.tier && <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200">Tier: {customer.tier}</span>}
-              {customer?.level && <span className="rounded-full border border-[var(--line)] px-2.5 py-1 text-[10px] font-bold text-[var(--muted)]">Level: {customer.level}</span>}
+              {customer?.type && <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold capitalize text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200">Account: {customer.type.replaceAll('_', ' ')}</span>}
+              {customer?.tier && <span className="rounded-full border border-[var(--line)] px-2.5 py-1 text-[10px] font-bold text-[var(--muted)]">Tier: {customer.tier}</span>}
+              {customer?.level && <span className="rounded-full border border-[var(--line)] px-2.5 py-1 text-[10px] font-bold text-[var(--muted)]">Level: {customer.level.replaceAll('_', ' ')}</span>}
             </div>
           </div>
           <a href="/profile" className="shrink-0 rounded-xl border border-[var(--line)] px-3 py-2 text-xs font-bold">Profile</a>
