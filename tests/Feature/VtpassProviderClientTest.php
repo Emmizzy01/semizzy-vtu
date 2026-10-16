@@ -177,6 +177,61 @@ class VtpassProviderClientTest extends TestCase
             && ! array_key_exists('amount', $request->data()));
     }
 
+    public function test_electricity_and_tv_transaction_responses_map_failure_pending_and_ambiguous_safely(): void
+    {
+        $cases = [
+            [
+                'body' => ['code' => '016', 'response_description' => 'Transaction failed'],
+                'expected' => 'failed',
+            ],
+            [
+                'body' => ['code' => '000', 'content' => ['transactions' => ['status' => 'pending']]],
+                'expected' => 'pending',
+            ],
+            [
+                'body' => ['code' => '099', 'response_description' => 'Unknown provider outcome'],
+                'expected' => 'pending',
+            ],
+            [
+                'body' => ['code' => '000', 'content' => ['transactions' => ['status' => 'unrecognized']]],
+                'expected' => 'pending',
+            ],
+        ];
+
+        foreach (['electricity-bill', 'tv-subscription'] as $serviceType) {
+            foreach ($cases as $index => $case) {
+                Http::fake(fn () => Http::response($case['body'], 200));
+
+                $productOverrides = [
+                    'metadata' => [
+                        'provider_service_id' => $serviceType === 'electricity-bill' ? 'ikeja-electric' : 'dstv',
+                        'purchase_supported' => true,
+                        'provider_minimum_amount' => 100,
+                        'provider_maximum_amount' => 100000,
+                        'provider_variation_code' => 'dstv-padi',
+                    ],
+                ];
+                $order = $this->order($serviceType, $serviceType === 'electricity-bill' ? 'ikeja-electric' : 'dstv', $productOverrides);
+                $order->recipient = $serviceType === 'electricity-bill' ? '12345678901' : '1234567890';
+                $order->amount_minor = 50000;
+                $order->service_details = [
+                    'meter_type' => 'prepaid',
+                    'contact_phone' => '08012345678',
+                ];
+
+                $result = app(VtpassProviderClient::class)->submit($order);
+
+                $this->assertSame(
+                    $case['expected'],
+                    $result['status'],
+                    $serviceType.' response case '.$index.' must be mapped conservatively.',
+                );
+                Http::assertSent(fn ($request) => str_ends_with($request->url(), '/pay'));
+                Http::preventStrayRequests();
+            }
+        }
+    }
+
     public function test_electricity_and_tv_products_without_purchase_approval_are_blocked_before_provider_request(): void
     {
         Http::fake();
