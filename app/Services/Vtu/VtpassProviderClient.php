@@ -38,7 +38,8 @@ class VtpassProviderClient implements VtuProvider
             throw new LogicException('This VTpass service category is not supported for purchases yet.');
         }
 
-        if (($product->metadata['purchase_supported'] ?? null) !== true) {
+        if (in_array($product->service_type, ['electricity-bill', 'tv-subscription'], true)
+            && ($product->metadata['purchase_supported'] ?? null) !== true) {
             throw new LogicException('This VTpass product has not been approved for its service-specific purchase flow.');
         }
 
