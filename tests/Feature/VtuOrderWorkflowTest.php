@@ -991,6 +991,53 @@ class VtuOrderWorkflowTest extends TestCase
         $this->assertSame(1, Http::recorded(fn ($request) => str_ends_with($request->url(), '/merchant-verify'))->count());
     }
 
+    public function test_electricity_idempotency_key_reuse_with_changed_amount_is_rejected_without_second_provider_call(): void
+    {
+        config([
+            'services.vtu.driver' => 'vtpass',
+            'services.vtu.vtpass.base_url' => 'https://sandbox.vtpass.com/api',
+            'services.vtu.vtpass.api_key' => 'sandbox-api-key',
+            'services.vtu.vtpass.secret_key' => 'sandbox-secret-key',
+        ]);
+
+        $sequence = Http::sequence()
+            ->push(['code' => '000', 'content' => ['Customer_Name' => 'Meter Customer']], 200)
+            ->push(['code' => '000', 'content' => ['transactions' => [
+                'status' => 'delivered',
+                'transactionId' => 'electricity-idempotency-conflict',
+            ]]], 200);
+        Http::fake(['https://sandbox.vtpass.com/api/*' => $sequence]);
+
+        [$user, $wallet, $product] = $this->preparedCustomer(1000, 250000);
+        $product->forceFill([
+            'service_type' => 'electricity-bill',
+            'network' => 'ikeja-electric',
+            'metadata' => [
+                'provider_service_id' => 'ikeja-electric',
+                'provider_minimum_amount' => 100,
+                'provider_maximum_amount' => 100000,
+                'purchase_supported' => true,
+            ],
+        ])->save();
+
+        $service = app(VtuOrderService::class);
+        $details = ['meter_type' => 'prepaid', 'contact_phone' => '08012345678'];
+        $first = $service->purchase($user, $product->code, '12345678901', 'electricity-idempotency-conflict-1', $details, 50000);
+
+        try {
+            $service->purchase($user, $product->code, '12345678901', 'electricity-idempotency-conflict-1', $details, 60000);
+            $this->fail('Reusing an idempotency key for a different amount must be rejected.');
+        } catch (\Symfony\Component\HttpKernel\Exception\ConflictHttpException) {
+            $this->assertSame('successful', $first->status);
+        }
+
+        $this->assertSame(200000, (int) $wallet->fresh()->available_balance_minor);
+        $this->assertDatabaseCount('vtu_orders', 1);
+        $this->assertDatabaseCount('wallet_transactions', 2);
+        Http::assertSentCount(2);
+        $this->assertSame(1, Http::recorded(fn ($request) => str_ends_with($request->url(), '/pay'))->count());
+    }
+
     public function test_tv_smartcard_verification_failure_cannot_create_order_or_debit_wallet(): void
     {
         config([
