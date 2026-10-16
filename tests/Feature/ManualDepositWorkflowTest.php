@@ -165,6 +165,35 @@ class ManualDepositWorkflowTest extends TestCase
         $this->assertDatabaseHas('manual_deposit_audits', ['manual_deposit_id' => $deposit->id, 'event_type' => 'wallet_limit_review']);
     }
 
+    public function test_transfer_reference_cannot_be_reused_by_another_customer(): void
+    {
+        Storage::fake('local');
+        $firstCustomer = User::query()->create(['name' => 'First Depositor', 'email' => 'first-depositor@example.test', 'password' => 'not-a-real-password']);
+        $secondCustomer = User::query()->create(['name' => 'Second Depositor', 'email' => 'second-depositor@example.test', 'password' => 'not-a-real-password']);
+        app(IntegrationSettings::class)->set('manual_deposit.enabled', '1', $firstCustomer->id);
+
+        $this->actingAs($firstCustomer)->post('/wallet/manual-deposits', [
+            'amount_minor' => 250000,
+            'transfer_reference' => 'SHARED-BANK-REFERENCE-001',
+            'evidence' => UploadedFile::fake()->image('first-receipt.png'),
+        ])->assertRedirect('/wallet/manual-deposits');
+
+        $this->actingAs($secondCustomer)->post('/wallet/manual-deposits', [
+            'amount_minor' => 250000,
+            'transfer_reference' => 'SHARED-BANK-REFERENCE-001',
+            'evidence' => UploadedFile::fake()->image('second-receipt.png'),
+        ])->assertSessionHasErrors('transfer_reference');
+
+        $this->assertDatabaseCount('manual_deposits', 1);
+        $this->assertDatabaseHas('manual_deposits', [
+            'user_id' => $firstCustomer->id,
+            'transfer_reference' => 'SHARED-BANK-REFERENCE-001',
+            'status' => 'pending',
+        ]);
+        $this->assertSame(0, (int) $firstCustomer->wallets()->firstOrFail()->fresh()->balance_minor);
+        $this->assertSame(0, (int) $secondCustomer->wallets()->firstOrFail()->fresh()->balance_minor);
+    }
+
     public function test_only_staff_permission_managers_can_access_review_and_settings(): void
     {
         $user = User::query()->create(['name' => 'Customer', 'email' => 'only-customer@example.test', 'password' => 'not-a-real-password']);
