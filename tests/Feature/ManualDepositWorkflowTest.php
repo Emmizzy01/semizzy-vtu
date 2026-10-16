@@ -171,6 +171,8 @@ class ManualDepositWorkflowTest extends TestCase
         $firstCustomer = User::query()->create(['name' => 'First Depositor', 'email' => 'first-depositor@example.test', 'password' => 'not-a-real-password']);
         $secondCustomer = User::query()->create(['name' => 'Second Depositor', 'email' => 'second-depositor@example.test', 'password' => 'not-a-real-password']);
         app(IntegrationSettings::class)->set('manual_deposit.enabled', '1', $firstCustomer->id);
+        app(WalletAccountService::class)->openForUser($firstCustomer);
+        app(WalletAccountService::class)->openForUser($secondCustomer);
 
         $this->actingAs($firstCustomer)->post('/wallet/manual-deposits', [
             'amount_minor' => 250000,
