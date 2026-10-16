@@ -129,7 +129,7 @@ class VtuOrderService
                     'amount_minor' => $lockedProduct->price_minor,
                     'currency' => $lockedProduct->currency,
                     'status' => VtuOrderStatus::Pending->value,
-                    'provider' => config('services.vtu.driver') === 'vtpass'
+                    'provider' => app(\App\Services\IntegrationSettings::class)->get('vtu.driver', config('services.vtu.driver')) === 'vtpass'
                         ? 'vtpass'
                         : (string) config('services.vtu.name', 'configured_vtu'),
                 ]);
