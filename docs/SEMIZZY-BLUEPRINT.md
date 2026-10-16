@@ -74,7 +74,7 @@ Never present a roadmap-only service as available. Disabled or in-progress servi
 
 ## 5. Transaction security
 
-- Separate six-digit transaction PIN, stored as a password hash and never returned to the client.
+- Separate four-digit transaction PIN, stored as a password hash and never returned to the client.
 - Validate PIN quality and confirmation; require current PIN for changes after setup.
 - Rate-limit attempts, persist failed-attempt counters, temporarily lock after repeated failures, and audit security-relevant events without recording the PIN.
 - Require PIN verification at each applicable sensitive transaction boundary (not merely on the PIN settings page). Verify before irreversible wallet/service actions.
@@ -160,7 +160,7 @@ Keep the theme choice accessible and persistent. Global default is controlled by
 - [ ] Responsive on small screens and uses the approved theme system.
 
 ### C. Transaction security
-- [ ] PIN setup/change, hash storage, predictable-PIN rejection.
+- [ ] PIN setup/change using a four-digit PIN, hash storage, predictable-PIN rejection.
 - [ ] Attempt throttling, lockout, security audit.
 - [ ] PIN enforced on applicable transaction endpoints.
 - [ ] Ownership, level limits, idempotency and step-up checks where supported.

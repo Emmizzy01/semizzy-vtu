@@ -35,11 +35,11 @@ class TransactionPinController extends Controller
         $wasConfigured = (bool) $user->transaction_pin_hash;
         $data = $request->validate([
             'current_pin' => $wasConfigured ? ['required', 'string', 'regex:/^\\d{4}(?:\\d{2})?$/'] : ['nullable', 'string', 'regex:/^\\d{4}(?:\\d{2})?$/'],
-            'pin' => ['required', 'string', 'digits:6', 'confirmed', 'regex:/^(?!([0-9])\1{5})\d{6}$/'],
+            'pin' => ['required', 'string', 'digits:4', 'confirmed', 'regex:/^(?!([0-9])\1{3})\d{4}$/'],
         ]);
         $pin = (string) $data['pin'];
-        if (in_array($pin, ['012345', '123456', '234567', '345678', '456789', '987654', '876543', '765432', '654321', '543210', '111111', '222222', '333333', '444444', '555555', '666666', '777777', '888888', '999999', '000000', '121212', '112233', '123123'], true)) {
-            return back()->withErrors(['pin' => 'Choose a less predictable six-digit PIN.']);
+        if (in_array($pin, ['0123', '1234', '2345', '3456', '4567', '5678', '6789', '9876', '8765', '7654', '6543', '5432', '4321', '3210', '1212', '1122', '2211', '1010', '1111', '2222', '3333', '4444', '5555', '6666', '7777', '8888', '9999', '0000'], true)) {
+            return back()->withErrors(['pin' => 'Choose a less predictable four-digit PIN.']);
         }
         if ($wasConfigured) {
             $result = $pins->verify($user, (string) $data['current_pin']);
