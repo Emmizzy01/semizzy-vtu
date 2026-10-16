@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\PlatformSettingAudit;
 use App\Models\VtuProduct;
+use App\Services\Vtu\VtpassCatalogService;
+use Throwable;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -48,6 +50,27 @@ class VtuProductCatalogueController extends Controller
             'filters' => ['search' => $search, 'service_type' => $type, 'status' => $status],
             'networks' => ['MTN', 'Airtel', 'Glo', '9mobile', 'Lebara'],
         ]);
+    }
+
+    public function sync(Request $request, VtpassCatalogService $catalog): RedirectResponse
+    {
+        try {
+            $products = $catalog->fetchProducts();
+            $result = $catalog->applyProducts($products);
+        } catch (Throwable $exception) {
+            report($exception);
+            return back()->withErrors(['catalog_sync' => 'Provider catalogue sync failed safely. No catalogue changes were applied. Verify the provider credentials and response.']);
+        }
+
+        PlatformSettingAudit::query()->create([
+            'actor_user_id' => $request->user()->id,
+            'setting_key' => 'vtu_catalogue.synced.vtpass',
+            'old_value_hash' => hash('sha256', 'manual-sync'),
+            'new_value_hash' => hash('sha256', json_encode($result, JSON_THROW_ON_ERROR)),
+            'reason' => 'Admin initiated VTpass catalogue sync; new products remain inactive and existing prices/statuses are preserved.',
+            'created_at' => now(),
+        ]);
+        return back()->with('success', "VTpass catalogue synced: {$result['created']} new inactive products, {$result['updated']} existing mappings refreshed.");
     }
 
     public function store(Request $request): RedirectResponse

@@ -3,6 +3,7 @@
 namespace App\Services\Vtu;
 
 use App\Models\VtuProduct;
+use App\Services\IntegrationSettings;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use LogicException;
@@ -10,6 +11,9 @@ use RuntimeException;
 
 class VtpassCatalogService
 {
+    private string $baseUrl;
+    private string $apiKey;
+    private string $secretKey;
     private const NETWORKS = [
         'mtn' => ['airtime' => 'mtn', 'data' => 'mtn-data'],
         'glo' => ['airtime' => 'glo', 'data' => 'glo-data'],
@@ -20,13 +24,15 @@ class VtpassCatalogService
     /** @return array<int, array<string, mixed>> */
     public function fetchProducts(): array
     {
-        $baseUrl = rtrim((string) config('services.vtu.vtpass.base_url', ''), '/');
-        if (! in_array($baseUrl, ['https://vtpass.com/api', 'https://sandbox.vtpass.com/api'], true)
-            || ! config('services.vtu.vtpass.api_key')
-            || ! config('services.vtu.vtpass.secret_key')) {
+        $settings = app(IntegrationSettings::class);
+        $baseUrl = rtrim((string) $settings->get('vtu.vtpass.base_url', config('services.vtu.vtpass.base_url', '')), '/');
+        $apiKey = (string) $settings->get('vtu.vtpass.api_key', config('services.vtu.vtpass.api_key', ''));
+        $secretKey = (string) $settings->get('vtu.vtpass.secret_key', config('services.vtu.vtpass.secret_key', ''));
+        if (! in_array($baseUrl, ['https://vtpass.com/api', 'https://sandbox.vtpass.com/api'], true) || $apiKey === '' || $secretKey === '') {
             throw new LogicException('VTpass catalogue sync requires the official HTTPS endpoint and server-side credentials.');
         }
 
+        $this->baseUrl = $baseUrl; $this->apiKey = $apiKey; $this->secretKey = $secretKey;
         $services = [];
         foreach (['airtime', 'data'] as $type) {
             $response = $this->get('/services', ['identifier' => $type]);
@@ -71,7 +77,7 @@ class VtpassCatalogService
                             'price_minor' => $amount * 100,
                             'face_value_minor' => $amount * 100,
                             'currency' => 'NGN',
-                            'is_active' => true,
+                            'is_active' => false,
                             'metadata' => ['provider_service_id' => $expected, 'catalog_source' => 'vtpass'],
                         ];
                     }
@@ -111,6 +117,9 @@ class VtpassCatalogService
                             'provider_service_id' => $expected,
                             'provider_variation_code' => $variationCode,
                             'catalog_source' => 'vtpass',
+                            'provider_listed_price_minor' => $minor,
+                            'validity' => $this->inferValidity($name),
+                            'data_type' => $this->inferDataType($name),
                         ],
                     ];
                 }
@@ -125,26 +134,50 @@ class VtpassCatalogService
     }
 
     /** @param array<int, array<string, mixed>> $products */
-    public function applyProducts(array $products): int
+    public function applyProducts(array $products): array
     {
-        return DB::transaction(function () use ($products): int {
-            foreach ($products as $product) {
-                VtuProduct::query()->updateOrCreate(
-                    ['code' => $product['code']],
-                    $product,
-                );
+        return DB::transaction(function () use ($products): array {
+            $created = 0; $updated = 0;
+            foreach ($products as $incoming) {
+                $existing = VtuProduct::query()->where('code', $incoming['code'])->lockForUpdate()->first();
+                $providerMetadata = $incoming['metadata'] ?? [];
+                if ($existing === null) {
+                    $incoming['is_active'] = false;
+                    VtuProduct::query()->create($incoming);
+                    $created++;
+                    continue;
+                }
+                $metadata = $existing->metadata ?? [];
+                foreach (['provider_service_id', 'provider_variation_code', 'catalog_source', 'provider_listed_price_minor', 'validity', 'data_type'] as $key) {
+                    if (array_key_exists($key, $providerMetadata)) $metadata[$key] = $providerMetadata[$key];
+                }
+                $existing->forceFill(['metadata' => $metadata])->save();
+                $updated++;
             }
-
-            return count($products);
+            return ['created' => $created, 'updated' => $updated, 'total' => count($products)];
         });
+    }
+
+    private function inferValidity(string $name): ?string
+    {
+        if (preg_match('/\\b(\\d+)\\s*(day|days|week|weeks|month|months|hour|hours)\\b/i', $name, $m)) {
+            $unit = strtolower(rtrim($m[2], 's'));
+            return $m[1].' '.$unit.($m[1] === '1' ? '' : 's');
+        }
+        return preg_match('/\\bnight\\b/i', $name) ? 'night' : null;
+    }
+
+    private function inferDataType(string $name): ?string
+    {
+        foreach (['SME', 'Corporate', 'Gifting', 'Direct'] as $type) if (stripos($name, $type) !== false) return $type;
+        return null;
     }
 
     private function get(string $path, array $query): \Illuminate\Http\Client\Response
     {
         return Http::withHeaders([
-            'api-key' => (string) config('services.vtu.vtpass.api_key'),
-            'secret-key' => (string) config('services.vtu.vtpass.secret_key'),
-        ])->acceptJson()->connectTimeout(5)->timeout(15)
-            ->get(rtrim((string) config('services.vtu.vtpass.base_url'), '/').$path, $query);
+            'api-key' => $this->apiKey,
+            'secret-key' => $this->secretKey,
+        ])->acceptJson()->connectTimeout(5)->timeout(15)->get($this->baseUrl.$path, $query);
     }
 }
