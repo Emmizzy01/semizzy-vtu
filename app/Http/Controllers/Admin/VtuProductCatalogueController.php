@@ -77,7 +77,7 @@ class VtuProductCatalogueController extends Controller
     {
         $data = $this->validatedData($request, true);
         $product = DB::transaction(function () use ($request, $data): VtuProduct {
-            $metadata = $this->metadata($data, $locked->metadata ?? []);
+            $metadata = $this->metadata($data);
             $active = (bool) ($data['is_active'] ?? false);
             $this->assertActivatable($data['service_type'], $data['network'], $metadata, $active);
             $product = VtuProduct::query()->create([
