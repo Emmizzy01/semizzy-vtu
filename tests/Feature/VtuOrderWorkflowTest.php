@@ -1163,6 +1163,62 @@ class VtuOrderWorkflowTest extends TestCase
         $this->assertSame(4000, (int) $wallet->fresh()->available_balance_minor);
     }
 
+    public function test_electricity_limits_are_rechecked_after_catalogue_changes_during_verification(): void
+    {
+        [$user, $wallet, $product] = $this->preparedCustomer(1000, 200000);
+        $product->forceFill([
+            'service_type' => 'electricity-bill',
+            'network' => 'ikeja-electric',
+            'metadata' => [
+                'provider_service_id' => 'ikeja-electric',
+                'provider_minimum_amount' => 100,
+                'provider_maximum_amount' => 100000,
+                'purchase_supported' => true,
+            ],
+        ])->save();
+
+        $provider = new class((int) $product->getKey()) extends \App\Services\Vtu\VtpassProviderClient {
+            public int $submissions = 0;
+            public function __construct(private readonly int $productId) {}
+            public function assertConfigured(): void {}
+            public function assertProductConfigured(VtuProduct $product): void {}
+            public function verifyElectricityMeter(VtuProduct $product, string $meterNumber, string $meterType): array
+            {
+                $fresh = VtuProduct::query()->findOrFail($this->productId);
+                $metadata = $fresh->metadata;
+                $metadata['provider_minimum_amount'] = 200;
+                $fresh->forceFill(['metadata' => $metadata])->save();
+                return ['status' => 'verified', 'message_code' => '000', 'customer_name' => 'Test Customer', 'customer_address' => null];
+            }
+            public function submit(VtuOrder $order): array
+            {
+                $this->submissions++;
+                return ['status' => 'success'];
+            }
+            public function lookup(VtuOrder $order): array { return ['status' => 'pending']; }
+        };
+        $this->app->instance(VtuProvider::class, $provider);
+
+        try {
+            app(VtuOrderService::class)->purchase(
+                $user,
+                $product->code,
+                '12345678901',
+                'electricity-catalogue-limits-race',
+                ['meter_type' => 'prepaid', 'contact_phone' => '08012345678'],
+                10000,
+            );
+            $this->fail('The locked catalogue minimum must be enforced after verification.');
+        } catch (\InvalidArgumentException $exception) {
+            $this->assertStringContainsString('outside the provider limits', $exception->getMessage());
+        }
+
+        $this->assertSame(200000, (int) $wallet->fresh()->available_balance_minor);
+        $this->assertDatabaseCount('vtu_orders', 0);
+        $this->assertDatabaseCount('wallet_transactions', 1);
+        $this->assertSame(0, $provider->submissions);
+    }
+
     public function test_electricity_provider_minimum_and_maximum_amount_boundaries_are_accepted(): void
     {
         config([
