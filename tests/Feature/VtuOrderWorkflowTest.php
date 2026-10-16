@@ -107,6 +107,44 @@ class VtuOrderWorkflowTest extends TestCase
         }
     }
 
+    public function test_vtpass_product_without_recorded_sandbox_approval_cannot_submit_even_if_legacy_row_is_active(): void
+    {
+        config([
+            'services.vtu.driver' => 'vtpass',
+            'services.vtu.vtpass.base_url' => 'https://sandbox.vtpass.com/api',
+            'services.vtu.vtpass.api_key' => 'sandbox-api-key',
+            'services.vtu.vtpass.secret_key' => 'sandbox-secret-key',
+        ]);
+        Http::fake();
+
+        [$user, $wallet, $product] = $this->preparedCustomer(1000, 1500);
+        $product->forceFill([
+            'network' => 'mtn',
+            'face_value_minor' => 1000,
+            'metadata' => [
+                'catalog_source' => 'vtpass',
+                'provider_service_id' => 'mtn',
+                'purchase_approved' => false,
+            ],
+        ])->save();
+
+        try {
+            app(VtuOrderService::class)->purchase(
+                $user,
+                $product->code,
+                '08012345678',
+                'vtpass-awaiting-approval-1',
+            );
+            $this->fail('A VTpass product without recorded sandbox approval must not be submitted.');
+        } catch (\\LogicException $exception) {
+            $this->assertStringContainsString('sandbox verification', $exception->getMessage());
+            $this->assertSame(1500, (int) $wallet->fresh()->available_balance_minor);
+            $this->assertDatabaseCount('vtu_orders', 0);
+            $this->assertDatabaseCount('wallet_transactions', 1);
+            Http::assertNothingSent();
+        }
+    }
+
     public function test_vtpass_data_product_without_verified_variation_is_rejected_before_debit(): void
     {
         config([
