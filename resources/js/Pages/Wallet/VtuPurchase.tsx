@@ -12,6 +12,7 @@ type Product = {
   price_minor: number;
   face_value_minor: number | null;
   currency: string;
+  is_active: boolean;
   metadata?: Record<string, unknown>;
 };
 
@@ -187,7 +188,7 @@ export default function VtuPurchase() {
 
   async function submitPurchase(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (submitting || !selectedProduct || !recipient.trim() || (needsVerification && verification?.status !== 'verified')) return;
+    if (submitting || !selectedProduct || !selectedProduct.is_active || !recipient.trim() || (needsVerification && verification?.status !== 'verified')) return;
 
     setSubmitting(true);
     setError('');
@@ -525,6 +526,11 @@ export default function VtuPurchase() {
                       <span className="text-[var(--muted)]">Total charge</span>
                       <strong className="text-lg">{naira(displayedAmountMinor)}</strong>
                     </div>
+                    {!selectedProduct.is_active && (
+                      <div role="status" className="mt-3 rounded-xl border border-amber-500/30 bg-amber-500/5 p-3 text-sm leading-6 text-amber-700">
+                        This VTpass product is listed for review, but purchases are not enabled yet. It will become available after sandbox verification and authorised catalogue approval. Your wallet will not be charged.
+                      </div>
+                    )}
                     {serviceType === 'data' && (
                       <div className="mt-3 flex flex-wrap gap-2">
                         {typeof selectedProduct.metadata?.validity === 'string' && selectedProduct.metadata.validity && <span className="rounded-full border border-[var(--line)] px-3 py-1 text-xs">Validity: {selectedProduct.metadata.validity}</span>}
@@ -546,11 +552,11 @@ export default function VtuPurchase() {
                 )}
                 <button
                   type="submit"
-                  disabled={submissionUncertain || submitting || loadingProducts || !selectedProduct || !recipient.trim() || (needsVerification && verification?.status !== 'verified') || (isElectricity && (displayedAmountMinor < electricityMinimum * 100 || displayedAmountMinor > electricityMaximum * 100))}
+                  disabled={submissionUncertain || submitting || loadingProducts || !selectedProduct || !selectedProduct.is_active || !recipient.trim() || (needsVerification && verification?.status !== 'verified') || (isElectricity && (displayedAmountMinor < electricityMinimum * 100 || displayedAmountMinor > electricityMaximum * 100))}
                   className="flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--brand)] px-4 py-3.5 font-bold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {submitting && <LoaderCircle className="animate-spin" size={18} />}
-                  {submitting ? 'Submitting securely…' : submissionUncertain ? 'Check existing order status above' : selectedProduct ? `Continue for ${naira(displayedAmountMinor)}` : 'Choose a product'}
+                  {submitting ? 'Submitting securely…' : submissionUncertain ? 'Check existing order status above' : selectedProduct && !selectedProduct.is_active ? 'Purchases not enabled yet' : selectedProduct ? `Continue for ${naira(displayedAmountMinor)}` : 'Choose a product'}
                 </button>
                 <p className="text-center text-xs leading-5 text-[var(--muted)]">Duplicate requests use the same idempotency key. If the result is uncertain, Semizzy will reconcile the existing order rather than submit another one.</p>
               </form>
