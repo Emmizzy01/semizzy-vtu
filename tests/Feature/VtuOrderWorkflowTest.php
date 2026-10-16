@@ -1132,6 +1132,54 @@ class VtuOrderWorkflowTest extends TestCase
         Http::assertNotSent(fn ($request) => str_ends_with($request->url(), '/pay'));
     }
 
+    public function test_electricity_provider_minimum_and_maximum_amount_boundaries_are_accepted(): void
+    {
+        config([
+            'services.vtu.driver' => 'vtpass',
+            'services.vtu.vtpass.base_url' => 'https://sandbox.vtpass.com/api',
+            'services.vtu.vtpass.api_key' => 'sandbox-api-key',
+            'services.vtu.vtpass.secret_key' => 'sandbox-secret-key',
+        ]);
+
+        $sequence = Http::sequence()
+            ->push(['code' => '000', 'content' => ['Customer_Name' => 'Minimum Customer']], 200)
+            ->push(['code' => '000', 'content' => ['transactions' => ['status' => 'delivered', 'transactionId' => 'electricity-minimum']]], 200)
+            ->push(['code' => '000', 'content' => ['Customer_Name' => 'Maximum Customer']], 200)
+            ->push(['code' => '000', 'content' => ['transactions' => ['status' => 'delivered', 'transactionId' => 'electricity-maximum']]], 200);
+        Http::fake(['https://sandbox.vtpass.com/api/*' => $sequence]);
+
+        foreach ([['minimum', 10000], ['maximum', 10000000]] as [$label, $amountMinor]) {
+            [$user, $wallet, $product] = $this->preparedCustomer(1000, 20000000);
+            $product->forceFill([
+                'service_type' => 'electricity-bill',
+                'network' => 'ikeja-electric',
+                'metadata' => [
+                    'provider_service_id' => 'ikeja-electric',
+                    'provider_minimum_amount' => 100,
+                    'provider_maximum_amount' => 100000,
+                    'purchase_supported' => true,
+                ],
+            ])->save();
+
+            $order = app(VtuOrderService::class)->purchase(
+                $user,
+                $product->code,
+                '12345678901',
+                'electricity-boundary-'.$label,
+                ['meter_type' => 'prepaid', 'contact_phone' => '08012345678'],
+                $amountMinor,
+            );
+
+            $this->assertSame('successful', $order->status);
+            $this->assertSame($amountMinor, (int) $order->amount_minor);
+            $this->assertSame(20000000 - $amountMinor, (int) $wallet->fresh()->available_balance_minor);
+        }
+
+        $this->assertDatabaseCount('vtu_orders', 2);
+        $this->assertSame(2, Http::recorded(fn ($request) => str_ends_with($request->url(), '/pay'))->count());
+        $this->assertSame(2, Http::recorded(fn ($request) => str_ends_with($request->url(), '/merchant-verify'))->count());
+    }
+
     public function test_electricity_amount_outside_provider_limits_is_rejected_before_verification_or_debit(): void
     {
         config([
