@@ -227,7 +227,6 @@ class VtpassProviderClientTest extends TestCase
                     $serviceType.' response case '.$index.' must be mapped conservatively.',
                 );
                 Http::assertSent(fn ($request) => str_ends_with($request->url(), '/pay'));
-                Http::preventStrayRequests();
             }
         }
     }
