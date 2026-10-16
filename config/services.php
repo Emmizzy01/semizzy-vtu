@@ -3,7 +3,7 @@
 return [
     // Keep each provider's secret separate; never commit secret values.
     'vtu' => [
-        'driver' => env('VTU_PROVIDER_DRIVER', 'configured'),
+        'driver' => env('VTU_PROVIDER_DRIVER', 'vtpass'),
         'name' => env('VTU_PROVIDER_NAME', 'configured_vtu'),
         'endpoint' => env('VTU_PROVIDER_ENDPOINT'),
         'token' => env('VTU_PROVIDER_TOKEN'),
