@@ -31,13 +31,6 @@ class VtpassCatalogService
         $this->apiKey = $apiKey;
         $this->secretKey = $secretKey;
 
-        $categoryResponse = $this->get('/service-categories', []);
-        $categoryBody = $categoryResponse->json();
-        $categories = is_array($categoryBody) ? ($categoryBody['content'] ?? null) : null;
-        if (! $categoryResponse->successful() || ! is_array($categories)) {
-            throw new RuntimeException('VTpass did not return a valid service category catalogue.');
-        }
-
         $services = [];
         foreach (['airtime', 'data'] as $type) {
             $response = $this->get('/services', ['identifier' => $type]);
@@ -75,8 +68,8 @@ class VtpassCatalogService
                     'price_minor' => $amount * 100,
                     'face_value_minor' => $amount * 100,
                     'currency' => 'NGN',
-                    'is_active' => true,
-                    'metadata' => ['provider_service_id' => $serviceId, 'catalog_source' => 'vtpass'],
+                    'is_active' => false,
+                    'metadata' => ['provider_service_id' => $serviceId, 'catalog_source' => 'vtpass', 'purchase_approved' => false],
                 ];
             }
         }
@@ -132,13 +125,14 @@ class VtpassCatalogService
                     'price_minor' => $minor,
                     'face_value_minor' => null,
                     'currency' => 'NGN',
-                    'is_active' => $phoneRecipientSupported,
+                    'is_active' => false,
                     'metadata' => [
                         'provider_service_id' => $serviceId,
                         'provider_service_name' => $serviceName,
                         'provider_category' => 'data',
                         'recipient_type' => $phoneRecipientSupported ? 'phone' : 'provider_specific',
                         'purchase_supported' => $phoneRecipientSupported,
+                        'purchase_approved' => false,
                         'provider_variation_code' => $variationCode,
                         'catalog_source' => 'vtpass',
                         'provider_listed_price_minor' => $minor,
@@ -149,115 +143,8 @@ class VtpassCatalogService
             }
         }
 
-        // Discover all other provider categories dynamically. These products are
-        // catalogued for administration, but deliberately remain inactive until
-        // their own customer verification and purchase flows are implemented.
-        foreach ($categories as $category) {
-            if (! is_array($category)) {
-                continue;
-            }
-            $identifier = $category['identifier'] ?? null;
-            $categoryName = $category['name'] ?? null;
-            if (! is_string($identifier)
-                || ! preg_match('/^[a-z0-9][a-z0-9-]{1,23}$/i', $identifier)
-                || in_array(strtolower($identifier), ['airtime', 'data'], true)) {
-                continue;
-            }
-
-            $serviceResponse = $this->get('/services', ['identifier' => $identifier]);
-            $serviceBody = $serviceResponse->json();
-            $categoryServices = is_array($serviceBody) ? ($serviceBody['content'] ?? null) : null;
-            if (! $serviceResponse->successful() || ! is_array($categoryServices)) {
-                throw new RuntimeException("VTpass did not return a valid {$identifier} service catalogue; no catalogue changes were applied.");
-            }
-
-            foreach ($categoryServices as $service) {
-                if (! is_array($service)) {
-                    continue;
-                }
-                $serviceId = $service['serviceID'] ?? null;
-                if (! is_string($serviceId) || ! preg_match('/^[a-z0-9][a-z0-9-]{1,79}$/i', $serviceId)) {
-                    continue;
-                }
-                $serviceName = is_string($service['name'] ?? null) ? $service['name'] : $serviceId;
-                $variationResponse = $this->get('/service-variations', ['serviceID' => $serviceId]);
-                $variationBody = $variationResponse->json();
-                $variations = is_array($variationBody)
-                    ? ($variationBody['content']['variations'] ?? $variationBody['content']['varations'] ?? null)
-                    : null;
-
-                if ($variationResponse->serverError()) {
-                    throw new RuntimeException("VTpass returned a server error while loading {$serviceId}; no catalogue changes were applied.");
-                }
-
-                $network = strtolower((string) strtok($serviceId, '-'));
-                $categoryMetadata = [
-                    'provider_service_id' => $serviceId,
-                    'provider_service_name' => $serviceName,
-                    'provider_category' => $identifier,
-                    'provider_category_name' => is_string($categoryName) ? $categoryName : $identifier,
-                    'recipient_type' => 'provider_specific',
-                    'purchase_supported' => in_array(strtolower($identifier), ['electricity-bill', 'tv-subscription'], true),
-                    'catalog_source' => 'vtpass',
-                ];
-
-                if ($variationResponse->successful() && is_array($variations) && $variations !== []) {
-                    foreach ($variations as $variation) {
-                        if (! is_array($variation)) {
-                            continue;
-                        }
-                        $variationCode = $variation['variation_code'] ?? null;
-                        $variationName = $variation['name'] ?? null;
-                        $amount = $variation['variation_amount'] ?? null;
-                        if (! is_string($variationCode) || $variationCode === ''
-                            || ! is_string($variationName) || $variationName === ''
-                            || ! is_numeric($amount) || (float) $amount <= 0) {
-                            continue;
-                        }
-                        $minor = (int) round((float) $amount * 100);
-                        $safeId = strtolower($serviceId);
-                        $code = substr('vtpass-'.$identifier.'-'.$safeId, 0, 55).'-'.substr(hash('sha256', $identifier.'|'.$serviceId.'|'.$variationCode), 0, 16);
-                        $products[] = [
-                            'service_type' => $identifier,
-                            'network' => $network,
-                            'code' => $code,
-                            'name' => $serviceName.' — '.$variationName,
-                            'price_minor' => $minor,
-                            'face_value_minor' => null,
-                            'currency' => 'NGN',
-                            'is_active' => false,
-                            'metadata' => array_merge($categoryMetadata, [
-                                'provider_variation_code' => $variationCode,
-                                'provider_listed_price_minor' => $minor,
-                                'catalog_entry_type' => 'variation',
-                            ]),
-                        ];
-                    }
-                    continue;
-                }
-
-                // Some services (notably electricity) require a customer-entered
-                // amount or a service-specific meter/account type rather than a
-                // fixed-price variation. Keep a disabled registry entry instead
-                // of inventing a sell price or making it purchasable.
-                $products[] = [
-                    'service_type' => $identifier,
-                    'network' => $network,
-                    'code' => substr('vtpass-'.$identifier.'-'.$serviceId, 0, 63).'-'.substr(hash('sha256', $identifier.'|'.$serviceId), 0, 12),
-                    'name' => $serviceName.' — setup required',
-                    'price_minor' => 0,
-                    'face_value_minor' => null,
-                    'currency' => 'NGN',
-                    'is_active' => false,
-                    'metadata' => array_merge($categoryMetadata, [
-                        'catalog_entry_type' => 'service_placeholder',
-                        'provider_minimum_amount' => is_numeric($service['minimium_amount'] ?? null) ? (float) $service['minimium_amount'] : null,
-                        'provider_maximum_amount' => is_numeric($service['maximum_amount'] ?? null) ? (float) $service['maximum_amount'] : null,
-                        'setup_required' => ['customer_verification', 'recipient_fields', 'purchase_payload'],
-                    ]),
-                ];
-            }
-        }
+        // This sync intentionally imports airtime and data only. Other VTpass
+        // categories require their own validated customer flows and are out of scope.
 
         if ($products === []) {
             throw new RuntimeException('VTpass returned no usable mobile airtime/data products; no catalogue changes were applied.');
@@ -278,17 +165,16 @@ class VtpassCatalogService
                 $providerMetadata = $incoming['metadata'] ?? [];
 
                 if ($existing === null) {
-                    // Provider-returned IDs and variation codes are required before
-                    // a synced product can be sold. Unsupported networks never enter
-                    // this list and therefore are not silently enabled.
-                    $incoming['is_active'] = $this->hasRequiredMapping($incoming);
+                    // Sync is catalogue discovery only. A new product remains disabled
+                    // until an authorised operator reviews its mapping, price, and flow.
+                    $incoming['is_active'] = false;
                     VtuProduct::query()->create($incoming);
                     $created++;
                     continue;
                 }
 
                 $metadata = $existing->metadata ?? [];
-                foreach (['provider_service_id', 'provider_service_name', 'provider_category', 'recipient_type', 'purchase_supported', 'provider_variation_code', 'catalog_source', 'provider_listed_price_minor', 'validity', 'data_type'] as $key) {
+                foreach (['provider_service_id', 'provider_service_name', 'provider_category', 'recipient_type', 'purchase_supported', 'provider_variation_code', 'catalog_source', 'provider_listed_price_minor', 'validity', 'data_type', 'purchase_approved'] as $key) {
                     if (array_key_exists($key, $providerMetadata)) {
                         $metadata[$key] = $providerMetadata[$key];
                     }
@@ -308,23 +194,6 @@ class VtpassCatalogService
 
             return ['created' => $created, 'updated' => $updated, 'total' => count($products)];
         });
-    }
-
-    private function hasRequiredMapping(array $product): bool
-    {
-        $metadata = $product['metadata'] ?? [];
-        if (empty($metadata['provider_service_id'])) {
-            return false;
-        }
-
-        if (($product['service_type'] ?? null) === 'data') {
-            return ! empty($metadata['provider_variation_code'])
-                && ! empty($metadata['purchase_supported']);
-        }
-
-        // Airtime has no variation code, while every other category must wait
-        // for its own validation and purchase adapter before activation.
-        return ($product['service_type'] ?? null) === 'airtime';
     }
 
     private function supportsPhoneRecipient(string $serviceId): bool
