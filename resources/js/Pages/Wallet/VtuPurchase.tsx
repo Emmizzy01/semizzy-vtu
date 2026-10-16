@@ -79,6 +79,19 @@ function naira(amountMinor: number) {
   }).format(amountMinor / 100);
 }
 
+function productLabel(product: Product) {
+  const details: string[] = [];
+  const validity = product.metadata?.validity;
+  const dataType = product.metadata?.data_type;
+  if (typeof validity === 'string' && validity.trim() && !product.name.toLowerCase().includes(validity.toLowerCase())) {
+    details.push(validity.trim());
+  }
+  if (typeof dataType === 'string' && dataType.trim() && !product.name.toLowerCase().includes(dataType.toLowerCase())) {
+    details.push(dataType.trim());
+  }
+  return `${product.name}${details.length ? ` (${details.join(' · ')})` : ''} · ${naira(product.price_minor)}`;
+}
+
 async function readMessage(response: Response) {
   const body = await response.json().catch(() => ({}));
   return typeof body.message === 'string' ? body.message : 'Something went wrong. Please try again.';
@@ -421,7 +434,7 @@ export default function VtuPurchase() {
                       className="mt-2 w-full rounded-xl border border-[var(--line)] bg-[var(--page)] px-3 py-3 font-normal outline-none focus:border-[var(--brand)]"
                     >
                       {products.filter((product) => !selectedProduct || product.network === selectedProduct.network).map((product) => (
-                        <option key={product.code} value={product.code}>{product.name} · {naira(product.price_minor)}</option>
+                        <option key={product.code} value={product.code}>{productLabel(product)}</option>
                       ))}
                     </select>
                   </label>
@@ -512,6 +525,12 @@ export default function VtuPurchase() {
                       <span className="text-[var(--muted)]">Total charge</span>
                       <strong className="text-lg">{naira(displayedAmountMinor)}</strong>
                     </div>
+                    {serviceType === 'data' && (
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {typeof selectedProduct.metadata?.validity === 'string' && selectedProduct.metadata.validity && <span className="rounded-full border border-[var(--line)] px-3 py-1 text-xs">Validity: {selectedProduct.metadata.validity}</span>}
+                        {typeof selectedProduct.metadata?.data_type === 'string' && selectedProduct.metadata.data_type && <span className="rounded-full border border-[var(--line)] px-3 py-1 text-xs">Plan type: {selectedProduct.metadata.data_type}</span>}
+                      </div>
+                    )}
                     <p className="mt-2 text-xs leading-5 text-[var(--muted)]">Check the account number and customer details carefully. Once provider dispatch begins, cancellation may not be possible.</p>
                   </div>
                 ) : null}
@@ -531,7 +550,7 @@ export default function VtuPurchase() {
                   className="flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--brand)] px-4 py-3.5 font-bold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {submitting && <LoaderCircle className="animate-spin" size={18} />}
-                  {submitting ? 'Submitting securely…' : submissionUncertain ? 'Retry same request safely' : selectedProduct ? `Continue for ${naira(displayedAmountMinor)}` : 'Choose a product'}
+                  {submitting ? 'Submitting securely…' : submissionUncertain ? 'Check existing order status above' : selectedProduct ? `Continue for ${naira(displayedAmountMinor)}` : 'Choose a product'}
                 </button>
                 <p className="text-center text-xs leading-5 text-[var(--muted)]">Duplicate requests use the same idempotency key. If the result is uncertain, Semizzy will reconcile the existing order rather than submit another one.</p>
               </form>
