@@ -344,6 +344,7 @@ export default function VtuPurchase() {
                       onChange={(event) => {
                         const firstForNetwork = products.find((product) => product.network === event.target.value);
                         setProductCode(firstForNetwork?.code ?? '');
+                        setVerification(null);
                         setRequestKey(newRequestKey());
                       }}
                       disabled={loadingProducts || networks.length === 0 || submissionUncertain}
@@ -359,6 +360,7 @@ export default function VtuPurchase() {
                       value={productCode}
                       onChange={(event) => {
                         setProductCode(event.target.value);
+                        setVerification(null);
                         setRequestKey(newRequestKey());
                       }}
                       disabled={loadingProducts || products.length === 0 || submissionUncertain}
@@ -380,6 +382,7 @@ export default function VtuPurchase() {
                     value={recipient}
                     onChange={(event) => {
                       setRecipient(event.target.value);
+                      setVerification(null);
                       setRequestKey(newRequestKey());
                     }}
                     placeholder={isElectricity ? "Enter your electricity meter number" : isTv ? "Enter your TV smartcard number" : "e.g. 08012345678"}
