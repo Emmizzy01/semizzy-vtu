@@ -89,6 +89,29 @@ class VtuOrderController extends Controller
         return response()->json(['data' => $this->serializeOrder($order)], $order->getAttribute('_created_for_request') === true ? 201 : 200);
     }
 
+    public function recover(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'idempotency_key' => ['required', 'string', 'max:128'],
+        ]);
+        $user = $request->user();
+        abort_unless($user, 401);
+
+        $order = VtuOrder::query()
+            ->where('user_id', $user->getKey())
+            ->where('idempotency_key', $validated['idempotency_key'])
+            ->first();
+
+        if ($order === null) {
+            return response()->json([
+                'data' => null,
+                'message' => 'No saved order is visible yet. Keep this request unchanged and check again before starting another purchase.',
+            ], 404);
+        }
+
+        return response()->json(['data' => $this->serializeOrder($order)]);
+    }
+
     public function show(Request $request, string $publicId): JsonResponse
     {
         $user = $request->user();
