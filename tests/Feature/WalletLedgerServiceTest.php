@@ -176,4 +176,48 @@ class WalletLedgerServiceTest extends TestCase
         $this->assertDatabaseCount('wallet_transactions', 1);
     }
 
+
+    public function test_same_debit_idempotency_key_and_payload_cannot_debit_twice(): void
+    {
+        $user = User::query()->create([
+            'name' => 'Idempotent Debit Customer',
+            'email' => 'idempotent-debit@example.test',
+            'password' => 'not-a-real-password',
+        ]);
+        $wallet = app(WalletAccountService::class)->openForUser($user);
+        $service = app(WalletLedgerService::class);
+        $service->post($wallet->id, 'credit', 1000, 'idempotent-debit-seed');
+
+        $first = $service->post($wallet->id, 'debit', 700, 'idempotent-debit-key');
+        $second = $service->post($wallet->id, 'debit', 700, 'idempotent-debit-key');
+
+        $this->assertSame($first->id, $second->id);
+        $this->assertSame(300, (int) $wallet->fresh()->balance_minor);
+        $this->assertSame(300, (int) $wallet->fresh()->available_balance_minor);
+        $this->assertDatabaseCount('wallet_transactions', 2);
+        $this->assertDatabaseCount('wallet_ledger_entries', 2);
+    }
+
+    public function test_debit_idempotency_key_reuse_with_changed_amount_is_rejected_without_second_debit(): void
+    {
+        $user = User::query()->create([
+            'name' => 'Debit Conflict Customer',
+            'email' => 'debit-conflict@example.test',
+            'password' => 'not-a-real-password',
+        ]);
+        $wallet = app(WalletAccountService::class)->openForUser($user);
+        $service = app(WalletLedgerService::class);
+        $service->post($wallet->id, 'credit', 1000, 'debit-conflict-seed');
+        $service->post($wallet->id, 'debit', 300, 'debit-conflict-key');
+
+        try {
+            $service->post($wallet->id, 'debit', 400, 'debit-conflict-key');
+            $this->fail('Reusing a debit idempotency key with a different amount must be rejected.');
+        } catch (IdempotencyConflict) {
+            $this->assertSame(700, (int) $wallet->fresh()->balance_minor);
+            $this->assertSame(2, WalletTransaction::query()->count());
+            $this->assertSame(2, WalletLedgerEntry::query()->count());
+        }
+    }
+
 }
