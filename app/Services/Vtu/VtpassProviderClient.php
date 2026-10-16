@@ -194,7 +194,7 @@ class VtpassProviderClient implements VtuProvider
     private function serviceId(VtuProduct $product): string
     {
         $metadataServiceId = $product->metadata['provider_service_id'] ?? null;
-        if (is_string($metadataServiceId) && preg_match('/^[a-z0-9-]{2,80}$/', $metadataServiceId)) {
+        if (is_string($metadataServiceId) && preg_match('/^[a-z0-9-]{2,80}$/i', $metadataServiceId)) {
             return $metadataServiceId;
         }
 
