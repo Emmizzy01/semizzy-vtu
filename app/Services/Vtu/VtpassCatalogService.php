@@ -15,13 +15,6 @@ class VtpassCatalogService
     private string $apiKey;
     private string $secretKey;
 
-    private const AIRTIME_SERVICES = [
-        'mtn' => 'mtn',
-        'glo' => 'glo',
-        'airtel' => 'airtel',
-        '9mobile' => 'etisalat',
-    ];
-
     /** @return array<int, array<string, mixed>> */
     public function fetchProducts(): array
     {
@@ -50,13 +43,14 @@ class VtpassCatalogService
         }
 
         $products = [];
-        $airtimeIds = array_values(array_filter(array_map(
-            static fn (mixed $service): mixed => is_array($service) ? ($service['serviceID'] ?? null) : null,
-            $services['airtime'],
-        ), 'is_string'));
+        foreach ($services['airtime'] as $service) {
+            if (! is_array($service) || ! is_string($service['serviceID'] ?? null)) {
+                continue;
+            }
 
-        foreach (self::AIRTIME_SERVICES as $network => $serviceId) {
-            if (! in_array($serviceId, $airtimeIds, true)) {
+            $serviceId = $service['serviceID'];
+            $network = $this->airtimeNetworkFromService($serviceId);
+            if ($network === null) {
                 continue;
             }
 
@@ -193,6 +187,18 @@ class VtpassCatalogService
 
         return ($product['service_type'] ?? null) !== 'data'
             || ! empty($metadata['provider_variation_code']);
+    }
+
+    private function airtimeNetworkFromService(string $serviceId): ?string
+    {
+        return match (strtolower($serviceId)) {
+            'mtn' => 'mtn',
+            'glo' => 'glo',
+            'airtel' => 'airtel',
+            'etisalat', '9mobile' => '9mobile',
+            'lebara' => 'lebara',
+            default => null,
+        };
     }
 
     private function networkFromService(string $serviceId): string
