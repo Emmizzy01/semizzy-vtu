@@ -52,6 +52,16 @@ class VtuOrderController extends Controller
                     && $hasProviderService
                     && ($product->service_type === 'airtime' || $hasDataVariation);
             })
+            ->map(function (VtuProduct $product): VtuProduct {
+                // Reflect the actual provider purchase gate in the customer UI,
+                // even for legacy rows that were active before approval tracking.
+                if (($product->metadata['catalog_source'] ?? null) === 'vtpass'
+                    && ($product->metadata['purchase_approved'] ?? false) !== true) {
+                    $product->setAttribute('is_active', false);
+                }
+
+                return $product;
+            })
             ->values();
 
         return response()->json(['data' => $products]);
