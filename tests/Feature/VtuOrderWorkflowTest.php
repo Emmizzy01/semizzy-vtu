@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\User;
 use App\Models\VtuOrder;
 use App\Models\VtuProduct;
+use App\Models\PlatformFeatureControl;
 use App\Services\Vtu\VtuOrderService;
 use App\Services\Vtu\VtuProvider;
 use App\Exceptions\Wallet\InsufficientWalletFunds;
@@ -22,6 +23,12 @@ class VtuOrderWorkflowTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+
+        // These tests exercise the electricity/TV workflow internals under an
+        // explicitly enabled test configuration. Production defaults remain
+        // disabled until provider-specific workflows are approved.
+        PlatformFeatureControl::query()->whereIn('feature_key', ['service.electricity', 'service.tv'])
+            ->update(['is_enabled' => true, 'is_implemented' => true]);
 
         config([
             'services.vtu.name' => 'test_provider',
