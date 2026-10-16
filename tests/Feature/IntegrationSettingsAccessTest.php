@@ -83,6 +83,7 @@ class IntegrationSettingsAccessTest extends TestCase
         UserPermission::query()->create(['user_id' => $admin->id, 'permission' => 'staff.permissions.manage']);
 
         $this->actingAs($admin)->put('/admin/payment-gateway', [
+            'reason' => 'Update gateway configuration safely',
             'mode' => 'test',
             'secret_key' => 'sk_test_example123',
             'callback_url' => 'https://semizzy.example.test/wallet/funding/return',
@@ -106,6 +107,7 @@ class IntegrationSettingsAccessTest extends TestCase
         UserPermission::query()->create(['user_id' => $admin->id, 'permission' => 'staff.permissions.manage']);
 
         $this->actingAs($admin)->put('/admin/api-providers', [
+            'reason' => 'Update provider configuration safely',
             'driver' => 'vtpass',
             'name' => 'VTpass',
             'generic_endpoint' => '',
@@ -134,6 +136,7 @@ class IntegrationSettingsAccessTest extends TestCase
         UserPermission::query()->create(['user_id' => $admin->id, 'permission' => 'staff.permissions.manage']);
 
         $this->actingAs($admin)->put('/admin/payment-gateway', [
+            'reason' => 'Update gateway configuration safely',
             'mode' => 'test',
             'secret_key' => 'not-a-paystack-key',
             'callback_url' => 'https://semizzy.example.test/wallet/funding/return',
@@ -153,6 +156,7 @@ class IntegrationSettingsAccessTest extends TestCase
         UserPermission::query()->create(['user_id' => $admin->id, 'permission' => 'staff.permissions.manage']);
 
         $this->actingAs($admin)->put('/admin/payment-gateway', [
+            'reason' => 'Update gateway configuration safely',
             'mode' => 'live',
             'secret_key' => 'sk_live_semizzy_live_test_key',
             'callback_url' => 'https://semizzy.example.test/wallet/funding/return',
@@ -162,6 +166,7 @@ class IntegrationSettingsAccessTest extends TestCase
         $this->assertDatabaseMissing('integration_settings', ['key' => 'paystack.secret_key']);
 
         $this->actingAs($admin)->put('/admin/payment-gateway', [
+            'reason' => 'Update gateway configuration safely',
             'mode' => 'live',
             'secret_key' => 'sk_live_semizzy_live_test_key',
             'callback_url' => 'https://semizzy.example.test/wallet/funding/return',

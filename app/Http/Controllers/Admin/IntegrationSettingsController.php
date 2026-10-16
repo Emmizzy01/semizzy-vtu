@@ -3,9 +3,11 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\PlatformSettingAudit;
 use App\Services\IntegrationSettings;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
 
@@ -51,6 +53,7 @@ class IntegrationSettingsController extends Controller
             'mode' => ['required', 'in:test,live'],
             'callback_url' => ['required', 'url', 'starts_with:https://', 'max:2048'],
             'confirm_live' => ['nullable', 'boolean'],
+            'reason' => ['required', 'string', 'min:8', 'max:500'],
         ]);
         $secret = trim((string) ($data['secret_key'] ?? ''));
         if ($secret !== '' && ! preg_match('/^sk_(?:test|live)_[^\s]+$/', $secret)) {
@@ -66,13 +69,35 @@ class IntegrationSettingsController extends Controller
         if ($data['mode'] === 'live' && ! $request->boolean('confirm_live')) {
             return back()->withErrors(['confirm_live' => 'Confirm live payment mode before saving.']);
         }
-        if ($secret !== '') {
-            $settings->set('paystack.secret_key', $secret, $request->user()->id);
-        }
-        $settings->set('paystack.mode', $data['mode'], $request->user()->id);
-        $settings->set('paystack.callback_url', $data['callback_url'], $request->user()->id);
+        $actor = (int) $request->user()->id;
+        $reason = trim($data['reason']);
+        DB::transaction(function () use ($settings, $actor, $reason, $data, $secret): void {
+            $updates = [
+                'paystack.mode' => $data['mode'],
+                'paystack.callback_url' => trim($data['callback_url']),
+            ];
+            if ($secret !== '') $updates['paystack.secret_key'] = $secret;
 
-        return back()->with('success', 'Payment gateway settings saved.');
+            foreach ($updates as $key => $newValue) {
+                $fallback = $key === 'paystack.secret_key'
+                    ? (string) config('services.paystack.secret_key', '')
+                    : ($key === 'paystack.callback_url' ? (string) config('services.paystack.callback_url', '') : 'test');
+                $oldValue = (string) $settings->get($key, $fallback);
+                if (hash_equals(hash('sha256', $oldValue), hash('sha256', (string) $newValue))) continue;
+
+                $settings->set($key, (string) $newValue, $actor);
+                PlatformSettingAudit::query()->create([
+                    'actor_user_id' => $actor,
+                    'setting_key' => $key,
+                    'old_value_hash' => hash('sha256', $oldValue),
+                    'new_value_hash' => hash('sha256', (string) $newValue),
+                    'reason' => $reason,
+                    'created_at' => now(),
+                ]);
+            }
+        }, attempts: 3);
+
+        return back()->with('success', 'Payment gateway settings saved and audited.');
     }
 
     public function apiProviders(IntegrationSettings $settings): InertiaResponse
@@ -107,19 +132,50 @@ class IntegrationSettingsController extends Controller
             'vtpass_api_key' => ['nullable', 'string', 'max:1000'],
             'vtpass_secret_key' => ['nullable', 'string', 'max:1000'],
             'confirm_live' => ['nullable', 'boolean'],
+            'reason' => ['required', 'string', 'min:8', 'max:500'],
         ]);
         if ($data['vtpass_base_url'] === 'https://vtpass.com/api' && ! $request->boolean('confirm_live')) {
             return back()->withErrors(['confirm_live' => 'Confirm live VTpass mode before saving.']);
         }
-        $actor = $request->user()->id;
-        $settings->set('vtu.driver', $data['driver'], $actor);
-        $settings->set('vtu.name', trim($data['name']), $actor);
-        $settings->set('vtu.vtpass.base_url', $data['vtpass_base_url'], $actor);
-        foreach (['generic_endpoint' => 'vtu.endpoint', 'generic_token' => 'vtu.token', 'vtpass_api_key' => 'vtu.vtpass.api_key', 'vtpass_secret_key' => 'vtu.vtpass.secret_key'] as $field => $key) {
-            $value = trim((string) ($data[$field] ?? ''));
-            if ($value !== '') $settings->set($key, $value, $actor);
-        }
+        $actor = (int) $request->user()->id;
+        $reason = trim($data['reason']);
+        DB::transaction(function () use ($settings, $actor, $reason, $data): void {
+            $updates = [
+                'vtu.driver' => $data['driver'],
+                'vtu.name' => trim($data['name']),
+                'vtu.vtpass.base_url' => $data['vtpass_base_url'],
+            ];
+            foreach (['generic_endpoint' => 'vtu.endpoint', 'generic_token' => 'vtu.token', 'vtpass_api_key' => 'vtu.vtpass.api_key', 'vtpass_secret_key' => 'vtu.vtpass.secret_key'] as $field => $key) {
+                $value = trim((string) ($data[$field] ?? ''));
+                if ($value !== '') $updates[$key] = $value;
+            }
 
-        return back()->with('success', 'API provider settings saved.');
+            foreach ($updates as $key => $newValue) {
+                $fallback = match ($key) {
+                    'vtu.driver' => (string) config('services.vtu.driver', 'configured'),
+                    'vtu.name' => (string) config('services.vtu.name', 'configured_vtu'),
+                    'vtu.vtpass.base_url' => (string) config('services.vtu.vtpass.base_url', 'https://sandbox.vtpass.com/api'),
+                    'vtu.endpoint' => (string) config('services.vtu.endpoint', ''),
+                    'vtu.token' => (string) config('services.vtu.token', ''),
+                    'vtu.vtpass.api_key' => (string) config('services.vtu.vtpass.api_key', ''),
+                    'vtu.vtpass.secret_key' => (string) config('services.vtu.vtpass.secret_key', ''),
+                    default => '',
+                };
+                $oldValue = (string) $settings->get($key, $fallback);
+                if (hash_equals(hash('sha256', $oldValue), hash('sha256', (string) $newValue))) continue;
+
+                $settings->set($key, (string) $newValue, $actor);
+                PlatformSettingAudit::query()->create([
+                    'actor_user_id' => $actor,
+                    'setting_key' => $key,
+                    'old_value_hash' => hash('sha256', $oldValue),
+                    'new_value_hash' => hash('sha256', (string) $newValue),
+                    'reason' => $reason,
+                    'created_at' => now(),
+                ]);
+            }
+        }, attempts: 3);
+
+        return back()->with('success', 'API provider settings saved and audited.');
     }
 }

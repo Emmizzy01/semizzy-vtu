@@ -16,7 +16,7 @@ type Gateway = {
 };
 
 export default function PaymentGateway({ gateway, manualDeposit }: { gateway: Gateway; manualDeposit: ManualDepositSettings }) {
-  const form = useForm({ mode: gateway.mode === 'Live' ? 'live' : 'test', secret_key: '', callback_url: gateway.callbackUrl || '', confirm_live: false });
+  const form = useForm({ mode: gateway.mode === 'Live' ? 'live' : 'test', secret_key: '', callback_url: gateway.callbackUrl || '', confirm_live: false, reason: '' });
   const depositForm = useForm({ ...manualDeposit, reason: '' });
 
   return (
@@ -70,6 +70,7 @@ export default function PaymentGateway({ gateway, manualDeposit }: { gateway: Ga
           <Field label="HTTPS callback URL" value={form.data.callback_url} onChange={v => form.setData('callback_url', v)} error={form.errors.callback_url} placeholder="https://your-domain.example/wallet/funding/return" />
           {form.data.mode === 'live' ? <label className="flex items-start gap-3 rounded-xl border border-amber-500/40 p-4 text-sm"><input type="checkbox" checked={form.data.confirm_live} onChange={e => form.setData('confirm_live', e.target.checked)} className="mt-1" /><span><strong>Confirm live payment credentials.</strong><br />I understand this can enable real-money payment operations once the deployment is configured.</span></label> : null}
           {form.errors.confirm_live && <p className="text-sm text-red-600">{form.errors.confirm_live}</p>}
+          <label className="block space-y-2"><span className="text-sm font-bold">Reason for change (required audit note)</span><textarea value={form.data.reason} onChange={e => form.setData('reason', e.target.value)} minLength={8} maxLength={500} required rows={3} className="w-full rounded-xl border border-[var(--line)] bg-[var(--surface)] px-3 py-3 text-sm" />{form.errors.reason && <span className="text-sm text-red-600">{form.errors.reason}</span>}</label>
           {form.hasErrors && <p className="text-sm text-red-600">Please correct the highlighted fields before saving.</p>}
           <button disabled={form.processing} className="min-h-11 rounded-xl bg-[var(--brand)] px-5 py-3 text-sm font-bold text-white disabled:opacity-60">{form.processing ? 'Saving…' : 'Save payment settings'}</button>
           {form.recentlySuccessful && <p className="text-sm font-semibold text-emerald-600">Settings saved.</p>}
