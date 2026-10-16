@@ -1309,6 +1309,190 @@ class VtuOrderWorkflowTest extends TestCase
         Http::assertNothingSent();
     }
 
+    public function test_electricity_and_tv_duplicate_purchases_verify_and_debit_only_once(): void
+    {
+        config([
+            'services.vtu.driver' => 'vtpass',
+            'services.vtu.vtpass.base_url' => 'https://sandbox.vtpass.com/api',
+            'services.vtu.vtpass.api_key' => 'sandbox-api-key',
+            'services.vtu.vtpass.secret_key' => 'sandbox-secret-key',
+        ]);
+
+        $responses = Http::sequence()
+            ->push(['code' => '000', 'content' => ['Customer_Name' => 'Meter Holder']], 200)
+            ->push(['code' => '000', 'content' => ['transactions' => ['status' => 'delivered', 'transactionId' => 'meter-order-1']]], 200)
+            ->push(['code' => '000', 'content' => ['Customer_Name' => 'TV Holder']], 200)
+            ->push(['code' => '000', 'content' => ['transactions' => ['status' => 'delivered', 'transactionId' => 'tv-order-1']]], 200);
+        Http::fake(['https://sandbox.vtpass.com/api/*' => $responses]);
+
+        [$electricUser, $electricWallet, $electricProduct] = $this->preparedCustomer(50000, 200000);
+        $electricProduct->forceFill([
+            'service_type' => 'electricity-bill',
+            'network' => 'ikeja-electric',
+            'metadata' => [
+                'provider_service_id' => 'ikeja-electric',
+                'provider_minimum_amount' => 100,
+                'provider_maximum_amount' => 100000,
+                'purchase_supported' => true,
+            ],
+        ])->save();
+
+        $service = app(VtuOrderService::class);
+        $electricFirst = $service->purchase(
+            $electricUser,
+            $electricProduct->code,
+            '12345678901',
+            'electricity-duplicate-key',
+            ['meter_type' => 'prepaid', 'contact_phone' => '08012345678'],
+            50000,
+        );
+        $electricDuplicate = $service->purchase(
+            $electricUser,
+            $electricProduct->code,
+            '12345678901',
+            'electricity-duplicate-key',
+            ['meter_type' => 'prepaid', 'contact_phone' => '08012345678'],
+            50000,
+        );
+
+        [$tvUser, $tvWallet, $tvProduct] = $this->preparedCustomer(50000, 200000);
+        $tvProduct->forceFill([
+            'service_type' => 'tv-subscription',
+            'network' => 'dstv',
+            'metadata' => [
+                'provider_service_id' => 'dstv',
+                'provider_variation_code' => 'dstv-padi',
+                'purchase_supported' => true,
+            ],
+        ])->save();
+
+        $tvFirst = $service->purchase(
+            $tvUser,
+            $tvProduct->code,
+            '1234567890',
+            'tv-duplicate-key',
+            ['contact_phone' => '08012345678'],
+        );
+        $tvDuplicate = $service->purchase(
+            $tvUser,
+            $tvProduct->code,
+            '1234567890',
+            'tv-duplicate-key',
+            ['contact_phone' => '08012345678'],
+        );
+
+        $this->assertSame('successful', $electricFirst->status);
+        $this->assertSame($electricFirst->id, $electricDuplicate->id);
+        $this->assertSame(150000, (int) $electricWallet->fresh()->available_balance_minor);
+        $this->assertSame('successful', $tvFirst->status);
+        $this->assertSame($tvFirst->id, $tvDuplicate->id);
+        $this->assertSame(150000, (int) $tvWallet->fresh()->available_balance_minor);
+        $this->assertDatabaseCount('vtu_orders', 2);
+        $this->assertDatabaseCount('wallet_transactions', 4);
+        $this->assertSame(2, Http::recorded(fn ($request) => str_ends_with($request->url(), '/merchant-verify'))->count());
+        $this->assertSame(2, Http::recorded(fn ($request) => str_ends_with($request->url(), '/pay'))->count());
+    }
+
+    public function test_unverified_electricity_meter_cannot_create_or_debit_a_purchase_order(): void
+    {
+        config([
+            'services.vtu.driver' => 'vtpass',
+            'services.vtu.vtpass.base_url' => 'https://sandbox.vtpass.com/api',
+            'services.vtu.vtpass.api_key' => 'sandbox-api-key',
+            'services.vtu.vtpass.secret_key' => 'sandbox-secret-key',
+        ]);
+        Http::fake(['https://sandbox.vtpass.com/api/merchant-verify' => Http::response([
+            'code' => '099',
+            'response_description' => 'Meter not found',
+        ], 200)]);
+
+        [$user, $wallet, $product] = $this->preparedCustomer(50000, 200000);
+        $product->forceFill([
+            'service_type' => 'electricity-bill',
+            'network' => 'ikeja-electric',
+            'metadata' => [
+                'provider_service_id' => 'ikeja-electric',
+                'provider_minimum_amount' => 100,
+                'provider_maximum_amount' => 100000,
+                'purchase_supported' => true,
+            ],
+        ])->save();
+
+        try {
+            app(VtuOrderService::class)->purchase(
+                $user,
+                $product->code,
+                '12345678901',
+                'electricity-unverified-meter',
+                ['meter_type' => 'prepaid', 'contact_phone' => '08012345678'],
+                50000,
+            );
+            $this->fail('An unverified meter must never proceed to a bill payment.');
+        } catch (\InvalidArgumentException $exception) {
+            $this->assertStringContainsString('could not confirm', $exception->getMessage());
+        }
+
+        $this->assertSame(200000, (int) $wallet->fresh()->available_balance_minor);
+        $this->assertDatabaseCount('vtu_orders', 0);
+        $this->assertDatabaseCount('wallet_transactions', 1);
+        Http::assertSentCount(1);
+        Http::assertNotSent(fn ($request) => str_ends_with($request->url(), '/pay'));
+    }
+
+    public function test_ambiguous_tv_purchase_is_reconciled_without_resubmission_or_early_refund(): void
+    {
+        config([
+            'services.vtu.driver' => 'vtpass',
+            'services.vtu.vtpass.base_url' => 'https://sandbox.vtpass.com/api',
+            'services.vtu.vtpass.api_key' => 'sandbox-api-key',
+            'services.vtu.vtpass.secret_key' => 'sandbox-secret-key',
+        ]);
+        $responses = Http::sequence()
+            ->push(['code' => '000', 'content' => ['Customer_Name' => 'TV Holder']], 200)
+            ->push(['code' => '000', 'content' => ['transactions' => ['status' => 'pending']]], 200)
+            ->push(['code' => '015', 'response_description' => 'INVALID REQUEST ID'], 200);
+        Http::fake(['https://sandbox.vtpass.com/api/*' => $responses]);
+
+        [$user, $wallet, $product] = $this->preparedCustomer(50000, 200000);
+        $product->forceFill([
+            'service_type' => 'tv-subscription',
+            'network' => 'dstv',
+            'metadata' => [
+                'provider_service_id' => 'dstv',
+                'provider_variation_code' => 'dstv-padi',
+                'purchase_supported' => true,
+            ],
+        ])->save();
+
+        $service = app(VtuOrderService::class);
+        $order = $service->purchase(
+            $user,
+            $product->code,
+            '1234567890',
+            'tv-ambiguous-outcome',
+            ['contact_phone' => '08012345678'],
+        );
+        $this->assertSame('processing', $order->status);
+
+        $reconciled = $service->reconcile($order->fresh());
+        $duplicate = $service->purchase(
+            $user,
+            $product->code,
+            '1234567890',
+            'tv-ambiguous-outcome',
+            ['contact_phone' => '08012345678'],
+        );
+
+        $this->assertSame('awaiting_reconciliation', $reconciled->status);
+        $this->assertSame($order->id, $duplicate->id);
+        $this->assertSame(150000, (int) $wallet->fresh()->available_balance_minor);
+        $this->assertDatabaseCount('vtu_orders', 1);
+        $this->assertDatabaseCount('wallet_transactions', 2);
+        $this->assertSame(1, Http::recorded(fn ($request) => str_ends_with($request->url(), '/pay'))->count());
+        $this->assertSame(1, Http::recorded(fn ($request) => str_ends_with($request->url(), '/requery'))->count());
+        $this->assertSame(1, Http::recorded(fn ($request) => str_ends_with($request->url(), '/merchant-verify'))->count());
+    }
+
     private function preparedCustomer(int $productPriceMinor, int $initialBalanceMinor): array
     {
         $user = User::query()->create([
