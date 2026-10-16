@@ -93,6 +93,7 @@ class VtuProductCatalogueTest extends TestCase
 
             return Http::response(['content' => ['variations' => [
                 ['variation_code' => 'plan-1', 'name' => '1GB SME 7 Days', 'variation_amount' => '500'],
+                ['variation_code' => 'plan-corporate-gifting', 'name' => '2GB Corporate/Gifting 30 Days', 'variation_amount' => '1200'],
             ]]], 200);
         });
         $this->actingAs($staff)->post('/admin/vtu-products/sync')->assertRedirect()->assertSessionHasNoErrors();
@@ -102,6 +103,12 @@ class VtuProductCatalogueTest extends TestCase
         $this->assertSame('7 days', $smePlan->metadata['validity']);
         $this->assertSame('SME', $smePlan->metadata['data_type']);
         $this->assertTrue($smePlan->metadata['purchase_supported']);
+        $corporateGiftingPlan = VtuProduct::query()
+            ->where('metadata->provider_service_id', 'mtn-sme-data')
+            ->where('metadata->provider_variation_code', 'plan-corporate-gifting')
+            ->firstOrFail();
+        $this->assertSame('30 days', $corporateGiftingPlan->metadata['validity']);
+        $this->assertSame('Corporate/Gifting', $corporateGiftingPlan->metadata['data_type']);
         $this->assertDatabaseHas('vtu_products', ['service_type' => 'data', 'is_active' => true, 'metadata->provider_service_id' => 'lebara-data']);
         $this->assertDatabaseHas('vtu_products', ['service_type' => 'data', 'network' => 'smile', 'is_active' => false, 'metadata->provider_service_id' => 'smile-direct']);
         $this->assertDatabaseHas('vtu_products', ['service_type' => 'data', 'network' => 'spectranet', 'is_active' => false, 'metadata->provider_service_id' => 'spectranet']);
