@@ -165,6 +165,16 @@ class VtuOrderService
                 if (! is_int($lockedAmountMinor) || $lockedAmountMinor < 1) {
                     throw new InvalidArgumentException('The locked product price or purchase amount is invalid.');
                 }
+                // Re-check provider-specific electricity limits against the locked
+                // catalogue row; admin changes between preflight and debit must not
+                // allow an amount outside the currently approved range.
+                if ($lockedProduct->service_type === 'electricity-bill') {
+                    $minimumMinor = (int) round((float) ($lockedProduct->metadata['provider_minimum_amount'] ?? 1) * 100);
+                    $maximumMinor = (int) round((float) ($lockedProduct->metadata['provider_maximum_amount'] ?? 1000000) * 100);
+                    if ($lockedAmountMinor < $minimumMinor || $lockedAmountMinor > $maximumMinor) {
+                        throw new InvalidArgumentException('The electricity amount is outside the provider limits.');
+                    }
+                }
                 $lockedWallet = Wallet::query()->whereKey($wallet->getKey())->lockForUpdate()->firstOrFail();
                 $policyRejection = $this->levelPolicies->rejectionReason($user, $lockedProduct, (int) $lockedWallet->getKey());
                 if ($policyRejection !== null) throw new InvalidArgumentException($policyRejection);
