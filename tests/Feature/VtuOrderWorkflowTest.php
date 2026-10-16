@@ -814,6 +814,59 @@ class VtuOrderWorkflowTest extends TestCase
             && str_ends_with($request->url(), '/orders/'.$order->public_id));
     }
 
+
+    public function test_authorised_staff_can_reconcile_order_without_resubmitting_purchase(): void
+    {
+        $requests = 0;
+        Http::fake(function ($request) use (&$requests) {
+            $requests++;
+            if ($request->method() === 'POST') {
+                return Http::response(['status' => 'pending'], 200);
+            }
+
+            return Http::response([
+                'status' => 'success',
+                'provider_reference' => 'provider-manual-reconcile-1',
+            ], 200);
+        });
+
+        [$user, $wallet, $product] = $this->preparedCustomer(1000, 1500);
+        $order = app(VtuOrderService::class)->purchase(
+            $user, $product->code, '08012345678', 'manual-reconcile-order-1'
+        );
+        $staff = User::query()->create([
+            'name' => 'VTU Operations Staff',
+            'email' => 'vtu-ops-'.uniqid().'@example.test',
+            'password' => 'test-password',
+        ]);
+        $staff->permissions()->create(['permission' => 'staff.permissions.manage']);
+
+        $this->actingAs($staff)
+            ->post('/admin/vtu-orders/'.$order->public_id.'/reconcile')
+            ->assertRedirect();
+
+        $this->assertSame('successful', $order->fresh()->status);
+        $this->assertSame('provider-manual-reconcile-1', $order->fresh()->provider_reference);
+        $this->assertSame(500, (int) $wallet->fresh()->available_balance_minor);
+        $this->assertDatabaseCount('vtu_orders', 1);
+        $this->assertDatabaseCount('wallet_transactions', 2);
+        $this->assertSame(2, $requests, 'One original submission plus one lookup; reconciliation must not resubmit.');
+        Http::assertSentCount(2);
+    }
+
+    public function test_customer_cannot_trigger_admin_vtu_reconciliation(): void
+    {
+        $customer = User::query()->create([
+            'name' => 'VTU Customer',
+            'email' => 'vtu-customer-denied-'.uniqid().'@example.test',
+            'password' => 'test-password',
+        ]);
+
+        $this->actingAs($customer)
+            ->post('/admin/vtu-orders/'.(string) \Illuminate\Support\Str::uuid().'/reconcile')
+            ->assertForbidden();
+    }
+
     private function preparedCustomer(int $productPriceMinor, int $initialBalanceMinor): array
     {
         $user = User::query()->create([

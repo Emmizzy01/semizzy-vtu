@@ -129,6 +129,10 @@ Route::middleware(['auth', 'can:staff.permissions.manage'])->prefix('admin')->na
 Route::middleware(['auth', 'can:staff.permissions.manage', 'throttle:30,1'])->get('/admin/vtu-orders', [VtuOrderOperationsController::class, 'index'])
     ->name('admin.vtu-orders');
 
+Route::middleware(['auth', 'can:staff.permissions.manage', 'throttle:10,1'])->post('/admin/vtu-orders/{publicId}/reconcile', [VtuOrderOperationsController::class, 'reconcile'])
+    ->where('publicId', '[0-9a-fA-F-]{36}')
+    ->name('admin.vtu-orders.reconcile');
+
 Route::middleware(['auth', 'can:staff.permissions.manage'])->prefix('admin/staff')->name('admin.staff.')->group(function (): void {
     Route::get('/', [StaffAccessController::class, 'dashboard'])->name('index');
     Route::get('/users', [StaffAccessController::class, 'users'])->middleware('throttle:60,1')->name('users');

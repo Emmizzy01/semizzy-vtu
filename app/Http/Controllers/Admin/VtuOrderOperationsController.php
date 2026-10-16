@@ -4,12 +4,39 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\VtuOrder;
+use App\Services\Vtu\VtuOrderService;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
 
 class VtuOrderOperationsController extends Controller
 {
+    public function reconcile(string $publicId, VtuOrderService $service, Request $request): RedirectResponse
+    {
+        $order = VtuOrder::query()->where('public_id', $publicId)->firstOrFail();
+        $before = $order->status;
+
+        if (! in_array($before, ['pending', 'processing', 'awaiting_reconciliation'], true)
+            || $order->dispatch_started_at === null) {
+            return back()->with('status', 'This order is not eligible for provider reconciliation.');
+        }
+
+        $updated = $service->reconcile($order);
+
+        Log::info('VTU order manually reconciled by authorised staff.', [
+            'order_public_id' => $order->public_id,
+            'actor_user_id' => $request->user()?->getKey(),
+            'status_before' => $before,
+            'status_after' => $updated->status,
+        ]);
+
+        return back()->with('status', $updated->status === $before
+            ? 'Provider lookup completed; the order remains unresolved. No new purchase was submitted.'
+            : 'Provider lookup updated the order to '.$updated->status.'.');
+    }
+
     public function index(Request $request): InertiaResponse
     {
         $validated = $request->validate([

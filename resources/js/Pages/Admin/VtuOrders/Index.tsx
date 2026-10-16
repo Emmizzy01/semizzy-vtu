@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Activity, AlertTriangle, Search, Smartphone } from 'lucide-react';
+import { Activity, AlertTriangle, Search, Smartphone, RefreshCw } from 'lucide-react';
+import { router } from '@inertiajs/react';
 import DashboardLayout from '../../../Components/DashboardLayout';
 
 type Order = {
@@ -32,6 +33,7 @@ export default function VtuOrderOperations({ orders, pagination, filters, metric
 }) {
   const [search, setSearch] = useState(filters.search);
   const [status, setStatus] = useState(filters.status);
+  const [reconciling, setReconciling] = useState<string | null>(null);
   const pageUrl = (page: number) => {
     const params = new URLSearchParams(typeof window === 'undefined' ? '' : window.location.search);
     params.set('page', String(page));
@@ -39,7 +41,7 @@ export default function VtuOrderOperations({ orders, pagination, filters, metric
   };
 
   return (
-    <DashboardLayout admin canManageStaff title="VTU order operations" description="Restricted, read-only queue for monitoring VTU requests and investigating ambiguous provider outcomes.">
+    <DashboardLayout admin canManageStaff title="VTU order operations" description="Restricted operations queue for monitoring orders and safely reconciling ambiguous provider outcomes.">
       <section className="grid gap-3 sm:grid-cols-3">
         <Metric label="Unresolved orders" value={metrics.unresolved} detail="Pending, processing, or awaiting reconciliation" />
         <Metric label="Awaiting reconciliation" value={metrics.awaitingReconciliation} detail="Provider outcome needs investigation" />
@@ -65,12 +67,12 @@ export default function VtuOrderOperations({ orders, pagination, filters, metric
               {order.failure_code && <p className="mt-2 flex items-center gap-2 break-words text-xs text-amber-800 dark:text-amber-300"><AlertTriangle size={14} className="shrink-0" /> Failure / review code: {order.failure_code}</p>}
               {order.dispatch_started_at && <p className="mt-1 text-xs text-[var(--muted)]">Dispatch started: {dateLabel(order.dispatch_started_at)}{order.completed_at ? ' · Completed: ' + dateLabel(order.completed_at) : ''}</p>}
             </div>
-            <div className="flex items-center justify-between gap-3 xl:flex-col xl:items-end xl:justify-center"><p className="text-lg font-extrabold tabular-nums">{money(order.amount_minor, order.currency)}</p><span className="inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--muted)]"><Smartphone size={14} /> Read-only</span></div>
+            <div className="flex items-center justify-between gap-3 xl:flex-col xl:items-end xl:justify-center"><p className="text-lg font-extrabold tabular-nums">{money(order.amount_minor, order.currency)}</p>{['pending', 'processing', 'awaiting_reconciliation'].includes(order.status) && order.dispatch_started_at && <button type="button" disabled={reconciling === order.id} onClick={() => { setReconciling(order.id); router.post('/admin/vtu-orders/' + encodeURIComponent(order.id) + '/reconcile', {}, { preserveScroll: true, onFinish: () => setReconciling(null) }); }} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-[var(--brand)] px-3 py-2 text-xs font-bold text-white disabled:cursor-wait disabled:opacity-50"><RefreshCw size={14} className={reconciling === order.id ? 'animate-spin' : ''} />{reconciling === order.id ? 'Checking…' : 'Reconcile status'}</button>}</div>
           </article>)}
         </div>}
         {pagination.lastPage > 1 && <footer className="flex items-center justify-between gap-3 border-t border-[var(--line)] p-4"><a href={pageUrl(pagination.currentPage - 1)} aria-disabled={pagination.currentPage <= 1} className={'rounded-xl border border-[var(--line)] px-3 py-2 text-sm font-bold ' + (pagination.currentPage <= 1 ? 'pointer-events-none opacity-40' : '')}>Previous</a><span className="text-xs text-[var(--muted)]">Page {pagination.currentPage} of {pagination.lastPage}</span><a href={pageUrl(pagination.currentPage + 1)} aria-disabled={pagination.currentPage >= pagination.lastPage} className={'rounded-xl border border-[var(--line)] px-3 py-2 text-sm font-bold ' + (pagination.currentPage >= pagination.lastPage ? 'pointer-events-none opacity-40' : '')}>Next</a></footer>}
       </section>
-      <p className="mt-4 text-xs leading-5 text-[var(--muted)]">Safety control: this workspace does not retry provider requests, alter order statuses, issue refunds, or post wallet entries. Reconcile ambiguous orders through the approved reconciliation workflow only.</p>
+      <p className="mt-4 text-xs leading-5 text-[var(--muted)]">Safety control: reconciliation performs a provider status lookup only. It never resubmits the purchase. A refund is posted only when the provider lookup confirms a definitive failure; ambiguous outcomes remain held for further reconciliation.</p>
     </DashboardLayout>
   );
 }
