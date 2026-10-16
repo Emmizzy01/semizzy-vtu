@@ -83,7 +83,8 @@ class IntegrationSettingsController extends Controller
                     ? (string) config('services.paystack.secret_key', '')
                     : ($key === 'paystack.callback_url' ? (string) config('services.paystack.callback_url', '') : 'test');
                 $oldValue = (string) $settings->get($key, $fallback);
-                if (hash_equals(hash('sha256', $oldValue), hash('sha256', (string) $newValue))) continue;
+                $storedSettingExists = \App\Models\IntegrationSetting::query()->where('key', $key)->exists();
+                if ($storedSettingExists && hash_equals(hash('sha256', $oldValue), hash('sha256', (string) $newValue))) continue;
 
                 $settings->set($key, (string) $newValue, $actor);
                 PlatformSettingAudit::query()->create([
@@ -162,7 +163,8 @@ class IntegrationSettingsController extends Controller
                     default => '',
                 };
                 $oldValue = (string) $settings->get($key, $fallback);
-                if (hash_equals(hash('sha256', $oldValue), hash('sha256', (string) $newValue))) continue;
+                $storedSettingExists = \App\Models\IntegrationSetting::query()->where('key', $key)->exists();
+                if ($storedSettingExists && hash_equals(hash('sha256', $oldValue), hash('sha256', (string) $newValue))) continue;
 
                 $settings->set($key, (string) $newValue, $actor);
                 PlatformSettingAudit::query()->create([
