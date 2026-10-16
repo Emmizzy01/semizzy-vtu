@@ -373,6 +373,12 @@ class VtpassCatalogService
 
     private function inferDataType(string $name): ?string
     {
+        // Some provider catalogues label this as one combined plan family.
+        // Check it before the individual words so it is not reduced to "Corporate".
+        if (preg_match('/\\bcorporate\\s*[\\/+]\\s*gifting\\b/i', $name)) {
+            return 'Corporate/Gifting';
+        }
+
         foreach (['SME', 'Corporate', 'Gifting', 'Direct'] as $type) {
             if (stripos($name, $type) !== false) {
                 return $type;
