@@ -53,13 +53,24 @@ class VtuProductCatalogueTest extends TestCase
             'is_active' => true, 'metadata' => ['provider_variation_code' => 'old-code', 'custom' => 'keep'],
         ]);
         Http::fake(function ($request) {
+            if (str_contains($request->url(), '/service-categories')) {
+                return Http::response(['content' => [
+                    ['identifier' => 'airtime', 'name' => 'Airtime Recharge'],
+                    ['identifier' => 'data', 'name' => 'Data Services'],
+                    ['identifier' => 'tv-subscription', 'name' => 'TV Subscription'],
+                    ['identifier' => 'electricity-bill', 'name' => 'Electricity Bill'],
+                    ['identifier' => 'education', 'name' => 'Education'],
+                    ['identifier' => 'insurance', 'name' => 'Insurance'],
+                ]], 200);
+            }
             if (str_contains($request->url(), '/services?')) {
                 parse_str((string) parse_url($request->url(), PHP_URL_QUERY), $query);
-                $items = ($query['identifier'] ?? '') === 'airtime'
-                    ? [
+                $identifier = $query['identifier'] ?? '';
+                $items = match ($identifier) {
+                    'airtime' => [
                         ['serviceID' => 'mtn'], ['serviceID' => 'glo'], ['serviceID' => 'airtel'], ['serviceID' => 'etisalat'],
-                    ]
-                    : [
+                    ],
+                    'data' => [
                         ['serviceID' => 'mtn-data', 'name' => 'MTN Data'],
                         ['serviceID' => 'mtn-sme-data', 'name' => 'MTN SME Data'],
                         ['serviceID' => 'glo-data', 'name' => 'GLO Data'],
@@ -69,7 +80,13 @@ class VtuProductCatalogueTest extends TestCase
                         ['serviceID' => 'lebara-data', 'name' => 'Lebara Data'],
                         ['serviceID' => 'smile-direct', 'name' => 'Smile Internet Data'],
                         ['serviceID' => 'spectranet', 'name' => 'Spectranet Internet Data'],
-                    ];
+                    ],
+                    'tv-subscription' => [['serviceID' => 'dstv', 'name' => 'DStv Subscription']],
+                    'electricity-bill' => [['serviceID' => 'ikeja-electric', 'name' => 'Ikeja Electric']],
+                    'education' => [['serviceID' => 'waec', 'name' => 'WAEC PIN']],
+                    'insurance' => [['serviceID' => 'third-party', 'name' => 'Third Party Insurance']],
+                    default => [],
+                };
 
                 return Http::response(['content' => $items], 200);
             }
@@ -84,6 +101,10 @@ class VtuProductCatalogueTest extends TestCase
         $this->assertDatabaseHas('vtu_products', ['service_type' => 'data', 'is_active' => true, 'metadata->provider_service_id' => 'lebara-data']);
         $this->assertDatabaseHas('vtu_products', ['service_type' => 'data', 'network' => 'smile', 'is_active' => false, 'metadata->provider_service_id' => 'smile-direct']);
         $this->assertDatabaseHas('vtu_products', ['service_type' => 'data', 'network' => 'spectranet', 'is_active' => false, 'metadata->provider_service_id' => 'spectranet']);
+        $this->assertDatabaseHas('vtu_products', ['service_type' => 'tv-subscription', 'is_active' => false, 'metadata->provider_service_id' => 'dstv']);
+        $this->assertDatabaseHas('vtu_products', ['service_type' => 'electricity-bill', 'is_active' => false, 'metadata->provider_service_id' => 'ikeja-electric']);
+        $this->assertDatabaseHas('vtu_products', ['service_type' => 'education', 'is_active' => false, 'metadata->provider_service_id' => 'waec']);
+        $this->assertDatabaseHas('vtu_products', ['service_type' => 'insurance', 'is_active' => false, 'metadata->provider_service_id' => 'third-party']);
         $existing->refresh();
         $this->assertSame(99000, $existing->price_minor);
         $this->assertTrue($existing->is_active);
