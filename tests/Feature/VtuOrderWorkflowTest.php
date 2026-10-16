@@ -1132,6 +1132,37 @@ class VtuOrderWorkflowTest extends TestCase
         Http::assertNotSent(fn ($request) => str_ends_with($request->url(), '/pay'));
     }
 
+    public function test_authenticated_customer_can_recover_existing_order_by_idempotency_key(): void
+    {
+        [$user, $wallet, $product] = $this->preparedCustomer(1000, 5000);
+        $provider = new class implements VtuProvider {
+            public function assertConfigured(): void {}
+            public function assertProductConfigured(VtuProduct $product): void {}
+            public function submit(VtuOrder $order): array { return ['status' => 'pending']; }
+            public function lookup(VtuOrder $order): array { return ['status' => 'pending']; }
+        };
+        $this->app->instance(VtuProvider::class, $provider);
+
+        $order = app(VtuOrderService::class)->purchase(
+            $user,
+            $product->code,
+            '08012345678',
+            'recover-existing-order-key',
+        );
+
+        $this->actingAs($user)->getJson('/wallet/vtu/orders/recover?idempotency_key=recover-existing-order-key')
+            ->assertOk()
+            ->assertJsonPath('data.id', $order->public_id)
+            ->assertJsonPath('data.status', 'processing');
+
+        $this->actingAs($user)->getJson('/wallet/vtu/orders/recover?idempotency_key=not-created-yet')
+            ->assertNotFound()
+            ->assertJsonPath('data', null);
+
+        $this->assertDatabaseCount('vtu_orders', 1);
+        $this->assertSame(1, (int) $wallet->fresh()->available_balance_minor / 4000);
+    }
+
     public function test_electricity_provider_minimum_and_maximum_amount_boundaries_are_accepted(): void
     {
         config([
