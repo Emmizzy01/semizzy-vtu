@@ -947,6 +947,50 @@ class VtuOrderWorkflowTest extends TestCase
         $this->assertSame(1, Http::recorded(fn ($request) => str_ends_with($request->url(), '/pay'))->count());
     }
 
+    public function test_verified_tv_subscription_duplicate_request_is_charged_and_submitted_once(): void
+    {
+        config([
+            'services.vtu.driver' => 'vtpass',
+            'services.vtu.vtpass.base_url' => 'https://sandbox.vtpass.com/api',
+            'services.vtu.vtpass.api_key' => 'sandbox-api-key',
+            'services.vtu.vtpass.secret_key' => 'sandbox-secret-key',
+        ]);
+
+        $sequence = Http::sequence()
+            ->push(['code' => '000', 'content' => ['Customer_Name' => 'TV Subscriber']], 200)
+            ->push(['code' => '000', 'content' => ['transactions' => [
+                'status' => 'delivered',
+                'transactionId' => 'tv-workflow-order',
+            ]]], 200);
+        Http::fake(['https://sandbox.vtpass.com/api/*' => $sequence]);
+
+        [$user, $wallet, $product] = $this->preparedCustomer(1000, 300000);
+        $product->forceFill([
+            'service_type' => 'tv-subscription',
+            'network' => 'dstv',
+            'price_minor' => 250000,
+            'metadata' => [
+                'provider_service_id' => 'dstv',
+                'provider_variation_code' => 'dstv-padi',
+                'purchase_supported' => true,
+            ],
+        ])->save();
+
+        $service = app(VtuOrderService::class);
+        $details = ['contact_phone' => '08012345678'];
+        $first = $service->purchase($user, $product->code, '1234567890', 'tv-idempotency-1', $details);
+        $duplicate = $service->purchase($user, $product->code, '1234567890', 'tv-idempotency-1', $details);
+
+        $this->assertSame('successful', $first->status);
+        $this->assertSame($first->id, $duplicate->id);
+        $this->assertSame(50000, (int) $wallet->fresh()->available_balance_minor);
+        $this->assertDatabaseCount('vtu_orders', 1);
+        $this->assertDatabaseCount('wallet_transactions', 2);
+        Http::assertSentCount(2);
+        $this->assertSame(1, Http::recorded(fn ($request) => str_ends_with($request->url(), '/pay'))->count());
+        $this->assertSame(1, Http::recorded(fn ($request) => str_ends_with($request->url(), '/merchant-verify'))->count());
+    }
+
     public function test_tv_smartcard_verification_failure_cannot_create_order_or_debit_wallet(): void
     {
         config([
