@@ -98,9 +98,8 @@ async function readMessage(response: Response) {
   return typeof body.message === 'string' ? body.message : 'Something went wrong. Please try again.';
 }
 
-export default function VtuPurchase() {
+export default function VtuPurchase({ serviceType }: { serviceType: ServiceType }) {
   const [restoredPending] = useState(readPendingPurchase);
-  const [serviceType, setServiceType] = useState<ServiceType>(restoredPending?.serviceType ?? 'airtime');
   const [products, setProducts] = useState<Product[]>([]);
   const [productCode, setProductCode] = useState(restoredPending?.productCode ?? '');
   const [recipient, setRecipient] = useState(restoredPending?.recipient ?? '');
@@ -289,10 +288,22 @@ export default function VtuPurchase() {
   }
 
   const terminal = order && ['successful', 'failed', 'cancelled'].includes(order.status);
+  const serviceTitle: Record<ServiceType, string> = {
+    airtime: 'Buy airtime',
+    data: 'Buy mobile data',
+    'electricity-bill': 'Pay electricity bill',
+    'tv-subscription': 'Subscribe to TV',
+  };
+  const serviceDescription: Record<ServiceType, string> = {
+    airtime: 'Choose a mobile network, enter the phone number, and confirm your airtime purchase.',
+    data: 'Choose a network and data plan, check the plan details and validity, then confirm the recipient number.',
+    'electricity-bill': 'Choose your electricity provider, enter the meter details, verify the customer, and set the payment amount.',
+    'tv-subscription': 'Choose your TV provider and package, enter the smartcard or decoder number, and verify the subscriber before payment.',
+  };
 
   return (
     <>
-      <Head title="Buy services" />
+      <Head title={serviceTitle[serviceType]} />
       <main className="min-h-screen bg-[var(--page)] px-4 py-8 text-[var(--ink)] sm:px-6 lg:px-8">
         <div className="mx-auto max-w-3xl">
           <header className="mb-8 flex items-center justify-between gap-4">
@@ -317,8 +328,8 @@ export default function VtuPurchase() {
                 <Smartphone size={24} />
               </span>
               <div>
-                <h1 className="font-display text-2xl font-extrabold tracking-tight sm:text-3xl">Buy digital services</h1>
-                <p className="mt-2 text-sm leading-6 text-[var(--muted)]">Choose a service and verify the meter or smartcard before any bill payment.</p>
+                <h1 className="font-display text-2xl font-extrabold tracking-tight sm:text-3xl">{serviceTitle[serviceType]}</h1>
+                <p className="mt-2 text-sm leading-6 text-[var(--muted)]">{serviceDescription[serviceType]}</p>
               </div>
             </div>
 
@@ -381,29 +392,6 @@ export default function VtuPurchase() {
               </div>
             ) : (
               <form onSubmit={submitPurchase} className="space-y-6">
-                <fieldset>
-                  <legend className="mb-3 text-sm font-bold">What do you want to buy?</legend>
-                  <div className="grid grid-cols-2 gap-3">
-                    {(['airtime', 'data', 'electricity-bill', 'tv-subscription'] as const).map((type) => (
-                      <button
-                        key={type}
-                        type="button"
-                        onClick={() => {
-                          if (serviceType !== type) {
-                            setServiceType(type);
-                            setRequestKey(newRequestKey());
-                          }
-                        }}
-                        aria-pressed={serviceType === type}
-                        disabled={submissionUncertain}
-                        className={`rounded-xl border px-4 py-3 text-sm font-bold transition ${serviceType === type ? 'border-[var(--brand)] bg-[var(--brand)]/10 text-[var(--brand)]' : 'border-[var(--line)] hover:bg-[var(--page)]'}`}
-                      >
-                        {{ airtime: 'Airtime', data: 'Mobile data', 'electricity-bill': 'Electricity', 'tv-subscription': 'TV subscription' }[type]}
-                      </button>
-                    ))}
-                  </div>
-                </fieldset>
-
                 <div className="grid gap-5 sm:grid-cols-2">
                   <label className="block text-sm font-semibold">
                     Provider

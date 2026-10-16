@@ -27,7 +27,7 @@ export default function AdminDashboard({ metrics, capabilities }: { metrics: Met
     { href: '/admin/feature-controls', icon: <LockKeyhole size={22} />, title: 'Feature controls', description: 'Review implemented service availability and feature switches with dependency and audit safeguards.', status: capabilities.manageStaff ? 'Permission-gated route' : 'Staff permission required', category: 'platform' },
     { href: '/admin/user-levels', icon: <ShieldCheck size={22} />, title: 'User types & level policies', description: 'Review account classifications and transaction-level policy controls.', status: capabilities.manageStaff ? 'Permission-gated route' : 'Staff permission required', category: 'platform' },
     { href: '/admin/users', icon: <Users size={22} />, title: 'User management', description: 'Account state, account type and level administration, subject to assigned access.', status: capabilities.manageStaff ? 'Permission-gated route' : 'Staff permission required', category: 'platform' },
-    { href: '/wallet/vtu', icon: <Smartphone size={22} />, title: 'VTU customer flow', description: 'Open the signed-in airtime and data purchase experience.', status: 'Customer route', category: 'customer' },
+    { href: '/wallet/vtu/airtime', icon: <Smartphone size={22} />, title: 'Airtime purchase page', description: 'Open the dedicated signed-in airtime purchase experience.', status: 'Customer route', category: 'customer' },
     { href: '/customer/dashboard', icon: <WalletCards size={22} />, title: 'Customer dashboard', description: 'Review the customer-facing wallet, funding, and service links.', status: 'Customer route', category: 'customer' },
   ], [capabilities.approveRefunds, capabilities.manageStaff]);
 

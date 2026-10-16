@@ -52,6 +52,25 @@ class DashboardRoutingTest extends TestCase
         $this->assertGuest();
     }
 
+    public function test_each_vtu_service_has_its_own_purchase_page_and_service_type(): void
+    {
+        $customer = $this->account('service-pages@example.test');
+
+        foreach ([
+            '/wallet/vtu/airtime' => 'airtime',
+            '/wallet/vtu/data' => 'data',
+            '/wallet/vtu/electricity' => 'electricity-bill',
+            '/wallet/vtu/tv' => 'tv-subscription',
+        ] as $path => $serviceType) {
+            $this->actingAs($customer)
+                ->get($path)
+                ->assertOk()
+                ->assertInertia(fn (Assert $page) => $page
+                    ->component('Wallet/VtuPurchase')
+                    ->where('serviceType', $serviceType));
+        }
+    }
+
     public function test_regular_customer_sees_customer_dashboard(): void
     {
         $customer = $this->account('customer@example.test');

@@ -144,7 +144,12 @@ Route::middleware(['auth', 'can:staff.permissions.manage'])->prefix('admin/staff
 
 Route::middleware(['auth', 'throttle:60,1'])->prefix('wallet/vtu')->name('wallet.vtu.')->group(function (): void {
     Route::post('/verify-biller', [VtuBillerVerificationController::class, 'verify'])->middleware('throttle:10,1')->name('verify-biller');
-    Route::get('/', fn () => Inertia::render('Wallet/VtuPurchase'))->name('index');
+    // Each service has its own purchase screen; the legacy entry opens airtime.
+    Route::get('/', fn () => redirect()->route('wallet.vtu.airtime'))->name('index');
+    Route::get('/airtime', fn () => Inertia::render('Wallet/VtuPurchase', ['serviceType' => 'airtime']))->name('airtime');
+    Route::get('/data', fn () => Inertia::render('Wallet/VtuPurchase', ['serviceType' => 'data']))->name('data');
+    Route::get('/electricity', fn () => Inertia::render('Wallet/VtuPurchase', ['serviceType' => 'electricity-bill']))->name('electricity');
+    Route::get('/tv', fn () => Inertia::render('Wallet/VtuPurchase', ['serviceType' => 'tv-subscription']))->name('tv');
     Route::get('/products', [VtuOrderController::class, 'products'])->name('products');
     Route::post('/orders', [VtuOrderController::class, 'purchase'])->middleware('throttle:10,1')->name('orders.create');
     Route::get('/orders/recover', [VtuOrderController::class, 'recover'])->middleware('throttle:30,1')->name('orders.recover');

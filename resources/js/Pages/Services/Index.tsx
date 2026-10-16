@@ -18,11 +18,12 @@ type Service = {
   group: string;
 };
 const services: Service[] = [
-  { title: 'Airtime & data', description: 'Browse supported networks and data plans, with order status and recovery.', icon: Smartphone, status: 'available', feature: 'airtimeData', href: '/wallet/vtu', group: 'Telecoms & mobile top-ups' },
+  { title: 'Airtime', description: 'Buy airtime for a supported mobile network from its own dedicated purchase page.', icon: Smartphone, status: 'available', feature: 'airtimeData', href: '/wallet/vtu/airtime', group: 'Telecoms & mobile top-ups' },
+  { title: 'Mobile data', description: 'Choose a data plan, validity and network on a separate data purchase page.', icon: Wifi, status: 'available', feature: 'airtimeData', href: '/wallet/vtu/data', group: 'Telecoms & mobile top-ups' },
   { title: 'Manual bank deposit', description: 'Submit a completed NGN transfer and evidence for independent review; uploads never credit a wallet by themselves.', icon: WalletCards, status: 'available', feature: 'manualDeposit', href: '/wallet/manual-deposits', group: 'Wallet funding & payments' },
   { title: 'Transactions & orders', description: 'Review wallet activity, funding records and your order history.', icon: Activity, status: 'available', href: '/wallet/manual-deposits', group: 'Wallet funding & payments' },
-  { title: 'Electricity bills', description: 'Provider-backed biller catalogue and payment verification are being completed.', icon: Zap, status: 'in-progress', group: 'Bills & subscriptions' },
-  { title: 'Cable TV subscriptions', description: 'Supported providers, plans and fulfilment verification are being completed.', icon: Tv, status: 'in-progress', group: 'Bills & subscriptions' },
+  { title: 'Electricity bills', description: 'Dedicated electricity page for meter details, customer verification and payment amount. Purchases remain unavailable until the provider flow is approved.', icon: Zap, status: 'in-progress', href: '/wallet/vtu/electricity', group: 'Bills & subscriptions' },
+  { title: 'Cable TV subscriptions', description: 'Dedicated TV page for smartcard verification and package selection. Purchases remain unavailable until the provider flow is approved.', icon: Tv, status: 'in-progress', href: '/wallet/vtu/tv', group: 'Bills & subscriptions' },
   { title: 'Internet bills', description: 'Authorized internet and broadband provider catalogue is not yet enabled.', icon: Wifi, status: 'in-progress', group: 'Bills & subscriptions' },
   { title: 'Remita payments', description: 'Authorized RRR/biller verification and settlement reconciliation are still being completed.', icon: Building2, status: 'in-progress', group: 'Bills & subscriptions' },
   { title: 'Transaction security', description: 'Set a separate six-digit transaction PIN; repeated failures trigger a temporary lock and are audited.', icon: ShieldCheck, status: 'available', href: '/security/transaction-pin', group: 'Account & security' },
