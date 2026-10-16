@@ -93,6 +93,30 @@ class VtpassProviderClientTest extends TestCase
             && $request['billersCode'] === '08012345678');
     }
 
+    public function test_data_service_with_unsupported_recipient_fields_is_blocked_even_if_product_is_active(): void
+    {
+        Http::fake();
+
+        $order = $this->order('data', 'smile', [
+            'is_active' => true,
+            'metadata' => [
+                'provider_service_id' => 'smile-direct',
+                'provider_variation_code' => 'smile-plan-1',
+                'purchase_supported' => false,
+                'recipient_type' => 'provider_specific',
+            ],
+        ]);
+
+        try {
+            app(VtpassProviderClient::class)->submit($order);
+            $this->fail('A provider-specific data service must not be purchasable through the phone-only flow.');
+        } catch (\\LogicException $exception) {
+            $this->assertStringContainsString('provider-specific recipient validation', $exception->getMessage());
+        }
+
+        Http::assertNothingSent();
+    }
+
     public function test_unknown_or_non_definitive_response_is_never_marked_failed(): void
     {
         Http::fake(fn () => Http::response([
