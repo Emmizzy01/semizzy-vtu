@@ -99,7 +99,7 @@ class VtuProductCatalogueController extends Controller
         DB::transaction(function () use ($request, $product, $data): void {
             $locked = VtuProduct::query()->whereKey($product->getKey())->lockForUpdate()->firstOrFail();
             $before = $locked->only(['service_type', 'network', 'code', 'name', 'price_minor', 'face_value_minor', 'is_active', 'metadata']);
-            $metadata = $this->metadata($data);
+            $metadata = $this->metadata($data, $locked->metadata ?? []);
             $active = (bool) ($data['is_active'] ?? false);
             $this->assertActivatable($locked->service_type, $locked->network, $metadata, $active);
             $locked->forceFill([
@@ -123,6 +123,7 @@ class VtuProductCatalogueController extends Controller
             'price_minor' => ['required', 'integer', 'min:1', 'max:1000000000'],
             'face_value_minor' => ['nullable', 'integer', 'min:1', 'max:1000000000'],
             'is_active' => ['required', 'boolean'],
+            'purchase_approved' => ['sometimes', 'boolean'],
             'validity' => ['nullable', 'string', 'max:60'],
             'data_type' => ['nullable', 'string', 'max:60'],
             'provider_service_id' => ['nullable', 'string', 'max:80', 'regex:/^[a-zA-Z0-9-]*$/'],
@@ -133,19 +134,27 @@ class VtuProductCatalogueController extends Controller
 
     private function metadata(array $data, array $existing = []): array
     {
-        $known = ['validity', 'data_type', 'provider_service_id', 'provider_variation_code'];
+        $purchaseApproved = array_key_exists('purchase_approved', $data)
+            ? (bool) $data['purchase_approved']
+            : (bool) ($existing['purchase_approved'] ?? false);
+        $known = ['validity', 'data_type', 'provider_service_id', 'provider_variation_code', 'purchase_approved'];
         foreach ($known as $key) unset($existing[$key]);
+
         return array_merge($existing, array_filter([
             'validity' => isset($data['validity']) ? trim($data['validity']) : null,
             'data_type' => isset($data['data_type']) ? trim($data['data_type']) : null,
             'provider_service_id' => isset($data['provider_service_id']) ? trim($data['provider_service_id']) : null,
             'provider_variation_code' => isset($data['provider_variation_code']) ? trim($data['provider_variation_code']) : null,
+            'purchase_approved' => $purchaseApproved,
         ], fn ($value): bool => $value !== null && $value !== ''));
     }
 
     private function assertActivatable(string $type, string $network, array $metadata, bool $active): void
     {
         if (! $active) return;
+        if (($metadata['catalog_source'] ?? null) === 'vtpass' && ($metadata['purchase_approved'] ?? false) !== true) {
+            abort(422, 'A VTpass product cannot be activated until sandbox verification is recorded and an authorised operator approves sales.');
+        }
         if ($type === 'data' && empty($metadata['provider_variation_code'])) {
             abort(422, 'A data plan cannot be activated until its provider variation code is configured.');
         }
