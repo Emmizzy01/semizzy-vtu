@@ -98,6 +98,10 @@ class VtuProductCatalogueTest extends TestCase
         $this->actingAs($staff)->post('/admin/vtu-products/sync')->assertRedirect()->assertSessionHasNoErrors();
         $this->assertDatabaseHas('vtu_products', ['code' => 'vtpass-airtime-mtn-100', 'is_active' => true]);
         $this->assertDatabaseHas('vtu_products', ['service_type' => 'data', 'is_active' => true, 'metadata->provider_service_id' => 'mtn-sme-data']);
+        $smePlan = VtuProduct::query()->where('metadata->provider_service_id', 'mtn-sme-data')->firstOrFail();
+        $this->assertSame('7 days', $smePlan->metadata['validity']);
+        $this->assertSame('SME', $smePlan->metadata['data_type']);
+        $this->assertTrue($smePlan->metadata['purchase_supported']);
         $this->assertDatabaseHas('vtu_products', ['service_type' => 'data', 'is_active' => true, 'metadata->provider_service_id' => 'lebara-data']);
         $this->assertDatabaseHas('vtu_products', ['service_type' => 'data', 'network' => 'smile', 'is_active' => false, 'metadata->provider_service_id' => 'smile-direct']);
         $this->assertDatabaseHas('vtu_products', ['service_type' => 'data', 'network' => 'spectranet', 'is_active' => false, 'metadata->provider_service_id' => 'spectranet']);
