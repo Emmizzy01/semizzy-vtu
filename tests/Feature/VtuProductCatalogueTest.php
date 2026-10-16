@@ -170,6 +170,64 @@ class VtuProductCatalogueTest extends TestCase
             ->assertJsonPath('data.0.is_active', false);
     }
 
+    public function test_vtpass_product_requires_sandbox_approval_before_activation(): void
+    {
+        $staff = User::query()->create([
+            'name' => 'VTpass Approval Staff',
+            'email' => 'vtpass-approval@example.test',
+            'password' => 'not-a-real-password',
+        ]);
+        $staff->permissions()->create(['permission' => 'staff.permissions.manage']);
+
+        $product = VtuProduct::query()->create([
+            'service_type' => 'data',
+            'network' => 'mtn',
+            'code' => 'vtpass-awaiting-approval',
+            'name' => 'MTN 1GB 7 Days',
+            'price_minor' => 50000,
+            'currency' => 'NGN',
+            'is_active' => false,
+            'metadata' => [
+                'catalog_source' => 'vtpass',
+                'provider_service_id' => 'mtn-sme-data',
+                'provider_variation_code' => 'plan-1',
+                'purchase_approved' => false,
+            ],
+        ]);
+
+        $payload = [
+            'name' => $product->name,
+            'price_minor' => 50000,
+            'face_value_minor' => null,
+            'is_active' => true,
+            'validity' => '7 days',
+            'data_type' => 'SME',
+            'provider_service_id' => 'mtn-sme-data',
+            'provider_variation_code' => 'plan-1',
+            'purchase_approved' => false,
+            'reason' => 'Attempt activation before sandbox verification',
+        ];
+
+        $this->actingAs($staff)
+            ->put('/admin/vtu-products/'.$product->id, $payload)
+            ->assertUnprocessable();
+
+        $this->assertFalse($product->fresh()->is_active);
+
+        $payload['purchase_approved'] = true;
+        $payload['reason'] = 'Sandbox verified and approved for sales';
+        $this->actingAs($staff)
+            ->put('/admin/vtu-products/'.$product->id, $payload)
+            ->assertRedirect();
+
+        $product->refresh();
+        $this->assertTrue($product->is_active);
+        $this->assertTrue($product->metadata['purchase_approved']);
+        $this->assertDatabaseHas('platform_setting_audits', [
+            'setting_key' => 'vtu_product.updated.'.$product->id,
+        ]);
+    }
+
     public function test_data_plan_cannot_be_activated_without_provider_variation_code(): void
     {
         $staff = User::query()->create(['name' => 'Catalogue Staff Two', 'email' => 'catalogue-staff-two@example.test', 'password' => 'not-a-real-password']);
