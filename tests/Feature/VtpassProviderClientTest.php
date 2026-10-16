@@ -253,14 +253,14 @@ class VtpassProviderClientTest extends TestCase
         try {
             $client->verifyElectricityMeter($tvProduct, '1234567890', 'prepaid');
             $this->fail('A TV product must not be used for electricity meter verification.');
-        } catch (\\LogicException $exception) {
+        } catch (\LogicException $exception) {
             $this->assertStringContainsString('electricity product', $exception->getMessage());
         }
 
         try {
             $client->verifyElectricityMeter($electricityProduct, '1234567890', 'postpaid-bypass');
             $this->fail('Unknown electricity meter types must be rejected.');
-        } catch (\\LogicException $exception) {
+        } catch (\LogicException $exception) {
             $this->assertStringContainsString('prepaid or postpaid', $exception->getMessage());
         }
 
