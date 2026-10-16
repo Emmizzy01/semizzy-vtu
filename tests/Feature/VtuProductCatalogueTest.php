@@ -52,19 +52,38 @@ class VtuProductCatalogueTest extends TestCase
             'name' => 'Operator name', 'price_minor' => 99000, 'currency' => 'NGN',
             'is_active' => true, 'metadata' => ['provider_variation_code' => 'old-code', 'custom' => 'keep'],
         ]);
-        Http::fake([
-            'sandbox.vtpass.com/api/services*' => Http::response(['content' => [
-                ['serviceID' => 'mtn'], ['serviceID' => 'glo'], ['serviceID' => 'airtel'], ['serviceID' => 'etisalat'],
-                ['serviceID' => 'mtn-data'], ['serviceID' => 'mtn-sme-data'], ['serviceID' => 'glo-data'], ['serviceID' => 'glo-sme-data'], ['serviceID' => 'airtel-data'], ['serviceID' => 'etisalat-data'], ['serviceID' => 'lebara-data'],
-            ]], 200),
-            'sandbox.vtpass.com/api/service-variations*' => Http::response(['content' => ['variations' => [
+        Http::fake(function ($request) {
+            if (str_contains($request->url(), '/services?')) {
+                parse_str((string) parse_url($request->url(), PHP_URL_QUERY), $query);
+                $items = ($query['identifier'] ?? '') === 'airtime'
+                    ? [
+                        ['serviceID' => 'mtn'], ['serviceID' => 'glo'], ['serviceID' => 'airtel'], ['serviceID' => 'etisalat'],
+                    ]
+                    : [
+                        ['serviceID' => 'mtn-data', 'name' => 'MTN Data'],
+                        ['serviceID' => 'mtn-sme-data', 'name' => 'MTN SME Data'],
+                        ['serviceID' => 'glo-data', 'name' => 'GLO Data'],
+                        ['serviceID' => 'glo-sme-data', 'name' => 'GLO SME Data'],
+                        ['serviceID' => 'airtel-data', 'name' => 'Airtel Data'],
+                        ['serviceID' => 'etisalat-data', 'name' => '9mobile Data'],
+                        ['serviceID' => 'lebara-data', 'name' => 'Lebara Data'],
+                        ['serviceID' => 'smile-direct', 'name' => 'Smile Internet Data'],
+                        ['serviceID' => 'spectranet', 'name' => 'Spectranet Internet Data'],
+                    ];
+
+                return Http::response(['content' => $items], 200);
+            }
+
+            return Http::response(['content' => ['variations' => [
                 ['variation_code' => 'plan-1', 'name' => '1GB SME 7 Days', 'variation_amount' => '500'],
-            ]]], 200),
-        ]);
+            ]]], 200);
+        });
         $this->actingAs($staff)->post('/admin/vtu-products/sync')->assertRedirect()->assertSessionHasNoErrors();
         $this->assertDatabaseHas('vtu_products', ['code' => 'vtpass-airtime-mtn-100', 'is_active' => true]);
         $this->assertDatabaseHas('vtu_products', ['service_type' => 'data', 'is_active' => true, 'metadata->provider_service_id' => 'mtn-sme-data']);
         $this->assertDatabaseHas('vtu_products', ['service_type' => 'data', 'is_active' => true, 'metadata->provider_service_id' => 'lebara-data']);
+        $this->assertDatabaseHas('vtu_products', ['service_type' => 'data', 'network' => 'smile', 'is_active' => false, 'metadata->provider_service_id' => 'smile-direct']);
+        $this->assertDatabaseHas('vtu_products', ['service_type' => 'data', 'network' => 'spectranet', 'is_active' => false, 'metadata->provider_service_id' => 'spectranet']);
         $existing->refresh();
         $this->assertSame(99000, $existing->price_minor);
         $this->assertTrue($existing->is_active);
