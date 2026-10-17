@@ -53,8 +53,10 @@ class UserSessionManagementTest extends TestCase
         $this->withCookie(config('session.cookie'), $rawSessionCookie->getValue());
 
         $this->get('/account/sessions')->assertOk();
-        $record = DB::table('user_sessions')->where('user_id', $user->id)->whereNull('revoked_at')->first();
+        $record = DB::table('user_sessions')->where('user_id', $user->id)->whereNull('revoked_at')->orderByDesc('last_activity')->orderByDesc('updated_at')->first();
         $this->assertNotNull($record);
+        // Revoke the session most recently observed by the authenticated request,
+        // rather than an arbitrary older device record for the same account.
         DB::table('user_sessions')->where('id', $record->id)->update(['revoked_at' => now()]);
 
         $this->get('/profile')->assertRedirect('/login');
