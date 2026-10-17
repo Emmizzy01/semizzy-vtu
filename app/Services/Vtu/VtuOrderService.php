@@ -5,6 +5,7 @@ namespace App\Services\Vtu;
 use App\Enums\VtuOrderStatus;
 use App\Models\User;
 use App\Models\VtuOrder;
+use App\Models\VtuProviderAttempt;
 use App\Models\VtuProduct;
 use App\Models\PlatformFeatureControl;
 use App\Models\Wallet;
@@ -279,16 +280,55 @@ class VtuOrderService
             return $this->returnExisting($order, $requestHash);
         }
 
+        // Persist an attempt before dispatch. An unfinished attempt is evidence
+        // that the provider may have received the request; it must never be
+        // treated as permission to submit to another provider.
+        $attempt = VtuProviderAttempt::query()->create([
+            'vtu_order_id' => $order->getKey(),
+            'attempt_number' => ((int) VtuProviderAttempt::query()->where('vtu_order_id', $order->getKey())->max('attempt_number')) + 1,
+            'provider' => (string) $order->provider,
+            'outcome' => 'started',
+            'request_fingerprint' => hash('sha256', implode('|', [
+                $order->public_id, $order->provider, $order->product_code,
+                $order->recipient, (string) $order->amount_minor,
+            ])),
+            'started_at' => now(),
+        ]);
+
         try {
             $result = $this->provider->submit($order);
         } catch (ConnectionException|LogicException $exception) {
             report($exception);
+            $attempt->forceFill([
+                'outcome' => 'unknown',
+                'failure_code' => 'provider_result_unknown',
+                'definitive_failure' => false,
+                'finished_at' => now(),
+            ])->save();
             $updated = $this->markAwaitingReconciliation($order, 'provider_result_unknown');
             $updated->setAttribute('_created_for_request', true);
 
             return $updated;
         }
 
+        $providerStatus = $result['status'] ?? 'unknown';
+        $definitiveFailure = ($result['definitive_failure'] ?? false) === true
+            && $providerStatus === 'failed';
+        $attempt->forceFill([
+            'outcome' => in_array($providerStatus, ['success', 'failed', 'pending'], true) ? $providerStatus : 'unknown',
+            'provider_reference' => is_string($result['provider_reference'] ?? null)
+                ? substr($result['provider_reference'], 0, 191) : null,
+            'failure_code' => $providerStatus === 'failed'
+                ? (is_string($result['message_code'] ?? null) ? substr($result['message_code'], 0, 100) : 'provider_failed')
+                : null,
+            'definitive_failure' => $definitiveFailure,
+            'finished_at' => now(),
+        ])->save();
+
+        // Failover is deliberately not inferred from status=failed alone. Until
+        // a provider adapter supplies a contract-tested definitive_failure=true,
+        // ambiguous and generic failures remain on the original provider for
+        // reconciliation; they must not cause a second purchase submission.
         $updated = $this->applyProviderResult($order, $result);
         $updated->setAttribute('_created_for_request', true);
 
