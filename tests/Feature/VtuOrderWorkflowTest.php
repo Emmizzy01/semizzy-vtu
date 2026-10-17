@@ -242,7 +242,7 @@ class VtuOrderWorkflowTest extends TestCase
         ], 200));
 
         [$user, $wallet, $product] = $this->preparedCustomer(1000, 1500);
-        $product->forceFill(['network' => 'mtn', 'face_value_minor' => 1000])->save();
+        $product->forceFill(['network' => 'mtn', 'face_value_minor' => 1000, 'metadata' => ['purchase_approved' => true]])->save();
 
         $order = app(VtuOrderService::class)->purchase(
             $user,
@@ -393,7 +393,7 @@ class VtuOrderWorkflowTest extends TestCase
         Http::fake(['https://sandbox.vtpass.com/api/*' => $sequence]);
 
         [$user, $wallet, $product] = $this->preparedCustomer(1000, 1500);
-        $product->forceFill(['network' => 'mtn', 'face_value_minor' => 1000])->save();
+        $product->forceFill(['network' => 'mtn', 'face_value_minor' => 1000, 'metadata' => ['purchase_approved' => true]])->save();
         $service = app(VtuOrderService::class);
 
         $order = $service->purchase($user, $product->code, '08012345678', 'vtpass-not-found-no-retry');
