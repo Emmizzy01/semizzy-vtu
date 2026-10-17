@@ -143,7 +143,7 @@ class VtuOrderWorkflowTest extends TestCase
                 'vtpass-legacy-untagged-no-approval',
             );
             $this->fail('An untagged legacy VTpass product without explicit approval must be blocked.');
-        } catch (\\LogicException $exception) {
+        } catch (\LogicException $exception) {
             $this->assertStringContainsString('sandbox verification', $exception->getMessage());
             $this->assertSame(1500, (int) $wallet->fresh()->available_balance_minor);
             $this->assertDatabaseCount('vtu_orders', 0);
