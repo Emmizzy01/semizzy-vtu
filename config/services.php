@@ -16,6 +16,12 @@ return [
                 'trim',
                 explode(',', (string) env('VTU_PROVIDER_PRIORITY', 'sogo,gsubz,dataway')),
             ))),
+            // Empty by default: only providers whose final non-delivery contract
+            // has been reviewed and tested may be enabled for automatic failover.
+            'definitive_failure_providers' => array_values(array_filter(array_map(
+                'trim',
+                explode(',', (string) env('VTU_DEFINITIVE_FAILURE_PROVIDERS', '')),
+            ))),
         ],
         'sogo' => [
             'base_url' => env('VTU_SOGO_BASE_URL', env('APP_ENV', 'production') === 'production'
