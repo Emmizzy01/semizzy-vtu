@@ -27,7 +27,7 @@ class VtuBillerVerificationTest extends TestCase
     {
         Http::fake(fn () => Http::response([
             'code' => '000',
-            'content' => ['Customer_Name' => 'Meter Holder'],
+            'content' => ['Customer_Name' => 'Meter Holder', 'Address' => '21a New Road Avenue'],
         ], 200));
 
         $user = User::query()->create([
@@ -52,7 +52,8 @@ class VtuBillerVerificationTest extends TestCase
             'meter_type' => 'prepaid',
         ])->assertOk()
             ->assertJsonPath('data.status', 'verified')
-            ->assertJsonPath('data.customer_name', 'Meter Holder');
+            ->assertJsonPath('data.customer_name', 'Meter Holder')
+            ->assertJsonPath('data.customer_address', '21a New Road Avenue');
 
         $this->assertDatabaseCount('vtu_orders', 0);
         Http::assertSent(fn ($request) => str_ends_with($request->url(), '/merchant-verify')
