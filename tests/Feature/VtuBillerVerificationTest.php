@@ -62,6 +62,45 @@ class VtuBillerVerificationTest extends TestCase
         Http::assertNotSent(fn ($request) => str_ends_with($request->url(), '/pay'));
     }
 
+    public function test_electricity_meter_with_provider_can_vend_no_is_not_verified(): void
+    {
+        Http::fake(fn () => Http::response([
+            'code' => '000',
+            'content' => [
+                'Customer_Name' => 'Meter Holder',
+                'WrongBillersCode' => false,
+                'Can_Vend' => 'no',
+            ],
+        ], 200));
+
+        $user = User::query()->create([
+            'name' => 'Cannot Vend User',
+            'email' => 'cannot-vend@example.test',
+            'password' => 'not-a-real-password',
+        ]);
+        VtuProduct::query()->create([
+            'service_type' => 'electricity-bill',
+            'network' => 'eko-electric',
+            'code' => 'eko-meter-cannot-vend',
+            'name' => 'Eko Electric',
+            'price_minor' => 0,
+            'currency' => 'NGN',
+            'is_active' => false,
+            'metadata' => ['provider_service_id' => 'eko-electric'],
+        ]);
+
+        $this->actingAs($user)->postJson('/wallet/vtu/verify-biller', [
+            'product_code' => 'eko-meter-cannot-vend',
+            'biller_code' => '1111111111111',
+            'meter_type' => 'prepaid',
+        ])->assertOk()
+            ->assertJsonPath('data.status', 'unverified');
+
+        $this->assertDatabaseCount('vtu_orders', 0);
+        Http::assertSentCount(1);
+        Http::assertNotSent(fn ($request) => str_ends_with($request->url(), '/pay'));
+    }
+
     public function test_tv_smartcard_verification_success_and_failure_never_create_purchase_orders(): void
     {
         $user = User::query()->create([
