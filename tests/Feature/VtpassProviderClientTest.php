@@ -78,7 +78,7 @@ class VtpassProviderClientTest extends TestCase
         ], 200));
 
         $order = $this->order('data', 'mtn', [
-            'metadata' => [
+            'metadata' => ['purchase_approved' => true,
                 'provider_service_id' => 'mtn-data',
                 'provider_variation_code' => 'mtn-10mb-100',
             ],
@@ -99,7 +99,7 @@ class VtpassProviderClientTest extends TestCase
 
         $order = $this->order('data', 'smile', [
             'is_active' => true,
-            'metadata' => [
+            'metadata' => ['purchase_approved' => true,
                 'provider_service_id' => 'smile-direct',
                 'provider_variation_code' => 'smile-plan-1',
                 'purchase_supported' => false,
@@ -126,7 +126,7 @@ class VtpassProviderClientTest extends TestCase
 
         $order = $this->order('electricity-bill', 'ikeja-electric', [
             'price_minor' => 500000,
-            'metadata' => [
+            'metadata' => ['purchase_approved' => true,
                 'provider_service_id' => 'ikeja-electric',
                 'provider_minimum_amount' => 100,
                 'provider_maximum_amount' => 100000,
@@ -157,7 +157,7 @@ class VtpassProviderClientTest extends TestCase
 
         $order = $this->order('tv-subscription', 'dstv', [
             'price_minor' => 250000,
-            'metadata' => [
+            'metadata' => ['purchase_approved' => true,
                 'provider_service_id' => 'dstv',
                 'provider_variation_code' => 'dstv-padi',
                 'purchase_supported' => true,
@@ -184,7 +184,7 @@ class VtpassProviderClientTest extends TestCase
 
         $order = $this->order('tv-subscription', 'dstv', [
             'price_minor' => 250000,
-            'metadata' => [
+            'metadata' => ['purchase_approved' => true,
                 'provider_service_id' => 'dstv',
                 'provider_variation_code' => 'dstv-padi',
                 'purchase_supported' => true,
@@ -230,7 +230,7 @@ class VtpassProviderClientTest extends TestCase
                 $responses->push($case['body'], 200);
 
                 $productOverrides = [
-                    'metadata' => [
+                    'metadata' => ['purchase_approved' => true,
                         'provider_service_id' => $serviceType === 'electricity-bill' ? 'ikeja-electric' : 'dstv',
                         'purchase_supported' => true,
                         'provider_minimum_amount' => 100,
@@ -265,10 +265,10 @@ class VtpassProviderClientTest extends TestCase
 
         foreach ([
             $this->order('electricity-bill', 'ikeja-electric', [
-                'metadata' => ['provider_service_id' => 'ikeja-electric', 'purchase_supported' => false],
+                'metadata' => ['purchase_approved' => true,'provider_service_id' => 'ikeja-electric', 'purchase_supported' => false],
             ]),
             $this->order('tv-subscription', 'dstv', [
-                'metadata' => ['provider_service_id' => 'dstv', 'provider_variation_code' => 'dstv-padi', 'purchase_supported' => false],
+                'metadata' => ['purchase_approved' => true,'provider_service_id' => 'dstv', 'provider_variation_code' => 'dstv-padi', 'purchase_supported' => false],
             ]),
         ] as $order) {
             try {
@@ -361,7 +361,7 @@ class VtpassProviderClientTest extends TestCase
         $product = new VtuProduct([
             'service_type' => 'electricity-bill',
             'network' => 'ikeja-electric',
-            'metadata' => ['provider_service_id' => 'ikeja-electric'],
+            'metadata' => ['purchase_approved' => true,'provider_service_id' => 'ikeja-electric'],
         ]);
 
         $result = app(VtpassProviderClient::class)->verifyElectricityMeter($product, '12345678901', 'prepaid');
@@ -386,7 +386,7 @@ class VtpassProviderClientTest extends TestCase
         $product = new VtuProduct([
             'service_type' => 'tv-subscription',
             'network' => 'dstv',
-            'metadata' => ['provider_service_id' => 'dstv'],
+            'metadata' => ['purchase_approved' => true,'provider_service_id' => 'dstv'],
         ]);
 
         $result = app(VtpassProviderClient::class)->verifyTvSmartcard($product, '1234567890');
@@ -407,12 +407,12 @@ class VtpassProviderClientTest extends TestCase
         $tvProduct = new VtuProduct([
             'service_type' => 'tv-subscription',
             'network' => 'dstv',
-            'metadata' => ['provider_service_id' => 'dstv'],
+            'metadata' => ['purchase_approved' => true,'provider_service_id' => 'dstv'],
         ]);
         $electricityProduct = new VtuProduct([
             'service_type' => 'electricity-bill',
             'network' => 'ikeja-electric',
-            'metadata' => ['provider_service_id' => 'ikeja-electric'],
+            'metadata' => ['purchase_approved' => true,'provider_service_id' => 'ikeja-electric'],
         ]);
 
         try {
@@ -442,7 +442,7 @@ class VtpassProviderClientTest extends TestCase
         $product = new VtuProduct([
             'service_type' => 'electricity-bill',
             'network' => 'ikeja-electric',
-            'metadata' => ['provider_service_id' => 'ikeja-electric'],
+            'metadata' => ['purchase_approved' => true,'provider_service_id' => 'ikeja-electric'],
         ]);
 
         $result = app(VtpassProviderClient::class)->verifyElectricityMeter($product, '12345678901', 'postpaid');
@@ -450,6 +450,23 @@ class VtpassProviderClientTest extends TestCase
         $this->assertSame('unverified', $result['status']);
         $this->assertSame('099', $result['message_code']);
         $this->assertNull($result['customer_name']);
+    }
+
+    public function test_legacy_untagged_product_without_explicit_approval_is_rejected(): void
+    {
+        Http::fake();
+        $order = $this->order('airtime', 'mtn', [
+            'metadata' => ['provider_service_id' => 'mtn'],
+        ]);
+
+        try {
+            app(VtpassProviderClient::class)->submit($order);
+            $this->fail('Legacy untagged products must require explicit purchase approval.');
+        } catch (\\LogicException $exception) {
+            $this->assertStringContainsString('sandbox verification', $exception->getMessage());
+        }
+
+        Http::assertNothingSent();
     }
 
     private function order(string $serviceType, string $network, array $productOverrides = []): VtuOrder
@@ -463,7 +480,7 @@ class VtpassProviderClientTest extends TestCase
             'face_value_minor' => 2000,
             'currency' => 'NGN',
             'is_active' => true,
-            'metadata' => [],
+            'metadata' => ['purchase_approved' => true,],
         ], $productOverrides));
 
         $order = new VtuOrder([
