@@ -607,8 +607,8 @@ class VtuOrderWorkflowTest extends TestCase
         $attempt->forceFill(['provider' => 'sogo', 'outcome' => 'reserved', 'definitive_failure' => false])->save();
 
         Http::fake([
-            'api.sogo.africa/transactions/*' => Http::response([], 404),
-            'api.sogo.africa/bills/airtime' => Http::response([
+            'api.sogo.africa/v1/transactions/*' => Http::response([], 404),
+            'api.sogo.africa/v1/bills/airtime' => Http::response([
                 'data' => ['status' => 'completed', 'reference' => 'SOGO-RECOVERED'],
             ], 200),
         ]);
