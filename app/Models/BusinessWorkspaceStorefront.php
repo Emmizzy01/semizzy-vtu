@@ -20,6 +20,7 @@ class BusinessWorkspaceStorefront extends Model
         'status',
         'enabled_services',
         'accent_color',
+        'commission_rate_basis_points',
     ];
 
     protected function casts(): array
