@@ -58,6 +58,12 @@ Route::middleware('auth')->group(function (): void {
     Route::get('/profile', [ProfileController::class, 'show'])->name('profile.show');
     Route::get('/workspaces', [BusinessWorkspaceController::class, 'index'])->middleware('throttle:30,1')->name('workspaces.index');
     Route::post('/workspaces', [BusinessWorkspaceController::class, 'store'])->middleware('throttle:5,1')->name('workspaces.store');
+    Route::get('/workspaces/{workspace}/team', [BusinessWorkspaceController::class, 'team'])->middleware('throttle:30,1')->name('workspaces.team');
+    Route::post('/workspaces/{workspace}/team/invitations', [BusinessWorkspaceController::class, 'invite'])->middleware('throttle:5,1')->name('workspaces.team.invite');
+    Route::put('/workspaces/{workspace}/team/{membership}', [BusinessWorkspaceController::class, 'updateMember'])->middleware('throttle:10,1')->name('workspaces.team.update');
+    Route::delete('/workspaces/{workspace}/team/{membership}', [BusinessWorkspaceController::class, 'removeMember'])->middleware('throttle:10,1')->name('workspaces.team.remove');
+    Route::get('/workspace-invitations/{membership}/{token}', [BusinessWorkspaceController::class, 'showInvitation'])->middleware('throttle:10,1')->name('workspaces.invitations.show');
+    Route::post('/workspace-invitations/{membership}/{token}', [BusinessWorkspaceController::class, 'acceptInvitation'])->middleware('throttle:5,1')->name('workspaces.invitations.accept');
     Route::get('/account/sessions', [UserSessionController::class, 'index'])->name('account.sessions.index');
     Route::delete('/account/sessions/{sessionId}', [UserSessionController::class, 'revoke'])->whereUuid('sessionId')->middleware('throttle:10,1')->name('account.sessions.revoke');
     Route::post('/account/sessions/revoke-others', [UserSessionController::class, 'revokeOthers'])->middleware('throttle:5,1')->name('account.sessions.revoke-others');
