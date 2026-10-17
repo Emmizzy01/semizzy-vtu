@@ -32,6 +32,8 @@ class VtuOrderWorkflowTest extends TestCase
 
         config([
             'services.vtu.name' => 'test_provider',
+            // Test-only provider contract explicitly identifies definitive non-delivery.
+            'services.vtu.multi_provider.definitive_failure_providers' => ['test_provider'],
             'services.vtu.endpoint' => 'https://provider.example.test/api',
             'services.vtu.token' => 'test-secret-token',
             // These explicit VTpass adapter contract tests run only with a test-only opt-in.
@@ -401,6 +403,7 @@ class VtuOrderWorkflowTest extends TestCase
     {
         Http::fake(fn () => Http::response([
             'status' => 'failed',
+            'definitive_failure' => true,
             'message_code' => 'INVALID_RECIPIENT',
             'provider_reference' => 'provider-order-002',
         ], 200));
@@ -581,6 +584,7 @@ class VtuOrderWorkflowTest extends TestCase
 
             return Http::response([
                 'status' => 'failed',
+                'definitive_failure' => true,
                 'message_code' => 'PROVIDER_DECLINED',
                 'provider_reference' => 'provider-order-refund-once',
             ], 200);
