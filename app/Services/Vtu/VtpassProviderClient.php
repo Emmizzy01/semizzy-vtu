@@ -103,8 +103,13 @@ class VtpassProviderClient implements VtuProvider
             $payload['variation_code'] = $meterType;
             $payload['amount'] = intdiv((int) $order->amount_minor, 100);
         } elseif ($order->service_type === 'tv-subscription') {
+            $subscriptionType = $details['subscription_type'] ?? null;
+            if ($subscriptionType !== 'change') {
+                throw new LogicException('VTpass TV purchase requires the supported bouquet-change action. Renewal remains disabled until the provider-verified renewal amount is available.');
+            }
             $payload['billersCode'] = $order->recipient;
             $payload['variation_code'] = (string) $product->metadata['provider_variation_code'];
+            $payload['subscription_type'] = 'change';
         } elseif ($order->service_type === 'airtime') {
             if ($order->amount_minor < 100 || $order->amount_minor > 100000000 || $order->amount_minor % 100 !== 0) {
                 throw new LogicException('VTpass airtime amount must be a whole-naira amount between ₦1 and ₦1,000,000.');
