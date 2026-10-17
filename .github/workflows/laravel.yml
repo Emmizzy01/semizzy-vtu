@@ -31,8 +31,10 @@ jobs:
       - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.3'
-          extensions: mbstring, pdo_mysql, bcmath, curl, dom, fileinfo, intl, json, openssl, tokenizer, xml
+          extensions: mbstring, pdo_mysql, bcmath, curl, dom, fileinfo, intl, json, openssl, pcntl, tokenizer, xml
           coverage: none
+      - name: Verify PHP process-control support for MariaDB concurrency tests
+        run: php -r "if (! function_exists('pcntl_fork') || ! function_exists('pcntl_waitpid')) { fwrite(STDERR, 'pcntl is required for the dedicated MariaDB concurrency suite.'.PHP_EOL); exit(1); }"
       - name: Prepare writable Laravel runtime directories
         run: mkdir -p bootstrap/cache storage/framework/cache storage/framework/sessions storage/framework/views storage/logs
       - uses: ramsey/composer-install@v3
