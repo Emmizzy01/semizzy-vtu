@@ -598,7 +598,7 @@ class VtuOrderWorkflowTest extends TestCase
                 // Simulate a verified webhook winning after lookup but before
                 // the recovery worker's final locked dispatch authorization.
                 if ($orderId !== null) {
-                    Illuminate\Support\Facades\DB::table('vtu_orders')
+                    \\Illuminate\\Support\\Facades\\DB::table('vtu_orders')
                         ->where('id', $orderId)
                         ->update(['status' => 'successful', 'updated_at' => now()]);
                 }
