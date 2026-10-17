@@ -594,16 +594,17 @@ class VtuOrderWorkflowTest extends TestCase
             $path = (string) parse_url($request->url(), PHP_URL_PATH);
 
             if (str_contains($path, '/transactions/')) {
+                // The provider confirms that no transaction exists for this identity.
                 return Http::response([], 404);
             }
 
             if (str_contains($path, '/bills/airtime')) {
                 $submissionCount++;
 
-                // The purchase call is the simulated pre-crash submission.
-                // Reconciliation may resubmit only after the explicit lookup 404.
+                // Simulate a connection drop before the provider accepts or creates
+                // the transaction. Recovery must first obtain the explicit 404 above.
                 if ($submissionCount === 1) {
-                    return Http::response(['status' => 'pending'], 200);
+                    throw new ConnectionException('Connection dropped before provider acceptance.');
                 }
 
                 return Http::response([
@@ -624,8 +625,9 @@ class VtuOrderWorkflowTest extends TestCase
         $attempt = \App\Models\VtuProviderAttempt::query()
             ->where('vtu_order_id', $order->getKey())->firstOrFail();
 
-        // Model a crash after durable reservation but before the provider call:
-        // discard the response-only marker before persisting real order columns.
+        // The first dispatch hit a connection failure before provider acceptance.
+        // Persist the crash checkpoint as a reserved attempt, as if the worker died
+        // after reservation and before it could record a provider outcome.
         unset($order->_created_for_request);
         $order->forceFill(['provider' => 'sogo', 'status' => 'processing'])->save();
         $attempt->forceFill(['provider' => 'sogo', 'outcome' => 'reserved', 'definitive_failure' => false])->save();
@@ -644,8 +646,8 @@ class VtuOrderWorkflowTest extends TestCase
                 'method' => $pair[0]->method(),
                 'url' => $pair[0]->url(),
                 'idempotency_key' => $pair[0]->header('Idempotency-Key'),
-                'response_status' => $pair[1]->status(),
-                'response_body' => $pair[1]->json(),
+                'response_status' => $pair[1]?->status(),
+                'response_body' => $pair[1]?->json(),
             ])->all(),
         ];
 
@@ -660,7 +662,7 @@ class VtuOrderWorkflowTest extends TestCase
         Http::assertSent(fn ($request) => str_contains($request->url(), '/bills/airtime')
             && $request->method() === 'POST'
             && $request->hasHeader('Idempotency-Key', $order->public_id));
-        Http::assertSentCount(3);
+        $this->assertSame(2, $submissionCount, 'Only the original failed dispatch and the one safe recovery resubmission are allowed.');
     }
 
     public function test_generic_failed_provider_status_stays_unresolved_without_refund(): void
