@@ -63,6 +63,31 @@ class VtuProviderAdaptersTest extends TestCase
             && str_ends_with($request->url(), '/bills/airtime'));
     }
 
+    public function test_sogo_only_marks_documented_final_failure_and_refund_as_definitive(): void
+    {
+        Http::fakeSequence()
+            ->push(['data' => ['status' => 'failed', 'reference' => 'SOGO-FAILED']], 201)
+            ->push(['data' => ['status' => 'refunded', 'reference' => 'SOGO-REFUNDED']], 201)
+            ->push(['data' => ['status' => 'processing', 'reference' => 'SOGO-PENDING']], 201)
+            ->push(['data' => ['status' => 'cancelled', 'reference' => 'SOGO-CANCELLED']], 201);
+
+        $client = app(SogoProviderClient::class);
+
+        $failed = $client->submit($this->order());
+        $refunded = $client->submit($this->order());
+        $processing = $client->submit($this->order());
+        $cancelled = $client->submit($this->order());
+
+        $this->assertSame('failed', $failed['status']);
+        $this->assertTrue($failed['definitive_failure']);
+        $this->assertSame('failed', $refunded['status']);
+        $this->assertTrue($refunded['definitive_failure']);
+        $this->assertSame('pending', $processing['status']);
+        $this->assertFalse($processing['definitive_failure']);
+        $this->assertSame('failed', $cancelled['status']);
+        $this->assertFalse($cancelled['definitive_failure']);
+    }
+
     public function test_gsubz_uses_request_id_and_business_status_not_http_status(): void
     {
         Http::fake(['api.gsubz.com/*' => Http::response([
