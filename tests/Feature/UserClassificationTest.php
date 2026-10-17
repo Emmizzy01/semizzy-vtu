@@ -30,6 +30,21 @@ class UserClassificationTest extends TestCase
         $this->assertGreaterThan(0, UserRoleAudit::query()->count());
     }
 
+    public function test_admin_cannot_mark_kyc_verified_without_identity_evidence_review(): void
+    {
+        $admin = User::query()->create(['name' => 'KYC Admin', 'email' => 'kyc-admin@example.test', 'password' => 'not-a-real-password']);
+        UserPermission::query()->create(['user_id' => $admin->id, 'permission' => 'staff.permissions.manage']);
+        $customer = User::query()->create(['name' => 'Unverified Customer', 'email' => 'unverified-customer@example.test', 'password' => 'not-a-real-password']);
+
+        $this->actingAs($admin)->put('/admin/users/'.$customer->id.'/classification', [
+            'user_type' => 'customer', 'user_level' => 'level_1', 'kyc_status' => 'verified',
+            'reason' => 'Attempt to verify without evidence',
+        ])->assertSessionHasErrors('kyc_status');
+
+        $this->assertDatabaseHas('users', ['id' => $customer->id, 'kyc_status' => 'unverified']);
+        $this->assertDatabaseMissing('user_role_audits', ['target_user_id' => $customer->id]);
+    }
+
     public function test_customers_cannot_manage_classification_and_admin_cannot_change_self(): void
     {
         $customer = User::query()->create(['name' => 'Customer', 'email' => 'classification-customer2@example.test', 'password' => 'not-a-real-password']);
