@@ -83,7 +83,8 @@ class VtuBillerVerificationTest extends TestCase
         Http::fake([
             'https://sandbox.vtpass.com/api/merchant-verify' => Http::sequence()
                 ->push(['code' => '000', 'content' => ['Customer_Name' => 'TV Customer']], 200)
-                ->push(['code' => '099', 'response_description' => 'Invalid smartcard'], 200),
+                ->push(['code' => '099', 'response_description' => 'Invalid smartcard'], 200)
+                ->push(['code' => '000', 'content' => ['Customer_Name' => 'Wrong Customer', 'WrongBillersCode' => true]], 200),
         ]);
 
         $this->actingAs($user)->postJson('/wallet/vtu/verify-biller', [
@@ -99,8 +100,14 @@ class VtuBillerVerificationTest extends TestCase
         ])->assertOk()
             ->assertJsonPath('data.status', 'unverified');
 
+        $this->actingAs($user)->postJson('/wallet/vtu/verify-biller', [
+            'product_code' => 'dstv-smartcard-check',
+            'biller_code' => '123456789013',
+        ])->assertOk()
+            ->assertJsonPath('data.status', 'unverified');
+
         $this->assertDatabaseCount('vtu_orders', 0);
-        Http::assertSentCount(2);
+        Http::assertSentCount(3);
         Http::assertNotSent(fn ($request) => str_ends_with($request->url(), '/pay'));
     }
 
