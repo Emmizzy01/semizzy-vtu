@@ -244,6 +244,7 @@ class VtpassProviderClientTest extends TestCase
                 $order->service_details = [
                     'meter_type' => 'prepaid',
                     'contact_phone' => '08012345678',
+                    ...($serviceType === 'tv-subscription' ? ['subscription_type' => 'change'] : []),
                 ];
 
                 $result = app(VtpassProviderClient::class)->submit($order);
