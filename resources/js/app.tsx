@@ -45,6 +45,7 @@ createInertiaApp({
       name.startsWith('Account/') ||
       name.startsWith('Security/') ||
       name.startsWith('Services/') ||
+      name.startsWith('Workspaces/') ||
       name.startsWith('Support/') ||
       name === 'Wallet/ManualDeposit' ||
       name === 'Wallet/VtuPurchase';
