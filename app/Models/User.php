@@ -40,6 +40,16 @@ class User extends Authenticatable
         ];
     }
 
+    public function businessWorkspaces(): HasMany
+    {
+        return $this->hasMany(BusinessWorkspace::class, 'owner_user_id');
+    }
+
+    public function businessWorkspaceMemberships(): HasMany
+    {
+        return $this->hasMany(BusinessWorkspaceMember::class);
+    }
+
     public function wallets(): HasMany
     {
         return $this->hasMany(Wallet::class);
