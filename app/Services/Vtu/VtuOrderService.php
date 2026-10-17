@@ -492,6 +492,7 @@ class VtuOrderService
     private function reserveSecondAttempt(VtuOrder $order, VtuProviderAttempt $firstAttempt, array $failure): ?VtuProviderAttempt
     {
         if (! $this->provider instanceof MultiProviderVtuRouter
+            || config('services.vtu.multi_provider.enabled', false) !== true
             || (int) $firstAttempt->attempt_number !== 1
             || ! app(ProviderFailoverPolicy::class)->mayFailover((string) $firstAttempt->provider, $failure)) {
             return null;
