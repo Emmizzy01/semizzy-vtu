@@ -37,7 +37,7 @@ class BusinessWorkspaceController extends Controller
                 'slug' => $workspace->slug,
                 'type' => $workspace->type,
                 'owner' => $workspace->owner?->name,
-                'members' => (int) $workspace->active_members_count + 1,
+                'activeMembers' => (int) $workspace->active_members_count,
                 'isOwner' => (int) $workspace->owner_user_id === (int) $user->getKey(),
                 'canManage' => $workspace->canManage($user),
             ])
