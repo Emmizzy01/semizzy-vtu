@@ -938,7 +938,7 @@ class VtuOrderWorkflowTest extends TestCase
             ],
         ];
         $body = json_encode($payload, JSON_THROW_ON_ERROR);
-        \\App\\Models\\VtuProviderWebhookEvent::query()->create([
+        \App\Models\VtuProviderWebhookEvent::query()->create([
             'provider' => 'dataway',
             'event_id' => hash('sha256', $body),
             'event_type' => 'transaction.pending',
@@ -948,12 +948,12 @@ class VtuOrderWorkflowTest extends TestCase
             'received_at' => now(),
         ]);
 
-        $stats = app(\\App\\Services\\Vtu\\VtuProviderWebhookService::class)->process();
+        $stats = app(\App\Services\Vtu\VtuProviderWebhookService::class)->process();
 
         $this->assertSame(1, $stats['processed']);
         $this->assertSame('successful', $successful->fresh()->status);
         $this->assertSame($balanceAfterSuccess, (int) $wallet->fresh()->available_balance_minor);
-        $this->assertSame($transactionsAfterSuccess, \\App\\Models\\WalletTransaction::query()->count());
+        $this->assertSame($transactionsAfterSuccess, \App\Models\WalletTransaction::query()->count());
         $this->assertDatabaseMissing('vtu_provider_webhook_events', [
             'provider' => 'dataway',
             'event_type' => 'transaction.pending',
