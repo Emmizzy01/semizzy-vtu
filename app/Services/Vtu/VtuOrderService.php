@@ -90,23 +90,35 @@ class VtuOrderService
             if (! preg_match('/^\+?[0-9]{10,15}$/', $recipient)) {
                 throw new InvalidArgumentException('Recipient must be a valid phone number.');
             }
-            $amountMinor = (int) $product->price_minor;
+            if ($product->service_type === 'airtime') {
+                $amountMinor ??= (int) $product->price_minor;
+                if ($amountMinor < 100 || $amountMinor > 100000000 || $amountMinor % 100 !== 0) {
+                    throw new InvalidArgumentException('Airtime amount must be a whole-naira amount between ₦1 and ₦1,000,000.');
+                }
+            } else {
+                $amountMinor = (int) $product->price_minor;
+            }
         }
 
         $requestHash = hash('sha256', json_encode(
-            in_array($product->service_type, ['airtime', 'data'], true)
+            $product->service_type === 'airtime'
                 ? [
                     'user_id' => $user->getKey(),
                     'product_code' => $product->code,
                     'recipient' => $recipient,
+                    'amount_minor' => $amountMinor,
                 ]
-                : [
+                : ($product->service_type === 'data' ? [
+                    'user_id' => $user->getKey(),
+                    'product_code' => $product->code,
+                    'recipient' => $recipient,
+                ] : [
                     'user_id' => $user->getKey(),
                     'product_code' => $product->code,
                     'recipient' => $recipient,
                     'service_details' => $serviceDetails,
                     'amount_minor' => $amountMinor,
-                ],
+                ]),
             JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES
         ));
 
@@ -164,7 +176,7 @@ class VtuOrderService
                     $this->assertServiceFeatureEnabled($lockedProduct);
                 }
                 $this->provider->assertProductConfigured($lockedProduct);
-                $lockedAmountMinor = $lockedProduct->service_type === 'electricity-bill'
+                $lockedAmountMinor = in_array($lockedProduct->service_type, ['electricity-bill', 'airtime'], true)
                     ? $amountMinor
                     : (int) $lockedProduct->price_minor;
                 if (! is_int($lockedAmountMinor) || $lockedAmountMinor < 1) {
@@ -173,6 +185,10 @@ class VtuOrderService
                 // Re-check provider-specific electricity limits against the locked
                 // catalogue row; admin changes between preflight and debit must not
                 // allow an amount outside the currently approved range.
+                if ($lockedProduct->service_type === 'airtime'
+                    && ($lockedAmountMinor < 100 || $lockedAmountMinor > 100000000 || $lockedAmountMinor % 100 !== 0)) {
+                    throw new InvalidArgumentException('Airtime amount must be a whole-naira amount between ₦1 and ₦1,000,000.');
+                }
                 if ($lockedProduct->service_type === 'electricity-bill') {
                     $minimumMinor = (int) round((float) ($lockedProduct->metadata['provider_minimum_amount'] ?? 1) * 100);
                     $maximumMinor = (int) round((float) ($lockedProduct->metadata['provider_maximum_amount'] ?? 1000000) * 100);

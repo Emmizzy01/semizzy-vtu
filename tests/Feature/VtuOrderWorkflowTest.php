@@ -227,6 +227,43 @@ class VtuOrderWorkflowTest extends TestCase
             && $request['amount'] === 10);
     }
 
+    public function test_custom_airtime_amount_is_charged_and_sent_to_vtpass_instead_of_catalogue_price(): void
+    {
+        config([
+            'services.vtu.driver' => 'vtpass',
+            'services.vtu.vtpass.base_url' => 'https://sandbox.vtpass.com/api',
+            'services.vtu.vtpass.api_key' => 'sandbox-api-key',
+            'services.vtu.vtpass.secret_key' => 'sandbox-secret-key',
+        ]);
+        Http::fake(fn () => Http::response([
+            'code' => '000',
+            'content' => ['transactions' => ['status' => 'delivered', 'transactionId' => 'vtpass-custom-airtime']],
+        ], 200));
+
+        [$user, $wallet, $product] = $this->preparedCustomer(1000, 5000);
+        $product->forceFill([
+            'network' => 'mtn',
+            'face_value_minor' => 1000,
+            'metadata' => ['provider_service_id' => 'mtn'],
+        ])->save();
+
+        $order = app(VtuOrderService::class)->purchase(
+            $user,
+            $product->code,
+            '08012345678',
+            'vtpass-custom-airtime-amount',
+            [],
+            2500,
+        );
+
+        $this->assertSame('successful', $order->status);
+        $this->assertSame(2500, (int) $order->amount_minor);
+        $this->assertSame(2500, (int) $wallet->fresh()->available_balance_minor);
+        Http::assertSent(fn ($request) => $request->url() === 'https://sandbox.vtpass.com/api/pay'
+            && $request['serviceID'] === 'mtn'
+            && $request['amount'] === 25);
+    }
+
     public function test_successful_purchase_is_persisted_and_debited_once(): void
     {
         Http::fake(fn () => Http::response([

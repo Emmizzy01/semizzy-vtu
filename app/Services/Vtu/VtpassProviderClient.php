@@ -106,8 +106,10 @@ class VtpassProviderClient implements VtuProvider
             $payload['billersCode'] = $order->recipient;
             $payload['variation_code'] = (string) $product->metadata['provider_variation_code'];
         } elseif ($order->service_type === 'airtime') {
-            $faceValueMinor = (int) ($product->face_value_minor ?? $order->amount_minor);
-            $payload['amount'] = intdiv($faceValueMinor, 100);
+            if ($order->amount_minor < 100 || $order->amount_minor > 100000000 || $order->amount_minor % 100 !== 0) {
+                throw new LogicException('VTpass airtime amount must be a whole-naira amount between ₦1 and ₦1,000,000.');
+            }
+            $payload['amount'] = intdiv((int) $order->amount_minor, 100);
         } else {
             $payload['billersCode'] = $order->recipient;
             $payload['variation_code'] = (string) $product->metadata['provider_variation_code'];
