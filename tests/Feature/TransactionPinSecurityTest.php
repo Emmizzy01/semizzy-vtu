@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\User;
+use App\Models\VtuProduct;
 use App\Services\Security\TransactionPinService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
@@ -89,6 +90,34 @@ class TransactionPinSecurityTest extends TestCase
         ])->assertStatus(429);
 
         $this->assertSame(5, (int) $user->fresh()->transaction_pin_failed_attempts);
+        $this->assertDatabaseCount('vtu_orders', 0);
+        $this->assertDatabaseCount('wallet_transactions', 0);
+    }
+
+    public function test_airtime_purchase_requires_customer_entered_amount_at_http_boundary(): void
+    {
+        $user = User::query()->create(['name' => 'Custom Airtime Customer', 'email' => 'custom-airtime@example.test', 'password' => 'not-a-real-password']);
+        $user->forceFill(['transaction_pin_hash' => Hash::make('4928')])->save();
+
+        $product = VtuProduct::query()->create([
+            'service_type' => 'airtime',
+            'network' => 'test_network',
+            'code' => 'custom-airtime-'.uniqid(),
+            'name' => 'Test Airtime',
+            'price_minor' => 1000,
+            'face_value_minor' => 1000,
+            'currency' => 'NGN',
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($user)->postJson('/wallet/vtu/orders', [
+            'product_code' => $product->code,
+            'recipient' => '08012345678',
+            'idempotency_key' => 'airtime-amount-required',
+            'transaction_pin' => '4928',
+        ])->assertStatus(422)
+          ->assertJsonPath('message', 'Enter the airtime amount you want to purchase.');
+
         $this->assertDatabaseCount('vtu_orders', 0);
         $this->assertDatabaseCount('wallet_transactions', 0);
     }
