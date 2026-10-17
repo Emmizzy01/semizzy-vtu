@@ -104,4 +104,54 @@ class UserSessionManagementTest extends TestCase
         app(\App\Services\Security\UserSessionService::class)->revokeAll($user);
         $this->assertNotNull(DB::table('user_sessions')->where('user_id', $user->id)->value('revoked_at'));
     }
+
+    public function test_user_cannot_revoke_another_users_session(): void
+    {
+        $owner = User::query()->create(['name' => 'Session Owner', 'email' => 'session-owner@example.test', 'password' => 'CorrectPassword1234']);
+        $other = User::query()->create(['name' => 'Other Customer', 'email' => 'other-session-owner@example.test', 'password' => 'CorrectPassword1234']);
+        $otherSessionId = (string) Str::uuid();
+        DB::table('user_sessions')->insert([
+            'id' => $otherSessionId, 'user_id' => $other->id, 'session_hash' => hash('sha256', 'other-users-private-session'),
+            'ip_address' => '192.0.2.20', 'user_agent' => 'Private device', 'last_activity' => now(),
+            'revoked_at' => null, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        $this->actingAs($owner)->delete('/account/sessions/'.$otherSessionId)
+            ->assertRedirect()->assertSessionHasErrors('session');
+
+        $this->assertNull(DB::table('user_sessions')->where('id', $otherSessionId)->value('revoked_at'));
+        $this->assertAuthenticatedAs($owner);
+    }
+
+    public function test_revoking_current_session_logs_the_user_out(): void
+    {
+        $user = User::query()->create(['name' => 'Current Session Customer', 'email' => 'current-session@example.test', 'password' => 'CorrectPassword1234']);
+        $this->actingAs($user)->get('/account/sessions')->assertOk();
+        $current = DB::table('user_sessions')->where('user_id', $user->id)->whereNull('revoked_at')->first();
+        $this->assertNotNull($current);
+
+        $this->delete('/account/sessions/'.$current->id)->assertRedirect('/login');
+        $this->assertGuest();
+        $this->assertNotNull(DB::table('user_sessions')->where('id', $current->id)->value('revoked_at'));
+    }
+
+    public function test_revoke_others_preserves_the_current_session_and_revokes_other_devices(): void
+    {
+        $user = User::query()->create(['name' => 'Revoke Other Devices Customer', 'email' => 'revoke-other-devices@example.test', 'password' => 'CorrectPassword1234']);
+        $this->actingAs($user)->get('/account/sessions')->assertOk();
+        $current = DB::table('user_sessions')->where('user_id', $user->id)->whereNull('revoked_at')->first();
+        $this->assertNotNull($current);
+        $otherId = (string) Str::uuid();
+        DB::table('user_sessions')->insert([
+            'id' => $otherId, 'user_id' => $user->id, 'session_hash' => hash('sha256', 'another-active-device'),
+            'ip_address' => '192.0.2.30', 'user_agent' => 'Another device', 'last_activity' => now(),
+            'revoked_at' => null, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        $this->post('/account/sessions/revoke-others')->assertRedirect();
+        $this->assertNull(DB::table('user_sessions')->where('id', $current->id)->value('revoked_at'));
+        $this->assertNotNull(DB::table('user_sessions')->where('id', $otherId)->value('revoked_at'));
+        $this->assertAuthenticatedAs($user);
+    }
+
 }
