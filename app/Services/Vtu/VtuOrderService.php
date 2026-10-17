@@ -402,10 +402,7 @@ class VtuOrderService
             return $order;
         }
 
-        $attempt = VtuProviderAttempt::query()
-            ->where('vtu_order_id', $order->getKey())
-            ->orderByDesc('attempt_number')
-            ->first();
+        $attempt = $this->ensureAttemptForReconciliation($order);
 
         if ($attempt === null) {
             return $this->markAwaitingReconciliation($order, 'provider_attempt_missing');
@@ -438,6 +435,48 @@ class VtuOrderService
         }
 
         return $this->applyProviderResult($order, $result);
+    }
+
+    /**
+     * Backfill a durable lookup record for legacy dispatched orders created before
+     * provider-attempt history was available. This records history only; it never
+     * authorizes a new provider submission or a second wallet debit.
+     */
+    private function ensureAttemptForReconciliation(VtuOrder $order): ?VtuProviderAttempt
+    {
+        return DB::transaction(function () use ($order): ?VtuProviderAttempt {
+            /** @var VtuOrder $lockedOrder */
+            $lockedOrder = VtuOrder::query()->whereKey($order->getKey())->lockForUpdate()->firstOrFail();
+
+            $attempt = VtuProviderAttempt::query()
+                ->where('vtu_order_id', $lockedOrder->getKey())
+                ->orderByDesc('attempt_number')
+                ->lockForUpdate()
+                ->first();
+
+            if ($attempt !== null) {
+                return $attempt;
+            }
+
+            if ($lockedOrder->dispatch_started_at === null || ! is_string($lockedOrder->provider) || $lockedOrder->provider === '') {
+                return null;
+            }
+
+            return VtuProviderAttempt::query()->create([
+                'vtu_order_id' => $lockedOrder->getKey(),
+                'attempt_number' => 1,
+                'provider' => $lockedOrder->provider,
+                'outcome' => 'unknown',
+                'request_fingerprint' => hash('sha256', implode('|', [
+                    $lockedOrder->public_id,
+                    $lockedOrder->provider,
+                    $lockedOrder->product_code,
+                    $lockedOrder->recipient,
+                    (string) $lockedOrder->amount_minor,
+                ])),
+                'started_at' => $lockedOrder->dispatch_started_at,
+            ]);
+        }, attempts: 3);
     }
 
     /**
