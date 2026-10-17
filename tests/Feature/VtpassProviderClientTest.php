@@ -462,7 +462,7 @@ class VtpassProviderClientTest extends TestCase
         try {
             app(VtpassProviderClient::class)->submit($order);
             $this->fail('Legacy untagged products must require explicit purchase approval.');
-        } catch (\\LogicException $exception) {
+        } catch (\LogicException $exception) {
             $this->assertStringContainsString('sandbox verification', $exception->getMessage());
         }
 
