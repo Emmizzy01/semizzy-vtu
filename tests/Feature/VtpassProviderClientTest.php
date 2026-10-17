@@ -196,7 +196,7 @@ class VtpassProviderClientTest extends TestCase
         try {
             app(VtpassProviderClient::class)->submit($order);
             $this->fail('TV renewal must stay blocked without the verified renewal amount.');
-        } catch (\\LogicException $exception) {
+        } catch (\LogicException $exception) {
             $this->assertStringContainsString('Renewal remains disabled', $exception->getMessage());
         }
 
