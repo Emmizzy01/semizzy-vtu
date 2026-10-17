@@ -220,7 +220,11 @@ export default function VtuPurchase({ serviceType }: { serviceType: ServiceType 
           idempotency_key: requestKey,
           transaction_pin: transactionPin,
           ...(isAirtime || isElectricity ? { amount: purchaseAmount } : {}),
-          ...(needsVerification ? { contact_phone: contactPhone, ...(isElectricity ? { meter_type: meterType } : {}) } : {}),
+          ...(needsVerification ? {
+            contact_phone: contactPhone,
+            ...(isElectricity ? { meter_type: meterType } : {}),
+            ...(isTv ? { subscription_type: 'change' } : {}),
+          } : {}),
         }),
       });
 
@@ -308,7 +312,7 @@ export default function VtuPurchase({ serviceType }: { serviceType: ServiceType 
     airtime: 'Choose a mobile network, enter the phone number and the exact airtime amount you want, then confirm your purchase.',
     data: 'Choose a network and data plan, check the plan details and validity, then confirm the recipient number.',
     'electricity-bill': 'Choose your electricity provider, enter the meter details, verify the customer, and set the payment amount.',
-    'tv-subscription': 'Choose your TV provider and package, enter the smartcard or decoder number, and verify the subscriber before payment.',
+    'tv-subscription': 'Choose your TV provider and new bouquet, enter the smartcard or decoder number, and verify the subscriber before payment. Bouquet renewal stays unavailable until the provider-verified renewal amount can be applied safely.',
   };
 
   return (
