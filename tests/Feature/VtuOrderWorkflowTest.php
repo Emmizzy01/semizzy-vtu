@@ -2376,6 +2376,15 @@ class VtuOrderWorkflowTest extends TestCase
             $this->assertStringContainsString('not enabled for this storefront', $exception->getMessage());
         }
 
+        $storefront->update(['enabled_services' => ['data']]);
+        $product->forceFill(['is_active' => false])->save();
+        try {
+            app(VtuOrderService::class)->purchase($user, $product->code, '08012345678', 'store-inactive-product', [], null, $storefront->slug);
+            $this->fail('Inactive products must never be purchasable through a storefront.');
+        } catch (\\InvalidArgumentException $exception) {
+            $this->assertStringContainsString('no longer available', $exception->getMessage());
+        }
+
         $this->assertDatabaseCount('vtu_orders', 0);
         $this->assertSame(1500, (int) $wallet->fresh()->available_balance_minor);
         $this->assertSame(0, $provider->submissions);
