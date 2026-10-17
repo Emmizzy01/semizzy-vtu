@@ -47,11 +47,13 @@ class UserSessionManagementTest extends TestCase
         // Laravel's HTTP test client does not automatically replay response
         // cookies like a browser. Replay the session cookie from login so every
         // subsequent request uses the same server-side session.
+        // getCookie() decrypts Laravel's response cookie by default. Feed that
+        // plaintext session ID to withCookie(), which builds the incoming test
+        // request cookie; replaying the raw encrypted Set-Cookie value here can
+        // make the next request use a different session ID.
         $sessionCookie = $loginResponse->getCookie(config('session.cookie'));
         $this->assertNotNull($sessionCookie);
-        $rawSessionCookie = $loginResponse->getCookie(config('session.cookie'), false);
-        $this->assertNotNull($rawSessionCookie);
-        $this->withCookie(config('session.cookie'), $rawSessionCookie->getValue());
+        $this->withCookie(config('session.cookie'), $sessionCookie->getValue());
 
         // Each HTTP request must authenticate from the replayed cookie, not a cached guard user.
         Auth::forgetGuards();
