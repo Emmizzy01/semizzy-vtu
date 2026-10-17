@@ -363,6 +363,23 @@ class VtuOrderService
         return $this->applyProviderResult($order, $result);
     }
 
+    /**
+     * Apply a verified provider webhook only when it matches the recorded owner
+     * and provider reference. Terminal-state and ledger protections stay centralized.
+     *
+     * @param array<string, mixed> $result
+     */
+    public function applyVerifiedWebhookResult(VtuOrder $order, string $provider, string $providerReference, array $result): VtuOrder
+    {
+        if ($order->provider !== $provider
+            || ! is_string($order->provider_reference)
+            || ! hash_equals($order->provider_reference, $providerReference)) {
+            throw new LogicException('Verified webhook does not match the recorded provider transaction.');
+        }
+
+        return $this->applyProviderResult($order, $result);
+    }
+
     private function returnExisting(VtuOrder $order, string $requestHash): VtuOrder
     {
         if (! hash_equals($order->request_hash, $requestHash)) {

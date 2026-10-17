@@ -228,6 +228,27 @@ Schedule::command('payments:reconcile-refunds --limit=100')
     ->withoutOverlapping();
 
 
+Artisan::command('vtu:process-provider-webhooks {--limit=100}', function (
+    \App\Services\Vtu\VtuProviderWebhookService $webhooks,
+) {
+    $limit = (int) $this->option('limit');
+    if ($limit < 1 || $limit > 500) {
+        $this->error('The limit must be between 1 and 500.');
+        return 1;
+    }
+
+    $stats = $webhooks->process($limit);
+    $this->table(['Checked', 'Processed', 'Awaiting order match', 'Ignored'], [[
+        $stats['checked'], $stats['processed'], $stats['unmatched'], $stats['ignored'],
+    ]]);
+
+    return 0;
+})->purpose('Process verified provider webhooks idempotently against recorded VTU order ownership');
+
+Schedule::command('vtu:process-provider-webhooks --limit=100')
+    ->everyMinute()
+    ->withoutOverlapping();
+
 Artisan::command('vtu:reconcile-orders {--limit=100}', function (
     \App\Services\Vtu\VtuOrderService $orders,
 ) {
