@@ -256,9 +256,20 @@ class VtuOrderService
                     'dispatch_started_at' => now(),
                 ])->save();
 
+                // Serialize attempt-number allocation per order. The unique
+                // (order, attempt_number) constraint remains the final database
+                // guard if a future failover worker races this transaction.
+                $lockedAttemptOrder = VtuOrder::query()
+                    ->whereKey($order->getKey())
+                    ->lockForUpdate()
+                    ->firstOrFail();
+                $nextAttemptNumber = ((int) VtuProviderAttempt::query()
+                    ->where('vtu_order_id', $lockedAttemptOrder->getKey())
+                    ->max('attempt_number')) + 1;
+
                 VtuProviderAttempt::query()->create([
-                    'vtu_order_id' => $order->getKey(),
-                    'attempt_number' => 1,
+                    'vtu_order_id' => $lockedAttemptOrder->getKey(),
+                    'attempt_number' => $nextAttemptNumber,
                     'provider' => (string) $order->provider,
                     'outcome' => 'started',
                     'request_fingerprint' => hash('sha256', implode('|', [
@@ -297,7 +308,7 @@ class VtuOrderService
         // dispatch marker. Reload it before updating the provider outcome.
         $attempt = VtuProviderAttempt::query()
             ->where('vtu_order_id', $order->getKey())
-            ->where('attempt_number', 1)
+            ->orderByDesc('attempt_number')
             ->firstOrFail();
 
         try {
