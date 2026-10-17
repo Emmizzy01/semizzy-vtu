@@ -91,15 +91,31 @@ class VtuProviderAdaptersTest extends TestCase
         }
     }
 
-    public function test_dataway_signature_verification_uses_raw_body_and_rejects_tampering(): void
+    public function test_sogo_and_dataway_signatures_use_raw_body_and_reject_tampering(): void
     {
         $body = '{"event":"transaction.successful","data":{"reference":"TXN-1"}}';
         $secret = 'webhook-test-secret';
         $signature = 'sha256='.hash_hmac('sha256', $body, $secret);
         $verifier = app(ProviderWebhookSignature::class);
 
+        $this->assertTrue($verifier->verifySogo($body, $signature, $secret));
+        $this->assertFalse($verifier->verifySogo($body.' ', $signature, $secret));
         $this->assertTrue($verifier->verifyDataway($body, $signature, $secret));
         $this->assertFalse($verifier->verifyDataway($body.' ', $signature, $secret));
         $this->assertFalse($verifier->verifyDataway($body, $signature, ''));
+    }
+
+    public function test_gsubz_signature_binds_timestamp_and_enforces_replay_window(): void
+    {
+        $body = '{"event":"webhook.test","eventId":"evt-1"}';
+        $secret = 'gsubz-webhook-test-secret';
+        $timestamp = '1792243200';
+        $signature = 'sha256='.hash_hmac('sha256', $timestamp.'.'.$body, $secret);
+        $verifier = app(ProviderWebhookSignature::class);
+
+        $this->assertTrue($verifier->verifyGsubz($body, $timestamp, $signature, $secret, 1792243200));
+        $this->assertFalse($verifier->verifyGsubz($body, $timestamp, $signature, $secret, 1792243601));
+        $this->assertFalse($verifier->verifyGsubz($body.' ', $timestamp, $signature, $secret, 1792243200));
+        $this->assertFalse($verifier->verifyGsubz($body, 'not-a-timestamp', $signature, $secret, 1792243200));
     }
 }
