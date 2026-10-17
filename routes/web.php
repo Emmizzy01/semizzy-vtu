@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Admin\IntegrationSettingsController;
 use App\Http\Controllers\Admin\StaffAccessController;
+use App\Http\Controllers\Admin\StorefrontCommissionController;
 use App\Http\Controllers\Admin\VtuOrderOperationsController;
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\Auth\LoginChallengeController;
@@ -152,6 +153,8 @@ Route::middleware(['auth', 'can:staff.permissions.manage'])->prefix('admin')->na
     Route::put('/payment-gateway', [IntegrationSettingsController::class, 'updatePaymentGateway'])->name('payment-gateway.update');
     Route::get('/api-providers', [IntegrationSettingsController::class, 'apiProviders'])->name('api-providers');
     Route::put('/api-providers', [IntegrationSettingsController::class, 'updateApiProviders'])->name('api-providers.update');
+    Route::put('/storefronts/{storefront}/commission-rate', [StorefrontCommissionController::class, 'updateRate'])->middleware('throttle:10,1')->name('storefronts.commission-rate.update');
+    Route::post('/storefront-commissions/{commission}/settle', [StorefrontCommissionController::class, 'settle'])->middleware('throttle:10,1')->name('storefront-commissions.settle');
 });
 
 Route::middleware(['auth', 'can:staff.permissions.manage', 'throttle:30,1'])->get('/admin/vtu-orders', [VtuOrderOperationsController::class, 'index'])
