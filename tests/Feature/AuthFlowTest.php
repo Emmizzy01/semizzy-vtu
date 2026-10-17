@@ -224,4 +224,39 @@ class AuthFlowTest extends TestCase
             'email' => 'new-customer@example.test',
         ]);
     }
+
+    public function test_login_rate_limit_blocks_repeated_password_guesses(): void
+    {
+        for ($attempt = 0; $attempt < 5; $attempt++) {
+            $this->post('/login', [
+                'identifier' => 'rate-limit@example.test',
+                'password' => 'WrongPassword1234',
+            ])->assertRedirect();
+        }
+
+        $this->post('/login', [
+            'identifier' => 'rate-limit@example.test',
+            'password' => 'WrongPassword1234',
+        ])->assertTooManyRequests();
+
+        $this->assertGuest();
+    }
+
+    public function test_suspended_account_cannot_authenticate_with_a_correct_password(): void
+    {
+        $user = User::query()->create([
+            'name' => 'Suspended Customer',
+            'email' => 'suspended-auth@example.test',
+            'password' => 'CorrectPassword1234',
+        ]);
+        $user->forceFill(['account_status' => 'suspended'])->save();
+
+        $this->from('/login')->post('/login', [
+            'identifier' => $user->email,
+            'password' => 'CorrectPassword1234',
+        ])->assertRedirect('/login')->assertSessionHasErrors('identifier');
+
+        $this->assertGuest();
+    }
+
 }
