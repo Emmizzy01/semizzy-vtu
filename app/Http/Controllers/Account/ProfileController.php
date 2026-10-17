@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Account;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Services\Security\TransactionPinService;
+use App\Services\Security\UserSessionService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -45,7 +46,7 @@ class ProfileController extends Controller
         return back()->with('status', 'Profile saved.');
     }
 
-    public function updatePassword(Request $request, TransactionPinService $security): RedirectResponse
+    public function updatePassword(Request $request, TransactionPinService $security, UserSessionService $sessions): RedirectResponse
     {
         /** @var User $user */
         $user = $request->user();
@@ -61,9 +62,10 @@ class ProfileController extends Controller
             return back()->withErrors(['password' => 'Choose a new password different from your current password.']);
         }
 
+        $sessions->revokeOthers($user, $sessions->currentHash($request));
         $user->forceFill(['password' => Hash::make($data['password']), 'remember_token' => Str::random(60)])->save();
         $request->session()->regenerate();
-        $security->record($user->id, 'password_changed', 'success', ['session_regenerated' => true]);
+        $security->record($user->id, 'password_changed', 'success', ['session_regenerated' => true, 'other_sessions_revoked' => true]);
         return back()->with('status', 'Password changed. Your current session has been refreshed; sign in again on other devices if prompted.');
     }
 }

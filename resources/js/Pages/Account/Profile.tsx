@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { Head, router } from '@inertiajs/react';
 import DashboardLayout from '../../Components/DashboardLayout';
-import { KeyRound, ShieldCheck, UserRound, ChevronRight } from 'lucide-react';
+import { KeyRound, ShieldCheck, UserRound, ChevronRight, MonitorSmartphone } from 'lucide-react';
 
 type Profile = { name: string; email: string; user_type: string; user_level: string; kyc_status: string; transaction_pin_configured: boolean; transaction_pin_changed_at: string | null };
 export default function ProfilePage({ profile }: { profile: Profile }) {
@@ -26,6 +26,7 @@ export default function ProfilePage({ profile }: { profile: Profile }) {
           <button disabled={busy || name.trim().length<2} className="rounded-xl bg-emerald-700 px-4 py-3 font-semibold text-white disabled:opacity-50">{busy?'Saving…':'Save profile'}</button>
         </form>
       </section>
+      <a href="/account/sessions" className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-950"><span className="flex items-center gap-3"><span className="rounded-xl bg-emerald-700/10 p-3 text-emerald-700 dark:text-emerald-300"><MonitorSmartphone size={22}/></span><span><span className="block font-semibold">Sessions & devices</span><span className="text-sm text-slate-500">Review and revoke access on other devices.</span></span></span><ChevronRight size={18}/></a>
       <section className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-950">
         <div className="mb-4 flex items-center gap-3"><span className="rounded-xl bg-emerald-700/10 p-3 text-emerald-700 dark:text-emerald-300"><KeyRound size={22}/></span><div><h2 className="font-semibold">Change password</h2><p className="text-sm text-slate-500">Use at least 12 characters with lowercase, uppercase and a number.</p></div></div>
         <form onSubmit={submitPassword} className="space-y-4">

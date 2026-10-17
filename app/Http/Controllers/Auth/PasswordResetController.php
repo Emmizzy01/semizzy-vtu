@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Services\Security\TransactionPinService;
+use App\Services\Security\UserSessionService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -40,7 +41,7 @@ class PasswordResetController extends Controller
         ]);
     }
 
-    public function reset(Request $request, TransactionPinService $security): RedirectResponse
+    public function reset(Request $request, TransactionPinService $security, UserSessionService $sessions): RedirectResponse
     {
         $request->merge(['email' => strtolower(trim((string) $request->input('email')))]);
         $data = $request->validate([
@@ -49,7 +50,7 @@ class PasswordResetController extends Controller
             'password' => ['required', 'confirmed', PasswordRule::min(12)->letters()->mixedCase()->numbers()],
         ]);
 
-        $status = Password::reset($data, function (User $user, string $password) use ($security): void {
+        $status = Password::reset($data, function (User $user, string $password) use ($security, $sessions): void {
             $user->forceFill([
                 'password' => Hash::make($password),
                 'remember_token' => Str::random(60),
@@ -58,7 +59,8 @@ class PasswordResetController extends Controller
                 'transaction_pin_failed_attempts' => 0,
                 'transaction_pin_locked_until' => null,
             ])->save();
-            $security->record($user->id, 'password_reset_completed', 'success', ['transaction_pin_cleared' => true]);
+            $sessions->revokeAll($user);
+            $security->record($user->id, 'password_reset_completed', 'success', ['transaction_pin_cleared' => true, 'sessions_revoked' => true]);
         });
 
         if ($status === Password::PASSWORD_RESET) {

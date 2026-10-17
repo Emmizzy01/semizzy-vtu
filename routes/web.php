@@ -21,6 +21,7 @@ use App\Http\Controllers\Admin\FeatureControlController;
 use App\Models\PlatformFeatureControl;
 use App\Http\Controllers\Security\TransactionPinController;
 use App\Http\Controllers\Account\ProfileController;
+use App\Http\Controllers\Account\UserSessionController;
 use App\Http\Controllers\Account\AccountTierController;
 use App\Http\Controllers\Support\SupportTicketController;
 use App\Http\Controllers\Admin\SupportTicketOperationsController;
@@ -54,6 +55,9 @@ Route::middleware('auth')->group(function (): void {
     Route::post('/support', [SupportTicketController::class, 'store'])->middleware('throttle:5,1')->name('support.store');
     Route::post('/support/{ticket}/reply', [SupportTicketController::class, 'reply'])->middleware('throttle:10,1')->name('support.reply');
     Route::get('/profile', [ProfileController::class, 'show'])->name('profile.show');
+    Route::get('/account/sessions', [UserSessionController::class, 'index'])->name('account.sessions.index');
+    Route::delete('/account/sessions/{sessionId}', [UserSessionController::class, 'revoke'])->whereUuid('sessionId')->middleware('throttle:10,1')->name('account.sessions.revoke');
+    Route::post('/account/sessions/revoke-others', [UserSessionController::class, 'revokeOthers'])->middleware('throttle:5,1')->name('account.sessions.revoke-others');
     Route::get('/account/kyc', [KycSubmissionController::class, 'index'])->name('account.kyc.index');
     Route::post('/account/kyc', [KycSubmissionController::class, 'submit'])->middleware('throttle:3,1')->name('account.kyc.submit');
     Route::get('/account/tiers', [AccountTierController::class, 'index'])->name('account.tiers');
