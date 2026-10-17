@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { Head, router } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
 import DashboardLayout from '../../Components/DashboardLayout';
 import { BriefcaseBusiness, Plus, Store, Users, ArrowUpRight } from 'lucide-react';
 
@@ -59,7 +59,7 @@ export default function WorkspacesIndex({ workspaces, canCreate }: { workspaces:
             <div className="flex items-start justify-between gap-3"><span className="rounded-xl bg-emerald-700/10 p-3 text-emerald-700 dark:text-emerald-300"><Store size={21}/></span><span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600 dark:bg-slate-900 dark:text-slate-300">{label(workspace.type)}</span></div>
             <h3 className="mt-4 text-lg font-semibold">{workspace.name}</h3><p className="mt-1 break-all text-xs text-slate-500">/{workspace.slug}</p>
             <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-slate-500"><span className="inline-flex items-center gap-1.5"><Users size={16}/>{workspace.activeMembers} active memberships</span><span>{workspace.isOwner ? 'Owner' : workspace.canManage ? 'Workspace manager' : 'Member'}</span></div>
-            <div className="mt-4 border-t border-slate-100 pt-4 text-sm dark:border-slate-800">{workspace.canManage ? <span className="font-medium text-emerald-700 dark:text-emerald-300">You can manage this workspace</span> : <span className="text-slate-500">Access is limited by your membership permissions</span>}<span className="float-right text-slate-400" title="Workspace administration features are being added"><ArrowUpRight size={17}/></span></div>
+            <div className="mt-4 border-t border-slate-100 pt-4 text-sm dark:border-slate-800">{workspace.canManage ? <span className="font-medium text-emerald-700 dark:text-emerald-300">You can manage this workspace</span> : <span className="text-slate-500">Access is limited by your membership permissions</span>}<Link href={`/workspaces/${workspace.id}/team`} className="float-right inline-flex items-center gap-1 font-medium text-emerald-700 hover:underline dark:text-emerald-300">Team <ArrowUpRight size={16}/></Link></div>
           </article>)}</div>}
       </section>
     </div>
