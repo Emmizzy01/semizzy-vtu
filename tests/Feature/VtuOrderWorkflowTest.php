@@ -34,6 +34,8 @@ class VtuOrderWorkflowTest extends TestCase
             'services.vtu.name' => 'test_provider',
             'services.vtu.endpoint' => 'https://provider.example.test/api',
             'services.vtu.token' => 'test-secret-token',
+            // These explicit VTpass adapter contract tests run only with a test-only opt-in.
+            'services.vtu.vtpass.purchase_isolated' => false,
         ]);
     }
 
