@@ -34,6 +34,10 @@ class VtpassProviderClient implements VtuProvider
 
     public function assertProductConfigured(VtuProduct $product): void
     {
+        if (config('services.vtu.vtpass.purchase_isolated', true) === true) {
+            throw new LogicException('VTpass purchases are temporarily isolated pending technical support confirmation. Existing orders remain available for reconciliation.');
+        }
+
         // Every product routed through this adapter must have explicit approval.
         // Do not rely on catalog_source: legacy rows may lack that metadata.
         if (($product->metadata['purchase_approved'] ?? false) !== true) {
