@@ -51,6 +51,8 @@ class BusinessWorkspaceController extends Controller
                 'activeMembers' => (int) $workspace->active_members_count,
                 'isOwner' => (int) $workspace->owner_user_id === (int) $user->getKey(),
                 'canManage' => $workspace->canManage($user),
+                'canViewTeam' => $workspace->canManage($user) || ($workspace->membershipFor($user)?->hasPermission('members.view') ?? false),
+                'canManageStorefront' => $workspace->canManageStorefront($user),
             ])
             ->values();
 
