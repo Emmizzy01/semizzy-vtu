@@ -152,6 +152,37 @@ class VtuProviderAdaptersTest extends TestCase
             && $request['requestID'] === '550e8400-e29b-41d4-a716-446655440000');
     }
 
+    public function test_gsubz_lookup_uses_documented_verify_endpoint_and_request_id_status(): void
+    {
+        Http::fakeSequence()
+            ->push([
+                'code' => '200',
+                'status' => 'success',
+                'description' => 'TRANSACTION_SUCCESSFUL',
+                'api_response' => 'Transaction completed.',
+            ], 200)
+            ->push([
+                'code' => '200',
+                'status' => 'failed',
+                'description' => 'TRANSACTION_FAILED',
+                'api_response' => 'Transaction failed.',
+            ], 200);
+
+        $client = app(GsubzProviderClient::class);
+        $order = $this->order();
+
+        $success = $client->lookup($order);
+        $failure = $client->lookup($order);
+
+        $this->assertSame('success', $success['status']);
+        $this->assertSame('failed', $failure['status']);
+        Http::assertSent(fn ($request) => str_ends_with($request->url(), '/api/verify/')
+            && $request->method() === 'POST'
+            && $request['requestID'] === $order->public_id
+            && $request['api'] === 'gsubz-test-key');
+        $this->assertCount(2, Http::recorded());
+    }
+
     public function test_dataway_requires_explicit_mapping_and_never_guesses_lookup_endpoint(): void
     {
         Http::fake(['dataway.ng/*' => Http::response(['status' => 'pending'], 202)]);
