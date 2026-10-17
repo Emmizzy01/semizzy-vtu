@@ -8,6 +8,7 @@ use App\Models\UserRoleAudit;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
 
@@ -85,7 +86,7 @@ class UserManagementController extends Controller
             $old = ['user_type' => $target->user_type ?: 'customer', 'user_level' => $target->user_level ?: 'level_1', 'kyc_status' => $target->kyc_status ?: 'unverified'];
             $new = ['user_type' => $data['user_type'], 'user_level' => $data['user_level'], 'kyc_status' => $data['kyc_status']];
             if ($old['kyc_status'] !== 'verified' && $new['kyc_status'] === 'verified') {
-                throw \\Illuminate\\Validation\\ValidationException::withMessages([
+                throw ValidationException::withMessages([
                     'kyc_status' => 'KYC cannot be marked verified until the identity evidence review workflow is completed.',
                 ]);
             }
