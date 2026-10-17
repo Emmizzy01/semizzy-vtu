@@ -49,7 +49,7 @@ Route::middleware('auth')->group(function (): void {
     Route::get('/support', [SupportTicketController::class, 'index'])->name('support.index');
     Route::post('/support', [SupportTicketController::class, 'store'])->middleware('throttle:5,1')->name('support.store');
     Route::post('/support/{ticket}/reply', [SupportTicketController::class, 'reply'])->middleware('throttle:10,1')->name('support.reply');
-    Route::get('/profile', [ProfileController::class, 'show'])->name('profile.show');
+    Route::get('/profile', [ProfileController::class, 'show'])->name('profile.show');\n    Route::get('/account/kyc', [KycSubmissionController::class, 'index'])->name('account.kyc.index');\n    Route::post('/account/kyc', [KycSubmissionController::class, 'submit'])->middleware('throttle:3,1')->name('account.kyc.submit');
     Route::get('/account/tiers', [AccountTierController::class, 'index'])->name('account.tiers');
     Route::post('/account/tiers/upgrade', [AccountTierController::class, 'requestUpgrade'])->middleware('throttle:3,1')->name('account.tiers.upgrade');
     Route::put('/profile', [ProfileController::class, 'update'])->middleware('throttle:10,1')->name('profile.update');
@@ -111,7 +111,7 @@ Route::middleware(['auth', 'can:staff.permissions.manage'])->prefix('admin')->na
     Route::get('/user-level-upgrade-requests', [UserLevelUpgradeReviewController::class, 'index'])->name('user-level-upgrade-requests.index');
     Route::post('/user-level-upgrade-requests/{upgradeRequest}/review', [UserLevelUpgradeReviewController::class, 'review'])->middleware('throttle:10,1')->name('user-level-upgrade-requests.review');
     Route::put('/user-levels/{level}', [UserLevelPolicyController::class, 'update'])->middleware('throttle:20,1')->name('user-levels.update');
-    Route::get('/users', [UserManagementController::class, 'index'])->middleware('throttle:60,1')->name('users.index');
+    Route::get('/users', [UserManagementController::class, 'index'])->middleware('throttle:60,1')->name('users.index');\n    Route::get('/kyc-reviews', [KycSubmissionController::class, 'adminIndex'])->middleware('throttle:30,1')->name('kyc-reviews.index');\n    Route::get('/kyc-reviews/{submission}/evidence', [KycSubmissionController::class, 'evidence'])->middleware('throttle:10,1')->name('kyc-reviews.evidence');\n    Route::post('/kyc-reviews/{submission}/review', [KycSubmissionController::class, 'review'])->middleware('throttle:10,1')->name('kyc-reviews.review');
     Route::put('/users/{user}/classification', [UserManagementController::class, 'update'])->middleware('throttle:20,1')->name('users.classification.update');
     Route::put('/users/{user}/status', [UserManagementController::class, 'updateStatus'])->middleware('throttle:10,1')->name('users.status.update');
     Route::get('/platform-settings', [PlatformSettingsController::class, 'edit'])->name('platform-settings');
