@@ -164,7 +164,7 @@ class VtpassProviderClientTest extends TestCase
             ],
         ]);
         $order->recipient = '1234567890';
-        $order->service_details = ['contact_phone' => '08012345678'];
+        $order->service_details = ['contact_phone' => '08012345678', 'subscription_type' => 'change'];
 
         $result = app(VtpassProviderClient::class)->submit($order);
 
@@ -174,7 +174,33 @@ class VtpassProviderClientTest extends TestCase
             && $request['billersCode'] === '1234567890'
             && $request['variation_code'] === 'dstv-padi'
             && $request['phone'] === '08012345678'
+            && $request['subscription_type'] === 'change'
             && ! array_key_exists('amount', $request->data()));
+    }
+
+    public function test_tv_purchase_rejects_renewal_without_verified_renewal_amount(): void
+    {
+        Http::fake();
+
+        $order = $this->order('tv-subscription', 'dstv', [
+            'price_minor' => 250000,
+            'metadata' => [
+                'provider_service_id' => 'dstv',
+                'provider_variation_code' => 'dstv-padi',
+                'purchase_supported' => true,
+            ],
+        ]);
+        $order->recipient = '1234567890';
+        $order->service_details = ['contact_phone' => '08012345678', 'subscription_type' => 'renew'];
+
+        try {
+            app(VtpassProviderClient::class)->submit($order);
+            $this->fail('TV renewal must stay blocked without the verified renewal amount.');
+        } catch (\\LogicException $exception) {
+            $this->assertStringContainsString('Renewal remains disabled', $exception->getMessage());
+        }
+
+        Http::assertNothingSent();
     }
 
     public function test_electricity_and_tv_transaction_responses_map_failure_pending_and_ambiguous_safely(): void
