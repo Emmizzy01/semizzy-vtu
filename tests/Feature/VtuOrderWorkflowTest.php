@@ -582,6 +582,53 @@ class VtuOrderWorkflowTest extends TestCase
             && ($request['requestID'] ?? null) === $order->public_id);
     }
 
+    public function test_reserved_sogo_attempt_recovers_after_crash_only_on_explicit_not_found_signal(): void
+    {
+        config([
+            'services.vtu.multi_provider.enabled' => false,
+            'services.vtu.sogo.base_url' => 'https://api.sogo.africa/v1',
+            'services.vtu.sogo.api_key' => 'sogo-test-key',
+        ]);
+        Http::fake(fn () => Http::response(['status' => 'pending'], 200));
+
+        [$user, $wallet, $product] = $this->preparedCustomer(1000, 1500);
+        $product->forceFill(['metadata' => ['provider_mappings' => [
+            'sogo' => ['network' => 'mtn'],
+        ]]])->save();
+
+        $service = app(VtuOrderService::class);
+        $order = $service->purchase($user, $product->code, '08012345678', 'reserved-sogo-crash-recovery');
+        $attempt = \\App\\Models\\VtuProviderAttempt::query()
+            ->where('vtu_order_id', $order->getKey())->firstOrFail();
+
+        // Model a crash after durable reservation but before the provider call:
+        // the persisted order and attempt both identify Sogo, and no outcome exists.
+        $order->forceFill(['provider' => 'sogo', 'status' => 'processing'])->save();
+        $attempt->forceFill(['provider' => 'sogo', 'outcome' => 'reserved', 'definitive_failure' => false])->save();
+
+        Http::fake([
+            'api.sogo.africa/transactions/*' => Http::response([], 404),
+            'api.sogo.africa/bills/airtime' => Http::response([
+                'data' => ['status' => 'completed', 'reference' => 'SOGO-RECOVERED'],
+            ], 200),
+        ]);
+
+        $recovered = $service->reconcile($order->fresh());
+
+        $this->assertSame('successful', $recovered->status);
+        $this->assertSame('sogo', $recovered->provider);
+        $this->assertSame('success', $attempt->fresh()->outcome);
+        $this->assertSame(500, (int) $wallet->fresh()->available_balance_minor);
+        $this->assertDatabaseCount('wallet_transactions', 2);
+        $this->assertDatabaseCount('vtu_provider_attempts', 1);
+        Http::assertSent(fn ($request) => str_contains($request->url(), '/transactions/')
+            && $request->method() === 'GET');
+        Http::assertSent(fn ($request) => str_contains($request->url(), '/bills/airtime')
+            && $request->method() === 'POST'
+            && $request->hasHeader('Idempotency-Key', $order->public_id));
+        Http::assertSentCount(2);
+    }
+
     public function test_generic_failed_provider_status_stays_unresolved_without_refund(): void
     {
         Http::fake(fn () => Http::response([
