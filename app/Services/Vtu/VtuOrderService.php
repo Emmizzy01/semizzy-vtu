@@ -447,6 +447,15 @@ class VtuOrderService
             return $this->markAwaitingReconciliation($order, 'provider_result_unknown', $result);
         }
 
+        // A plain "failed" label is not enough to refund: only a provider
+        // whose definitive non-delivery contract is explicitly allowlisted,
+        // and whose response carries the strict boolean signal, is terminal.
+        // This also applies to reconciliation results and verified webhooks.
+        if ($providerStatus === 'failed'
+            && ! app(ProviderFailoverPolicy::class)->mayFailover((string) $order->provider, $result)) {
+            return $this->markAwaitingReconciliation($order, 'provider_failure_not_verified', $result);
+        }
+
         if ($providerStatus === 'pending') {
             // Reconciliation may race with a terminal result. Lock and re-read
             // the row so a late "pending" response can never undo success/failure.
