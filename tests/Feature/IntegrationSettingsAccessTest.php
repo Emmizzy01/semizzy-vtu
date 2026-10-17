@@ -118,7 +118,7 @@ class IntegrationSettingsAccessTest extends TestCase
             'confirm_live' => false,
         ])->assertSessionHasErrors('provider');
 
-        $this->assertSame('vtpass', app(\App\Services\IntegrationSettings::class)->get('vtu.driver'));
+        $this->assertSame('vtpass', config('services.vtu.driver'));
         $this->assertDatabaseMissing('integration_settings', ['key' => 'vtu.vtpass.api_key']);
     }
 
