@@ -122,6 +122,51 @@ class TransactionPinSecurityTest extends TestCase
         $this->assertDatabaseCount('wallet_transactions', 0);
     }
 
+    public function test_incorrect_pin_cannot_submit_a_valid_airtime_purchase_or_debit_wallet(): void
+    {
+        \\Illuminate\\Support\\Facades\\Http::fake();
+
+        $user = User::query()->create(['name' => 'PIN Boundary Customer', 'email' => 'pin-boundary@example.test', 'password' => 'not-a-real-password']);
+        $user->forceFill(['transaction_pin_hash' => Hash::make('4928')])->save();
+
+        $product = VtuProduct::query()->create([
+            'service_type' => 'airtime',
+            'network' => 'mtn',
+            'code' => 'pin-boundary-airtime',
+            'name' => 'PIN Boundary Airtime',
+            'price_minor' => 1000,
+            'face_value_minor' => 1000,
+            'currency' => 'NGN',
+            'is_active' => true,
+            'metadata' => ['provider_service_id' => 'mtn'],
+        ]);
+
+        $wallet = app(\\App\\Services\\Wallets\\WalletAccountService::class)->openForUser($user, 'NGN');
+        app(\\App\\Services\\Wallets\\WalletLedgerService::class)->post(
+            walletId: (int) $wallet->getKey(),
+            type: 'credit',
+            amountMinor: 5000,
+            idempotencyKey: 'pin-boundary-opening-credit',
+            reference: 'pin-boundary-opening-credit',
+            description: 'Test opening balance',
+            actorUserId: (int) $user->getKey(),
+        );
+
+        $this->actingAs($user)->postJson('/wallet/vtu/orders', [
+            'product_code' => $product->code,
+            'recipient' => '08012345678',
+            'idempotency_key' => 'pin-boundary-invalid-pin',
+            'transaction_pin' => '1111',
+            'amount' => 25,
+        ])->assertStatus(422)
+          ->assertJsonPath('message', 'Transaction PIN is incorrect.');
+
+        $this->assertSame(5000, (int) $wallet->fresh()->available_balance_minor);
+        $this->assertDatabaseCount('vtu_orders', 0);
+        $this->assertDatabaseCount('wallet_transactions', 1);
+        \\Illuminate\\Support\\Facades\\Http::assertNothingSent();
+    }
+
     public function test_user_can_set_a_separate_hashed_transaction_pin(): void
     {
         $user = User::query()->create(['name' => 'PIN Customer', 'email' => 'pin-customer@example.test', 'password' => 'not-a-real-password']);
