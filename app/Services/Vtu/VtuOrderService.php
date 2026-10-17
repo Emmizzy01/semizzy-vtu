@@ -249,11 +249,24 @@ class VtuOrderService
 
                 $order->forceFill([
                     'wallet_transaction_id' => $transaction->getKey(),
-                    // Persist the dispatch marker before making the network call.
-                    // If the process dies after this point, retries must reconcile.
+                    // Persist the dispatch marker and attempt record atomically
+                    // with the debit. A crash cannot leave a debited order marked
+                    // dispatched without a durable provider-attempt row.
                     'status' => VtuOrderStatus::Processing->value,
                     'dispatch_started_at' => now(),
                 ])->save();
+
+                VtuProviderAttempt::query()->create([
+                    'vtu_order_id' => $order->getKey(),
+                    'attempt_number' => 1,
+                    'provider' => (string) $order->provider,
+                    'outcome' => 'started',
+                    'request_fingerprint' => hash('sha256', implode('|', [
+                        $order->public_id, $order->provider, $order->product_code,
+                        $order->recipient, (string) $order->amount_minor,
+                    ])),
+                    'started_at' => now(),
+                ]);
 
                 return $order;
             }, attempts: 3);
@@ -280,20 +293,12 @@ class VtuOrderService
             return $this->returnExisting($order, $requestHash);
         }
 
-        // Persist an attempt before dispatch. An unfinished attempt is evidence
-        // that the provider may have received the request; it must never be
-        // treated as permission to submit to another provider.
-        $attempt = VtuProviderAttempt::query()->create([
-            'vtu_order_id' => $order->getKey(),
-            'attempt_number' => ((int) VtuProviderAttempt::query()->where('vtu_order_id', $order->getKey())->max('attempt_number')) + 1,
-            'provider' => (string) $order->provider,
-            'outcome' => 'started',
-            'request_fingerprint' => hash('sha256', implode('|', [
-                $order->public_id, $order->provider, $order->product_code,
-                $order->recipient, (string) $order->amount_minor,
-            ])),
-            'started_at' => now(),
-        ]);
+        // The attempt row was committed atomically with the order debit and
+        // dispatch marker. Reload it before updating the provider outcome.
+        $attempt = VtuProviderAttempt::query()
+            ->where('vtu_order_id', $order->getKey())
+            ->where('attempt_number', 1)
+            ->firstOrFail();
 
         try {
             $result = $this->provider->submit($order);
