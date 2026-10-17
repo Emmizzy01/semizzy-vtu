@@ -445,7 +445,11 @@ class VtuOrderWorkflowTest extends TestCase
             'outcome' => 'failed',
             'definitive_failure' => false,
         ]);
-        $this->assertDatabaseCount('vtu_provider_attempts', 1, 'An unverified failure must not create a second provider attempt.');
+        $this->assertSame(
+            1,
+            \App\Models\VtuProviderAttempt::query()->where('vtu_order_id', $order->getKey())->count(),
+            'An unverified failure must not create a second provider attempt.',
+        );
         Http::assertSentCount(1);
     }
 
