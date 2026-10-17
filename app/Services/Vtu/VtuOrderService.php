@@ -358,7 +358,7 @@ class VtuOrderService
 
         // Failover is never inferred from a generic failed status or an unknown
         // transport outcome. Those stay on reconciliation without resubmission.
-        $updated = $this->applyProviderResult($order, $result);
+        $updated = $this->applyProviderResult($order, $result, $attempt);
         $updated->setAttribute('_created_for_request', true);
 
         return $updated;
@@ -472,7 +472,18 @@ class VtuOrderService
             return $this->markAwaitingReconciliation($order, 'provider_still_pending', $result);
         }
 
-        return $this->applyProviderResult($order->fresh(), $result);
+        return $this->applyProviderResult($order->fresh(), $result, $attempt);
+    }
+
+    private function isLatestAttemptLocked(VtuOrder $order, VtuProviderAttempt $attempt): bool
+    {
+        $latest = VtuProviderAttempt::query()
+            ->where('vtu_order_id', $order->getKey())
+            ->orderByDesc('attempt_number')
+            ->lockForUpdate()
+            ->first();
+
+        return $latest !== null && (int) $latest->getKey() === (int) $attempt->getKey();
     }
 
     private function isLatestAttempt(VtuOrder $order, VtuProviderAttempt $attempt): bool
@@ -703,7 +714,7 @@ class VtuOrderService
     }
 
     /** @param array<string, mixed> $result */
-    private function applyProviderResult(VtuOrder $order, array $result): VtuOrder
+    private function applyProviderResult(VtuOrder $order, array $result, ?VtuProviderAttempt $sourceAttempt = null): VtuOrder
     {
         $providerStatus = $result['status'] ?? null;
 
@@ -712,7 +723,7 @@ class VtuOrderService
         // fulfilled order. Only explicit allowlisted states may be applied.
         if (! is_string($providerStatus)
             || ! in_array($providerStatus, ['success', 'failed', 'pending'], true)) {
-            return $this->markAwaitingReconciliation($order, 'provider_result_unknown', $result);
+            return $this->markAwaitingReconciliation($order, 'provider_result_unknown', $result, $sourceAttempt);
         }
 
         // A plain "failed" label is not enough to refund: only a provider
@@ -721,13 +732,13 @@ class VtuOrderService
         // This also applies to reconciliation results and verified webhooks.
         if ($providerStatus === 'failed'
             && ! app(ProviderFailoverPolicy::class)->mayFailover((string) $order->provider, $result)) {
-            return $this->markAwaitingReconciliation($order, 'provider_failure_not_verified', $result);
+            return $this->markAwaitingReconciliation($order, 'provider_failure_not_verified', $result, $sourceAttempt);
         }
 
         if ($providerStatus === 'pending') {
             // Reconciliation may race with a terminal result. Lock and re-read
             // the row so a late "pending" response can never undo success/failure.
-            $updated = DB::transaction(function () use ($order, $result): VtuOrder {
+            $updated = DB::transaction(function () use ($order, $result, $sourceAttempt): VtuOrder {
                 /** @var VtuOrder $locked */
                 $locked = VtuOrder::query()->whereKey($order->getKey())->lockForUpdate()->firstOrFail();
 
@@ -735,7 +746,7 @@ class VtuOrderService
                     VtuOrderStatus::Successful->value,
                     VtuOrderStatus::Failed->value,
                     VtuOrderStatus::Cancelled->value,
-                ], true)) {
+                ], true) || ($sourceAttempt !== null && ! $this->isLatestAttemptLocked($locked, $sourceAttempt))) {
                     return $locked;
                 }
 
@@ -758,14 +769,14 @@ class VtuOrderService
             return $updated;
         }
 
-        $updated = DB::transaction(function () use ($order, $providerStatus, $result): VtuOrder {
+        $updated = DB::transaction(function () use ($order, $providerStatus, $result, $sourceAttempt): VtuOrder {
             /** @var VtuOrder $locked */
             $locked = VtuOrder::query()->whereKey($order->getKey())->lockForUpdate()->firstOrFail();
             if (in_array($locked->status, [
                 VtuOrderStatus::Successful->value,
                 VtuOrderStatus::Failed->value,
                 VtuOrderStatus::Cancelled->value,
-            ], true)) {
+            ], true) || ($sourceAttempt !== null && ! $this->isLatestAttemptLocked($locked, $sourceAttempt))) {
                 return $locked;
             }
 
@@ -818,9 +829,9 @@ class VtuOrderService
     }
 
     /** @param array<string, mixed> $result */
-    private function markAwaitingReconciliation(VtuOrder $order, string $failureCode, array $result = []): VtuOrder
+    private function markAwaitingReconciliation(VtuOrder $order, string $failureCode, array $result = [], ?VtuProviderAttempt $sourceAttempt = null): VtuOrder
     {
-        $updated = DB::transaction(function () use ($order, $failureCode, $result): VtuOrder {
+        $updated = DB::transaction(function () use ($order, $failureCode, $result, $sourceAttempt): VtuOrder {
             /** @var VtuOrder $locked */
             $locked = VtuOrder::query()->whereKey($order->getKey())->lockForUpdate()->firstOrFail();
 
@@ -828,7 +839,7 @@ class VtuOrderService
                 VtuOrderStatus::Successful->value,
                 VtuOrderStatus::Failed->value,
                 VtuOrderStatus::Cancelled->value,
-            ], true)) {
+            ], true) || ($sourceAttempt !== null && ! $this->isLatestAttemptLocked($locked, $sourceAttempt))) {
                 return $locked;
             }
 
