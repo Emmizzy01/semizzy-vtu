@@ -220,8 +220,8 @@ class IntegrationSettingsAccessTest extends TestCase
         ]);
         UserPermission::query()->create(['user_id' => $admin->id, 'permission' => 'staff.permissions.manage']);
 
-        app(\App\\Services\\IntegrationSettings::class)->set('paystack.secret_key', 'sk_test_existing_key', $admin->id);
-        app(\App\\Services\\IntegrationSettings::class)->set('paystack.mode', 'test', $admin->id);
+        app(\App\Services\IntegrationSettings::class)->set('paystack.secret_key', 'sk_test_existing_key', $admin->id);
+        app(\App\Services\IntegrationSettings::class)->set('paystack.mode', 'test', $admin->id);
 
         $this->actingAs($admin)->put('/admin/payment-gateway', [
             'reason' => 'Reject mismatched live gateway mode',
@@ -231,8 +231,8 @@ class IntegrationSettingsAccessTest extends TestCase
             'confirm_live' => true,
         ])->assertSessionHasErrors('secret_key');
 
-        $this->assertSame('sk_test_existing_key', app(\App\\Services\\IntegrationSettings::class)->get('paystack.secret_key'));
-        $this->assertSame('test', app(\App\\Services\\IntegrationSettings::class)->get('paystack.mode'));
+        $this->assertSame('sk_test_existing_key', app(\App\Services\IntegrationSettings::class)->get('paystack.secret_key'));
+        $this->assertSame('test', app(\App\Services\IntegrationSettings::class)->get('paystack.mode'));
     }
 
     public function test_gateway_audit_records_hashes_and_reason_without_persisting_secret_in_audit(): void
@@ -254,7 +254,7 @@ class IntegrationSettingsAccessTest extends TestCase
             'confirm_live' => false,
         ])->assertSessionHasNoErrors();
 
-        $audit = \App\\Models\\PlatformSettingAudit::query()
+        $audit = \App\Models\PlatformSettingAudit::query()
             ->where('setting_key', 'paystack.secret_key')
             ->latest('id')
             ->firstOrFail();
