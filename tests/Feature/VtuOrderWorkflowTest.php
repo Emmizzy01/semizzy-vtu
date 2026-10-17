@@ -598,7 +598,7 @@ class VtuOrderWorkflowTest extends TestCase
 
         $service = app(VtuOrderService::class);
         $order = $service->purchase($user, $product->code, '08012345678', 'reserved-sogo-crash-recovery');
-        $attempt = \\App\\Models\\VtuProviderAttempt::query()
+        $attempt = \App\Models\VtuProviderAttempt::query()
             ->where('vtu_order_id', $order->getKey())->firstOrFail();
 
         // Model a crash after durable reservation but before the provider call:
