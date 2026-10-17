@@ -77,6 +77,7 @@ class VtuProviderClient implements VtuProvider
             'message_code' => is_string($body['message_code'] ?? null)
                 ? substr($body['message_code'], 0, 80)
                 : null,
+            'definitive_failure' => ($body['definitive_failure'] ?? false) === true,
         ];
     }
 
@@ -119,6 +120,7 @@ class VtuProviderClient implements VtuProvider
             'message_code' => is_string($body['message_code'] ?? null)
                 ? substr($body['message_code'], 0, 80)
                 : null,
+            'definitive_failure' => ($body['definitive_failure'] ?? false) === true,
         ];
     }
 }
