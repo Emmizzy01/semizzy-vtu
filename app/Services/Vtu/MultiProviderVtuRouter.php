@@ -3,6 +3,7 @@
 namespace App\Services\Vtu;
 
 use App\Models\VtuOrder;
+use App\Models\VtuProviderAttempt;
 use App\Models\VtuProduct;
 use App\Services\IntegrationSettings;
 use LogicException;
@@ -58,6 +59,16 @@ class MultiProviderVtuRouter implements VtuProvider
         return $this->providerForRecordedOrder($order)->lookup($order);
     }
 
+    /** Reconcile the provider recorded on a specific durable attempt, not the order's current provider. */
+    public function lookupAttempt(VtuOrder $order, VtuProviderAttempt $attempt): array
+    {
+        if ((int) $attempt->vtu_order_id !== (int) $order->getKey()) {
+            throw new LogicException('Provider attempt does not belong to this VTU order.');
+        }
+
+        return $this->providerForAttempt($attempt->provider)->lookup($order);
+    }
+
     public function verifyElectricityMeter(VtuProduct $product, string $meterNumber, string $meterType): array
     {
         $provider = $this->legacyProvider();
@@ -80,6 +91,15 @@ class MultiProviderVtuRouter implements VtuProvider
     {
         if (isset($this->providers[$order->provider])) return $this->providers[$order->provider];
         return $this->legacyProvider();
+    }
+
+    private function providerForAttempt(string $provider): VtuProvider
+    {
+        if (isset($this->providers[$provider])) return $this->providers[$provider];
+        if ($provider === 'vtpass') return $this->vtpassProvider;
+        if ($provider === (string) config('services.vtu.name', 'configured_vtu')) return $this->configuredProvider;
+
+        throw new LogicException('The provider recorded for this attempt is not available for reconciliation.');
     }
 
     private function selectProvider(VtuProduct $product): void
