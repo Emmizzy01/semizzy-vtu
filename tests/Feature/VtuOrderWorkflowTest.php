@@ -559,6 +559,13 @@ class VtuOrderWorkflowTest extends TestCase
 
         $this->assertSame('successful', $reconciled->status);
         $this->assertSame(500, (int) $wallet->fresh()->available_balance_minor);
+        $this->assertDatabaseHas('vtu_provider_attempts', [
+            'vtu_order_id' => $order->getKey(),
+            'attempt_number' => 1,
+            'provider' => $order->provider,
+            'outcome' => 'success',
+            'provider_reference' => 'provider-order-003',
+        ]);
         Http::assertSentCount(2);
     }
 
