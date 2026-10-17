@@ -50,7 +50,8 @@ class UserSessionManagementTest extends TestCase
         ])->assertRedirect();
         $this->assertAuthenticatedAs($user);
         $this->assertNotNull(DB::table('user_sessions')->where('session_hash', $otherHash)->value('revoked_at'));
-        $this->assertNull(DB::table('user_sessions')->where('id', $current->id)->value('revoked_at'));
+        $this->assertNotNull(DB::table('user_sessions')->where('id', $current->id)->value('revoked_at'));
+        $this->assertSame(1, DB::table('user_sessions')->where('user_id', $user->id)->whereNull('revoked_at')->count());
     }
 
     public function test_password_reset_session_revocation_service_marks_all_active_sessions(): void

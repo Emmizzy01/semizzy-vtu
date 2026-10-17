@@ -40,6 +40,13 @@ class UserSessionService
         return $record !== null && (int) $record->user_id === (int) $user->id && $record->revoked_at === null;
     }
 
+    public function rotateCurrent(Request $request, User $user, string $previousHash): void
+    {
+        $this->registerCurrent($request, $user);
+        DB::table('user_sessions')->where('user_id', $user->id)->where('session_hash', $previousHash)
+            ->whereNull('revoked_at')->update(['revoked_at' => now(), 'updated_at' => now()]);
+    }
+
     public function revokeOthers(User $user, string $currentHash): int
     {
         return DB::table('user_sessions')->where('user_id', $user->id)->where('session_hash', '!=', $currentHash)

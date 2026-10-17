@@ -62,9 +62,11 @@ class ProfileController extends Controller
             return back()->withErrors(['password' => 'Choose a new password different from your current password.']);
         }
 
-        $sessions->revokeOthers($user, $sessions->currentHash($request));
+        $previousSessionHash = $sessions->currentHash($request);
+        $sessions->revokeOthers($user, $previousSessionHash);
         $user->forceFill(['password' => Hash::make($data['password']), 'remember_token' => Str::random(60)])->save();
         $request->session()->regenerate();
+        $sessions->rotateCurrent($request, $user, $previousSessionHash);
         $security->record($user->id, 'password_changed', 'success', ['session_regenerated' => true, 'other_sessions_revoked' => true]);
         return back()->with('status', 'Password changed. Your current session has been refreshed; sign in again on other devices if prompted.');
     }
