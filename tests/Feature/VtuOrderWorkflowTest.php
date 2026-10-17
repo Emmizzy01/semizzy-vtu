@@ -418,6 +418,34 @@ class VtuOrderWorkflowTest extends TestCase
         Http::assertSentCount(1);
     }
 
+    public function test_generic_failed_provider_status_stays_unresolved_without_refund(): void
+    {
+        Http::fake(fn () => Http::response([
+            'status' => 'failed',
+            'message_code' => 'UNVERIFIED_FAILURE',
+            'provider_reference' => 'provider-order-unverified-failure',
+        ], 200));
+
+        [$user, $wallet, $product] = $this->preparedCustomer(1000, 1500);
+
+        $order = app(VtuOrderService::class)->purchase(
+            $user,
+            $product->code,
+            '08012345678',
+            'purchase-unverified-failure-1',
+        );
+
+        $this->assertSame('awaiting_reconciliation', $order->status);
+        $this->assertSame(500, (int) $wallet->fresh()->available_balance_minor);
+        $this->assertDatabaseCount('wallet_transactions', 2);
+        $this->assertDatabaseHas('vtu_provider_attempts', [
+            'vtu_order_id' => $order->getKey(),
+            'outcome' => 'failed',
+            'definitive_failure' => false,
+        ]);
+        Http::assertSentCount(1);
+    }
+
     public function test_vtpass_invalid_request_id_does_not_trigger_automatic_resubmission_or_refund(): void
     {
         config([
