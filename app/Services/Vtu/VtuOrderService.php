@@ -440,12 +440,23 @@ class VtuOrderService
         if (($result['safe_to_submit_same_key'] ?? false) === true
             && $this->provider instanceof MultiProviderVtuRouter
             && ! in_array($attempt->outcome, ['success', 'failed'], true)) {
-            try {
-                $result = $this->provider->submitAttempt($order->fresh(), $attempt);
-            } catch (ConnectionException|LogicException $exception) {
-                report($exception);
-                $this->recordReconciledAttemptOutcome($order, $attempt, ['status' => 'unknown']);
-                return $this->markAwaitingReconciliation($order, 'provider_result_unknown', [], $attempt);
+            // The provider lookup happens outside a DB transaction. Re-check
+            // terminal state, latest-attempt identity, and provider identity
+            // under row locks immediately before authorizing network dispatch.
+            // The durable outcome claim serializes workers; a crashed worker's
+            // claim becomes reclaimable after two minutes.
+            $dispatchOrder = $this->claimSafeResubmission($order, $attempt);
+            if ($dispatchOrder !== null) {
+                $attempt = $attempt->fresh();
+                try {
+                    $result = $this->provider->submitAttempt($dispatchOrder, $attempt);
+                } catch (ConnectionException|LogicException $exception) {
+                    report($exception);
+                    $this->recordReconciledAttemptOutcome($dispatchOrder, $attempt, ['status' => 'unknown']);
+                    return $this->markAwaitingReconciliation($dispatchOrder, 'provider_result_unknown', [], $attempt);
+                }
+            } else {
+                return $order->fresh();
             }
         }
 
@@ -479,6 +490,54 @@ class VtuOrderService
         }
 
         return $this->applyProviderResult($order->fresh(), $result, $attempt);
+    }
+
+    /**
+     * Atomically authorize one safe same-key recovery dispatch.
+     *
+     * A recent recovery_dispatching outcome is a durable lease: competing
+     * workers must not dispatch while it is active. If a worker dies, a later
+     * reconciler may reclaim the lease after two minutes, but only after doing
+     * a fresh provider lookup and revalidating the order and exact attempt.
+     */
+    private function claimSafeResubmission(VtuOrder $order, VtuProviderAttempt $attempt): ?VtuOrder
+    {
+        return DB::transaction(function () use ($order, $attempt): ?VtuOrder {
+            /** @var VtuOrder $lockedOrder */
+            $lockedOrder = VtuOrder::query()->whereKey($order->getKey())->lockForUpdate()->firstOrFail();
+
+            if (! in_array($lockedOrder->status, [
+                VtuOrderStatus::Processing->value,
+                VtuOrderStatus::AwaitingReconciliation->value,
+            ], true)
+                || (string) $lockedOrder->provider !== (string) $attempt->provider) {
+                return null;
+            }
+
+            /** @var VtuProviderAttempt|null $lockedAttempt */
+            $lockedAttempt = VtuProviderAttempt::query()
+                ->whereKey($attempt->getKey())
+                ->where('vtu_order_id', $lockedOrder->getKey())
+                ->lockForUpdate()
+                ->first();
+
+            if ($lockedAttempt === null
+                || ! $this->isLatestAttemptLocked($lockedOrder, $lockedAttempt)
+                || (string) $lockedAttempt->provider !== (string) $lockedOrder->provider
+                || in_array($lockedAttempt->outcome, ['success', 'failed'], true)) {
+                return null;
+            }
+
+            if ($lockedAttempt->outcome === 'recovery_dispatching'
+                && $lockedAttempt->updated_at !== null
+                && $lockedAttempt->updated_at->greaterThan(now()->subMinutes(2))) {
+                return null;
+            }
+
+            $lockedAttempt->forceFill(['outcome' => 'recovery_dispatching'])->save();
+
+            return $lockedOrder;
+        }, attempts: 3);
     }
 
     private function isLatestAttemptLocked(VtuOrder $order, VtuProviderAttempt $attempt): bool
