@@ -2381,7 +2381,7 @@ class VtuOrderWorkflowTest extends TestCase
         try {
             app(VtuOrderService::class)->purchase($user, $product->code, '08012345678', 'store-inactive-product', [], null, $storefront->slug);
             $this->fail('Inactive products must never be purchasable through a storefront.');
-        } catch (\\InvalidArgumentException $exception) {
+        } catch (\InvalidArgumentException $exception) {
             $this->assertStringContainsString('no longer available', $exception->getMessage());
         }
 
