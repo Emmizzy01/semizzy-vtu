@@ -894,6 +894,74 @@ class VtuOrderWorkflowTest extends TestCase
         $this->assertSame(2, $requests, 'A terminal order must not be queried or refunded again.');
     }
 
+    public function test_dataway_pending_webhook_cannot_regress_successful_order_or_change_wallet_balance(): void
+    {
+        Http::fake(function ($request) {
+            if ($request->method() === 'POST') {
+                return Http::response([
+                    'status' => 'pending',
+                    'provider_reference' => 'provider-order-webhook-race',
+                ], 200);
+            }
+
+            return Http::response([
+                'status' => 'success',
+                'provider_reference' => 'provider-order-webhook-race',
+            ], 200);
+        });
+
+        [$user, $wallet, $product] = $this->preparedCustomer(1000, 1500);
+        $service = app(VtuOrderService::class);
+        $order = $service->purchase(
+            $user,
+            $product->code,
+            '08012345678',
+            'dataway-pending-webhook-after-success',
+        );
+
+        $successful = $service->reconcile($order);
+        $this->assertSame('successful', $successful->status);
+        $balanceAfterSuccess = (int) $wallet->fresh()->available_balance_minor;
+        $transactionsAfterSuccess = \\App\\Models\\WalletTransaction::query()->count();
+
+        // Model a verified Dataway event matching the persisted provider identity.
+        $successful->forceFill([
+            'provider' => 'dataway',
+            'provider_reference' => 'dataway-webhook-race-reference',
+        ])->save();
+
+        $payload = [
+            'event' => 'transaction.pending',
+            'data' => [
+                'reference' => 'dataway-webhook-race-reference',
+                'status' => 'pending',
+            ],
+        ];
+        $body = json_encode($payload, JSON_THROW_ON_ERROR);
+        \\App\\Models\\VtuProviderWebhookEvent::query()->create([
+            'provider' => 'dataway',
+            'event_id' => hash('sha256', $body),
+            'event_type' => 'transaction.pending',
+            'provider_reference' => 'dataway-webhook-race-reference',
+            'payload' => $payload,
+            'payload_sha256' => hash('sha256', $body),
+            'received_at' => now(),
+        ]);
+
+        $stats = app(\\App\\Services\\Vtu\\VtuProviderWebhookService::class)->process();
+
+        $this->assertSame(1, $stats['processed']);
+        $this->assertSame('successful', $successful->fresh()->status);
+        $this->assertSame($balanceAfterSuccess, (int) $wallet->fresh()->available_balance_minor);
+        $this->assertSame($transactionsAfterSuccess, \\App\\Models\\WalletTransaction::query()->count());
+        $this->assertDatabaseHas('vtu_provider_webhook_events', [
+            'provider' => 'dataway',
+            'event_type' => 'transaction.pending',
+            'processed_at' => $successful->fresh()->updated_at,
+            'processing_error' => null,
+        ]);
+    }
+
     public function test_late_pending_reconciliation_cannot_regress_a_terminal_order(): void
     {
         $lookups = 0;
