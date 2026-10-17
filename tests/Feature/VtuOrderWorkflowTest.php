@@ -2106,9 +2106,7 @@ class VtuOrderWorkflowTest extends TestCase
 
         $this->assertSame('awaiting_reconciliation', $recovered->status);
         $this->assertSame('gsubz', $recovered->provider);
-        $this->assertSame('reserved', $secondAttempt->fresh()->outcome === 'unknown'
-            ? 'unknown'
-            : $secondAttempt->fresh()->outcome);
+        $this->assertSame('pending', $secondAttempt->fresh()->outcome, 'The exact reserved attempt should record the provider lookup result.');
         $this->assertSame(2, \App\Models\VtuProviderAttempt::query()
             ->where('vtu_order_id', $order->getKey())->count(), 'Recovery must never reserve a third attempt.');
         $this->assertSame(2, \App\Models\WalletTransaction::query()->count(), 'Recovery must not debit or refund again.');
