@@ -126,10 +126,23 @@ class UserSessionManagementTest extends TestCase
     public function test_revoking_current_session_logs_the_user_out(): void
     {
         $user = User::query()->create(['name' => 'Current Session Customer', 'email' => 'current-session@example.test', 'password' => 'CorrectPassword1234']);
-        $this->actingAs($user)->get('/account/sessions')->assertOk();
-        $current = DB::table('user_sessions')->where('user_id', $user->id)->whereNull('revoked_at')->first();
+        config(['session.driver' => 'file']);
+        app('session')->forgetDrivers();
+        app()->forgetInstance('session.store');
+
+        $loginResponse = $this->post('/login', ['identifier' => $user->email, 'password' => 'CorrectPassword1234']);
+        $loginResponse->assertRedirect('/dashboard');
+        $cookie = $loginResponse->getCookie(config('session.cookie'));
+        $this->assertNotNull($cookie);
+        $this->withCookie(config('session.cookie'), $cookie->getValue());
+        Auth::forgetGuards();
+
+        $this->get('/account/sessions')->assertOk();
+        $hash = app(\\App\\Services\\Security\\UserSessionService::class)->currentHash(request());
+        $current = DB::table('user_sessions')->where('user_id', $user->id)->where('session_hash', $hash)->whereNull('revoked_at')->first();
         $this->assertNotNull($current);
 
+        Auth::forgetGuards();
         $this->delete('/account/sessions/'.$current->id)->assertRedirect('/login');
         $this->assertGuest();
         $this->assertNotNull(DB::table('user_sessions')->where('id', $current->id)->value('revoked_at'));
@@ -138,8 +151,20 @@ class UserSessionManagementTest extends TestCase
     public function test_revoke_others_preserves_the_current_session_and_revokes_other_devices(): void
     {
         $user = User::query()->create(['name' => 'Revoke Other Devices Customer', 'email' => 'revoke-other-devices@example.test', 'password' => 'CorrectPassword1234']);
-        $this->actingAs($user)->get('/account/sessions')->assertOk();
-        $current = DB::table('user_sessions')->where('user_id', $user->id)->whereNull('revoked_at')->first();
+        config(['session.driver' => 'file']);
+        app('session')->forgetDrivers();
+        app()->forgetInstance('session.store');
+
+        $loginResponse = $this->post('/login', ['identifier' => $user->email, 'password' => 'CorrectPassword1234']);
+        $loginResponse->assertRedirect('/dashboard');
+        $cookie = $loginResponse->getCookie(config('session.cookie'));
+        $this->assertNotNull($cookie);
+        $this->withCookie(config('session.cookie'), $cookie->getValue());
+        Auth::forgetGuards();
+
+        $this->get('/account/sessions')->assertOk();
+        $hash = app(\\App\\Services\\Security\\UserSessionService::class)->currentHash(request());
+        $current = DB::table('user_sessions')->where('user_id', $user->id)->where('session_hash', $hash)->whereNull('revoked_at')->first();
         $this->assertNotNull($current);
         $otherId = (string) Str::uuid();
         DB::table('user_sessions')->insert([
@@ -148,6 +173,7 @@ class UserSessionManagementTest extends TestCase
             'revoked_at' => null, 'created_at' => now(), 'updated_at' => now(),
         ]);
 
+        Auth::forgetGuards();
         $this->post('/account/sessions/revoke-others')->assertRedirect();
         $this->assertNull(DB::table('user_sessions')->where('id', $current->id)->value('revoked_at'));
         $this->assertNotNull(DB::table('user_sessions')->where('id', $otherId)->value('revoked_at'));
