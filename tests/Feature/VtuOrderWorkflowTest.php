@@ -460,7 +460,20 @@ class VtuOrderWorkflowTest extends TestCase
 
         $recovered = $service->reconcile($order->fresh());
 
-        $this->assertSame('successful', $recovered->status);
+        $recoveryEvidence = [
+            'order_status' => $recovered->status,
+            'order_failure_code' => $recovered->failure_code,
+            'attempt_outcome' => $attempt->fresh()->outcome,
+            'attempt_failure_code' => $attempt->fresh()->failure_code,
+            'requests' => Http::recorded()->map(fn ($pair) => [
+                'method' => $pair[0]->method(),
+                'url' => $pair[0]->url(),
+                'response_status' => $pair[1]->status(),
+                'response_body' => $pair[1]->json(),
+            ])->all(),
+        ];
+
+        $this->assertSame('successful', $recovered->status, json_encode($recoveryEvidence));
         $this->assertSame(1, \App\Models\VtuProviderAttempt::query()
             ->where('vtu_order_id', $order->getKey())->count());
         $this->assertSame('success', \App\Models\VtuProviderAttempt::query()
