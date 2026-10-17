@@ -27,6 +27,22 @@ class TransactionPinSecurityTest extends TestCase
         $this->assertDatabaseCount('wallet_transactions', 0);
     }
 
+    public function test_wallet_funded_purchase_is_rejected_when_transaction_pin_is_missing_but_configured(): void
+    {
+        $user = User::query()->create(['name' => 'PIN Missing Customer', 'email' => 'pin-missing@example.test', 'password' => 'not-a-real-password']);
+        $user->forceFill(['transaction_pin_hash' => Hash::make('4928')])->save();
+
+        $this->actingAs($user)->postJson('/wallet/vtu/orders', [
+            'product_code' => 'not-looked-up-before-pin',
+            'recipient' => '08012345678',
+            'idempotency_key' => 'pin-missing-order',
+        ])->assertStatus(422)
+          ->assertJsonPath('message', 'Enter your four-digit transaction PIN.');
+
+        $this->assertDatabaseCount('vtu_orders', 0);
+        $this->assertDatabaseCount('wallet_transactions', 0);
+    }
+
     public function test_wallet_funded_purchase_is_rejected_for_an_incorrect_transaction_pin(): void
     {
         $user = User::query()->create(['name' => 'PIN Incorrect Customer', 'email' => 'pin-incorrect@example.test', 'password' => 'not-a-real-password']);
