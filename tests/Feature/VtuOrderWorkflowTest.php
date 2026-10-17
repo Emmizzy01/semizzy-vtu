@@ -620,6 +620,7 @@ class VtuOrderWorkflowTest extends TestCase
         $order = $service->purchase($user, $product->code, '08012345678', 'recovery-terminal-race');
         $orderId = $order->getKey();
         $attempt = \App\Models\VtuProviderAttempt::query()->where('vtu_order_id', $orderId)->firstOrFail();
+        unset($order->_created_for_request);
         $order->forceFill(['provider' => 'sogo', 'status' => 'processing'])->save();
         $attempt->forceFill(['provider' => 'sogo', 'outcome' => 'reserved'])->save();
 
@@ -668,6 +669,7 @@ class VtuOrderWorkflowTest extends TestCase
         $order = $service->purchase($user, $product->code, '08012345678', 'recovery-competing-workers');
         $orderId = $order->getKey();
         $attempt = \App\Models\VtuProviderAttempt::query()->where('vtu_order_id', $orderId)->firstOrFail();
+        unset($order->_created_for_request);
         $order->forceFill(['provider' => 'sogo', 'status' => 'processing'])->save();
         $attempt->forceFill(['provider' => 'sogo', 'outcome' => 'reserved'])->save();
 
@@ -726,6 +728,7 @@ class VtuOrderWorkflowTest extends TestCase
         // The first dispatch hit a connection failure before provider acceptance.
         // Persist the crash checkpoint as a reserved attempt, as if the worker died
         // after reservation and before it could record a provider outcome.
+        unset($order->_created_for_request);
         unset($order->_created_for_request);
         $order->forceFill(['provider' => 'sogo', 'status' => 'processing'])->save();
         $attempt->forceFill(['provider' => 'sogo', 'outcome' => 'reserved', 'definitive_failure' => false])->save();
