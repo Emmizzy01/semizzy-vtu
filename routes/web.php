@@ -39,7 +39,7 @@ Route::middleware('guest')->group(function (): void {
     Route::get('/login', [AuthController::class, 'loginForm'])->name('login');
     Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:5,1')->name('login.store');
     Route::get('/login/verify', [LoginChallengeController::class, 'show'])->middleware('throttle:10,1')->name('login.challenge');
-    Route::post('/login/verify', [LoginChallengeController::class, 'verify'])->middleware('throttle:5,1')->name('login.challenge.verify');
+    Route::post('/login/verify', [LoginChallengeController::class, 'verify'])->middleware('throttle:10,1')->name('login.challenge.verify');
     Route::get('/register', [AuthController::class, 'registerForm'])->name('register');
     Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:3,1')->name('register.store');
     Route::get('/forgot-password', [PasswordResetController::class, 'requestForm'])->name('password.request');
