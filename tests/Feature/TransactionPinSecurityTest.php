@@ -111,6 +111,58 @@ class TransactionPinSecurityTest extends TestCase
         $this->assertDatabaseCount('wallet_transactions', 0);
     }
 
+    public function test_locked_pin_blocks_a_valid_purchase_without_order_wallet_debit_or_provider_request(): void
+    {
+        \Illuminate\Support\Facades\Http::fake();
+
+        $user = User::query()->create(['name' => 'Locked PIN Boundary Customer', 'email' => 'locked-pin-boundary@example.test', 'password' => 'not-a-real-password']);
+        $user->forceFill(['transaction_pin_hash' => Hash::make('4928')])->save();
+
+        $product = VtuProduct::query()->create([
+            'service_type' => 'data',
+            'network' => 'mtn',
+            'code' => 'locked-pin-boundary-data',
+            'name' => 'Test Data',
+            'price_minor' => 1000,
+            'face_value_minor' => 1000,
+            'currency' => 'NGN',
+            'is_active' => true,
+            'metadata' => ['provider_service_id' => 'mtn'],
+        ]);
+
+        $wallet = app(\App\Services\Wallets\WalletAccountService::class)->openForUser($user, 'NGN');
+        app(\App\Services\Wallets\WalletLedgerService::class)->post(
+            walletId: (int) $wallet->getKey(),
+            type: 'credit',
+            amountMinor: 5000,
+            idempotencyKey: 'locked-pin-boundary-opening-credit',
+            reference: 'locked-pin-boundary-opening-credit',
+            description: 'Test opening balance',
+            actorUserId: (int) $user->getKey(),
+        );
+
+        for ($attempt = 0; $attempt < 5; $attempt++) {
+            $this->actingAs($user)->postJson('/wallet/vtu/orders', [
+                'product_code' => $product->code,
+                'recipient' => '08012345678',
+                'idempotency_key' => 'locked-pin-boundary-failure-'.$attempt,
+                'transaction_pin' => '1111',
+            ])->assertStatus($attempt === 4 ? 423 : 422);
+        }
+
+        $this->actingAs($user)->postJson('/wallet/vtu/orders', [
+            'product_code' => $product->code,
+            'recipient' => '08012345678',
+            'idempotency_key' => 'locked-pin-boundary-correct-pin',
+            'transaction_pin' => '4928',
+        ])->assertStatus(429);
+
+        $this->assertSame(5000, (int) $wallet->fresh()->available_balance_minor);
+        $this->assertDatabaseCount('vtu_orders', 0);
+        $this->assertDatabaseCount('wallet_transactions', 1);
+        \Illuminate\Support\Facades\Http::assertNothingSent();
+    }
+
     public function test_airtime_purchase_requires_customer_entered_amount_at_http_boundary(): void
     {
         $user = User::query()->create(['name' => 'Custom Airtime Customer', 'email' => 'custom-airtime@example.test', 'password' => 'not-a-real-password']);
