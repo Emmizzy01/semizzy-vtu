@@ -473,6 +473,56 @@ class VtuOrderWorkflowTest extends TestCase
             && $request->hasHeader('Idempotency-Key', $order->public_id));
     }
 
+    public function test_ambiguous_second_attempt_stays_in_reconciliation_without_third_attempt_or_refund(): void
+    {
+        config([
+            'services.vtu.multi_provider.enabled' => true,
+            'services.vtu.multi_provider.priority' => ['sogo', 'gsubz', 'dataway'],
+            'services.vtu.multi_provider.definitive_failure_providers' => ['sogo', 'gsubz'],
+            'services.vtu.sogo.base_url' => 'https://api.sogo.africa/v1',
+            'services.vtu.sogo.api_key' => 'sogo-test-key',
+            'services.vtu.gsubz.base_url' => 'https://api.gsubz.com',
+            'services.vtu.gsubz.api_key' => 'gsubz-test-key',
+        ]);
+        Http::fake([
+            'api.sogo.africa/*' => Http::response([
+                'data' => ['status' => 'failed', 'reference' => 'SOGO-DECLINED'],
+            ], 200),
+            'api.gsubz.com/*' => Http::response(['message' => 'gateway timeout'], 503),
+        ]);
+
+        [$user, $wallet, $product] = $this->preparedCustomer(1000, 1500);
+        $product->forceFill(['metadata' => ['provider_mappings' => [
+            'sogo' => ['network' => 'mtn'],
+            'gsubz' => ['network' => 'mtn'],
+        ]]])->save();
+
+        $order = app(VtuOrderService::class)->purchase(
+            $user,
+            $product->code,
+            '08012345678',
+            'sogo-ambiguous-alternate-1',
+        );
+
+        $this->assertSame('awaiting_reconciliation', $order->status);
+        $this->assertSame('gsubz', $order->provider);
+        $this->assertSame(2, \App\Models\VtuProviderAttempt::query()
+            ->where('vtu_order_id', $order->getKey())->count());
+        $this->assertDatabaseHas('vtu_provider_attempts', [
+            'vtu_order_id' => $order->getKey(),
+            'attempt_number' => 2,
+            'provider' => 'gsubz',
+            'outcome' => 'unknown',
+        ]);
+        $this->assertSame(2, \App\Models\WalletTransaction::query()->count(), 'An ambiguous second attempt must not refund or debit again.');
+        $this->assertSame(500, (int) $wallet->fresh()->available_balance_minor);
+        Http::assertSent(fn ($request) => str_contains($request->url(), 'api.sogo.africa')
+            && $request->method() === 'POST');
+        Http::assertSent(fn ($request) => str_contains($request->url(), 'api.gsubz.com')
+            && $request->method() === 'POST');
+        Http::assertNotSent(fn ($request) => str_contains($request->url(), 'dataway'));
+    }
+
     public function test_definitive_sogo_failure_reserves_second_attempt_before_alternate_submission_without_second_debit(): void
     {
         config([
