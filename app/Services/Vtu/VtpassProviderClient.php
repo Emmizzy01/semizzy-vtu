@@ -233,7 +233,11 @@ class VtpassProviderClient implements VtuProvider
         $body = $response->json();
         $code = is_array($body) && is_string($body['code'] ?? null) ? $body['code'] : null;
         $content = is_array($body) && is_array($body['content'] ?? null) ? $body['content'] : [];
-        $verified = $response->successful() && $code === '000' && $content !== [];
+        $wrongBillerCode = filter_var(
+            $content['WrongBillersCode'] ?? $content['wrong_billers_code'] ?? false,
+            FILTER_VALIDATE_BOOLEAN,
+        );
+        $verified = $response->successful() && $code === '000' && $content !== [] && ! $wrongBillerCode;
 
         // VTpass biller responses vary by provider: some use snake case, others use title/camel case.
         $customerName = $content['Customer_Name'] ?? $content['CustomerName'] ?? $content['customer_name'] ?? $content['name'] ?? null;
