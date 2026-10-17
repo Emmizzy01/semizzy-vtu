@@ -26,6 +26,8 @@ class UserLevelPolicyTest extends TestCase
             'password' => 'not-a-real-password',
         ]);
 
+        UserLevelPolicy::query()->where('level', 'level_4')->update(['label' => 'Level 4']);
+
         $this->actingAs($user)->get('/account/tiers')
             ->assertOk()
             ->assertInertia(fn ($page) => $page
