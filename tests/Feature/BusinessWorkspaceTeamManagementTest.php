@@ -211,4 +211,21 @@ class BusinessWorkspaceTeamManagementTest extends TestCase
             $workspace->memberships()->where('user_id', $agent->id)->firstOrFail(),
         ]))->assertForbidden();
     }
+
+    public function test_agent_without_members_view_permission_cannot_view_team(): void
+    {
+        $owner = $this->account('team-no-view-owner@example.test');
+        $agent = $this->account('team-no-view-agent@example.test');
+        $workspace = $this->workspace($owner, 'team-no-view-workspace');
+        BusinessWorkspaceMember::query()->create([
+            'business_workspace_id' => $workspace->id,
+            'user_id' => $agent->id,
+            'role' => 'agent',
+            'permissions' => ['orders.view'],
+            'status' => 'active',
+        ]);
+
+        $this->actingAs($agent)->get(route('workspaces.team', $workspace))->assertForbidden();
+    }
+
 }
