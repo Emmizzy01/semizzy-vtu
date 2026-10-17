@@ -22,7 +22,38 @@ class VtpassProviderClientTest extends TestCase
             'services.vtu.vtpass.base_url' => 'https://sandbox.vtpass.com/api',
             'services.vtu.vtpass.api_key' => 'sandbox-api-key',
             'services.vtu.vtpass.secret_key' => 'sandbox-secret-key',
+            // Adapter contract tests explicitly opt into purchase submission in test only.
+            'services.vtu.vtpass.purchase_isolated' => false,
         ]);
+    }
+
+    public function test_isolation_gate_blocks_new_purchase_before_any_provider_request(): void
+    {
+        config(['services.vtu.vtpass.purchase_isolated' => true]);
+        Http::fake();
+
+        try {
+            app(VtpassProviderClient::class)->submit($this->order('airtime', 'mtn'));
+            $this->fail('VTpass purchases must remain blocked pending technical support confirmation.');
+        } catch (\LogicException $exception) {
+            $this->assertStringContainsString('temporarily isolated', $exception->getMessage());
+        }
+
+        Http::assertNothingSent();
+    }
+
+    public function test_isolation_gate_keeps_existing_order_lookup_available(): void
+    {
+        config(['services.vtu.vtpass.purchase_isolated' => true]);
+        Http::fake(fn () => Http::response([
+            'code' => '000',
+            'content' => ['transactions' => ['status' => 'pending']],
+        ], 200));
+
+        $result = app(VtpassProviderClient::class)->lookup($this->order('airtime', 'mtn'));
+
+        $this->assertSame('pending', $result['status']);
+        Http::assertSent(fn ($request) => $request->url() === 'https://sandbox.vtpass.com/api/requery');
     }
 
     public function test_production_rejects_sandbox_before_any_provider_request(): void
