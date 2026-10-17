@@ -26,6 +26,10 @@ class UserSessionManagementTest extends TestCase
     {
         $user = User::query()->create(['name' => 'Session Customer', 'email' => 'sessions-revoke@example.test', 'password' => 'CorrectPassword1234']);
 
+        // Use a persistent test session handler so session IDs survive separate
+        // HTTP requests, matching the file/database handlers used in deployment.
+        config(['session.driver' => 'file']);
+
         // Exercise a real login so the test client carries the regenerated session
         // identifier in its cookie across requests, as a browser does.
         $this->post('/login', [
