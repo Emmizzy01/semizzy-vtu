@@ -33,8 +33,16 @@ class SogoProviderClient extends AbstractMappedVtuProvider
 
         $body = $response->json();
         $data = is_array($body['data'] ?? null) ? $body['data'] : [];
-        return $this->normalized($this->status($data['status'] ?? $body['status'] ?? null,
+        $rawStatus = strtolower(trim((string) ($data['status'] ?? $body['status'] ?? '')));
+        $result = $this->normalized($this->status($rawStatus,
             ['completed'], ['failed', 'refunded', 'cancelled'], ['processing', 'pending']), $data + $body);
+
+        // Sogo documents failed as a final non-charge/refunded outcome and
+        // refunded as reversed. Do not treat cancelled, processing, transport
+        // errors, or lookup failures as proof of non-delivery.
+        $result['definitive_failure'] = in_array($rawStatus, ['failed', 'refunded'], true);
+
+        return $result;
     }
 
     public function lookup(VtuOrder $order): array
