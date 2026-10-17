@@ -341,10 +341,23 @@ class VtuOrderService
             'finished_at' => now(),
         ])->save();
 
-        // Failover is deliberately not inferred from status=failed alone. Until
-        // a provider adapter supplies a contract-tested definitive_failure=true,
-        // ambiguous and generic failures remain on the original provider for
-        // reconciliation; they must not cause a second purchase submission.
+        // Reserve an alternate attempt only after the original provider's
+        // contract-tested definitive non-delivery signal passes the allowlist.
+        // Reservation locks the order and creates attempt #2 before network I/O;
+        // it never posts another wallet debit.
+        if ($providerStatus === 'failed'
+            && app(ProviderFailoverPolicy::class)->mayFailover((string) $attempt->provider, $result)
+            && $this->provider instanceof MultiProviderVtuRouter) {
+            $secondAttempt = $this->reserveSecondAttempt($order, $attempt, $result);
+            if ($secondAttempt !== null) {
+                $updated = $this->dispatchReservedAttempt($order->fresh(), $secondAttempt);
+                $updated->setAttribute('_created_for_request', true);
+                return $updated;
+            }
+        }
+
+        // Failover is never inferred from a generic failed status or an unknown
+        // transport outcome. Those stay on reconciliation without resubmission.
         $updated = $this->applyProviderResult($order, $result);
         $updated->setAttribute('_created_for_request', true);
 
