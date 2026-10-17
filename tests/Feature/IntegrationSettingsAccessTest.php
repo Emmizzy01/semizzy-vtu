@@ -180,4 +180,34 @@ class IntegrationSettingsAccessTest extends TestCase
                 ->where('gateway.mode', 'Live'));
     }
 
+
+    public function test_live_vtpass_mode_requires_both_credentials_before_saving(): void
+    {
+        $admin = User::query()->create([
+            'name' => 'Live VTpass Admin',
+            'email' => 'live-vtpass-admin@example.test',
+            'password' => 'not-a-real-password',
+        ]);
+        UserPermission::query()->create(['user_id' => $admin->id, 'permission' => 'staff.permissions.manage']);
+
+        config([
+            'services.vtu.vtpass.api_key' => '',
+            'services.vtu.vtpass.secret_key' => '',
+        ]);
+
+        $this->actingAs($admin)->put('/admin/api-providers', [
+            'reason' => 'Attempt live mode without credentials',
+            'driver' => 'vtpass',
+            'name' => 'VTpass',
+            'generic_endpoint' => '',
+            'generic_token' => '',
+            'vtpass_base_url' => 'https://vtpass.com/api',
+            'vtpass_api_key' => '',
+            'vtpass_secret_key' => '',
+            'confirm_live' => true,
+        ])->assertSessionHasErrors('vtpass_api_key');
+
+        $this->assertDatabaseMissing('integration_settings', ['key' => 'vtu.vtpass.base_url']);
+    }
+
 }

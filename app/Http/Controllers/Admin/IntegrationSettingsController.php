@@ -138,6 +138,13 @@ class IntegrationSettingsController extends Controller
         if ($data['vtpass_base_url'] === 'https://vtpass.com/api' && ! $request->boolean('confirm_live')) {
             return back()->withErrors(['confirm_live' => 'Confirm live VTpass mode before saving.']);
         }
+        if ($data['driver'] === 'vtpass' && $data['vtpass_base_url'] === 'https://vtpass.com/api') {
+            $effectiveApiKey = trim((string) (($data['vtpass_api_key'] ?? '') ?: $settings->get('vtu.vtpass.api_key', config('services.vtu.vtpass.api_key', ''))));
+            $effectiveSecretKey = trim((string) (($data['vtpass_secret_key'] ?? '') ?: $settings->get('vtu.vtpass.secret_key', config('services.vtu.vtpass.secret_key', ''))));
+            if ($effectiveApiKey === '' || $effectiveSecretKey === '') {
+                return back()->withErrors(['vtpass_api_key' => 'Live VTpass mode requires both API key and secret key before it can be saved.']);
+            }
+        }
         $actor = (int) $request->user()->id;
         $reason = trim($data['reason']);
         DB::transaction(function () use ($settings, $actor, $reason, $data): void {
