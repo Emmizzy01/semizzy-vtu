@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Enums\VtuOrderStatus;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class VtuOrder extends Model
 {
@@ -61,5 +62,10 @@ class VtuOrder extends Model
     public function walletTransaction(): BelongsTo
     {
         return $this->belongsTo(WalletTransaction::class);
+    }
+
+    public function providerAttempts(): HasMany
+    {
+        return $this->hasMany(VtuProviderAttempt::class, 'vtu_order_id')->orderBy('attempt_number');
     }
 }
