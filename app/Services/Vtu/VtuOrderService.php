@@ -321,7 +321,7 @@ class VtuOrderService
                 'definitive_failure' => false,
                 'finished_at' => now(),
             ])->save();
-            $updated = $this->markAwaitingReconciliation($order, 'provider_result_unknown');
+            $updated = $this->markAwaitingReconciliation($order, 'provider_result_unknown', [], $attempt);
             $updated->setAttribute('_created_for_request', true);
 
             return $updated;
@@ -469,7 +469,7 @@ class VtuOrderService
         }
 
         if (($result['status'] ?? null) === 'pending') {
-            return $this->markAwaitingReconciliation($order, 'provider_still_pending', $result);
+            return $this->markAwaitingReconciliation($order, 'provider_still_pending', $result, $attempt);
         }
 
         return $this->applyProviderResult($order->fresh(), $result, $attempt);
@@ -571,7 +571,7 @@ class VtuOrderService
     private function dispatchReservedAttempt(VtuOrder $order, VtuProviderAttempt $attempt): VtuOrder
     {
         if (! $this->provider instanceof MultiProviderVtuRouter) {
-            return $this->markAwaitingReconciliation($order, 'provider_attempt_recovery_unavailable');
+            return $this->markAwaitingReconciliation($order, 'provider_attempt_recovery_unavailable', [], $attempt);
         }
 
         try {
