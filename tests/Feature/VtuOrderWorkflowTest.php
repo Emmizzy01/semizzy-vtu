@@ -638,7 +638,24 @@ class VtuOrderWorkflowTest extends TestCase
 
         $recovered = $service->reconcile($order->fresh());
 
-        $this->assertSame('successful', $recovered->status);
+        $recoveryEvidence = [
+            'order_status' => $recovered->status,
+            'order_failure_code' => $recovered->failure_code,
+            'order_provider' => $recovered->provider,
+            'attempt_provider' => $attempt->fresh()->provider,
+            'attempt_outcome' => $attempt->fresh()->outcome,
+            'attempt_failure_code' => $attempt->fresh()->failure_code,
+            'attempt_definitive_failure' => $attempt->fresh()->definitive_failure,
+            'requests' => Http::recorded()->map(fn ($pair) => [
+                'method' => $pair[0]->method(),
+                'url' => $pair[0]->url(),
+                'idempotency_key' => $pair[0]->header('Idempotency-Key'),
+                'response_status' => $pair[1]->status(),
+                'response_body' => $pair[1]->json(),
+            ])->all(),
+        ];
+
+        $this->assertSame('successful', $recovered->status, json_encode($recoveryEvidence));
         $this->assertSame('sogo', $recovered->provider);
         $this->assertSame('success', $attempt->fresh()->outcome);
         $this->assertSame(500, (int) $wallet->fresh()->available_balance_minor);
