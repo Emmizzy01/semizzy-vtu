@@ -75,4 +75,88 @@ class VtpassCatalogueFailureSafetyTest extends TestCase
         $this->assertSame('preserve', $existing->metadata['operator_note']);
         $this->assertDatabaseMissing('platform_setting_audits', ['setting_key' => 'vtu_catalogue.synced.vtpass']);
     }
+
+    public function test_catalogue_import_includes_electricity_services_and_tv_bouquet_variations_inactive(): void
+    {
+        config([
+            'services.vtu.vtpass.base_url' => 'https://sandbox.vtpass.com/api',
+            'services.vtu.vtpass.api_key' => 'test-key',
+            'services.vtu.vtpass.secret_key' => 'test-secret',
+            'services.vtu.airtime_denominations' => [100],
+        ]);
+
+        Http::fake(function ($request) {
+            $path = parse_url($request->url(), PHP_URL_PATH);
+            if ($path === '/api/service-categories') {
+                return Http::response(['response_description' => '000', 'content' => [
+                    ['identifier' => 'airtime', 'name' => 'Airtime Recharge'],
+                    ['identifier' => 'data', 'name' => 'Data Services'],
+                    ['identifier' => 'electricity-bill', 'name' => 'Electricity Bill'],
+                    ['identifier' => 'tv-subscription', 'name' => 'TV Subscription'],
+                ]], 200);
+            }
+
+            if ($path === '/api/services') {
+                parse_str((string) parse_url($request->url(), PHP_URL_QUERY), $query);
+                $services = match ($query['identifier'] ?? '') {
+                    'airtime' => [['serviceID' => 'mtn', 'name' => 'MTN Airtime']],
+                    'data' => [['serviceID' => 'mtn-data', 'name' => 'MTN Data']],
+                    'electricity-bill' => [
+                        ['serviceID' => 'ikeja-electric', 'name' => 'Ikeja Electric', 'minimium_amount' => '100', 'maximum_amount' => '50000'],
+                        ['serviceID' => 'eko-electric', 'name' => 'Eko Electric', 'minimium_amount' => '100', 'maximum_amount' => '50000'],
+                    ],
+                    'tv-subscription' => [
+                        ['serviceID' => 'dstv', 'name' => 'DStv Payment'],
+                        ['serviceID' => 'gotv', 'name' => 'GOtv Payment'],
+                        ['serviceID' => 'startimes', 'name' => 'Startimes Payment'],
+                    ],
+                    default => [],
+                };
+
+                return Http::response(['response_description' => '000', 'content' => $services], 200);
+            }
+
+            if ($path === '/api/service-variations') {
+                parse_str((string) parse_url($request->url(), PHP_URL_QUERY), $query);
+                if (($query['serviceID'] ?? '') === 'mtn-data') {
+                    return Http::response(['response_description' => '000', 'content' => ['variations' => [
+                        ['variation_code' => 'mtn-1gb', 'name' => '1GB 30 Days', 'variation_amount' => '500.00'],
+                    ]]], 200);
+                }
+
+                $variations = match ($query['serviceID'] ?? '') {
+                    'dstv' => [['variation_code' => 'dstv-padi', 'name' => 'DStv Padi', 'variation_amount' => '4400.00', 'fixedPrice' => 'Yes']],
+                    'gotv' => [['variation_code' => 'gotv-lite', 'name' => 'GOtv Lite', 'variation_amount' => '900.00', 'fixedPrice' => 'Yes']],
+                    'startimes' => [['variation_code' => 'nova', 'name' => 'Startimes Nova', 'variation_amount' => '1200.00', 'fixedPrice' => 'Yes']],
+                    default => [],
+                };
+
+                return Http::response(['response_description' => '000', 'content' => ['variations' => $variations]], 200);
+            }
+
+            return Http::response([], 404);
+        });
+
+        $catalog = app(\\App\\Services\\Vtu\\VtpassCatalogService::class);
+        $products = $catalog->fetchProducts();
+
+        $electricity = array_values(array_filter($products, fn (array $product): bool => $product['service_type'] === 'electricity-bill'));
+        $tv = array_values(array_filter($products, fn (array $product): bool => $product['service_type'] === 'tv-subscription'));
+
+        $this->assertSame(['eko-electric', 'ikeja-electric'], collect($electricity)->map(fn (array $product) => $product['metadata']['provider_service_id'])->sort()->values()->all());
+        $this->assertCount(3, $tv);
+        $this->assertEqualsCanonicalizing(['dstv-padi', 'gotv-lite', 'nova'], array_column(array_column($tv, 'metadata'), 'provider_variation_code'));
+        foreach (array_merge($electricity, $tv) as $product) {
+            $this->assertFalse($product['is_active']);
+            $this->assertFalse($product['metadata']['purchase_approved']);
+            $this->assertFalse($product['metadata']['purchase_supported']);
+            $this->assertSame('vtpass', $product['metadata']['catalog_source']);
+        }
+
+        $result = $catalog->applyProducts(array_merge($electricity, $tv));
+        $this->assertSame(5, $result['created']);
+        $this->assertDatabaseCount('vtu_products', 5);
+        $this->assertSame(0, VtuProduct::query()->where('is_active', true)->count());
+    }
+
 }
