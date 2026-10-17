@@ -22,6 +22,7 @@ type PendingPurchase = {
   recipient: string;
   requestKey: string;
   uncertain: boolean;
+  storefrontSlug?: string;
 };
 
 const PENDING_PURCHASE_KEY = 'semizzy-vtu-pending-purchase';
@@ -35,7 +36,8 @@ function readPendingPurchase(): PendingPurchase | null {
       || typeof value.productCode !== 'string'
       || typeof value.recipient !== 'string'
       || typeof value.requestKey !== 'string'
-      || typeof value.uncertain !== 'boolean') return null;
+      || typeof value.uncertain !== 'boolean'
+      || (value.storefrontSlug !== undefined && typeof value.storefrontSlug !== 'string')) return null;
     return value as PendingPurchase;
   } catch {
     return null;
@@ -136,15 +138,16 @@ export default function VtuPurchase({ serviceType }: { serviceType: ServiceType 
         if (cancelled) return;
         const list = Array.isArray(body.data) ? body.data as Product[] : [];
         setProducts(list);
-        const requestedNetwork = typeof window !== 'undefined'
-          ? new URLSearchParams(window.location.search).get('network')?.trim().toLowerCase()
-          : undefined;
+        const query = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+        const requestedCode = query?.get('product_code') ?? undefined;
+        const requestedNetwork = query?.get('network')?.trim().toLowerCase() ?? undefined;
+        const requestedProduct = requestedCode ? list.find((product) => product.code === requestedCode && product.is_active) : undefined;
         const preferredProduct = requestedNetwork
-          ? list.find((product) => product.network.trim().toLowerCase() === requestedNetwork)
+          ? list.find((product) => product.network.trim().toLowerCase() === requestedNetwork && product.is_active)
           : undefined;
-        setProductCode((current) => current && list.some((product) => product.code === current)
+        setProductCode((current) => current && list.some((product) => product.code === current && product.is_active)
           ? current
-          : (preferredProduct?.code ?? list[0]?.code ?? ''));
+          : (requestedProduct?.code ?? preferredProduct?.code ?? list.find((product) => product.is_active)?.code ?? ''));
       })
       .catch((cause: unknown) => {
         if (!cancelled) setError(cause instanceof Error ? cause.message : 'Products could not be loaded.');
@@ -202,7 +205,8 @@ export default function VtuPurchase({ serviceType }: { serviceType: ServiceType 
     setError('');
 
     let receivedResponse = false;
-    savePendingPurchase({ serviceType, productCode: selectedProduct.code, recipient, requestKey, uncertain: false });
+    const storefrontSlug = new URLSearchParams(window.location.search).get('storefront')?.trim() || undefined;
+    savePendingPurchase({ serviceType, productCode: selectedProduct.code, recipient, requestKey, uncertain: false, storefrontSlug });
     try {
       const csrf = document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ?? '';
       const response = await fetch('/wallet/vtu/orders', {
@@ -216,6 +220,7 @@ export default function VtuPurchase({ serviceType }: { serviceType: ServiceType 
         },
         body: JSON.stringify({
           product_code: selectedProduct.code,
+          ...(storefrontSlug ? { storefront_slug: storefrontSlug } : {}),
           recipient,
           idempotency_key: requestKey,
           transaction_pin: transactionPin,
