@@ -81,6 +81,14 @@ class VtuOrderService
                     throw new InvalidArgumentException('The electricity amount is outside the provider limits.');
                 }
             } elseif ($product->service_type === 'tv-subscription') {
+                // Bouquet changes are supported by the current checkout flow.
+                // Renewal needs the provider-verified Renewal_Amount and remains
+                // blocked until that value is carried through verification safely.
+                $subscriptionType = $serviceDetails['subscription_type'] ?? 'change';
+                if ($subscriptionType !== 'change') {
+                    throw new InvalidArgumentException('Only verified TV bouquet changes are available right now. Renewal is not enabled.');
+                }
+                $serviceDetails['subscription_type'] = 'change';
                 $amountMinor = (int) $product->price_minor;
                 if ($amountMinor < 1) {
                     throw new InvalidArgumentException('This TV subscription has no valid provider price.');
