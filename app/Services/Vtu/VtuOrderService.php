@@ -942,6 +942,10 @@ class VtuOrderService
                 'completed_at' => now(),
             ])->save();
 
+            if ($next === VtuOrderStatus::Successful) {
+                app(\App\Services\Workspaces\StorefrontCommissionService::class)->accrueSuccessfulOrder($locked);
+            }
+
             return $locked->fresh();
         }, attempts: 3);
 
