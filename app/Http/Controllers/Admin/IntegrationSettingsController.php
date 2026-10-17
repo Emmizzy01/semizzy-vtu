@@ -104,74 +104,72 @@ class IntegrationSettingsController extends Controller
     public function apiProviders(IntegrationSettings $settings): InertiaResponse
     {
         $driver = (string) $settings->get('vtu.driver', config('services.vtu.driver', 'configured'));
-        $baseUrl = (string) $settings->get('vtu.vtpass.base_url', config('services.vtu.vtpass.base_url', 'https://sandbox.vtpass.com/api'));
+
+        // Do not expose provider identity, endpoint, environment, or credential status during a technical hold.
+        if ($driver === 'vtpass') {
+            return Inertia::render('Admin/ApiProviders', [
+                'provider' => ['isolated' => true],
+            ]);
+        }
+
         $endpoint = (string) $settings->get('vtu.endpoint', config('services.vtu.endpoint', ''));
         $token = (string) $settings->get('vtu.token', config('services.vtu.token', ''));
-        $apiKey = (string) $settings->get('vtu.vtpass.api_key', config('services.vtu.vtpass.api_key', ''));
-        $secret = (string) $settings->get('vtu.vtpass.secret_key', config('services.vtu.vtpass.secret_key', ''));
 
         return Inertia::render('Admin/ApiProviders', ['provider' => [
-            'driver' => $driver,
+            'isolated' => false,
             'name' => (string) $settings->get('vtu.name', config('services.vtu.name', 'configured_vtu')),
-            'genericEndpoint' => $endpoint, 'genericEndpointConfigured' => $endpoint !== '',
-            'genericTokenConfigured' => $token !== '', 'vtpassSelected' => $driver === 'vtpass',
-            'vtpassBaseUrl' => $baseUrl, 'vtpassApiKeyConfigured' => $apiKey !== '',
-            'vtpassSecretKeyConfigured' => $secret !== '',
-            'mode' => $baseUrl === 'https://sandbox.vtpass.com/api' ? 'Sandbox' : ($baseUrl === 'https://vtpass.com/api' ? 'Live' : 'Unrecognised URL'),
+            'genericEndpoint' => $endpoint,
+            'genericEndpointConfigured' => $endpoint !== '',
+            'genericTokenConfigured' => $token !== '',
             'catalogCommand' => 'vtu:catalog-sync',
         ]]);
     }
 
     public function updateApiProviders(Request $request, IntegrationSettings $settings): RedirectResponse
     {
+        if ((string) $settings->get('vtu.driver', config('services.vtu.driver', 'configured')) === 'vtpass') {
+            return back()->withErrors([
+                'provider' => 'Provider configuration is temporarily locked pending technical review. Existing orders remain available for reconciliation.',
+            ]);
+        }
+
         $data = $request->validate([
-            'driver' => ['required', 'in:configured,vtpass'],
+            'driver' => ['required', 'in:configured'],
             'name' => ['required', 'string', 'max:100'],
             'generic_endpoint' => ['nullable', 'url', 'starts_with:https://', 'max:2048'],
             'generic_token' => ['nullable', 'string', 'max:1000'],
-            'vtpass_base_url' => ['required', 'in:https://sandbox.vtpass.com/api,https://vtpass.com/api'],
-            'vtpass_api_key' => ['nullable', 'string', 'max:1000'],
-            'vtpass_secret_key' => ['nullable', 'string', 'max:1000'],
-            'confirm_live' => ['nullable', 'boolean'],
             'reason' => ['required', 'string', 'min:8', 'max:500'],
         ]);
-        if ($data['vtpass_base_url'] === 'https://vtpass.com/api' && ! $request->boolean('confirm_live')) {
-            return back()->withErrors(['confirm_live' => 'Confirm live VTpass mode before saving.']);
-        }
-        if ($data['driver'] === 'vtpass' && $data['vtpass_base_url'] === 'https://vtpass.com/api') {
-            $effectiveApiKey = trim((string) (($data['vtpass_api_key'] ?? '') ?: $settings->get('vtu.vtpass.api_key', config('services.vtu.vtpass.api_key', ''))));
-            $effectiveSecretKey = trim((string) (($data['vtpass_secret_key'] ?? '') ?: $settings->get('vtu.vtpass.secret_key', config('services.vtu.vtpass.secret_key', ''))));
-            if ($effectiveApiKey === '' || $effectiveSecretKey === '') {
-                return back()->withErrors(['vtpass_api_key' => 'Live VTpass mode requires both API key and secret key before it can be saved.']);
-            }
-        }
+
         $actor = (int) $request->user()->id;
         $reason = trim($data['reason']);
         DB::transaction(function () use ($settings, $actor, $reason, $data): void {
             $updates = [
-                'vtu.driver' => $data['driver'],
+                'vtu.driver' => 'configured',
                 'vtu.name' => trim($data['name']),
-                'vtu.vtpass.base_url' => $data['vtpass_base_url'],
             ];
-            foreach (['generic_endpoint' => 'vtu.endpoint', 'generic_token' => 'vtu.token', 'vtpass_api_key' => 'vtu.vtpass.api_key', 'vtpass_secret_key' => 'vtu.vtpass.secret_key'] as $field => $key) {
-                $value = trim((string) ($data[$field] ?? ''));
-                if ($value !== '') $updates[$key] = $value;
+            $endpoint = trim((string) ($data['generic_endpoint'] ?? ''));
+            if ($endpoint !== '') {
+                $updates['vtu.endpoint'] = $endpoint;
+            }
+            $token = trim((string) ($data['generic_token'] ?? ''));
+            if ($token !== '') {
+                $updates['vtu.token'] = $token;
             }
 
             foreach ($updates as $key => $newValue) {
                 $fallback = match ($key) {
                     'vtu.driver' => (string) config('services.vtu.driver', 'configured'),
                     'vtu.name' => (string) config('services.vtu.name', 'configured_vtu'),
-                    'vtu.vtpass.base_url' => (string) config('services.vtu.vtpass.base_url', 'https://sandbox.vtpass.com/api'),
                     'vtu.endpoint' => (string) config('services.vtu.endpoint', ''),
                     'vtu.token' => (string) config('services.vtu.token', ''),
-                    'vtu.vtpass.api_key' => (string) config('services.vtu.vtpass.api_key', ''),
-                    'vtu.vtpass.secret_key' => (string) config('services.vtu.vtpass.secret_key', ''),
                     default => '',
                 };
-                $oldValue = (string) $settings->get($key, $fallback);
                 $storedSettingExists = \App\Models\IntegrationSetting::query()->where('key', $key)->exists();
-                if ($storedSettingExists && hash_equals(hash('sha256', $oldValue), hash('sha256', (string) $newValue))) continue;
+                $oldValue = (string) $settings->get($key, $fallback);
+                if ($storedSettingExists && hash_equals(hash('sha256', $oldValue), hash('sha256', (string) $newValue))) {
+                    continue;
+                }
 
                 $settings->set($key, (string) $newValue, $actor);
                 PlatformSettingAudit::query()->create([
