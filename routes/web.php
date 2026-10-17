@@ -151,6 +151,7 @@ Route::middleware(['auth', 'can:staff.permissions.manage'])->prefix('admin')->na
     Route::post('/manual-deposits/{publicId}/review', [ManualDepositController::class, 'review'])->middleware('throttle:10,1')->name('manual-deposits.review');
     Route::get('/payment-gateway', [IntegrationSettingsController::class, 'paymentGateway'])->name('payment-gateway');
     Route::put('/payment-gateway', [IntegrationSettingsController::class, 'updatePaymentGateway'])->name('payment-gateway.update');
+    Route::get('/storefront-commissions', [StorefrontCommissionController::class, 'index'])->middleware('throttle:30,1')->name('storefront-commissions.index');
     Route::get('/api-providers', [IntegrationSettingsController::class, 'apiProviders'])->name('api-providers');
     Route::put('/api-providers', [IntegrationSettingsController::class, 'updateApiProviders'])->name('api-providers.update');
     Route::put('/storefronts/{storefront}/commission-rate', [StorefrontCommissionController::class, 'updateRate'])->middleware('throttle:10,1')->name('storefronts.commission-rate.update');
