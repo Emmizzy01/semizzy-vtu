@@ -69,6 +69,54 @@ class MultiProviderVtuRouter implements VtuProvider
         return $this->providerForAttempt($attempt->provider)->lookup($order);
     }
 
+    /** Submit only against the provider recorded on a persisted attempt. */
+    public function submitAttempt(VtuOrder $order, VtuProviderAttempt $attempt): array
+    {
+        if ((int) $attempt->vtu_order_id !== (int) $order->getKey()
+            || (string) $attempt->provider !== (string) $order->provider) {
+            throw new LogicException('Provider attempt does not match the order dispatch target.');
+        }
+
+        return $this->providerForAttempt($attempt->provider)->submit($order);
+    }
+
+    /**
+     * Pick a different configured, explicitly mapped provider for a durable
+     * second attempt. Dataway remains excluded until its lookup contract is verified.
+     */
+    public function nextProviderForAttempt(VtuOrder $order, VtuProviderAttempt $attempt): string
+    {
+        if (! $this->enabled()) {
+            throw new LogicException('Multi-provider failover is disabled.');
+        }
+        if ((int) $attempt->vtu_order_id !== (int) $order->getKey()) {
+            throw new LogicException('Provider attempt does not belong to this VTU order.');
+        }
+
+        $product = $order->product;
+        if (! $product instanceof VtuProduct) {
+            throw new LogicException('VTU order product metadata is unavailable.');
+        }
+
+        $priority = config('services.vtu.multi_provider.priority', ['sogo', 'gsubz', 'dataway']);
+        if (! is_array($priority)) $priority = ['sogo', 'gsubz', 'dataway'];
+
+        foreach ($priority as $name) {
+            if (! is_string($name) || $name === $attempt->provider || ! isset($this->providers[$name])) continue;
+            if ($name === 'dataway') continue;
+
+            try {
+                $this->providers[$name]->assertConfigured();
+                $this->providers[$name]->assertProductConfigured($product);
+                return $name;
+            } catch (LogicException) {
+                // A candidate that is not fully configured/mapped is never dispatched.
+            }
+        }
+
+        throw new LogicException('No alternate provider has a verified mapping and reconciliation adapter.');
+    }
+
     public function verifyElectricityMeter(VtuProduct $product, string $meterNumber, string $meterType): array
     {
         $provider = $this->legacyProvider();
