@@ -209,7 +209,7 @@ class VtuOrderMariaDbConcurrencyTest extends TestCase
 
         $this->assertSame([0, 0], array_column($results, 'exit'));
         $this->assertSame('awaiting_reconciliation', $order->fresh()->status);
-        $this->assertSame(0, (int) $wallet->fresh()->available_balance_minor, 'An unverified provider failure must not refund funds.');
+        $this->assertSame(500, (int) $wallet->fresh()->available_balance_minor, 'The original debit remains in place; an unverified provider failure must not refund funds.');
         $this->assertDatabaseCount('vtu_orders', 1);
         $this->assertSame(2, DB::table('wallet_transactions')->count(), 'Funding plus one debit are expected until definitive non-delivery is verified.');
         $this->assertSame(2, $this->readState($state, 'lookups'));
