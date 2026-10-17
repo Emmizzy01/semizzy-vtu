@@ -84,6 +84,11 @@ class UserManagementController extends Controller
             $target = User::query()->whereKey($user->id)->lockForUpdate()->firstOrFail();
             $old = ['user_type' => $target->user_type ?: 'customer', 'user_level' => $target->user_level ?: 'level_1', 'kyc_status' => $target->kyc_status ?: 'unverified'];
             $new = ['user_type' => $data['user_type'], 'user_level' => $data['user_level'], 'kyc_status' => $data['kyc_status']];
+            if ($old['kyc_status'] !== 'verified' && $new['kyc_status'] === 'verified') {
+                throw \\Illuminate\\Validation\\ValidationException::withMessages([
+                    'kyc_status' => 'KYC cannot be marked verified until the identity evidence review workflow is completed.',
+                ]);
+            }
             if ($old !== $new) {
                 $target->forceFill($new)->save();
                 UserRoleAudit::query()->create([
