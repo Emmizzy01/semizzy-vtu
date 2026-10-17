@@ -124,7 +124,7 @@ class TransactionPinSecurityTest extends TestCase
 
     public function test_incorrect_pin_cannot_submit_a_valid_airtime_purchase_or_debit_wallet(): void
     {
-        \\Illuminate\\Support\\Facades\\Http::fake();
+        \Illuminate\Support\Facades\Http::fake();
 
         $user = User::query()->create(['name' => 'PIN Boundary Customer', 'email' => 'pin-boundary@example.test', 'password' => 'not-a-real-password']);
         $user->forceFill(['transaction_pin_hash' => Hash::make('4928')])->save();
@@ -141,8 +141,8 @@ class TransactionPinSecurityTest extends TestCase
             'metadata' => ['provider_service_id' => 'mtn'],
         ]);
 
-        $wallet = app(\\App\\Services\\Wallets\\WalletAccountService::class)->openForUser($user, 'NGN');
-        app(\\App\\Services\\Wallets\\WalletLedgerService::class)->post(
+        $wallet = app(\App\Services\Wallets\WalletAccountService::class)->openForUser($user, 'NGN');
+        app(\App\Services\Wallets\WalletLedgerService::class)->post(
             walletId: (int) $wallet->getKey(),
             type: 'credit',
             amountMinor: 5000,
@@ -164,7 +164,7 @@ class TransactionPinSecurityTest extends TestCase
         $this->assertSame(5000, (int) $wallet->fresh()->available_balance_minor);
         $this->assertDatabaseCount('vtu_orders', 0);
         $this->assertDatabaseCount('wallet_transactions', 1);
-        \\Illuminate\\Support\\Facades\\Http::assertNothingSent();
+        \Illuminate\Support\Facades\Http::assertNothingSent();
     }
 
     public function test_user_can_set_a_separate_hashed_transaction_pin(): void
