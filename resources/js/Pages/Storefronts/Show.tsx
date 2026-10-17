@@ -38,7 +38,7 @@ export default function PublicStorefront({ storefront, products, servicesAvailab
       <section className="relative overflow-hidden" style={{ background: `linear-gradient(135deg, ${storefront.accentColor}18, transparent 65%)` }}>
         <div className="mx-auto max-w-6xl px-5 py-16 sm:py-24">
           <div className="max-w-3xl">
-            <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/80 px-3 py-1.5 text-xs font-semibold dark:border-slate-700 dark:bg-slate-900/80"><BadgeCheck size={14} style={{ color: storefront.accentColor }}/> Verified Semizzy reseller storefront</span>
+            <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/80 px-3 py-1.5 text-xs font-semibold dark:border-slate-700 dark:bg-slate-900/80"><BadgeCheck size={14} style={{ color: storefront.accentColor }}/> Semizzy reseller storefront</span>
             <h1 className="mt-6 text-4xl font-black tracking-tight sm:text-6xl">{storefront.displayName}</h1>
             {storefront.tagline && <p className="mt-4 text-xl font-medium" style={{ color: storefront.accentColor }}>{storefront.tagline}</p>}
             {storefront.description && <p className="mt-5 max-w-2xl whitespace-pre-line text-base leading-7 text-slate-600 dark:text-slate-300">{storefront.description}</p>}
