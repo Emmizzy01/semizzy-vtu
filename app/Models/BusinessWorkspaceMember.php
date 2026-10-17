@@ -18,6 +18,8 @@ class BusinessWorkspaceMember extends Model
         'status',
         'invited_by_user_id',
         'accepted_at',
+        'invite_token_hash',
+        'invite_expires_at',
     ];
 
     protected function casts(): array
@@ -25,6 +27,7 @@ class BusinessWorkspaceMember extends Model
         return [
             'permissions' => 'array',
             'accepted_at' => 'datetime',
+            'invite_expires_at' => 'datetime',
         ];
     }
 
