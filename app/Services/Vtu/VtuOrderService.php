@@ -398,6 +398,11 @@ class VtuOrderService
             return $order->fresh();
         }
 
+        // Persist the lookup result against the original dispatch attempt.
+        // Locking the attempt and preserving its first terminal outcome prevents
+        // competing reconcilers from rewriting a recorded success as a failure.
+        $this->recordReconciledAttemptOutcome($order, $result);
+
         // A reconciliation lookup that still reports pending means the original
         // dispatch outcome remains ambiguous. Keep it out of the normal processing
         // queue state without refunding or resubmitting the purchase.
@@ -406,6 +411,49 @@ class VtuOrderService
         }
 
         return $this->applyProviderResult($order, $result);
+    }
+
+    /**
+     * Update the durable history for the original submission after a lookup.
+     * This does not create a new purchase attempt: lookups are recovery work,
+     * not permission to resubmit to this or another provider.
+     *
+     * @param array<string, mixed> $result
+     */
+    private function recordReconciledAttemptOutcome(VtuOrder $order, array $result): void
+    {
+        DB::transaction(function () use ($order, $result): void {
+            /** @var VtuOrder $lockedOrder */
+            $lockedOrder = VtuOrder::query()->whereKey($order->getKey())->lockForUpdate()->firstOrFail();
+
+            $attempt = VtuProviderAttempt::query()
+                ->where('vtu_order_id', $lockedOrder->getKey())
+                ->where('provider', $lockedOrder->provider)
+                ->orderByDesc('attempt_number')
+                ->lockForUpdate()
+                ->first();
+
+            if ($attempt === null || in_array($attempt->outcome, ['success', 'failed'], true)) {
+                return;
+            }
+
+            $status = $result['status'] ?? 'unknown';
+            $knownStatus = is_string($status) && in_array($status, ['success', 'failed', 'pending'], true);
+            $definitiveFailure = $knownStatus
+                && app(ProviderFailoverPolicy::class)->mayFailover((string) $attempt->provider, $result);
+
+            $attempt->forceFill([
+                'outcome' => $knownStatus ? $status : 'unknown',
+                'provider_reference' => is_string($result['provider_reference'] ?? null)
+                    ? substr($result['provider_reference'], 0, 191)
+                    : $attempt->provider_reference,
+                'failure_code' => $status === 'failed'
+                    ? (is_string($result['message_code'] ?? null) ? substr($result['message_code'], 0, 100) : 'provider_failed')
+                    : null,
+                'definitive_failure' => $definitiveFailure,
+                'finished_at' => now(),
+            ])->save();
+        }, attempts: 3);
     }
 
     /**
