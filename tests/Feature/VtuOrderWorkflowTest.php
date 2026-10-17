@@ -585,7 +585,7 @@ class VtuOrderWorkflowTest extends TestCase
     public function test_reserved_sogo_attempt_recovers_after_crash_only_on_explicit_not_found_signal(): void
     {
         config([
-            'services.vtu.multi_provider.enabled' => false,
+            'services.vtu.multi_provider.enabled' => true,
             'services.vtu.sogo.base_url' => 'https://api.sogo.africa/v1',
             'services.vtu.sogo.api_key' => 'sogo-test-key',
         ]);
