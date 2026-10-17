@@ -11,7 +11,16 @@ class UserSessionService
 {
     public function currentHash(Request $request): string
     {
-        return hash('sha256', (string) $request->session()->getId());
+        // Track a random per-session fingerprint stored in the server-side session
+        // payload. Unlike hashing Laravel's session ID directly, this remains
+        // stable when Laravel rotates the session ID after login.
+        $fingerprint = $request->session()->get('semizzy_session_fingerprint');
+        if (! is_string($fingerprint) || ! preg_match('/^[a-f0-9]{64}$/', $fingerprint)) {
+            $fingerprint = bin2hex(random_bytes(32));
+            $request->session()->put('semizzy_session_fingerprint', $fingerprint);
+        }
+
+        return hash('sha256', $fingerprint);
     }
 
     public function registerCurrent(Request $request, User $user): bool
@@ -42,6 +51,9 @@ class UserSessionService
 
     public function rotateCurrent(Request $request, User $user, string $previousHash): void
     {
+        // Password changes keep the current login but must issue a fresh session
+        // fingerprint before the previous tracked session is revoked.
+        $request->session()->put('semizzy_session_fingerprint', bin2hex(random_bytes(32)));
         $this->registerCurrent($request, $user);
         DB::table('user_sessions')->where('user_id', $user->id)->where('session_hash', $previousHash)
             ->whereNull('revoked_at')->update(['revoked_at' => now(), 'updated_at' => now()]);
