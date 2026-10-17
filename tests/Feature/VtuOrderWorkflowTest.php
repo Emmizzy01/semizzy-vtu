@@ -582,6 +582,104 @@ class VtuOrderWorkflowTest extends TestCase
             && ($request['requestID'] ?? null) === $order->public_id);
     }
 
+    public function test_safe_recovery_does_not_resubmit_if_order_becomes_terminal_after_lookup(): void
+    {
+        config([
+            'services.vtu.multi_provider.enabled' => true,
+            'services.vtu.sogo.base_url' => 'https://api.sogo.africa/v1',
+            'services.vtu.sogo.api_key' => 'sogo-test-key',
+        ]);
+
+        $submissionCount = 0;
+        $orderId = null;
+        Http::fake(function ($request) use (&$submissionCount, &$orderId) {
+            $path = (string) parse_url($request->url(), PHP_URL_PATH);
+            if (str_contains($path, '/transactions/')) {
+                // Simulate a verified webhook winning after lookup but before
+                // the recovery worker's final locked dispatch authorization.
+                if ($orderId !== null) {
+                    Illuminate\Support\Facades\DB::table('vtu_orders')
+                        ->where('id', $orderId)
+                        ->update(['status' => 'successful', 'updated_at' => now()]);
+                }
+                return Http::response([], 404);
+            }
+            if (str_contains($path, '/bills/airtime')) {
+                $submissionCount++;
+                if ($submissionCount === 1) {
+                    throw new ConnectionException('Simulated original dispatch timeout.');
+                }
+                return Http::response(['data' => ['status' => 'completed']], 200);
+            }
+            return Http::response(['status' => 'pending'], 200);
+        });
+
+        [$user, $wallet, $product] = $this->preparedCustomer(1000, 1500);
+        $product->forceFill(['metadata' => ['provider_mappings' => ['sogo' => ['network' => 'mtn']]]])->save();
+        $service = app(VtuOrderService::class);
+        $order = $service->purchase($user, $product->code, '08012345678', 'recovery-terminal-race');
+        $orderId = $order->getKey();
+        $attempt = \App\Models\VtuProviderAttempt::query()->where('vtu_order_id', $orderId)->firstOrFail();
+        $order->forceFill(['provider' => 'sogo', 'status' => 'processing'])->save();
+        $attempt->forceFill(['provider' => 'sogo', 'outcome' => 'reserved'])->save();
+
+        $reconciled = $service->reconcile($order->fresh());
+
+        $this->assertSame('successful', $reconciled->status);
+        $this->assertSame(1, $submissionCount, 'A terminal order must not trigger a recovery submission.');
+        $this->assertSame('reserved', $attempt->fresh()->outcome);
+    }
+
+    public function test_durable_recovery_claim_blocks_competing_worker_during_same_key_resubmission(): void
+    {
+        config([
+            'services.vtu.multi_provider.enabled' => true,
+            'services.vtu.sogo.base_url' => 'https://api.sogo.africa/v1',
+            'services.vtu.sogo.api_key' => 'sogo-test-key',
+        ]);
+
+        $submissionCount = 0;
+        $orderId = null;
+        $nestedReconcileTriggered = false;
+        Http::fake(function ($request) use (&$submissionCount, &$orderId, &$nestedReconcileTriggered) {
+            $path = (string) parse_url($request->url(), PHP_URL_PATH);
+            if (str_contains($path, '/transactions/')) {
+                return Http::response([], 404);
+            }
+            if (str_contains($path, '/bills/airtime')) {
+                $submissionCount++;
+                if ($submissionCount === 1) {
+                    throw new ConnectionException('Simulated original dispatch timeout.');
+                }
+                if (! $nestedReconcileTriggered) {
+                    $nestedReconcileTriggered = true;
+                    // A competing worker enters while the first worker owns the
+                    // durable claim. It must lookup, then decline dispatch.
+                    app(VtuOrderService::class)->reconcile(VtuOrder::query()->findOrFail($orderId));
+                }
+                return Http::response(['data' => ['status' => 'completed', 'reference' => 'RECOVERED-ONCE']], 200);
+            }
+            return Http::response(['status' => 'pending'], 200);
+        });
+
+        [$user, $wallet, $product] = $this->preparedCustomer(1000, 1500);
+        $product->forceFill(['metadata' => ['provider_mappings' => ['sogo' => ['network' => 'mtn']]]])->save();
+        $service = app(VtuOrderService::class);
+        $order = $service->purchase($user, $product->code, '08012345678', 'recovery-competing-workers');
+        $orderId = $order->getKey();
+        $attempt = \App\Models\VtuProviderAttempt::query()->where('vtu_order_id', $orderId)->firstOrFail();
+        $order->forceFill(['provider' => 'sogo', 'status' => 'processing'])->save();
+        $attempt->forceFill(['provider' => 'sogo', 'outcome' => 'reserved'])->save();
+
+        $reconciled = $service->reconcile($order->fresh());
+
+        $this->assertSame('successful', $reconciled->status);
+        $this->assertSame(2, $submissionCount, 'Only the original dispatch and one recovery dispatch are allowed.');
+        $this->assertSame('success', $attempt->fresh()->outcome);
+        $this->assertSame(500, (int) $wallet->fresh()->available_balance_minor);
+        $this->assertDatabaseCount('wallet_transactions', 2);
+    }
+
     public function test_reserved_sogo_attempt_recovers_after_crash_only_on_explicit_not_found_signal(): void
     {
         config([
