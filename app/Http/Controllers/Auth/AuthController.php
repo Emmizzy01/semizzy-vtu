@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Services\Security\TransactionPinService;
+use App\Services\Security\LoginChallengeService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -21,7 +22,7 @@ class AuthController extends Controller
         return Inertia::render('Auth/Login');
     }
 
-    public function login(Request $request): RedirectResponse
+    public function login(Request $request, LoginChallengeService $challenges): RedirectResponse
     {
         $identifier = trim((string) $request->input('identifier', $request->input('email', '')));
         $request->merge(['identifier' => $identifier]);
@@ -52,6 +53,22 @@ class AuthController extends Controller
             return back()->withErrors([
                 'identifier' => 'These credentials do not match our records.',
             ])->onlyInput('identifier');
+        }
+
+        if (config('auth_security.email_otp_enabled', false)) {
+            if (! $user->email) {
+                return back()->withErrors(['identifier' => 'This account cannot use email verification.'])->onlyInput('identifier');
+            }
+
+            try {
+                $challenges->start($request, $user, (bool) ($credentials['remember'] ?? false));
+            } catch (\Throwable $exception) {
+                report($exception);
+
+                return back()->withErrors(['identifier' => 'We could not send a verification code. Please try again later.'])->onlyInput('identifier');
+            }
+
+            return redirect()->route('login.challenge');
         }
 
         Auth::login($user, (bool) ($credentials['remember'] ?? false));
