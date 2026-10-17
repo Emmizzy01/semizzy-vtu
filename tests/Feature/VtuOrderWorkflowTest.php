@@ -3,6 +3,9 @@
 namespace Tests\Feature;
 
 use App\Models\User;
+use App\Models\BusinessWorkspace;
+use App\Models\BusinessWorkspaceStorefront;
+use App\Models\BusinessWorkspaceCommission;
 use App\Models\VtuOrder;
 use App\Models\VtuProduct;
 use App\Models\PlatformFeatureControl;
@@ -2321,6 +2324,214 @@ class VtuOrderWorkflowTest extends TestCase
         Http::assertNotSent(fn ($request) => str_contains($request->url(), 'api.sogo.africa')
             && str_contains($request->url(), '/transactions/'));
         Http::assertNotSent(fn ($request) => str_contains($request->url(), 'dataway'));
+    }
+
+    public function test_storefront_purchase_requires_a_published_store_and_a_product_enabled_for_that_store(): void
+    {
+        [$user, $wallet, $product] = $this->preparedCustomer(500, 1500);
+        $product->forceFill(['service_type' => 'data'])->save();
+
+        $owner = User::query()->create([
+            'name' => 'Store owner',
+            'email' => 'store-owner-'.uniqid().'@example.test',
+            'password' => 'test-password',
+        ]);
+        $workspace = BusinessWorkspace::query()->create([
+            'owner_user_id' => $owner->id,
+            'name' => 'Published reseller',
+            'slug' => 'published-reseller-'.uniqid(),
+            'type' => 'reseller',
+            'status' => 'active',
+        ]);
+        $storefront = BusinessWorkspaceStorefront::query()->create([
+            'business_workspace_id' => $workspace->id,
+            'slug' => 'journey-store-'.uniqid(),
+            'display_name' => 'Journey Store',
+            'status' => 'draft',
+            'enabled_services' => ['data'],
+            'accent_color' => '#087443',
+        ]);
+
+        $provider = new class implements VtuProvider {
+            public int $submissions = 0;
+            public function assertConfigured(): void {}
+            public function assertProductConfigured(VtuProduct $product): void {}
+            public function submit(VtuOrder $order): array { $this->submissions++; return ['status' => 'success']; }
+            public function lookup(VtuOrder $order): array { return ['status' => 'pending']; }
+        };
+        $this->app->instance(VtuProvider::class, $provider);
+
+        try {
+            app(VtuOrderService::class)->purchase($user, $product->code, '08012345678', 'store-draft-purchase', [], null, $storefront->slug);
+            $this->fail('Draft storefronts must never initiate purchases.');
+        } catch (\InvalidArgumentException $exception) {
+            $this->assertStringContainsString('not currently available', $exception->getMessage());
+        }
+
+        $storefront->update(['status' => 'published', 'enabled_services' => ['airtime']]);
+        try {
+            app(VtuOrderService::class)->purchase($user, $product->code, '08012345678', 'store-disabled-product-type', [], null, $storefront->slug);
+            $this->fail('Products outside the storefront enabled services must be rejected.');
+        } catch (\InvalidArgumentException $exception) {
+            $this->assertStringContainsString('not enabled for this storefront', $exception->getMessage());
+        }
+
+        $this->assertDatabaseCount('vtu_orders', 0);
+        $this->assertSame(1500, (int) $wallet->fresh()->available_balance_minor);
+        $this->assertSame(0, $provider->submissions);
+    }
+
+    public function test_storefront_purchase_is_idempotent_and_commission_is_created_only_for_verified_success(): void
+    {
+        [$user, $wallet, $product] = $this->preparedCustomer(500, 1500);
+        $product->forceFill(['service_type' => 'data'])->save();
+
+        $owner = User::query()->create([
+            'name' => 'Commission beneficiary',
+            'email' => 'commission-owner-'.uniqid().'@example.test',
+            'password' => 'test-password',
+        ]);
+        $workspace = BusinessWorkspace::query()->create([
+            'owner_user_id' => $owner->id,
+            'name' => 'Commission reseller',
+            'slug' => 'commission-reseller-'.uniqid(),
+            'type' => 'reseller',
+            'status' => 'active',
+        ]);
+        $storefront = BusinessWorkspaceStorefront::query()->create([
+            'business_workspace_id' => $workspace->id,
+            'slug' => 'commission-store-'.uniqid(),
+            'display_name' => 'Commission Store',
+            'status' => 'published',
+            'enabled_services' => ['data'],
+            'accent_color' => '#087443',
+            'commission_rate_basis_points' => 500,
+        ]);
+
+        $provider = new class implements VtuProvider {
+            public int $submissions = 0;
+            public function assertConfigured(): void {}
+            public function assertProductConfigured(VtuProduct $product): void {}
+            public function submit(VtuOrder $order): array { $this->submissions++; return ['status' => 'success', 'provider_reference' => 'verified-success']; }
+            public function lookup(VtuOrder $order): array { return ['status' => 'pending']; }
+        };
+        $this->app->instance(VtuProvider::class, $provider);
+
+        $service = app(VtuOrderService::class);
+        $order = $service->purchase($user, $product->code, '08012345678', 'store-idempotent-key', [], null, $storefront->slug);
+        $duplicate = $service->purchase($user, $product->code, '08012345678', 'store-idempotent-key', [], null, $storefront->slug);
+
+        $this->assertSame('successful', $order->status);
+        $this->assertSame($order->getKey(), $duplicate->getKey());
+        $this->assertSame($storefront->getKey(), (int) $order->fresh()->business_workspace_storefront_id);
+        $this->assertSame(1, $provider->submissions, 'Duplicate submissions must not reach the provider twice.');
+        $this->assertSame(1000, (int) $wallet->fresh()->available_balance_minor);
+        $this->assertDatabaseCount('business_workspace_commissions', 1);
+        $commission = BusinessWorkspaceCommission::query()->firstOrFail();
+        $this->assertSame($owner->getKey(), (int) $commission->beneficiary_user_id);
+        $this->assertSame(25, (int) $commission->commission_amount_minor);
+        $this->assertSame('accrued', $commission->status);
+    }
+
+    public function test_storefront_attribution_cannot_be_changed_by_reusing_the_same_idempotency_key_for_another_store(): void
+    {
+        [$user, $wallet, $product] = $this->preparedCustomer(500, 1500);
+        $product->forceFill(['service_type' => 'data'])->save();
+
+        $stores = [];
+        foreach (['first', 'second'] as $label) {
+            $owner = User::query()->create([
+                'name' => 'Store owner '.$label,
+                'email' => 'store-'.$label.'-'.uniqid().'@example.test',
+                'password' => 'test-password',
+            ]);
+            $workspace = BusinessWorkspace::query()->create([
+                'owner_user_id' => $owner->id,
+                'name' => 'Store '.$label,
+                'slug' => 'store-workspace-'.$label.'-'.uniqid(),
+                'type' => 'reseller',
+                'status' => 'active',
+            ]);
+            $stores[] = BusinessWorkspaceStorefront::query()->create([
+                'business_workspace_id' => $workspace->id,
+                'slug' => 'store-'.$label.'-'.uniqid(),
+                'display_name' => 'Store '.$label,
+                'status' => 'published',
+                'enabled_services' => ['data'],
+                'accent_color' => '#087443',
+            ]);
+        }
+
+        $provider = new class implements VtuProvider {
+            public int $submissions = 0;
+            public function assertConfigured(): void {}
+            public function assertProductConfigured(VtuProduct $product): void {}
+            public function submit(VtuOrder $order): array { $this->submissions++; return ['status' => 'pending']; }
+            public function lookup(VtuOrder $order): array { return ['status' => 'pending']; }
+        };
+        $this->app->instance(VtuProvider::class, $provider);
+
+        $service = app(VtuOrderService::class);
+        $order = $service->purchase($user, $product->code, '08012345678', 'store-scope-idempotency', [], null, $stores[0]->slug);
+
+        try {
+            $service->purchase($user, $product->code, '08012345678', 'store-scope-idempotency', [], null, $stores[1]->slug);
+            $this->fail('A request key cannot be reused to attribute the same purchase to another store.');
+        } catch (\Symfony\Component\HttpKernel\Exception\ConflictHttpException $exception) {
+            $this->assertStringContainsString('different purchase', $exception->getMessage());
+        }
+
+        $this->assertSame($stores[0]->getKey(), (int) $order->fresh()->business_workspace_storefront_id);
+        $this->assertSame(1, $provider->submissions);
+        $this->assertSame(1000, (int) $wallet->fresh()->available_balance_minor);
+        $this->assertDatabaseCount('vtu_orders', 1);
+    }
+
+    public function test_failed_or_ambiguous_storefront_purchase_does_not_accrue_commission(): void
+    {
+        config([
+            'services.vtu.name' => 'test_provider',
+            'services.vtu.driver' => 'test',
+            'services.vtu.multi_provider.definitive_failure_providers' => ['test_provider'],
+        ]);
+        [$user, $wallet, $product] = $this->preparedCustomer(500, 1500);
+        $product->forceFill(['service_type' => 'data'])->save();
+
+        $owner = User::query()->create([
+            'name' => 'Failed commission owner',
+            'email' => 'failed-commission-'.uniqid().'@example.test',
+            'password' => 'test-password',
+        ]);
+        $workspace = BusinessWorkspace::query()->create([
+            'owner_user_id' => $owner->id,
+            'name' => 'Failed reseller',
+            'slug' => 'failed-reseller-'.uniqid(),
+            'type' => 'reseller',
+            'status' => 'active',
+        ]);
+        $storefront = BusinessWorkspaceStorefront::query()->create([
+            'business_workspace_id' => $workspace->id,
+            'slug' => 'failed-store-'.uniqid(),
+            'display_name' => 'Failed Store',
+            'status' => 'published',
+            'enabled_services' => ['data'],
+            'accent_color' => '#087443',
+            'commission_rate_basis_points' => 500,
+        ]);
+
+        $provider = new class implements VtuProvider {
+            public function assertConfigured(): void {}
+            public function assertProductConfigured(VtuProduct $product): void {}
+            public function submit(VtuOrder $order): array { return ['status' => 'failed', 'definitive_failure' => true, 'message_code' => 'verified_failure']; }
+            public function lookup(VtuOrder $order): array { return ['status' => 'pending']; }
+        };
+        $this->app->instance(VtuProvider::class, $provider);
+
+        $order = app(VtuOrderService::class)->purchase($user, $product->code, '08012345678', 'store-failed-purchase', [], null, $storefront->slug);
+
+        $this->assertSame('failed', $order->status);
+        $this->assertSame(1500, (int) $wallet->fresh()->available_balance_minor, 'Definitive failure must refund the original debit exactly once.');
+        $this->assertDatabaseCount('business_workspace_commissions', 0);
     }
 
     private function preparedCustomer(int $productPriceMinor, int $initialBalanceMinor): array
