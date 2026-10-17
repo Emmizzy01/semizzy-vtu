@@ -719,6 +719,7 @@ class VtuOrderWorkflowTest extends TestCase
 
             return Http::response([
                 'status' => 'failed',
+                'definitive_failure' => true,
                 'message_code' => 'PROVIDER_DECLINED',
                 'provider_reference' => 'provider-order-concurrent-failure',
             ], 200);
