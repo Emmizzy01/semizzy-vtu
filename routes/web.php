@@ -27,6 +27,7 @@ use App\Services\IntegrationSettings;
 use App\Http\Controllers\Payments\PaymentRefundController;
 use App\Http\Controllers\Vtu\VtuOrderController;
 use App\Http\Controllers\Vtu\VtuBillerVerificationController;
+use App\Http\Controllers\Kyc\KycSubmissionController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
