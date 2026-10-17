@@ -922,7 +922,7 @@ class VtuOrderWorkflowTest extends TestCase
         $successful = $service->reconcile($order);
         $this->assertSame('successful', $successful->status);
         $balanceAfterSuccess = (int) $wallet->fresh()->available_balance_minor;
-        $transactionsAfterSuccess = \\App\\Models\\WalletTransaction::query()->count();
+        $transactionsAfterSuccess = \App\Models\WalletTransaction::query()->count();
 
         // Model a verified Dataway event matching the persisted provider identity.
         $successful->forceFill([
