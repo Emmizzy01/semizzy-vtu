@@ -90,6 +90,29 @@ class VtuProviderAdaptersTest extends TestCase
         $this->assertFalse($cancelled['definitive_failure']);
     }
 
+    public function test_sogo_404_lookup_exposes_only_the_documented_same_key_recovery_signal(): void
+    {
+        Http::fake(['api.sogo.africa/*' => Http::response(['message' => 'not found'], 404)]);
+
+        $result = app(SogoProviderClient::class)->lookup($this->order());
+
+        $this->assertSame('unknown', $result['status']);
+        $this->assertSame('not_found', $result['lookup_state']);
+        $this->assertTrue($result['safe_to_submit_same_key']);
+        Http::assertSent(fn ($request) => $request->method() === 'GET'
+            && str_contains($request->url(), '/transactions/550e8400-e29b-41d4-a716-446655440000'));
+    }
+
+    public function test_sogo_non_404_lookup_errors_do_not_claim_safe_resubmission(): void
+    {
+        Http::fake(['api.sogo.africa/*' => Http::response(['message' => 'temporarily unavailable'], 503)]);
+
+        $result = app(SogoProviderClient::class)->lookup($this->order());
+
+        $this->assertSame('unknown', $result['status']);
+        $this->assertArrayNotHasKey('safe_to_submit_same_key', $result);
+    }
+
     public function test_reconciliation_uses_the_provider_recorded_on_the_specific_attempt(): void
     {
         Http::fake([
