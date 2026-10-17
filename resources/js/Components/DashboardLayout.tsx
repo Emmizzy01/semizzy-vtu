@@ -86,14 +86,16 @@ export default function DashboardLayout({
     { label: 'Services', href: '/services', icon: Grid2X2, match: '/services' },
     { label: 'Rewards', href: customerPreview ? '/customer/dashboard#rewards' : '/dashboard#rewards', icon: Gift, match: '#rewards' },
     { label: 'Wallet', href: '/wallet/manual-deposits', icon: WalletCards, match: '/wallet/manual-deposits' },
-    { label: 'Profile', href: '/profile', icon: UserRound, match: '/profile' },\n    { label: 'Identity verification', href: '/account/kyc', icon: ShieldCheck, match: '/account/kyc' },
+    { label: 'Profile', href: '/profile', icon: UserRound, match: '/profile' },
+    { label: 'Identity verification', href: '/account/kyc', icon: ShieldCheck, match: '/account/kyc' },
   ];
 
   const adminGroups: { title: string; items: NavItem[] }[] = [
     { title: 'Workspace', items: [{ label: 'Command Center', href: '/admin/dashboard', icon: LayoutDashboard, match: '/admin/dashboard' }] },
     ...(canApproveRefunds ? [{ title: 'Finance', items: [{ label: 'Refund operations', href: '/admin/refunds', icon: CreditCard, match: '/admin/refunds' }] }] : []),
     ...(canManageStaff ? [{ title: 'Operations', items: [{ label: 'VTU order queue', href: '/admin/vtu-orders', icon: Smartphone, match: '/admin/vtu-orders' },
-      { label: 'VTU product catalogue', href: '/admin/vtu-products', icon: Package, match: '/admin/vtu-products' },\n      { label: 'KYC evidence review', href: '/admin/kyc-reviews', icon: ShieldCheck, match: '/admin/kyc-reviews' },
+      { label: 'VTU product catalogue', href: '/admin/vtu-products', icon: Package, match: '/admin/vtu-products' },
+      { label: 'KYC evidence review', href: '/admin/kyc-reviews', icon: ShieldCheck, match: '/admin/kyc-reviews' },
       { label: 'Support tickets', href: '/admin/support', icon: LifeBuoy, match: '/admin/support' },
       { label: 'Manual deposits', href: '/admin/manual-deposits', icon: WalletCards, match: '/admin/manual-deposits' }] }] : []),
     ...(canManageStaff ? [{ title: 'Platform', items: [
@@ -154,7 +156,8 @@ export default function DashboardLayout({
         { label: 'Home', href: '/admin/dashboard', icon: LayoutDashboard, match: '/admin/dashboard' },
         ...(canApproveRefunds ? [{ label: 'Refunds', href: '/admin/refunds', icon: CreditCard, match: '/admin/refunds' }] : []),
         ...(canManageStaff ? [
-          { label: 'VTU orders', href: '/admin/vtu-orders', icon: Smartphone, match: '/admin/vtu-orders' },\n          { label: 'KYC reviews', href: '/admin/kyc-reviews', icon: ShieldCheck, match: '/admin/kyc-reviews' },
+          { label: 'VTU orders', href: '/admin/vtu-orders', icon: Smartphone, match: '/admin/vtu-orders' },
+          { label: 'KYC reviews', href: '/admin/kyc-reviews', icon: ShieldCheck, match: '/admin/kyc-reviews' },
           { label: 'Manual deposits', href: '/admin/manual-deposits', icon: WalletCards, match: '/admin/manual-deposits' },
           { label: 'Site control', href: '/admin/platform-settings', icon: ShieldCheck, match: '/admin/platform-settings' },
           { label: 'Feature controls', href: '/admin/feature-controls', icon: SlidersHorizontal, match: '/admin/feature-controls' },
