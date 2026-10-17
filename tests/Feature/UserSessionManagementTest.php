@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Tests\TestCase;
@@ -37,10 +38,19 @@ class UserSessionManagementTest extends TestCase
 
         // Exercise a real login so the test client carries the regenerated session
         // identifier in its cookie across requests, as a browser does.
-        $this->post('/login', [
+        $loginResponse = $this->post('/login', [
             'identifier' => $user->email,
             'password' => 'CorrectPassword1234',
-        ])->assertRedirect('/dashboard');
+        ]);
+        $loginResponse->assertRedirect('/dashboard');
+
+        // Laravel's HTTP test client does not automatically replay response
+        // cookies like a browser. Replay the session cookie from login so every
+        // subsequent request uses the same server-side session.
+        $sessionCookie = $loginResponse->getCookie(config('session.cookie'));
+        $this->assertNotNull($sessionCookie);
+        $sessionId = Crypt::decrypt($sessionCookie->getValue());
+        $this->withCookie(config('session.cookie'), $sessionId);
 
         $this->get('/account/sessions')->assertOk();
         $record = DB::table('user_sessions')->where('user_id', $user->id)->whereNull('revoked_at')->first();
