@@ -418,6 +418,61 @@ class VtuOrderWorkflowTest extends TestCase
         Http::assertSentCount(1);
     }
 
+    public function test_sogo_not_found_recovery_resubmits_same_attempt_identity_without_second_debit(): void
+    {
+        config([
+            'services.vtu.multi_provider.enabled' => true,
+            'services.vtu.multi_provider.priority' => ['sogo', 'gsubz'],
+            'services.vtu.multi_provider.definitive_failure_providers' => [],
+            'services.vtu.sogo.base_url' => 'https://api.sogo.africa/v1',
+            'services.vtu.sogo.api_key' => 'sogo-test-key',
+            'services.vtu.gsubz.base_url' => 'https://api.gsubz.com',
+            'services.vtu.gsubz.api_key' => 'gsubz-test-key',
+        ]);
+        $sogoPosts = 0;
+        Http::fake(function ($request) use (&$sogoPosts) {
+            if (str_contains($request->url(), 'api.sogo.africa') && $request->method() === 'GET') {
+                return Http::response(['message' => 'not found'], 404);
+            }
+            if (str_contains($request->url(), 'api.sogo.africa') && $request->method() === 'POST') {
+                $sogoPosts++;
+                if ($sogoPosts === 1) {
+                    return Http::response(['message' => 'temporary upstream error'], 503);
+                }
+
+                return Http::response([
+                    'data' => ['status' => 'completed', 'reference' => 'SOGO-RECOVERED'],
+                ], 200);
+            }
+
+            return Http::response(['status' => 'unknown'], 503);
+        });
+
+        [$user, $wallet, $product] = $this->preparedCustomer(1000, 1500);
+        $product->forceFill(['metadata' => ['provider_mappings' => [
+            'sogo' => ['network' => 'mtn'],
+            'gsubz' => ['network' => 'mtn'],
+        ]]])->save();
+
+        $service = app(VtuOrderService::class);
+        $order = $service->purchase($user, $product->code, '08012345678', 'sogo-safe-recovery-1');
+        $this->assertSame('awaiting_reconciliation', $order->status);
+
+        $recovered = $service->reconcile($order->fresh());
+
+        $this->assertSame('successful', $recovered->status);
+        $this->assertSame(1, \App\Models\VtuProviderAttempt::query()
+            ->where('vtu_order_id', $order->getKey())->count());
+        $this->assertSame('success', \App\Models\VtuProviderAttempt::query()
+            ->where('vtu_order_id', $order->getKey())->value('outcome'));
+        $this->assertSame(2, \App\Models\WalletTransaction::query()->count(), 'Recovery must not create another wallet debit.');
+        $this->assertSame(500, (int) $wallet->fresh()->available_balance_minor);
+        $this->assertSame(2, $sogoPosts, 'Only the initial submission and contract-authorized same-key recovery may submit.');
+        Http::assertSent(fn ($request) => str_contains($request->url(), 'api.sogo.africa')
+            && $request->method() === 'POST'
+            && $request->hasHeader('Idempotency-Key', $order->public_id));
+    }
+
     public function test_definitive_sogo_failure_reserves_second_attempt_before_alternate_submission_without_second_debit(): void
     {
         config([
