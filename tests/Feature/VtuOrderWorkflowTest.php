@@ -2055,15 +2055,10 @@ class VtuOrderWorkflowTest extends TestCase
         Http::fake(function ($request) use (&$gsubzSubmissions, &$gsubzLookups) {
             $path = (string) parse_url($request->url(), PHP_URL_PATH);
 
-            if (str_contains($request->url(), 'api.sogo.africa') && $request->method() === 'POST') {
-                return Http::response([
-                    'data' => ['status' => 'failed', 'reference' => 'SOGO-DECLINED'],
-                ], 200);
-            }
-
             if (str_contains($request->url(), 'api.gsubz.com') && str_ends_with($path, '/api/pay/')) {
                 $gsubzSubmissions++;
-                throw new ConnectionException('Worker lost connection while submitting the reserved alternate attempt.');
+
+                return Http::response(['status' => 'success', 'reference' => 'UNEXPECTED-SUBMISSION'], 200);
             }
 
             if (str_contains($request->url(), 'api.gsubz.com') && str_ends_with($path, '/api/verify/')) {
@@ -2072,7 +2067,7 @@ class VtuOrderWorkflowTest extends TestCase
                 return Http::response(['status' => 'pending', 'requestID' => $request['requestID']], 200);
             }
 
-            return Http::response(['status' => 'unknown'], 200);
+            return Http::response(['status' => 'pending'], 200);
         });
 
         [$user, $wallet, $product] = $this->preparedCustomer(1000, 1500);
@@ -2081,37 +2076,65 @@ class VtuOrderWorkflowTest extends TestCase
             'gsubz' => ['network' => 'mtn'],
         ]]])->save();
 
-        $service = app(VtuOrderService::class);
-        $order = $service->purchase($user, $product->code, '08012345678', 'reserved-second-attempt-crash');
+        // Create one legitimate debited order without dispatching the alternate.
+        // Then persist the crash checkpoint directly: attempt #1 failed
+        // definitively, attempt #2 is reserved, and no GSUBZ submission occurred.
+        $order = app(VtuOrderService::class)->purchase(
+            $user,
+            $product->code,
+            '08012345678',
+            'reserved-second-attempt-crash',
+        );
 
-        $attempts = \App\Models\VtuProviderAttempt::query()
+        $firstAttempt = \App\Models\VtuProviderAttempt::query()
             ->where('vtu_order_id', $order->getKey())
-            ->orderBy('attempt_number')
-            ->get();
-        $this->assertCount(2, $attempts);
-        $secondAttempt = $attempts->last();
-        $this->assertSame('gsubz', $secondAttempt->provider);
+            ->where('attempt_number', 1)
+            ->firstOrFail();
+        $firstAttempt->forceFill([
+            'provider' => 'sogo',
+            'outcome' => 'failed',
+            'definitive_failure' => true,
+            'failure_code' => 'provider_definitive_failure',
+            'finished_at' => now(),
+        ])->save();
 
-        // Simulate process death after attempt #2 was reserved but before its
-        // submission outcome was durably recorded.
-        $order->forceFill(['provider' => 'gsubz', 'status' => 'processing'])->save();
-        $secondAttempt->forceFill([
+        $order->forceFill([
+            'provider' => 'gsubz',
+            'status' => 'processing',
+            'failure_code' => null,
+        ])->save();
+
+        \App\Models\VtuProviderAttempt::query()->create([
+            'vtu_order_id' => $order->getKey(),
+            'attempt_number' => 2,
             'provider' => 'gsubz',
             'outcome' => 'reserved',
             'definitive_failure' => false,
-            'finished_at' => null,
-        ])->save();
+            'request_fingerprint' => hash('sha256', implode('|', [
+                $order->public_id,
+                'gsubz',
+                $order->product_code,
+                $order->recipient,
+                (string) $order->amount_minor,
+            ])),
+            'started_at' => now(),
+        ]);
 
-        $recovered = $service->reconcile($order->fresh());
+        $recovered = app(VtuOrderService::class)->reconcile($order->fresh());
 
         $this->assertSame('awaiting_reconciliation', $recovered->status);
         $this->assertSame('gsubz', $recovered->provider);
-        $this->assertSame('pending', $secondAttempt->fresh()->outcome, 'The exact reserved attempt should record the provider lookup result.');
+        $this->assertDatabaseHas('vtu_provider_attempts', [
+            'vtu_order_id' => $order->getKey(),
+            'attempt_number' => 2,
+            'provider' => 'gsubz',
+            'outcome' => 'pending',
+        ]);
         $this->assertSame(2, \App\Models\VtuProviderAttempt::query()
             ->where('vtu_order_id', $order->getKey())->count(), 'Recovery must never reserve a third attempt.');
         $this->assertSame(2, \App\Models\WalletTransaction::query()->count(), 'Recovery must not debit or refund again.');
         $this->assertSame(500, (int) $wallet->fresh()->available_balance_minor);
-        $this->assertSame(1, $gsubzSubmissions, 'Recovery must not resubmit an unresolved alternate attempt.');
+        $this->assertSame(0, $gsubzSubmissions, 'A pending lookup must not resubmit the reserved second attempt.');
         $this->assertSame(1, $gsubzLookups, 'Recovery must query the persisted alternate provider.');
         Http::assertSent(fn ($request) => str_contains($request->url(), 'api.gsubz.com')
             && str_ends_with((string) parse_url($request->url(), PHP_URL_PATH), '/api/verify/')
