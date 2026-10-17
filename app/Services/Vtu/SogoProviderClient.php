@@ -63,7 +63,11 @@ class SogoProviderClient extends AbstractMappedVtuProvider
 
         $body = $response->json();
         $data = is_array($body['data'] ?? null) ? $body['data'] : $body;
-        return $this->normalized($this->status($data['status'] ?? null,
+        $rawStatus = strtolower(trim((string) ($data['status'] ?? '')));
+        $result = $this->normalized($this->status($rawStatus,
             ['completed'], ['failed', 'refunded', 'cancelled'], ['processing', 'pending']), $data);
+        $result['definitive_failure'] = in_array($rawStatus, ['failed', 'refunded'], true);
+
+        return $result;
     }
 }
