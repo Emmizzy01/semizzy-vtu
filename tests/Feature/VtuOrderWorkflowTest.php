@@ -954,10 +954,14 @@ class VtuOrderWorkflowTest extends TestCase
         $this->assertSame('successful', $successful->fresh()->status);
         $this->assertSame($balanceAfterSuccess, (int) $wallet->fresh()->available_balance_minor);
         $this->assertSame($transactionsAfterSuccess, \\App\\Models\\WalletTransaction::query()->count());
+        $this->assertDatabaseMissing('vtu_provider_webhook_events', [
+            'provider' => 'dataway',
+            'event_type' => 'transaction.pending',
+            'processed_at' => null,
+        ]);
         $this->assertDatabaseHas('vtu_provider_webhook_events', [
             'provider' => 'dataway',
             'event_type' => 'transaction.pending',
-            'processed_at' => $successful->fresh()->updated_at,
             'processing_error' => null,
         ]);
     }
