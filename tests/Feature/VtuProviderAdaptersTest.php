@@ -183,16 +183,41 @@ class VtuProviderAdaptersTest extends TestCase
         $this->assertCount(2, Http::recorded());
     }
 
-    public function test_dataway_requires_explicit_mapping_and_never_guesses_lookup_endpoint(): void
+    public function test_dataway_pending_duplicate_replay_keeps_the_same_reference_and_never_claims_safe_recovery(): void
     {
-        Http::fake(['dataway.ng/*' => Http::response(['status' => 'pending'], 202)]);
+        Http::fakeSequence()
+            ->push([
+                'status' => 'pending',
+                'reference' => 'DATAWAY-TXN-1',
+            ], 202)
+            ->push([
+                'status' => 'pending',
+                'code' => 'DUPLICATE',
+                'duplicate' => true,
+                'reference' => 'DATAWAY-TXN-1',
+                'message' => 'Your previous request is still being processed.',
+            ], 202);
 
-        $result = app(DatawayProviderClient::class)->submit($this->order());
-        $this->assertSame('pending', $result['status']);
+        $order = $this->order();
+        $client = app(DatawayProviderClient::class);
+
+        $first = $client->submit($order);
+        $duplicate = $client->submit($order);
+
+        $this->assertSame('pending', $first['status']);
+        $this->assertSame('pending', $duplicate['status']);
+        $this->assertArrayNotHasKey('definitive_failure', $duplicate);
+        $this->assertArrayNotHasKey('safe_to_submit_same_key', $duplicate);
+
+        Http::assertSent(fn ($request) => str_ends_with($request->url(), '/airtime/purchase/')
+            && $request['reference'] === $order->public_id);
+        Http::assertSent(fn ($request) => str_ends_with($request->url(), '/airtime/purchase/')
+            && $request['reference'] === $order->public_id);
+        $this->assertCount(2, Http::recorded());
 
         try {
-            app(DatawayProviderClient::class)->lookup($this->order());
-            $this->fail('Dataway lookup must remain disabled until its contract is confirmed.');
+            $client->lookup($order);
+            $this->fail('Dataway lookup must remain disabled until an approved reconciliation contract exists.');
         } catch (LogicException $exception) {
             $this->assertStringContainsString('lookup is not enabled', $exception->getMessage());
         }
