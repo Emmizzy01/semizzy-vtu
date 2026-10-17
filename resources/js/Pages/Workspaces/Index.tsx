@@ -12,6 +12,8 @@ type Workspace = {
   activeMembers: number;
   isOwner: boolean;
   canManage: boolean;
+  canViewTeam: boolean;
+  canManageStorefront: boolean;
 };
 
 export default function WorkspacesIndex({ workspaces, canCreate }: { workspaces: Workspace[]; canCreate: boolean }) {
@@ -59,7 +61,7 @@ export default function WorkspacesIndex({ workspaces, canCreate }: { workspaces:
             <div className="flex items-start justify-between gap-3"><span className="rounded-xl bg-emerald-700/10 p-3 text-emerald-700 dark:text-emerald-300"><Store size={21}/></span><span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600 dark:bg-slate-900 dark:text-slate-300">{label(workspace.type)}</span></div>
             <h3 className="mt-4 text-lg font-semibold">{workspace.name}</h3><p className="mt-1 break-all text-xs text-slate-500">/{workspace.slug}</p>
             <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-slate-500"><span className="inline-flex items-center gap-1.5"><Users size={16}/>{workspace.activeMembers} active memberships</span><span>{workspace.isOwner ? 'Owner' : workspace.canManage ? 'Workspace manager' : 'Member'}</span></div>
-            <div className="mt-4 border-t border-slate-100 pt-4 text-sm dark:border-slate-800">{workspace.canManage ? <span className="font-medium text-emerald-700 dark:text-emerald-300">You can manage this workspace</span> : <span className="text-slate-500">Access is limited by your membership permissions</span>}<Link href={`/workspaces/${workspace.id}/team`} className="float-right inline-flex items-center gap-1 font-medium text-emerald-700 hover:underline dark:text-emerald-300">Team <ArrowUpRight size={16}/></Link></div>
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4 text-sm dark:border-slate-800"><span className="text-slate-500">{workspace.canManage ? "You can manage this workspace" : "Workspace membership active"}</span><div className="flex flex-wrap gap-3">{workspace.canViewTeam && <Link href={`/workspaces/${workspace.id}/team`} className="inline-flex items-center gap-1 font-medium text-emerald-700 hover:underline dark:text-emerald-300">Team <ArrowUpRight size={16}/></Link>}{workspace.type === "reseller" && workspace.canManageStorefront && <Link href={`/workspaces/${workspace.id}/storefront`} className="inline-flex items-center gap-1 font-medium text-emerald-700 hover:underline dark:text-emerald-300">Storefront <ArrowUpRight size={16}/></Link>}</div></div>
           </article>)}</div>}
       </section>
     </div>
