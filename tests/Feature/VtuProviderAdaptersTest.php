@@ -223,6 +223,35 @@ class VtuProviderAdaptersTest extends TestCase
         }
     }
 
+    public function test_dataway_is_excluded_from_automatic_failover_until_requery_contract_is_confirmed(): void
+    {
+        config([
+            'services.vtu.multi_provider.enabled' => true,
+            'services.vtu.multi_provider.priority' => ['dataway', 'gsubz', 'sogo'],
+            'services.vtu.gsubz.base_url' => 'https://api.gsubz.com',
+            'services.vtu.gsubz.api_key' => 'gsubz-test-key',
+            'services.vtu.sogo.base_url' => 'https://api.sogo.africa/v1',
+            'services.vtu.sogo.api_key' => 'sogo-test-key',
+            'services.vtu.dataway.base_url' => 'https://dataway.ng/api/v1/merchant',
+            'services.vtu.dataway.api_key' => 'dataway-test-key',
+        ]);
+        Http::fake();
+
+        $order = $this->order();
+        $order->setAttribute('id', 41);
+        $attempt = new VtuProviderAttempt([
+            'vtu_order_id' => 41,
+            'attempt_number' => 1,
+            'provider' => 'sogo',
+            'outcome' => 'failed',
+        ]);
+
+        $next = app(MultiProviderVtuRouter::class)->nextProviderForAttempt($order, $attempt);
+
+        $this->assertSame('gsubz', $next, 'Router must skip Dataway even when it has the highest configured priority.');
+        Http::assertNothingSent();
+    }
+
     public function test_sogo_and_dataway_signatures_use_raw_body_and_reject_tampering(): void
     {
         $body = '{"event":"transaction.successful","data":{"reference":"TXN-1"}}';
