@@ -402,8 +402,24 @@ class VtuOrderService
             return $order;
         }
 
+        $attempt = VtuProviderAttempt::query()
+            ->where('vtu_order_id', $order->getKey())
+            ->orderByDesc('attempt_number')
+            ->first();
+
+        if ($attempt === null) {
+            return $this->markAwaitingReconciliation($order, 'provider_attempt_missing');
+        }
+
         try {
-            $result = $this->provider->lookup($order);
+            if ($this->provider instanceof MultiProviderVtuRouter) {
+                $result = $this->provider->lookupAttempt($order, $attempt);
+            } else {
+                if ((string) $attempt->provider !== (string) $order->provider) {
+                    throw new LogicException('Recorded provider attempt cannot be reconciled by the configured adapter.');
+                }
+                $result = $this->provider->lookup($order);
+            }
         } catch (ConnectionException|LogicException $exception) {
             report($exception);
             return $order->fresh();
@@ -447,7 +463,6 @@ class VtuOrderService
 
             $attempt = VtuProviderAttempt::query()
                 ->where('vtu_order_id', $lockedOrder->getKey())
-                ->where('provider', $lockedOrder->provider)
                 ->orderByDesc('attempt_number')
                 ->lockForUpdate()
                 ->first();
