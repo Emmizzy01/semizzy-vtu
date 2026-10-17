@@ -426,6 +426,14 @@ class VtuOrderService
             /** @var VtuOrder $lockedOrder */
             $lockedOrder = VtuOrder::query()->whereKey($order->getKey())->lockForUpdate()->firstOrFail();
 
+            if (in_array($lockedOrder->status, [
+                VtuOrderStatus::Successful->value,
+                VtuOrderStatus::Failed->value,
+                VtuOrderStatus::Cancelled->value,
+            ], true)) {
+                return;
+            }
+
             $attempt = VtuProviderAttempt::query()
                 ->where('vtu_order_id', $lockedOrder->getKey())
                 ->where('provider', $lockedOrder->provider)
