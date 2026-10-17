@@ -59,6 +59,10 @@ class BusinessWorkspace extends Model
 
     public function canManage(User $user): bool
     {
+        if ($this->status !== 'active') {
+            return false;
+        }
+
         if ((int) $this->owner_user_id === (int) $user->getKey()) {
             return true;
         }
@@ -70,6 +74,10 @@ class BusinessWorkspace extends Model
 
     public function hasActiveMember(User $user): bool
     {
+        if ($this->status !== 'active') {
+            return false;
+        }
+
         return (int) $this->owner_user_id === (int) $user->getKey()
             || $this->memberships()
                 ->where('user_id', $user->getKey())
