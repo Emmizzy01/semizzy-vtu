@@ -48,7 +48,9 @@ class UserSessionManagementTest extends TestCase
         // subsequent request uses the same server-side session.
         $sessionCookie = $loginResponse->getCookie(config('session.cookie'));
         $this->assertNotNull($sessionCookie);
-        $this->withCookie(config('session.cookie'), $sessionCookie->getValue());
+        $rawSessionCookie = $loginResponse->getCookie(config('session.cookie'), false);
+        $this->assertNotNull($rawSessionCookie);
+        $this->withCookie(config('session.cookie'), $rawSessionCookie->getValue());
 
         $this->get('/account/sessions')->assertOk();
         $record = DB::table('user_sessions')->where('user_id', $user->id)->whereNull('revoked_at')->first();
