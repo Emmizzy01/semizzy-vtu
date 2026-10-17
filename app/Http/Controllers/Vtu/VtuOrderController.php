@@ -92,6 +92,7 @@ class VtuOrderController extends Controller
     {
         $validated = $request->validate([
             'product_code' => ['required', 'string', 'max:80'],
+            'storefront_slug' => ['sometimes', 'string', 'max:80', 'regex:/^[a-z0-9]+(?:-[a-z0-9]+)*$/'],
             'recipient' => ['required', 'string', 'max:40', 'regex:/^[a-zA-Z0-9+\\s-]+$/'],
             'idempotency_key' => ['required', 'string', 'max:128'],
             'transaction_pin' => ['nullable', 'string', 'digits:4'],
@@ -130,6 +131,7 @@ class VtuOrderController extends Controller
                     'contact_phone' => $validated['contact_phone'] ?? null,
                 ], fn ($value) => $value !== null),
                 isset($validated['amount']) ? (int) round((float) $validated['amount'] * 100) : null,
+                $validated['storefront_slug'] ?? null,
             );
         } catch (InvalidArgumentException|InsufficientWalletFunds $exception) {
             return response()->json(['message' => $exception->getMessage()], 422);
