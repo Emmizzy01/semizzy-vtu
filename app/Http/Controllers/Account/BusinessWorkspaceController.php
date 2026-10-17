@@ -95,6 +95,7 @@ class BusinessWorkspaceController extends Controller
         $user = $request->user();
         abort_unless($user && $workspace->hasActiveMember($user), 403);
         abort_unless($workspace->status === 'active', 404);
+        abort_unless($workspace->canManage($user) || ($workspace->membershipFor($user)?->hasPermission('members.view') ?? false), 403);
 
         $members = $workspace->memberships()->with('user:id,name,email')->orderBy('id')->get()
             ->map(fn (BusinessWorkspaceMember $membership): array => [
