@@ -2551,6 +2551,95 @@ class VtuOrderWorkflowTest extends TestCase
         $this->assertDatabaseCount('business_workspace_commissions', 0);
     }
 
+    public function test_successful_reconciliation_accrues_storefront_commission_exactly_once(): void
+    {
+        config([
+            'services.vtu.name' => 'test_provider',
+            'services.vtu.driver' => 'test',
+            'services.vtu.multi_provider.definitive_failure_providers' => [],
+        ]);
+
+        [$user, $wallet, $product] = $this->preparedCustomer(500, 1500);
+        $product->forceFill(['service_type' => 'data'])->save();
+
+        $owner = User::query()->create([
+            'name' => 'Reconciled commission owner',
+            'email' => 'reconciled-commission-'.uniqid().'@example.test',
+            'password' => 'test-password',
+        ]);
+        $workspace = BusinessWorkspace::query()->create([
+            'owner_user_id' => $owner->id,
+            'name' => 'Reconciled reseller',
+            'slug' => 'reconciled-reseller-'.uniqid(),
+            'type' => 'reseller',
+            'status' => 'active',
+        ]);
+        $storefront = BusinessWorkspaceStorefront::query()->create([
+            'business_workspace_id' => $workspace->id,
+            'slug' => 'reconciled-store-'.uniqid(),
+            'display_name' => 'Reconciled Store',
+            'status' => 'published',
+            'enabled_services' => ['data'],
+            'accent_color' => '#087443',
+            'commission_rate_basis_points' => 500,
+        ]);
+
+        $provider = new class implements VtuProvider {
+            public int $submissions = 0;
+            public int $lookups = 0;
+
+            public function assertConfigured(): void {}
+            public function assertProductConfigured(VtuProduct $product): void {}
+
+            public function submit(VtuOrder $order): array
+            {
+                $this->submissions++;
+
+                return ['status' => 'pending'];
+            }
+
+            public function lookup(VtuOrder $order): array
+            {
+                $this->lookups++;
+
+                return [
+                    'status' => 'success',
+                    'provider_reference' => 'reconciled-success-'.$order->public_id,
+                ];
+            }
+        };
+        $this->app->instance(VtuProvider::class, $provider);
+
+        $service = app(VtuOrderService::class);
+        $order = $service->purchase(
+            $user,
+            $product->code,
+            '08012345678',
+            'store-reconcile-commission-'.uniqid(),
+            [],
+            null,
+            $storefront->slug,
+        );
+
+        $this->assertSame('awaiting_reconciliation', $order->status);
+        $this->assertDatabaseCount('business_workspace_commissions', 0);
+
+        $reconciled = $service->reconcile($order->fresh());
+        $service->reconcile($reconciled->fresh());
+
+        $this->assertSame('successful', $reconciled->fresh()->status);
+        $this->assertSame(1, $provider->submissions, 'Reconciliation must not submit another purchase.');
+        $this->assertSame(1, $provider->lookups, 'Terminal orders must not be looked up and settled twice.');
+        $this->assertDatabaseCount('business_workspace_commissions', 1);
+        $commission = BusinessWorkspaceCommission::query()->firstOrFail();
+        $this->assertSame($order->getKey(), (int) $commission->vtu_order_id);
+        $this->assertSame($owner->getKey(), (int) $commission->beneficiary_user_id);
+        $this->assertSame(25, (int) $commission->commission_amount_minor);
+        $this->assertSame('accrued', $commission->status);
+        $this->assertSame(1000, (int) $wallet->fresh()->available_balance_minor);
+        $this->assertDatabaseCount('wallet_transactions', 2);
+    }
+
     private function preparedCustomer(int $productPriceMinor, int $initialBalanceMinor): array
     {
         $user = User::query()->create([
