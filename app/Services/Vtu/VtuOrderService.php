@@ -498,7 +498,14 @@ class VtuOrderService
             return null;
         }
 
-        $candidate = $this->provider->nextProviderForAttempt($order->fresh()->load('product'), $firstAttempt);
+        try {
+            $candidate = $this->provider->nextProviderForAttempt($order->fresh()->load('product'), $firstAttempt);
+        } catch (LogicException $exception) {
+            // No verified alternate provider is available; preserve the original
+            // definitive failure path rather than leaving a half-reserved attempt.
+            report($exception);
+            return null;
+        }
 
         return DB::transaction(function () use ($order, $firstAttempt, $failure, $candidate): ?VtuProviderAttempt {
             /** @var VtuOrder $lockedOrder */
