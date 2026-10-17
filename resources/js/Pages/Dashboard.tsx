@@ -10,6 +10,18 @@ type Pagination = { currentPage: number; lastPage: number; total: number };
 function money(minor: number, currency = 'NGN') {
   return new Intl.NumberFormat('en-NG', { style: 'currency', currency, maximumFractionDigits: 2 }).format(minor / 100);
 }
+
+function formatTier(value?: string | null) {
+  if (!value) return '';
+  const normalized = value.trim().toLowerCase().replaceAll('-', '_').replaceAll(' ', '_');
+  const match = normalized.match(/^(?:level|tier)_?([1-4])$/);
+  if (match) {
+    const number = Number(match[1]);
+    return number === 4 ? 'Merchant (Tier 4)' : `Tier ${number}`;
+  }
+  if (normalized === 'merchant') return 'Merchant (Tier 4)';
+  return value.replaceAll('_', ' ');
+}
 export default function CustomerDashboard({ wallet, transactions, orders = [], transactionPagination, orderPagination, isAdminPreview = false, customer }: {
   wallet: Wallet; transactions: Transaction[]; orders?: ServiceOrder[]; transactionPagination?: Pagination; orderPagination?: Pagination; isAdminPreview?: boolean; customer?: { name?: string; type?: string; tier?: string | null; level?: string; avatarUrl?: string | null; kycStatus?: string };
 }) {
@@ -27,8 +39,8 @@ export default function CustomerDashboard({ wallet, transactions, orders = [], t
             <h1 className="truncate text-lg font-extrabold">{customer?.name || 'Semizzy user'}</h1>
             <div className="mt-1 flex flex-wrap gap-2">
               {customer?.type && <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold capitalize text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200">Account: {customer.type.replaceAll('_', ' ')}</span>}
-              {customer?.tier && <span className="rounded-full border border-[var(--line)] px-2.5 py-1 text-[10px] font-bold text-[var(--muted)]">Tier: {customer.tier}</span>}
-              {customer?.level && <span className="rounded-full border border-[var(--line)] px-2.5 py-1 text-[10px] font-bold text-[var(--muted)]">Level: {customer.level.replaceAll('_', ' ')}</span>}
+              {customer?.tier && <span className="rounded-full border border-[var(--line)] px-2.5 py-1 text-[10px] font-bold text-[var(--muted)]">Tier: {formatTier(customer.tier)}</span>}
+              {customer?.level && <span className="rounded-full border border-[var(--line)] px-2.5 py-1 text-[10px] font-bold text-[var(--muted)]">Account level: {formatTier(customer.level)}</span>}
             </div>
           </div>
           <a href="/profile" className="shrink-0 rounded-xl border border-[var(--line)] px-3 py-2 text-xs font-bold">Profile</a>
