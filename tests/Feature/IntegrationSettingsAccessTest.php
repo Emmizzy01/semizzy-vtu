@@ -65,13 +65,12 @@ class IntegrationSettingsAccessTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->component('Admin/ApiProviders')
-                ->where('provider.driver', 'vtpass')
-                ->where('provider.vtpassSelected', true)
-                ->where('provider.vtpassBaseUrl', 'https://sandbox.vtpass.com/api')
-                ->where('provider.vtpassApiKeyConfigured', true)
-                ->where('provider.vtpassSecretKeyConfigured', true)
-                ->missing('provider.api_key')
-                ->missing('provider.secret_key'));
+                ->where('provider.isolated', true)
+                ->missing('provider.driver')
+                ->missing('provider.vtpassSelected')
+                ->missing('provider.vtpassBaseUrl')
+                ->missing('provider.vtpassApiKeyConfigured')
+                ->missing('provider.vtpassSecretKeyConfigured'));
     }
     public function test_staff_admin_can_save_encrypted_payment_settings(): void
     {
@@ -107,7 +106,7 @@ class IntegrationSettingsAccessTest extends TestCase
         UserPermission::query()->create(['user_id' => $admin->id, 'permission' => 'staff.permissions.manage']);
 
         $this->actingAs($admin)->put('/admin/api-providers', [
-            'reason' => 'Update provider configuration safely',
+            'reason' => 'Attempt provider configuration during isolation',
             'driver' => 'vtpass',
             'name' => 'VTpass',
             'generic_endpoint' => '',
@@ -116,14 +115,10 @@ class IntegrationSettingsAccessTest extends TestCase
             'vtpass_api_key' => 'sandbox-api-example',
             'vtpass_secret_key' => 'sandbox-secret-example',
             'confirm_live' => false,
-        ])->assertSessionHasNoErrors();
+        ])->assertSessionHasErrors('provider');
 
         $this->assertSame('vtpass', app(\App\Services\IntegrationSettings::class)->get('vtu.driver'));
-        $this->assertSame('sandbox-api-example', app(\App\Services\IntegrationSettings::class)->get('vtu.vtpass.api_key'));
-        $this->assertNotSame(
-            'sandbox-api-example',
-            IntegrationSetting::query()->where('key', 'vtu.vtpass.api_key')->firstOrFail()->getRawOriginal('value')
-        );
+        $this->assertDatabaseMissing('integration_settings', ['key' => 'vtu.vtpass.api_key']);
     }
 
     public function test_paystack_rejects_malformed_secret_keys(): void
@@ -196,7 +191,7 @@ class IntegrationSettingsAccessTest extends TestCase
         ]);
 
         $this->actingAs($admin)->put('/admin/api-providers', [
-            'reason' => 'Attempt live mode without credentials',
+            'reason' => 'Attempt live provider configuration during isolation',
             'driver' => 'vtpass',
             'name' => 'VTpass',
             'generic_endpoint' => '',
@@ -205,7 +200,7 @@ class IntegrationSettingsAccessTest extends TestCase
             'vtpass_api_key' => '',
             'vtpass_secret_key' => '',
             'confirm_live' => true,
-        ])->assertSessionHasErrors('vtpass_api_key');
+        ])->assertSessionHasErrors('provider');
 
         $this->assertDatabaseMissing('integration_settings', ['key' => 'vtu.vtpass.base_url']);
     }
