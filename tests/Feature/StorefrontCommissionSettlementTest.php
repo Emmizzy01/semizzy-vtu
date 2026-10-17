@@ -1,17 +1,17 @@
 <?php
 
-namespace Tests\\Feature;
+namespace Tests\Feature;
 
-use App\\Models\\BusinessWorkspace;
-use App\\Models\\BusinessWorkspaceCommission;
-use App\\Models\\BusinessWorkspaceStorefront;
-use App\\Models\\User;
-use App\\Models\\VtuOrder;
-use App\\Models\\VtuProduct;
-use App\\Services\\Wallets\\WalletAccountService;
-use App\\Services\\Workspaces\\StorefrontCommissionService;
-use Illuminate\\Foundation\\Testing\\RefreshDatabase;
-use Tests\\TestCase;
+use App\Models\BusinessWorkspace;
+use App\Models\BusinessWorkspaceCommission;
+use App\Models\BusinessWorkspaceStorefront;
+use App\Models\User;
+use App\Models\VtuOrder;
+use App\Models\VtuProduct;
+use App\Services\Wallets\WalletAccountService;
+use App\Services\Workspaces\StorefrontCommissionService;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\TestCase;
 
 class StorefrontCommissionSettlementTest extends TestCase
 {
