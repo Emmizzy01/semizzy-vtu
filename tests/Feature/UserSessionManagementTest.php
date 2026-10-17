@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Tests\TestCase;
@@ -52,6 +53,8 @@ class UserSessionManagementTest extends TestCase
         $this->assertNotNull($rawSessionCookie);
         $this->withCookie(config('session.cookie'), $rawSessionCookie->getValue());
 
+        // Each HTTP request must authenticate from the replayed cookie, not a cached guard user.
+        Auth::forgetGuards();
         $this->get('/account/sessions')->assertOk();
         $record = DB::table('user_sessions')->where('user_id', $user->id)->whereNull('revoked_at')->orderByDesc('last_activity')->orderByDesc('updated_at')->first();
         $this->assertNotNull($record);
@@ -59,6 +62,9 @@ class UserSessionManagementTest extends TestCase
         // rather than an arbitrary older device record for the same account.
         DB::table('user_sessions')->where('id', $record->id)->update(['revoked_at' => now()]);
 
+        // Clear the in-memory guard again so this request proves revocation is enforced
+        // from the session cookie and server-side session record.
+        Auth::forgetGuards();
         $this->get('/profile')->assertRedirect('/login');
         $this->assertGuest();
     }
