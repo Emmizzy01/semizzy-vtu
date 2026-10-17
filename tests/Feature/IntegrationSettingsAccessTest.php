@@ -210,4 +210,60 @@ class IntegrationSettingsAccessTest extends TestCase
         $this->assertDatabaseMissing('integration_settings', ['key' => 'vtu.vtpass.base_url']);
     }
 
+
+    public function test_paystack_mode_cannot_be_switched_without_a_matching_effective_key(): void
+    {
+        $admin = User::query()->create([
+            'name' => 'Mode Transition Admin',
+            'email' => 'mode-transition@example.test',
+            'password' => 'not-a-real-password',
+        ]);
+        UserPermission::query()->create(['user_id' => $admin->id, 'permission' => 'staff.permissions.manage']);
+
+        app(\\App\\Services\\IntegrationSettings::class)->set('paystack.secret_key', 'sk_test_existing_key', $admin->id);
+        app(\\App\\Services\\IntegrationSettings::class)->set('paystack.mode', 'test', $admin->id);
+
+        $this->actingAs($admin)->put('/admin/payment-gateway', [
+            'reason' => 'Reject mismatched live gateway mode',
+            'mode' => 'live',
+            'secret_key' => '',
+            'callback_url' => 'https://semizzy.example.test/wallet/funding/return',
+            'confirm_live' => true,
+        ])->assertSessionHasErrors('secret_key');
+
+        $this->assertSame('sk_test_existing_key', app(\\App\\Services\\IntegrationSettings::class)->get('paystack.secret_key'));
+        $this->assertSame('test', app(\\App\\Services\\IntegrationSettings::class)->get('paystack.mode'));
+    }
+
+    public function test_gateway_audit_records_hashes_and_reason_without_persisting_secret_in_audit(): void
+    {
+        $admin = User::query()->create([
+            'name' => 'Audit Integrity Admin',
+            'email' => 'audit-integrity@example.test',
+            'password' => 'not-a-real-password',
+        ]);
+        UserPermission::query()->create(['user_id' => $admin->id, 'permission' => 'staff.permissions.manage']);
+
+        $secret = 'sk_test_audit_integrity_secret';
+        $reason = 'Rotate test gateway credentials safely';
+        $this->actingAs($admin)->put('/admin/payment-gateway', [
+            'reason' => $reason,
+            'mode' => 'test',
+            'secret_key' => $secret,
+            'callback_url' => 'https://semizzy.example.test/wallet/funding/return',
+            'confirm_live' => false,
+        ])->assertSessionHasNoErrors();
+
+        $audit = \\App\\Models\\PlatformSettingAudit::query()
+            ->where('setting_key', 'paystack.secret_key')
+            ->latest('id')
+            ->firstOrFail();
+
+        $this->assertSame($admin->id, $audit->actor_user_id);
+        $this->assertSame($reason, $audit->reason);
+        $this->assertSame(hash('sha256', $secret), $audit->new_value_hash);
+        $this->assertNotSame($secret, $audit->new_value_hash);
+        $this->assertDatabaseMissing('platform_setting_audits', ['new_value_hash' => $secret]);
+    }
+
 }
