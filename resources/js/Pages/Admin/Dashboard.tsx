@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Activity, ArrowUpRight, CheckCircle2, CircleAlert, CreditCard, LockKeyhole, PlugZap, Search, ShieldCheck, Smartphone, Users, WalletCards } from 'lucide-react';
+import { Activity, ArrowUpRight, BadgeDollarSign, CheckCircle2, CircleAlert, CreditCard, LockKeyhole, PlugZap, Search, ShieldCheck, Smartphone, Users, WalletCards } from 'lucide-react';
 import DashboardLayout from '../../Components/DashboardLayout';
 
 type Metrics = {
@@ -20,6 +20,7 @@ export default function AdminDashboard({ metrics, capabilities }: { metrics: Met
     ...(capabilities.approveRefunds ? [{ href: '/admin/refunds', icon: <CreditCard size={22} />, title: 'Refund operations', description: 'Review refund requests, monitor provider outcomes, and approve eligible requests.', status: 'Permission-gated route', category: 'operations' }] : []),
     ...(capabilities.manageStaff ? [{ href: '/admin/vtu-orders', icon: <Smartphone size={22} />, title: 'VTU order operations', description: 'Inspect pending and ambiguous VTU orders, provider references, and reconciliation context without changing wallet balances.', status: 'Read-only · restricted access', category: 'operations' }] : []),
     ...(capabilities.manageStaff ? [{ href: '/admin/manual-deposits', icon: <WalletCards size={22} />, title: 'Manual deposit review', description: 'Inspect submitted transfer evidence and review pending deposits. Wallet credits require an audited, verified approval.', status: 'Permission-gated route', category: 'operations' }] : []),
+    ...(capabilities.manageStaff ? [{ href: '/admin/storefront-commissions', icon: <BadgeDollarSign size={22} />, title: 'Reseller commissions', description: 'Configure per-store commission rates and settle accrued commissions from verified successful orders.', status: 'Permission-gated route', category: 'operations' }] : []),
     ...(capabilities.manageStaff ? [{ href: '/admin/staff', icon: <Users size={22} />, title: 'Staff & permissions', description: 'Manage approved staff permissions and review access audit records.', status: 'Permission-gated route', category: 'operations' }] : []),
     ...(capabilities.manageStaff ? [{ href: '/admin/payment-gateway', icon: <CreditCard size={22} />, title: 'Payment gateway settings', description: 'Inspect the saved gateway configuration and callback setup. Provider payments remain subject to separate verification.', status: 'Configuration view', category: 'operations' }] : []),
     ...(capabilities.manageStaff ? [{ href: '/admin/api-providers', icon: <PlugZap size={22} />, title: 'API provider settings', description: 'Review provider configuration and environment selection. Live service readiness is not inferred from saved settings.', status: 'Configuration view', category: 'operations' }] : []),
