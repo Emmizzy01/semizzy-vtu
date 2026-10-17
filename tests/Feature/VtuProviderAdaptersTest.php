@@ -3,9 +3,11 @@
 namespace Tests\Feature;
 
 use App\Models\VtuOrder;
+use App\Models\VtuProviderAttempt;
 use App\Models\VtuProduct;
 use App\Services\Vtu\DatawayProviderClient;
 use App\Services\Vtu\GsubzProviderClient;
+use App\Services\Vtu\MultiProviderVtuRouter;
 use App\Services\Vtu\ProviderWebhookSignature;
 use App\Services\Vtu\SogoProviderClient;
 use Illuminate\Support\Facades\Http;
@@ -86,6 +88,32 @@ class VtuProviderAdaptersTest extends TestCase
         $this->assertFalse($processing['definitive_failure']);
         $this->assertSame('failed', $cancelled['status']);
         $this->assertFalse($cancelled['definitive_failure']);
+    }
+
+    public function test_reconciliation_uses_the_provider_recorded_on_the_specific_attempt(): void
+    {
+        Http::fake([
+            'api.sogo.africa/*' => Http::response(['data' => ['status' => 'completed', 'reference' => 'SOGO-RECOVERED']], 200),
+            'api.gsubz.com/*' => Http::response(['status' => 'pending'], 200),
+        ]);
+
+        $order = $this->order();
+        $order->provider = 'gsubz';
+        $order->setAttribute('id', 41);
+        $attempt = new VtuProviderAttempt([
+            'vtu_order_id' => 41,
+            'attempt_number' => 1,
+            'provider' => 'sogo',
+            'outcome' => 'unknown',
+        ]);
+
+        $result = app(MultiProviderVtuRouter::class)->lookupAttempt($order, $attempt);
+
+        $this->assertSame('success', $result['status']);
+        $this->assertSame('SOGO-RECOVERED', $result['provider_reference']);
+        Http::assertSent(fn ($request) => str_contains($request->url(), 'api.sogo.africa')
+            && str_contains($request->url(), '/transactions/550e8400-e29b-41d4-a716-446655440000'));
+        Http::assertNotSent(fn ($request) => str_contains($request->url(), 'api.gsubz.com'));
     }
 
     public function test_gsubz_uses_request_id_and_business_status_not_http_status(): void
