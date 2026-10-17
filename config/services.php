@@ -14,6 +14,8 @@ return [
             'base_url' => env('VTU_VTPASS_BASE_URL', env('APP_ENV', 'production') === 'production' ? 'https://vtpass.com/api' : 'https://sandbox.vtpass.com/api'),
             'api_key' => env('VTU_VTPASS_API_KEY'),
             'secret_key' => env('VTU_VTPASS_SECRET_KEY'),
+        // Hard isolation gate: keep new purchases disabled until technical support confirms recovery semantics.
+        'purchase_isolated' => true,
         ],
     ],
     'paystack' => [
