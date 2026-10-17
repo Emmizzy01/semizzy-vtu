@@ -22,6 +22,7 @@ use App\Models\PlatformFeatureControl;
 use App\Http\Controllers\Security\TransactionPinController;
 use App\Http\Controllers\Account\ProfileController;
 use App\Http\Controllers\Account\BusinessWorkspaceController;
+use App\Http\Controllers\Account\BusinessWorkspaceStorefrontController;
 use App\Http\Controllers\Account\UserSessionController;
 use App\Http\Controllers\Account\AccountTierController;
 use App\Http\Controllers\Support\SupportTicketController;
@@ -36,6 +37,8 @@ use Inertia\Inertia;
 
 Route::get('/', fn () => Inertia::render('Welcome'))
     ->name('home');
+
+Route::get('/store/{storefront:slug}', [BusinessWorkspaceStorefrontController::class, 'show'])->middleware('throttle:60,1')->name('storefronts.show');
 
 Route::middleware('guest')->group(function (): void {
     Route::get('/login', [AuthController::class, 'loginForm'])->name('login');
@@ -59,6 +62,8 @@ Route::middleware('auth')->group(function (): void {
     Route::get('/workspaces', [BusinessWorkspaceController::class, 'index'])->middleware('throttle:30,1')->name('workspaces.index');
     Route::post('/workspaces', [BusinessWorkspaceController::class, 'store'])->middleware('throttle:5,1')->name('workspaces.store');
     Route::get('/workspaces/{workspace}/team', [BusinessWorkspaceController::class, 'team'])->middleware('throttle:30,1')->name('workspaces.team');
+    Route::get('/workspaces/{workspace}/storefront', [BusinessWorkspaceStorefrontController::class, 'edit'])->middleware('throttle:30,1')->name('workspaces.storefront.edit');
+    Route::put('/workspaces/{workspace}/storefront', [BusinessWorkspaceStorefrontController::class, 'update'])->middleware('throttle:10,1')->name('workspaces.storefront.update');
     Route::post('/workspaces/{workspace}/team/invitations', [BusinessWorkspaceController::class, 'invite'])->middleware('throttle:5,1')->name('workspaces.team.invite');
     Route::put('/workspaces/{workspace}/team/{membership}', [BusinessWorkspaceController::class, 'updateMember'])->middleware('throttle:10,1')->name('workspaces.team.update');
     Route::delete('/workspaces/{workspace}/team/{membership}', [BusinessWorkspaceController::class, 'removeMember'])->middleware('throttle:10,1')->name('workspaces.team.remove');
