@@ -2431,6 +2431,14 @@ class VtuOrderWorkflowTest extends TestCase
         $this->assertSame($owner->getKey(), (int) $commission->beneficiary_user_id);
         $this->assertSame(25, (int) $commission->commission_amount_minor);
         $this->assertSame('accrued', $commission->status);
+
+        $commissionService = app(\App\Services\Workspaces\StorefrontCommissionService::class);
+        $settled = $commissionService->settle((int) $commission->getKey(), $user);
+        $this->assertSame('settled', $settled->status);
+        $this->assertSame(25, (int) $settled->beneficiary()->firstOrFail()->wallets()->where('currency', 'NGN')->value('available_balance_minor'));
+        $commissionService->settle((int) $commission->getKey(), $user);
+        $this->assertSame(25, (int) $settled->beneficiary()->firstOrFail()->wallets()->where('currency', 'NGN')->value('available_balance_minor'));
+        $this->assertSame(1, \App\Models\WalletTransaction::query()->where('idempotency_key', 'reseller-commission:settlement:'.$commission->getKey())->count());
     }
 
     public function test_storefront_attribution_cannot_be_changed_by_reusing_the_same_idempotency_key_for_another_store(): void
