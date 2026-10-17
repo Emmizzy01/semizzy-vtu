@@ -4,6 +4,7 @@ namespace App\Services\Vtu;
 
 use App\Enums\VtuOrderStatus;
 use App\Models\User;
+use App\Models\BusinessWorkspaceStorefront;
 use App\Models\VtuOrder;
 use App\Models\VtuProviderAttempt;
 use App\Models\VtuProduct;
@@ -42,6 +43,7 @@ class VtuOrderService
         string $idempotencyKey,
         array $serviceDetails = [],
         ?int $amountMinor = null,
+        ?string $storefrontSlug = null,
     ): VtuOrder {
         if ($idempotencyKey === '' || strlen($idempotencyKey) > 128) {
             throw new InvalidArgumentException('Idempotency key must contain 1 to 128 characters.');
@@ -131,6 +133,10 @@ class VtuOrderService
             JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES
         ));
 
+        if ($storefrontSlug !== null) {
+            $requestHash = hash('sha256', $requestHash.'|storefront:'.$storefrontSlug);
+        }
+
         $existing = VtuOrder::query()
             ->where('user_id', $user->getKey())
             ->where('idempotency_key', $idempotencyKey)
@@ -142,6 +148,10 @@ class VtuOrderService
 
         if (! $product->is_active) {
             throw new InvalidArgumentException('This product is no longer available.');
+        }
+
+        if ($storefrontSlug !== null) {
+            $this->assertStorefrontProductAvailable($storefrontSlug, $product);
         }
 
         $this->provider->assertConfigured();
@@ -158,7 +168,7 @@ class VtuOrderService
         }
 
         try {
-            $order = DB::transaction(function () use ($user, $wallet, $product, $recipient, $idempotencyKey, $requestHash, $serviceDetails, $amountMinor): VtuOrder {
+            $order = DB::transaction(function () use ($user, $wallet, $product, $recipient, $idempotencyKey, $requestHash, $serviceDetails, $amountMinor, $storefrontSlug): VtuOrder {
                 $duplicate = VtuOrder::query()
                     ->where('user_id', $user->getKey())
                     ->where('idempotency_key', $idempotencyKey)
@@ -185,6 +195,9 @@ class VtuOrderService
                     $this->assertServiceFeatureEnabled($lockedProduct);
                 }
                 $this->provider->assertProductConfigured($lockedProduct);
+                $lockedStorefront = $storefrontSlug !== null
+                    ? $this->assertStorefrontProductAvailable($storefrontSlug, $lockedProduct, true)
+                    : null;
                 $lockedAmountMinor = in_array($lockedProduct->service_type, ['electricity-bill', 'airtime'], true)
                     ? $amountMinor
                     : (int) $lockedProduct->price_minor;
@@ -214,6 +227,7 @@ class VtuOrderService
                     'user_id' => $user->getKey(),
                     'wallet_id' => $wallet->getKey(),
                     'vtu_product_id' => $lockedProduct->getKey(),
+                    'business_workspace_storefront_id' => $lockedStorefront?->getKey(),
                     'idempotency_key' => $idempotencyKey,
                     'request_hash' => $requestHash,
                     'service_type' => $lockedProduct->service_type,
@@ -362,6 +376,51 @@ class VtuOrderService
         $updated->setAttribute('_created_for_request', true);
 
         return $updated;
+    }
+
+    /**
+     * A storefront is an attribution boundary, not a separate payment engine.
+     * Revalidate it under the purchase transaction before any wallet debit.
+     */
+    private function assertStorefrontProductAvailable(string $slug, VtuProduct $product, bool $lock = false): BusinessWorkspaceStorefront
+    {
+        $query = BusinessWorkspaceStorefront::query()->where('slug', $slug);
+        if ($lock) {
+            $query->lockForUpdate();
+        }
+
+        $storefront = $query->first();
+        if ($storefront === null || $storefront->status !== 'published') {
+            throw new InvalidArgumentException('This storefront is not currently available for purchases.');
+        }
+
+        $workspaceQuery = $storefront->workspace();
+        if ($lock) {
+            $workspaceQuery->lockForUpdate();
+        }
+        $workspace = $workspaceQuery->first();
+        if ($workspace === null || $workspace->type !== 'reseller' || $workspace->status !== 'active') {
+            throw new InvalidArgumentException('This reseller storefront is not currently available.');
+        }
+
+        $enabledServices = $storefront->enabled_services ?? [];
+        if (! $product->is_active
+            || ! in_array($product->service_type, ['airtime', 'data'], true)
+            || ! in_array($product->service_type, $enabledServices, true)
+            || $product->currency !== 'NGN') {
+            throw new InvalidArgumentException('This product is not enabled for this storefront.');
+        }
+
+        if (($product->metadata['catalog_source'] ?? null) === 'vtpass'
+            && ($product->metadata['purchase_approved'] ?? false) !== true) {
+            throw new InvalidArgumentException('This product is not approved for customer purchases.');
+        }
+
+        if (! filter_var(app(\App\Services\IntegrationSettings::class)->get('service.airtime_data.enabled', true), FILTER_VALIDATE_BOOLEAN)) {
+            throw new InvalidArgumentException('Airtime and data purchases are temporarily unavailable.');
+        }
+
+        return $storefront;
     }
 
     /** Fail closed until electricity/TV workflows are explicitly implemented and enabled. */
