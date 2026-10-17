@@ -24,7 +24,7 @@ return new class extends Migration
         $now = now();
         DB::table('user_level_policies')->insert(array_map(fn (int $level): array => [
             'level' => 'level_'.$level,
-            'label' => 'Level '.$level,
+            'label' => $level === 4 ? 'Merchant' : 'Level '.$level,
             'max_single_transaction_minor' => null,
             'daily_transaction_limit_minor' => null,
             'requires_verified_kyc' => false,

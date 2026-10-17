@@ -17,7 +17,7 @@ class UserLevelPolicyController extends Controller
     {
         return Inertia::render('Admin/UserLevelPolicies', [
             'policies' => UserLevelPolicy::query()->orderBy('level')->get()->map(fn (UserLevelPolicy $policy): array => [
-                'level' => $policy->level, 'label' => $policy->label,
+                'level' => $policy->level, 'label' => ($policy->level === 'level_4' && strtolower(trim((string) $policy->label)) === 'level 4') ? 'Merchant' : $policy->label,
                 'wallet_balance_limit_minor' => $policy->wallet_balance_limit_minor,
                 'max_single_transaction_minor' => $policy->max_single_transaction_minor,
                 'daily_transaction_limit_minor' => $policy->daily_transaction_limit_minor,

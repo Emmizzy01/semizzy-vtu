@@ -18,6 +18,27 @@ class UserLevelPolicyTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_fourth_account_tier_is_presented_as_merchant_without_changing_existing_policy_data(): void
+    {
+        $user = User::query()->create([
+            'name' => 'Tier Label Customer',
+            'email' => 'tier-label-customer@example.test',
+            'password' => 'not-a-real-password',
+        ]);
+
+        $this->actingAs($user)->get('/account/tiers')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('Account/Tiers')
+                ->where('tiers.3.level', 'level_4')
+                ->where('tiers.3.label', 'Merchant'));
+
+        $this->assertDatabaseHas('user_level_policies', [
+            'level' => 'level_4',
+            'label' => 'Level 4',
+        ]);
+    }
+
     public function test_admin_can_configure_and_audit_four_level_policy(): void
     {
         $admin = User::query()->create(['name' => 'Policy Admin', 'email' => 'policy-admin@example.test', 'password' => 'not-a-real-password']);
