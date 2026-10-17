@@ -10,15 +10,20 @@ use Symfony\Component\HttpFoundation\Response;
 
 class TrackUserSession
 {
-    public function handle(Request $request, Closure $next, UserSessionService $sessions): Response
+    public function __construct(private readonly UserSessionService $sessions)
+    {
+    }
+
+    public function handle(Request $request, Closure $next): Response
     {
         $user = $request->user();
-        if ($user && ! $sessions->registerCurrent($request, $user)) {
+        if ($user && ! $this->sessions->registerCurrent($request, $user)) {
             Auth::logout();
             $request->session()->invalidate();
             $request->session()->regenerateToken();
             return redirect()->route('login')->withErrors(['identifier' => 'This session has been revoked. Please sign in again.']);
         }
+
         return $next($request);
     }
 }
