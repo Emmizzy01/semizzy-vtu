@@ -167,7 +167,7 @@ class VtuOrderMariaDbConcurrencyTest extends TestCase
         @unlink($state);
     }
 
-    public function test_two_reconciliation_workers_refund_a_failed_order_once(): void
+    public function test_two_reconciliation_workers_keep_unverified_failure_unresolved()
     {
         [$user, $wallet, $product] = $this->preparedCustomer(1000, 1500);
         $order = VtuOrder::query()->create([
@@ -208,10 +208,10 @@ class VtuOrderMariaDbConcurrencyTest extends TestCase
         ]);
 
         $this->assertSame([0, 0], array_column($results, 'exit'));
-        $this->assertSame('failed', $order->fresh()->status);
-        $this->assertSame(1500, (int) $wallet->fresh()->available_balance_minor);
+        $this->assertSame('awaiting_reconciliation', $order->fresh()->status);
+        $this->assertSame(0, (int) $wallet->fresh()->available_balance_minor, 'An unverified provider failure must not refund funds.');
         $this->assertDatabaseCount('vtu_orders', 1);
-        $this->assertSame(3, DB::table('wallet_transactions')->count(), 'Funding, one debit, and exactly one refund are expected.');
+        $this->assertSame(2, DB::table('wallet_transactions')->count(), 'Funding plus one debit are expected until definitive non-delivery is verified.');
         $this->assertSame(2, $this->readState($state, 'lookups'));
         $this->assertSame(0, $this->readState($state, 'submissions'));
 
