@@ -30,7 +30,7 @@ class TransactionPinSecurityTest extends TestCase
 
     public function test_wallet_funded_purchase_is_rejected_when_transaction_pin_is_missing_but_configured(): void
     {
-        \\Illuminate\\Support\\Facades\\Http::fake();
+        \Illuminate\Support\Facades\Http::fake();
 
         $user = User::query()->create(['name' => 'PIN Missing Customer', 'email' => 'pin-missing@example.test', 'password' => 'not-a-real-password']);
         $user->forceFill(['transaction_pin_hash' => Hash::make('4928')])->save();
@@ -47,8 +47,8 @@ class TransactionPinSecurityTest extends TestCase
             'metadata' => ['provider_service_id' => 'mtn'],
         ]);
 
-        $wallet = app(\\App\\Services\\Wallets\\WalletAccountService::class)->openForUser($user, 'NGN');
-        app(\\App\\Services\\Wallets\\WalletLedgerService::class)->post(
+        $wallet = app(\App\Services\Wallets\WalletAccountService::class)->openForUser($user, 'NGN');
+        app(\App\Services\Wallets\WalletLedgerService::class)->post(
             walletId: (int) $wallet->getKey(),
             type: 'credit',
             amountMinor: 5000,
@@ -68,7 +68,7 @@ class TransactionPinSecurityTest extends TestCase
         $this->assertSame(5000, (int) $wallet->fresh()->available_balance_minor);
         $this->assertDatabaseCount('vtu_orders', 0);
         $this->assertDatabaseCount('wallet_transactions', 1);
-        \\Illuminate\\Support\\Facades\\Http::assertNothingSent();
+        \Illuminate\Support\Facades\Http::assertNothingSent();
     }
 
     public function test_six_digit_legacy_pin_is_rejected_at_the_purchase_http_boundary(): void
