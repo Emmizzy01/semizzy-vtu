@@ -101,6 +101,9 @@ class VtuOrderController extends Controller
         ]);
 
         $productType = VtuProduct::query()->where('code', $validated['product_code'])->value('service_type');
+        if ($productType === 'airtime' && ! isset($validated['amount'])) {
+            return response()->json(['message' => 'Enter the airtime amount you want to purchase.'], 422);
+        }
         if (in_array($productType, ['airtime', 'data'], true)
             && ! filter_var(app(IntegrationSettings::class)->get('service.airtime_data.enabled', true), FILTER_VALIDATE_BOOLEAN)) {
             return response()->json(['message' => 'Airtime and data purchases are temporarily unavailable.'], 503);
