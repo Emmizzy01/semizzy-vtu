@@ -418,6 +418,65 @@ class VtuOrderWorkflowTest extends TestCase
         Http::assertSentCount(1);
     }
 
+    public function test_definitive_sogo_failure_reserves_second_attempt_before_alternate_submission_without_second_debit(): void
+    {
+        config([
+            'services.vtu.multi_provider.enabled' => true,
+            'services.vtu.multi_provider.priority' => ['sogo', 'gsubz'],
+            'services.vtu.multi_provider.definitive_failure_providers' => ['sogo'],
+            'services.vtu.sogo.base_url' => 'https://api.sogo.africa/v1',
+            'services.vtu.sogo.api_key' => 'sogo-test-key',
+            'services.vtu.gsubz.base_url' => 'https://api.gsubz.com',
+            'services.vtu.gsubz.api_key' => 'gsubz-test-key',
+        ]);
+        Http::fake([
+            'api.sogo.africa/*' => Http::response([
+                'data' => ['status' => 'failed', 'reference' => 'SOGO-DECLINED'],
+            ], 200),
+            'api.gsubz.com/*' => Http::response([
+                'status' => 'success', 'reference' => 'GSUBZ-OK',
+            ], 200),
+        ]);
+
+        [$user, $wallet, $product] = $this->preparedCustomer(1000, 1500);
+        $product->forceFill(['metadata' => ['provider_mappings' => [
+            'sogo' => ['network' => 'mtn'],
+            'gsubz' => ['network' => 'mtn'],
+        ]]])->save();
+
+        $order = app(VtuOrderService::class)->purchase(
+            $user,
+            $product->code,
+            '08012345678',
+            'sogo-definitive-failover-1',
+        );
+
+        $this->assertSame('successful', $order->status);
+        $this->assertSame('gsubz', $order->provider);
+        $this->assertDatabaseHas('vtu_provider_attempts', [
+            'vtu_order_id' => $order->getKey(),
+            'attempt_number' => 1,
+            'provider' => 'sogo',
+            'outcome' => 'failed',
+            'definitive_failure' => 1,
+        ]);
+        $this->assertDatabaseHas('vtu_provider_attempts', [
+            'vtu_order_id' => $order->getKey(),
+            'attempt_number' => 2,
+            'provider' => 'gsubz',
+            'outcome' => 'success',
+        ]);
+        $this->assertSame(2, \App\Models\VtuProviderAttempt::query()
+            ->where('vtu_order_id', $order->getKey())->count());
+        $this->assertSame(2, \App\Models\WalletTransaction::query()->count(), 'Only the initial funding credit and one purchase debit may exist.');
+        $this->assertSame(500, (int) $wallet->fresh()->available_balance_minor);
+        Http::assertSent(fn ($request) => str_contains($request->url(), 'api.sogo.africa')
+            && $request->method() === 'POST');
+        Http::assertSent(fn ($request) => str_contains($request->url(), 'api.gsubz.com')
+            && $request->method() === 'POST'
+            && ($request['requestID'] ?? null) === $order->public_id);
+    }
+
     public function test_generic_failed_provider_status_stays_unresolved_without_refund(): void
     {
         Http::fake(fn () => Http::response([
