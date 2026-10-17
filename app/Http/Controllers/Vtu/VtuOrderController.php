@@ -94,7 +94,7 @@ class VtuOrderController extends Controller
             'product_code' => ['required', 'string', 'max:80'],
             'recipient' => ['required', 'string', 'max:40', 'regex:/^[a-zA-Z0-9+\\s-]+$/'],
             'idempotency_key' => ['required', 'string', 'max:128'],
-            'transaction_pin' => ['nullable', 'string', 'regex:/^\\d{4}(?:\\d{2})?$/'],
+            'transaction_pin' => ['nullable', 'string', 'digits:4'],
             'meter_type' => ['nullable', 'string', 'in:prepaid,postpaid'],
             'subscription_type' => ['nullable', 'string', 'in:change'],
             'contact_phone' => ['nullable', 'string', 'max:20', 'regex:/^\\+?[0-9\\s-]{10,20}$/'],
