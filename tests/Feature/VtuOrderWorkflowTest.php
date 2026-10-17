@@ -226,6 +226,42 @@ class VtuOrderWorkflowTest extends TestCase
         }
     }
 
+    public function test_isolated_vtpass_purchase_is_blocked_before_order_creation_or_wallet_debit(): void
+    {
+        config([
+            'services.vtu.driver' => 'vtpass',
+            'services.vtu.vtpass.base_url' => 'https://sandbox.vtpass.com/api',
+            'services.vtu.vtpass.api_key' => 'sandbox-api-key',
+            'services.vtu.vtpass.secret_key' => 'sandbox-secret-key',
+            'services.vtu.vtpass.purchase_isolated' => true,
+        ]);
+        Http::fake();
+
+        [$user, $wallet, $product] = $this->preparedCustomer(1000, 1500);
+        $product->forceFill([
+            'network' => 'mtn',
+            'face_value_minor' => 1000,
+            'metadata' => ['purchase_approved' => true, 'provider_service_id' => 'mtn'],
+        ])->save();
+
+        try {
+            app(VtuOrderService::class)->purchase(
+                $user,
+                $product->code,
+                '08012345678',
+                'vtpass-isolated-no-debit',
+            );
+            $this->fail('An isolated provider must be blocked before order creation or wallet debit.');
+        } catch (\LogicException $exception) {
+            $this->assertStringContainsString('temporarily isolated', $exception->getMessage());
+        }
+
+        $this->assertSame(1500, (int) $wallet->fresh()->available_balance_minor);
+        $this->assertDatabaseCount('vtu_orders', 0);
+        $this->assertDatabaseCount('wallet_transactions', 1);
+        Http::assertNothingSent();
+    }
+
     public function test_vtpass_adapter_can_process_a_sandbox_shaped_airtime_success(): void
     {
         config([
