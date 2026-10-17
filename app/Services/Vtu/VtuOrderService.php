@@ -466,6 +466,12 @@ class VtuOrderService
             if ($secondAttempt !== null) {
                 return $this->dispatchReservedAttempt($order->fresh(), $secondAttempt);
             }
+            // A competing reconciler may have reserved attempt #2 while this
+            // worker was preparing the same failover. Never apply attempt #1's
+            // stale result after that reservation wins the order lock.
+            if (! $this->isLatestAttempt($order, $attempt)) {
+                return $order->fresh();
+            }
         }
 
         if (($result['status'] ?? null) === 'pending') {
@@ -590,7 +596,7 @@ class VtuOrderService
             return $this->markAwaitingReconciliation($order, 'provider_still_pending', $result, $attempt);
         }
 
-        return $this->applyProviderResult($order->fresh(), $result);
+        return $this->applyProviderResult($order->fresh(), $result, $attempt);
     }
 
     /**
