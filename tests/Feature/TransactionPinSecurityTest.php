@@ -44,6 +44,23 @@ class TransactionPinSecurityTest extends TestCase
         $this->assertDatabaseCount('wallet_transactions', 0);
     }
 
+    public function test_six_digit_legacy_pin_is_rejected_at_the_purchase_http_boundary(): void
+    {
+        $user = User::query()->create(['name' => 'Legacy PIN Purchase Customer', 'email' => 'legacy-pin-purchase@example.test', 'password' => 'not-a-real-password']);
+        $user->forceFill(['transaction_pin_hash' => Hash::make('492815')])->save();
+
+        $this->actingAs($user)->postJson('/wallet/vtu/orders', [
+            'product_code' => 'not-looked-up-before-pin',
+            'recipient' => '08012345678',
+            'idempotency_key' => 'legacy-six-digit-pin-purchase',
+            'transaction_pin' => '492815',
+        ])->assertStatus(422)
+          ->assertJsonValidationErrors('transaction_pin');
+
+        $this->assertDatabaseCount('vtu_orders', 0);
+        $this->assertDatabaseCount('wallet_transactions', 0);
+    }
+
     public function test_wallet_funded_purchase_is_rejected_for_an_incorrect_transaction_pin(): void
     {
         $user = User::query()->create(['name' => 'PIN Incorrect Customer', 'email' => 'pin-incorrect@example.test', 'password' => 'not-a-real-password']);
