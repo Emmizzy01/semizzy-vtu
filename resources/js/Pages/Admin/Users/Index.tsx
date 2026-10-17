@@ -7,7 +7,7 @@ type UserRow = { id: number; name: string; email: string; user_type: string; use
 type PageData = { data: UserRow[]; current_page: number; last_page: number; total: number; links: { url: string | null; label: string; active: boolean }[] };
 type Filters = { search: string; type: string; level: string; kyc: string };
 type Options = { types: string[]; levels: string[]; kyc: string[] };
-const labels: Record<string,string> = { customer:'Customer', vendor:'Vendor', reseller:'Reseller', agent:'Agent', business_team:'Business team', support:'Support', finance:'Finance', compliance:'Compliance', administrator:'Administrator', level_1:'Level 1', level_2:'Level 2', level_3:'Level 3', level_4:'Level 4', unverified:'Unverified', pending:'Pending review', verified:'Verified', rejected:'Rejected', manual_review:'Manual review' };
+const labels: Record<string,string> = { customer:'Customer', vendor:'Vendor', reseller:'Reseller', agent:'Agent', business_team:'Business team', support:'Support', finance:'Finance', compliance:'Compliance', administrator:'Administrator', level_1:'Tier 1', level_2:'Tier 2', level_3:'Tier 3', level_4:'Merchant (Tier 4)', unverified:'Unverified', pending:'Pending review', verified:'Verified', rejected:'Rejected', manual_review:'Manual review' };
 
 export default function UserManagement({ users, filters, options }: { users: PageData; filters: Filters; options: Options }) {
   const [search, setSearch] = useState(filters.search);
