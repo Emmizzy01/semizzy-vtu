@@ -422,19 +422,143 @@ class VtuOrderService
             return $order->fresh();
         }
 
-        // Persist the lookup result against the original dispatch attempt.
-        // Locking the attempt and preserving its first terminal outcome prevents
-        // competing reconcilers from rewriting a recorded success as a failure.
+        // A provider may authorize same-key resubmission only with an explicit,
+        // contract-tested signal that this transaction was never created.
+        if (($result['safe_to_submit_same_key'] ?? false) === true
+            && $this->provider instanceof MultiProviderVtuRouter
+            && ! in_array($attempt->outcome, ['success', 'failed'], true)) {
+            try {
+                $result = $this->provider->submitAttempt($order->fresh(), $attempt);
+            } catch (ConnectionException|LogicException $exception) {
+                report($exception);
+                $this->recordReconciledAttemptOutcome($order, $attempt, ['status' => 'unknown']);
+                return $this->markAwaitingReconciliation($order, 'provider_result_unknown');
+            }
+        }
+
+        // Persist the lookup/dispatch result against the exact attempt.
         $this->recordReconciledAttemptOutcome($order, $attempt, $result);
 
-        // A reconciliation lookup that still reports pending means the original
-        // dispatch outcome remains ambiguous. Keep it out of the normal processing
-        // queue state without refunding or resubmitting the purchase.
+        if (! $this->isLatestAttempt($order, $attempt)) {
+            return $order->fresh();
+        }
+
+        // A definitive, explicitly allowlisted first-attempt failure may reserve
+        // one alternate attempt. Reservation and provider identity are committed
+        // before the network call; no wallet or ledger operation occurs here.
+        if (($result['status'] ?? null) === 'failed'
+            && app(ProviderFailoverPolicy::class)->mayFailover((string) $attempt->provider, $result)
+            && $this->provider instanceof MultiProviderVtuRouter) {
+            $secondAttempt = $this->reserveSecondAttempt($order, $attempt, $result);
+            if ($secondAttempt !== null) {
+                return $this->dispatchReservedAttempt($order->fresh(), $secondAttempt);
+            }
+        }
+
         if (($result['status'] ?? null) === 'pending') {
             return $this->markAwaitingReconciliation($order, 'provider_still_pending', $result);
         }
 
-        return $this->applyProviderResult($order, $result);
+        return $this->applyProviderResult($order->fresh(), $result);
+    }
+
+    private function isLatestAttempt(VtuOrder $order, VtuProviderAttempt $attempt): bool
+    {
+        return (int) VtuProviderAttempt::query()
+            ->where('vtu_order_id', $order->getKey())
+            ->max('attempt_number') === (int) $attempt->attempt_number;
+    }
+
+    /**
+     * Reserve exactly one alternate provider under the order lock. This method
+     * never debits the wallet; the original purchase ledger entry remains the
+     * only debit for the order.
+     *
+     * @param array<string, mixed> $failure
+     */
+    private function reserveSecondAttempt(VtuOrder $order, VtuProviderAttempt $firstAttempt, array $failure): ?VtuProviderAttempt
+    {
+        if (! $this->provider instanceof MultiProviderVtuRouter
+            || (int) $firstAttempt->attempt_number !== 1
+            || ! app(ProviderFailoverPolicy::class)->mayFailover((string) $firstAttempt->provider, $failure)) {
+            return null;
+        }
+
+        $candidate = $this->provider->nextProviderForAttempt($order->fresh()->load('product'), $firstAttempt);
+
+        return DB::transaction(function () use ($order, $firstAttempt, $failure, $candidate): ?VtuProviderAttempt {
+            /** @var VtuOrder $lockedOrder */
+            $lockedOrder = VtuOrder::query()->whereKey($order->getKey())->lockForUpdate()->firstOrFail();
+
+            if (in_array($lockedOrder->status, [
+                VtuOrderStatus::Successful->value,
+                VtuOrderStatus::Failed->value,
+                VtuOrderStatus::Cancelled->value,
+            ], true)) {
+                return null;
+            }
+
+            $latest = VtuProviderAttempt::query()
+                ->where('vtu_order_id', $lockedOrder->getKey())
+                ->orderByDesc('attempt_number')
+                ->lockForUpdate()
+                ->first();
+
+            if ($latest === null
+                || (int) $latest->getKey() !== (int) $firstAttempt->getKey()
+                || (int) $latest->attempt_number !== 1
+                || $latest->outcome !== 'failed'
+                || ! $latest->definitive_failure
+                || (string) $lockedOrder->provider !== (string) $latest->provider) {
+                return null;
+            }
+
+            $lockedOrder->forceFill([
+                'provider' => $candidate,
+                'status' => VtuOrderStatus::Processing->value,
+                'failure_code' => null,
+            ])->save();
+
+            return VtuProviderAttempt::query()->create([
+                'vtu_order_id' => $lockedOrder->getKey(),
+                'attempt_number' => 2,
+                'provider' => $candidate,
+                'outcome' => 'reserved',
+                'request_fingerprint' => hash('sha256', implode('|', [
+                    $lockedOrder->public_id,
+                    $candidate,
+                    $lockedOrder->product_code,
+                    $lockedOrder->recipient,
+                    (string) $lockedOrder->amount_minor,
+                ])),
+                'started_at' => now(),
+            ]);
+        }, attempts: 3);
+    }
+
+    private function dispatchReservedAttempt(VtuOrder $order, VtuProviderAttempt $attempt): VtuOrder
+    {
+        if (! $this->provider instanceof MultiProviderVtuRouter) {
+            return $this->markAwaitingReconciliation($order, 'provider_attempt_recovery_unavailable');
+        }
+
+        try {
+            $result = $this->provider->submitAttempt($order, $attempt);
+        } catch (ConnectionException|LogicException $exception) {
+            report($exception);
+            $this->recordReconciledAttemptOutcome($order, $attempt, ['status' => 'unknown']);
+            return $this->markAwaitingReconciliation($order, 'provider_result_unknown');
+        }
+
+        $this->recordReconciledAttemptOutcome($order, $attempt, $result);
+        if (! $this->isLatestAttempt($order, $attempt)) {
+            return $order->fresh();
+        }
+        if (($result['status'] ?? null) === 'pending') {
+            return $this->markAwaitingReconciliation($order, 'provider_still_pending', $result);
+        }
+
+        return $this->applyProviderResult($order->fresh(), $result);
     }
 
     /**
