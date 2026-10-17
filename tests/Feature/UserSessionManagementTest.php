@@ -25,9 +25,19 @@ class UserSessionManagementTest extends TestCase
     public function test_revoked_session_is_logged_out_on_its_next_authenticated_request(): void
     {
         $user = User::query()->create(['name' => 'Session Customer', 'email' => 'sessions-revoke@example.test', 'password' => 'CorrectPassword1234']);
-        $this->actingAs($user)->get('/account/sessions')->assertOk();
-        $record = DB::table('user_sessions')->where('user_id', $user->id)->first();
+
+        // Exercise a real login so the test client carries the regenerated session
+        // identifier in its cookie across requests, as a browser does.
+        $this->post('/login', [
+            'identifier' => $user->email,
+            'password' => 'CorrectPassword1234',
+        ])->assertRedirect('/dashboard');
+
+        $this->get('/account/sessions')->assertOk();
+        $record = DB::table('user_sessions')->where('user_id', $user->id)->whereNull('revoked_at')->first();
+        $this->assertNotNull($record);
         DB::table('user_sessions')->where('id', $record->id)->update(['revoked_at' => now()]);
+
         $this->get('/profile')->assertRedirect('/login');
         $this->assertGuest();
     }
