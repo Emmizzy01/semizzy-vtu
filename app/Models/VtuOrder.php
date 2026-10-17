@@ -14,6 +14,7 @@ class VtuOrder extends Model
         'user_id',
         'wallet_id',
         'vtu_product_id',
+        'business_workspace_storefront_id',
         'wallet_transaction_id',
         'idempotency_key',
         'request_hash',
@@ -62,6 +63,16 @@ class VtuOrder extends Model
     public function walletTransaction(): BelongsTo
     {
         return $this->belongsTo(WalletTransaction::class);
+    }
+
+    public function storefront(): BelongsTo
+    {
+        return $this->belongsTo(BusinessWorkspaceStorefront::class, 'business_workspace_storefront_id');
+    }
+
+    public function commission(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(BusinessWorkspaceCommission::class, 'vtu_order_id');
     }
 
     public function providerAttempts(): HasMany
