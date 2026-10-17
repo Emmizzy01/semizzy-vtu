@@ -607,12 +607,21 @@ class VtuOrderWorkflowTest extends TestCase
         $order->forceFill(['provider' => 'sogo', 'status' => 'processing'])->save();
         $attempt->forceFill(['provider' => 'sogo', 'outcome' => 'reserved', 'definitive_failure' => false])->save();
 
-        Http::fake([
-            'api.sogo.africa/v1/transactions/*' => Http::response([], 404),
-            'api.sogo.africa/v1/bills/airtime' => Http::response([
-                'data' => ['status' => 'completed', 'reference' => 'SOGO-RECOVERED'],
-            ], 200),
-        ]);
+        Http::fake(function ($request) {
+            $path = (string) parse_url($request->url(), PHP_URL_PATH);
+
+            if (str_contains($path, '/transactions/')) {
+                return Http::response([], 404);
+            }
+
+            if (str_contains($path, '/bills/airtime')) {
+                return Http::response([
+                    'data' => ['status' => 'completed', 'reference' => 'SOGO-RECOVERED'],
+                ], 200);
+            }
+
+            return Http::response(['status' => 'pending'], 200);
+        });
 
         $recovered = $service->reconcile($order->fresh());
 
