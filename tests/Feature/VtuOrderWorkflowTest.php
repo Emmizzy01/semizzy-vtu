@@ -2098,11 +2098,17 @@ class VtuOrderWorkflowTest extends TestCase
             'finished_at' => now(),
         ])->save();
 
-        $order->forceFill([
-            'provider' => 'gsubz',
-            'status' => 'processing',
-            'failure_code' => null,
-        ])->save();
+        // Update only persisted columns. purchase() leaves an internal
+        // request-creation marker on the in-memory model; do not save it.
+        \Illuminate\Support\Facades\DB::table('vtu_orders')
+            ->where('id', $order->getKey())
+            ->update([
+                'provider' => 'gsubz',
+                'status' => 'processing',
+                'failure_code' => null,
+                'updated_at' => now(),
+            ]);
+        $order = $order->fresh();
 
         \App\Models\VtuProviderAttempt::query()->create([
             'vtu_order_id' => $order->getKey(),
