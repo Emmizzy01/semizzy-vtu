@@ -78,4 +78,9 @@ class FeatureControlRegistryTest extends TestCase
         $this->assertDatabaseHas('platform_feature_controls', ['feature_key' => 'test.dependency', 'is_enabled' => 1]);
         $this->assertDatabaseHas('platform_feature_controls', ['feature_key' => 'test.dependent', 'is_enabled' => 1]);
     }
+
+    public function test_removed_website_builder_and_domains_feature_is_not_offered_in_platform_controls(): void
+    {
+        $this->assertDatabaseMissing('platform_feature_controls', ['feature_key' => 'service.websites']);
+    }
 }
