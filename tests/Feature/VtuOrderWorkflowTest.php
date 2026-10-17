@@ -602,7 +602,8 @@ class VtuOrderWorkflowTest extends TestCase
             ->where('vtu_order_id', $order->getKey())->firstOrFail();
 
         // Model a crash after durable reservation but before the provider call:
-        // the persisted order and attempt both identify Sogo, and no outcome exists.
+        // discard the response-only marker before persisting real order columns.
+        unset($order->_created_for_request);
         $order->forceFill(['provider' => 'sogo', 'status' => 'processing'])->save();
         $attempt->forceFill(['provider' => 'sogo', 'outcome' => 'reserved', 'definitive_failure' => false])->save();
 
