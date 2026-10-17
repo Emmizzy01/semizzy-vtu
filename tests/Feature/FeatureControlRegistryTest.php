@@ -83,4 +83,21 @@ class FeatureControlRegistryTest extends TestCase
     {
         $this->assertDatabaseMissing('platform_feature_controls', ['feature_key' => 'service.websites']);
     }
+
+    public function test_requested_services_are_registered_but_stay_disabled_until_workflows_are_verified(): void
+    {
+        foreach ([
+            'service.streaming_subscriptions',
+            'service.betting',
+            'service.social_accounts',
+            'service.number_verification',
+            'service.vtu_website_requests',
+        ] as $featureKey) {
+            $this->assertDatabaseHas('platform_feature_controls', [
+                'feature_key' => $featureKey,
+                'is_enabled' => 0,
+                'is_implemented' => 0,
+            ]);
+        }
+    }
 }
