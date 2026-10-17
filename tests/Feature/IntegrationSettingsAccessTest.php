@@ -104,6 +104,7 @@ class IntegrationSettingsAccessTest extends TestCase
             'password' => 'not-a-real-password',
         ]);
         UserPermission::query()->create(['user_id' => $admin->id, 'permission' => 'staff.permissions.manage']);
+        config(['services.vtu.driver' => 'vtpass']);
 
         $this->actingAs($admin)->put('/admin/api-providers', [
             'reason' => 'Attempt provider configuration during isolation',
@@ -186,6 +187,7 @@ class IntegrationSettingsAccessTest extends TestCase
         UserPermission::query()->create(['user_id' => $admin->id, 'permission' => 'staff.permissions.manage']);
 
         config([
+            'services.vtu.driver' => 'vtpass',
             'services.vtu.vtpass.api_key' => '',
             'services.vtu.vtpass.secret_key' => '',
         ]);

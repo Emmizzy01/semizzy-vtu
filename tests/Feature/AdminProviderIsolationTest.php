@@ -57,10 +57,7 @@ class AdminProviderIsolationTest extends TestCase
 
         $response->assertRedirect();
         $response->assertSessionHasErrors('provider');
-        $this->assertDatabaseHas('integration_settings', [
-            'key' => 'vtu.driver',
-            'value' => 'vtpass',
-        ]);
+        $this->assertSame('vtpass', app(IntegrationSettings::class)->get('vtu.driver'));
         $this->assertDatabaseMissing('integration_settings', [
             'key' => 'vtu.token',
             'value' => 'new-token',
