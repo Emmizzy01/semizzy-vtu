@@ -137,7 +137,7 @@ class VtpassCatalogueFailureSafetyTest extends TestCase
             return Http::response([], 404);
         });
 
-        $catalog = app(\\App\\Services\\Vtu\\VtpassCatalogService::class);
+        $catalog = app(\App\Services\Vtu\VtpassCatalogService::class);
         $products = $catalog->fetchProducts();
 
         $electricity = array_values(array_filter($products, fn (array $product): bool => $product['service_type'] === 'electricity-bill'));
