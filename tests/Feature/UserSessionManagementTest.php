@@ -29,6 +29,11 @@ class UserSessionManagementTest extends TestCase
         // Use a persistent test session handler so session IDs survive separate
         // HTTP requests, matching the file/database handlers used in deployment.
         config(['session.driver' => 'file']);
+        // The test environment defaults to the array driver; Laravel may already
+        // have resolved its session store before this per-test override. Purge
+        // both cached layers so every request uses the persistent file handler.
+        app('session')->forgetDrivers();
+        app()->forgetInstance('session.store');
 
         // Exercise a real login so the test client carries the regenerated session
         // identifier in its cookie across requests, as a browser does.
