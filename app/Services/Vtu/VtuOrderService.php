@@ -445,7 +445,7 @@ class VtuOrderService
             } catch (ConnectionException|LogicException $exception) {
                 report($exception);
                 $this->recordReconciledAttemptOutcome($order, $attempt, ['status' => 'unknown']);
-                return $this->markAwaitingReconciliation($order, 'provider_result_unknown');
+                return $this->markAwaitingReconciliation($order, 'provider_result_unknown', [], $attempt);
             }
         }
 
@@ -579,7 +579,7 @@ class VtuOrderService
         } catch (ConnectionException|LogicException $exception) {
             report($exception);
             $this->recordReconciledAttemptOutcome($order, $attempt, ['status' => 'unknown']);
-            return $this->markAwaitingReconciliation($order, 'provider_result_unknown');
+            return $this->markAwaitingReconciliation($order, 'provider_result_unknown', [], $attempt);
         }
 
         $this->recordReconciledAttemptOutcome($order, $attempt, $result);
@@ -587,7 +587,7 @@ class VtuOrderService
             return $order->fresh();
         }
         if (($result['status'] ?? null) === 'pending') {
-            return $this->markAwaitingReconciliation($order, 'provider_still_pending', $result);
+            return $this->markAwaitingReconciliation($order, 'provider_still_pending', $result, $attempt);
         }
 
         return $this->applyProviderResult($order->fresh(), $result);
