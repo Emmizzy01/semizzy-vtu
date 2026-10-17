@@ -235,8 +235,9 @@ class VtpassProviderClient implements VtuProvider
         $content = is_array($body) && is_array($body['content'] ?? null) ? $body['content'] : [];
         $verified = $response->successful() && $code === '000' && $content !== [];
 
-        $customerName = $content['Customer_Name'] ?? $content['customer_name'] ?? $content['name'] ?? null;
-        $customerAddress = $content['Customer_Address'] ?? $content['customer_address'] ?? $content['address'] ?? null;
+        // VTpass biller responses vary by provider: some use snake case, others use title/camel case.
+        $customerName = $content['Customer_Name'] ?? $content['CustomerName'] ?? $content['customer_name'] ?? $content['name'] ?? null;
+        $customerAddress = $content['Customer_Address'] ?? $content['CustomerAddress'] ?? $content['customer_address'] ?? $content['Address'] ?? $content['address'] ?? null;
 
         return [
             'status' => $verified ? 'verified' : ($response->successful() ? 'unverified' : 'unknown'),
