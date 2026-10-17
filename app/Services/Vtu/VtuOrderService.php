@@ -223,9 +223,11 @@ class VtuOrderService
                     'service_details' => $serviceDetails,
                     'currency' => $lockedProduct->currency,
                     'status' => VtuOrderStatus::Pending->value,
-                    'provider' => app(\App\Services\IntegrationSettings::class)->get('vtu.driver', config('services.vtu.driver')) === 'vtpass'
-                        ? 'vtpass'
-                        : (string) config('services.vtu.name', 'configured_vtu'),
+                    'provider' => $this->provider instanceof MultiProviderVtuRouter
+                        ? $this->provider->providerNameForProduct($lockedProduct)
+                        : (app(\App\Services\IntegrationSettings::class)->get('vtu.driver', config('services.vtu.driver')) === 'vtpass'
+                            ? 'vtpass'
+                            : (string) config('services.vtu.name', 'configured_vtu')),
                 ]);
 
                 $transaction = $this->ledger->post(
@@ -318,13 +320,17 @@ class VtuOrderService
             return;
         }
 
-        if (! $this->provider instanceof VtpassProviderClient) {
+        if ($this->provider instanceof MultiProviderVtuRouter) {
+            $result = $product->service_type === 'electricity-bill'
+                ? $this->provider->verifyElectricityMeter($product, $recipient, (string) ($details['meter_type'] ?? ''))
+                : $this->provider->verifyTvSmartcard($product, $recipient);
+        } elseif ($this->provider instanceof VtpassProviderClient) {
+            $result = $product->service_type === 'electricity-bill'
+                ? $this->provider->verifyElectricityMeter($product, $recipient, (string) ($details['meter_type'] ?? ''))
+                : $this->provider->verifyTvSmartcard($product, $recipient);
+        } else {
             throw new LogicException('Electricity and TV purchases require the VTpass verification adapter.');
         }
-
-        $result = $product->service_type === 'electricity-bill'
-            ? $this->provider->verifyElectricityMeter($product, $recipient, (string) ($details['meter_type'] ?? ''))
-            : $this->provider->verifyTvSmartcard($product, $recipient);
 
         if (($result['status'] ?? null) !== 'verified') {
             throw new InvalidArgumentException('The provider could not confirm this meter or smartcard. No purchase was created.');

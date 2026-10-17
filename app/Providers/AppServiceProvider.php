@@ -5,6 +5,10 @@ namespace App\Providers;
 use App\Models\User;
 use App\Models\UserPermission;
 use App\Services\IntegrationSettings;
+use App\Services\Vtu\DatawayProviderClient;
+use App\Services\Vtu\GsubzProviderClient;
+use App\Services\Vtu\MultiProviderVtuRouter;
+use App\Services\Vtu\SogoProviderClient;
 use App\Services\Vtu\VtpassProviderClient;
 use App\Services\Vtu\VtuProvider;
 use App\Services\Vtu\VtuProviderClient;
@@ -16,33 +20,26 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->bind(VtuProvider::class, function ($app): VtuProvider {
-            return $app->make(IntegrationSettings::class)->get('vtu.driver', config('services.vtu.driver')) === 'vtpass'
-                ? $app->make(VtpassProviderClient::class)
-                : $app->make(VtuProviderClient::class);
+            return new MultiProviderVtuRouter(
+                $app->make(VtuProviderClient::class),
+                $app->make(VtpassProviderClient::class),
+                $app->make(IntegrationSettings::class),
+                $app->make(SogoProviderClient::class),
+                $app->make(GsubzProviderClient::class),
+                $app->make(DatawayProviderClient::class),
+            );
         });
     }
 
     public function boot(): void
     {
-        Gate::define('refunds.approve', function (User $user): bool {
-            return UserPermission::query()
-                ->where('user_id', $user->id)
-                ->where('permission', 'refunds.approve')
-                ->exists();
-        });
+        Gate::define('refunds.approve', fn (User $user): bool => UserPermission::query()
+            ->where('user_id', $user->id)->where('permission', 'refunds.approve')->exists());
 
-        Gate::define('staff.permissions.manage', function (User $user): bool {
-            return UserPermission::query()
-                ->where('user_id', $user->id)
-                ->where('permission', 'staff.permissions.manage')
-                ->exists();
-        });
+        Gate::define('staff.permissions.manage', fn (User $user): bool => UserPermission::query()
+            ->where('user_id', $user->id)->where('permission', 'staff.permissions.manage')->exists());
 
-        Gate::define('admin.dashboard', function (User $user): bool {
-            return UserPermission::query()
-                ->where('user_id', $user->id)
-                ->whereIn('permission', ['staff.permissions.manage', 'refunds.approve'])
-                ->exists();
-        });
+        Gate::define('admin.dashboard', fn (User $user): bool => UserPermission::query()
+            ->where('user_id', $user->id)->whereIn('permission', ['staff.permissions.manage', 'refunds.approve'])->exists());
     }
 }
