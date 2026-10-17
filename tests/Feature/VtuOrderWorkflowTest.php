@@ -2038,6 +2038,91 @@ class VtuOrderWorkflowTest extends TestCase
         $this->assertSame(1, Http::recorded(fn ($request) => str_ends_with($request->url(), '/pay'))->count());
     }
 
+    public function test_reserved_second_attempt_recovers_by_querying_its_persisted_provider_without_third_submission_or_debit(): void
+    {
+        config([
+            'services.vtu.multi_provider.enabled' => true,
+            'services.vtu.multi_provider.priority' => ['sogo', 'gsubz', 'dataway'],
+            'services.vtu.multi_provider.definitive_failure_providers' => ['sogo'],
+            'services.vtu.sogo.base_url' => 'https://api.sogo.africa/v1',
+            'services.vtu.sogo.api_key' => 'sogo-test-key',
+            'services.vtu.gsubz.base_url' => 'https://api.gsubz.com',
+            'services.vtu.gsubz.api_key' => 'gsubz-test-key',
+        ]);
+
+        $gsubzSubmissions = 0;
+        $gsubzLookups = 0;
+        Http::fake(function ($request) use (&$gsubzSubmissions, &$gsubzLookups) {
+            $path = (string) parse_url($request->url(), PHP_URL_PATH);
+
+            if (str_contains($request->url(), 'api.sogo.africa') && $request->method() === 'POST') {
+                return Http::response([
+                    'data' => ['status' => 'failed', 'reference' => 'SOGO-DECLINED'],
+                ], 200);
+            }
+
+            if (str_contains($request->url(), 'api.gsubz.com') && str_ends_with($path, '/api/pay/')) {
+                $gsubzSubmissions++;
+                throw new ConnectionException('Worker lost connection while submitting the reserved alternate attempt.');
+            }
+
+            if (str_contains($request->url(), 'api.gsubz.com') && str_ends_with($path, '/api/verify/')) {
+                $gsubzLookups++;
+
+                return Http::response(['status' => 'pending', 'requestID' => $request['requestID']], 200);
+            }
+
+            return Http::response(['status' => 'unknown'], 200);
+        });
+
+        [$user, $wallet, $product] = $this->preparedCustomer(1000, 1500);
+        $product->forceFill(['metadata' => ['provider_mappings' => [
+            'sogo' => ['network' => 'mtn'],
+            'gsubz' => ['network' => 'mtn'],
+        ]]])->save();
+
+        $service = app(VtuOrderService::class);
+        $order = $service->purchase($user, $product->code, '08012345678', 'reserved-second-attempt-crash');
+
+        $attempts = \App\Models\VtuProviderAttempt::query()
+            ->where('vtu_order_id', $order->getKey())
+            ->orderBy('attempt_number')
+            ->get();
+        $this->assertCount(2, $attempts);
+        $secondAttempt = $attempts->last();
+        $this->assertSame('gsubz', $secondAttempt->provider);
+
+        // Simulate process death after attempt #2 was reserved but before its
+        // submission outcome was durably recorded.
+        $order->forceFill(['provider' => 'gsubz', 'status' => 'processing'])->save();
+        $secondAttempt->forceFill([
+            'provider' => 'gsubz',
+            'outcome' => 'reserved',
+            'definitive_failure' => false,
+            'finished_at' => null,
+        ])->save();
+
+        $recovered = $service->reconcile($order->fresh());
+
+        $this->assertSame('awaiting_reconciliation', $recovered->status);
+        $this->assertSame('gsubz', $recovered->provider);
+        $this->assertSame('reserved', $secondAttempt->fresh()->outcome === 'unknown'
+            ? 'unknown'
+            : $secondAttempt->fresh()->outcome);
+        $this->assertSame(2, \App\Models\VtuProviderAttempt::query()
+            ->where('vtu_order_id', $order->getKey())->count(), 'Recovery must never reserve a third attempt.');
+        $this->assertSame(2, \App\Models\WalletTransaction::query()->count(), 'Recovery must not debit or refund again.');
+        $this->assertSame(500, (int) $wallet->fresh()->available_balance_minor);
+        $this->assertSame(1, $gsubzSubmissions, 'Recovery must not resubmit an unresolved alternate attempt.');
+        $this->assertSame(1, $gsubzLookups, 'Recovery must query the persisted alternate provider.');
+        Http::assertSent(fn ($request) => str_contains($request->url(), 'api.gsubz.com')
+            && str_ends_with((string) parse_url($request->url(), PHP_URL_PATH), '/api/verify/')
+            && ($request['requestID'] ?? null) === $order->public_id);
+        Http::assertNotSent(fn ($request) => str_contains($request->url(), 'api.sogo.africa')
+            && str_contains($request->url(), '/transactions/'));
+        Http::assertNotSent(fn ($request) => str_contains($request->url(), 'dataway'));
+    }
+
     private function preparedCustomer(int $productPriceMinor, int $initialBalanceMinor): array
     {
         $user = User::query()->create([
