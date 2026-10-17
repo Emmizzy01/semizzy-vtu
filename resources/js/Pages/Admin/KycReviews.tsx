@@ -18,7 +18,7 @@ export default function KycReviews({ submissions }: { submissions: PageData }) {
     setBusy(submission.id);
     router.post('/admin/kyc-reviews/' + submission.id + '/review', { decision, reason }, { preserveScroll: true, onFinish: () => setBusy(null) });
   };
-  return <DashboardLayout title="KYC evidence review" description="Review private identity evidence and record reasoned decisions." admin>
+  return <DashboardLayout title="KYC evidence review" description="Review private identity evidence and record reasoned decisions." admin canManageStaff>
     <Head title="KYC evidence review · Semizzy" />
     <div className="mx-auto max-w-6xl space-y-4">
       <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-4 text-sm"><div className="flex items-center gap-2 font-semibold"><ShieldCheck size={18}/>Sensitive identity data</div><p className="mt-1 text-slate-600 dark:text-slate-300">Open the private evidence before approving. Evidence access and every decision are audited. Never download or share identity files outside approved review.</p></div>
