@@ -55,7 +55,9 @@ Route::middleware('auth')->group(function (): void {
     Route::get('/support', [SupportTicketController::class, 'index'])->name('support.index');
     Route::post('/support', [SupportTicketController::class, 'store'])->middleware('throttle:5,1')->name('support.store');
     Route::post('/support/{ticket}/reply', [SupportTicketController::class, 'reply'])->middleware('throttle:10,1')->name('support.reply');
-    Route::get('/profile', [ProfileController::class, 'show'])->name('profile.show');\n    Route::get('/workspaces', [BusinessWorkspaceController::class, 'index'])->middleware('throttle:30,1')->name('workspaces.index');\n    Route::post('/workspaces', [BusinessWorkspaceController::class, 'store'])->middleware('throttle:5,1')->name('workspaces.store');
+    Route::get('/profile', [ProfileController::class, 'show'])->name('profile.show');
+    Route::get('/workspaces', [BusinessWorkspaceController::class, 'index'])->middleware('throttle:30,1')->name('workspaces.index');
+    Route::post('/workspaces', [BusinessWorkspaceController::class, 'store'])->middleware('throttle:5,1')->name('workspaces.store');
     Route::get('/account/sessions', [UserSessionController::class, 'index'])->name('account.sessions.index');
     Route::delete('/account/sessions/{sessionId}', [UserSessionController::class, 'revoke'])->whereUuid('sessionId')->middleware('throttle:10,1')->name('account.sessions.revoke');
     Route::post('/account/sessions/revoke-others', [UserSessionController::class, 'revokeOthers'])->middleware('throttle:5,1')->name('account.sessions.revoke-others');
