@@ -237,7 +237,16 @@ class VtpassProviderClient implements VtuProvider
             $content['WrongBillersCode'] ?? $content['wrong_billers_code'] ?? false,
             FILTER_VALIDATE_BOOLEAN,
         );
-        $verified = $response->successful() && $code === '000' && $content !== [] && ! $wrongBillerCode;
+        $canVend = $content['Can_Vend'] ?? $content['CanVend'] ?? $content['can_vend'] ?? null;
+        $cannotVend = is_bool($canVend)
+            ? ! $canVend
+            : (is_string($canVend) || is_numeric($canVend))
+                && in_array(strtolower(trim((string) $canVend)), ['no', 'false', '0'], true);
+        $verified = $response->successful()
+            && $code === '000'
+            && $content !== []
+            && ! $wrongBillerCode
+            && ! ($product->service_type === 'electricity-bill' && $cannotVend);
 
         // VTpass biller responses vary by provider: some use snake case, others use title/camel case.
         $customerName = $content['Customer_Name'] ?? $content['CustomerName'] ?? $content['customer_name'] ?? $content['name'] ?? null;
