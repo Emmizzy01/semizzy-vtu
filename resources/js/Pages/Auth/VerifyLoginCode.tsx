@@ -22,7 +22,6 @@ export default function VerifyLoginCode() {
             <label className="block text-sm font-semibold">Verification code
               <input name="code" type="text" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} required autoFocus value={form.data.code} onChange={(event) => form.setData('code', event.target.value.replace(/\D/g, '').slice(0, 6))} aria-invalid={Boolean(form.errors.code)} className="mt-2 w-full rounded-xl border border-[var(--line)] bg-[var(--page)] px-4 py-3 text-center font-mono text-2xl tracking-[0.4em] outline-none focus:border-[var(--brand)] focus-visible:ring-2 focus-visible:ring-[var(--brand)]" />
               {form.errors.code && <span role="alert" className="mt-1 block text-xs text-rose-500">{form.errors.code}</span>}
-              {form.errors.identifier && <span role="alert" className="mt-1 block text-xs text-rose-500">{form.errors.identifier}</span>}
             </label>
             <button type="submit" disabled={form.processing || form.data.code.length !== 6} className="flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--brand)] px-4 py-3.5 font-bold text-white disabled:opacity-60">
               {form.processing && <LoaderCircle size={18} className="animate-spin" aria-hidden="true" />} Verify and sign in
