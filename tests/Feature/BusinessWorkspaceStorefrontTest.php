@@ -6,6 +6,7 @@ use App\Models\BusinessWorkspace;
 use App\Models\BusinessWorkspaceMember;
 use App\Models\BusinessWorkspaceStorefront;
 use App\Models\User;
+use App\Models\UserPermission;
 use App\Models\VtuProduct;
 use App\Services\IntegrationSettings;
 use Illuminate\Foundation\Testing\RefreshDatabase;
