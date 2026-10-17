@@ -101,6 +101,39 @@ class UserLevelPolicyTest extends TestCase
         }
     }
 
+    public function test_single_transaction_limit_uses_customer_entered_airtime_amount(): void
+    {
+        config(['services.vtu.name' => 'test_provider', 'services.vtu.endpoint' => 'https://provider.example.test/api', 'services.vtu.token' => 'test-secret']);
+        $provider = new class implements VtuProvider {
+            public function assertConfigured(): void {}
+            public function assertProductConfigured(VtuProduct $product): void {}
+            public function submit(\App\Models\VtuOrder $order): array { return ['status' => 'pending']; }
+            public function lookup(\App\Models\VtuOrder $order): array { return ['status' => 'pending']; }
+        };
+        $this->app->instance(VtuProvider::class, $provider);
+
+        $user = User::query()->create(['name' => 'Custom Amount Limited Customer', 'email' => 'custom-amount-limited@example.test', 'password' => 'not-a-real-password']);
+        $wallet = app(WalletAccountService::class)->openForUser($user);
+        app(WalletLedgerService::class)->post($wallet->id, 'credit', 50000, 'custom-amount-policy-funding');
+        $product = VtuProduct::query()->create([
+            'service_type' => 'airtime', 'network' => 'mtn', 'code' => 'custom-amount-policy-airtime',
+            'name' => 'Custom Amount Policy Airtime', 'price_minor' => 1000, 'face_value_minor' => 1000,
+            'currency' => 'NGN', 'is_active' => true,
+        ]);
+        UserLevelPolicy::query()->where('level', 'level_1')->update(['max_single_transaction_minor' => 5000]);
+
+        try {
+            app(VtuOrderService::class)->purchase($user, $product->code, '08012345678', 'custom-amount-policy-order', [], 10000);
+            $this->fail('The customer-entered airtime amount above the configured level cap must be rejected.');
+        } catch (InvalidArgumentException $exception) {
+            $this->assertStringContainsString('single-transaction limit', $exception->getMessage());
+            $this->assertSame(50000, (int) $wallet->fresh()->available_balance_minor);
+            $this->assertDatabaseCount('vtu_orders', 0);
+            $this->assertDatabaseCount('wallet_transactions', 1);
+            $this->assertDatabaseCount('wallet_ledger_entries', 1);
+        }
+    }
+
     public function test_single_transaction_limit_is_enforced_before_any_wallet_debit(): void
     {
         config(['services.vtu.name' => 'test_provider', 'services.vtu.endpoint' => 'https://provider.example.test/api', 'services.vtu.token' => 'test-secret']);

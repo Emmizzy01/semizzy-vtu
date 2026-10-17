@@ -205,7 +205,7 @@ class VtuOrderService
                     }
                 }
                 $lockedWallet = Wallet::query()->whereKey($wallet->getKey())->lockForUpdate()->firstOrFail();
-                $policyRejection = $this->levelPolicies->rejectionReason($user, $lockedProduct, (int) $lockedWallet->getKey());
+                $policyRejection = $this->levelPolicies->rejectionReason($user, $lockedProduct, (int) $lockedWallet->getKey(), $lockedAmountMinor);
                 if ($policyRejection !== null) throw new InvalidArgumentException($policyRejection);
 
                 $order = VtuOrder::query()->create([
