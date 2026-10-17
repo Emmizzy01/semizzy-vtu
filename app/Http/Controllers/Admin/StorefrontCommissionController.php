@@ -8,6 +8,8 @@ use App\Models\BusinessWorkspaceStorefront;
 use App\Services\Workspaces\StorefrontCommissionService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
+use Inertia\Response;
 
 class StorefrontCommissionController extends Controller
 {
