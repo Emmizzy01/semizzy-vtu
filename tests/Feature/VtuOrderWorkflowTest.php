@@ -657,11 +657,11 @@ class VtuOrderWorkflowTest extends TestCase
         $service->purchase($user, $product->code, '08087654321', 'same-purchase-key');
     }
 
-    public function test_purchase_uses_server_catalogue_price_not_a_client_supplied_amount(): void
+    public function test_airtime_uses_explicit_customer_amount_and_ignores_client_supplied_minor_units(): void
     {
         Http::fake(fn () => Http::response(['status' => 'success'], 200));
 
-        [$user, $wallet, $product] = $this->preparedCustomer(1000, 1500);
+        [$user, $wallet, $product] = $this->preparedCustomer(1000, 3500);
         $user->forceFill(['transaction_pin_hash' => bcrypt('492815')])->save();
 
         $response = $this->actingAs($user)->postJson('/wallet/vtu/orders', [
@@ -669,13 +669,14 @@ class VtuOrderWorkflowTest extends TestCase
             'recipient' => '08012345678',
             'idempotency_key' => 'client-price-tamper-1',
             'transaction_pin' => '492815',
+            'amount' => 25,
             'amount_minor' => 1,
         ]);
 
         $response->assertCreated()
-            ->assertJsonPath('data.amount_minor', 1000);
+            ->assertJsonPath('data.amount_minor', 2500);
 
-        $this->assertSame(500, (int) $wallet->fresh()->available_balance_minor);
+        $this->assertSame(1000, (int) $wallet->fresh()->available_balance_minor);
         $this->assertDatabaseCount('vtu_orders', 1);
     }
 
