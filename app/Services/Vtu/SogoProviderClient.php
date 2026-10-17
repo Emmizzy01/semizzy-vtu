@@ -49,7 +49,15 @@ class SogoProviderClient extends AbstractMappedVtuProvider
     {
         $this->assertConfigured();
         $response = $this->http()->get('/transactions/'.rawurlencode($order->public_id), ['type' => 'bill_payment']);
-        if ($response->status() === 404 || ! $response->successful() || ! is_array($response->json())) {
+        // Sogo documents a 404 for this idempotency-key lookup as proof
+        // that the transaction was never created. Preserve that explicit signal
+        // for recovery workers; ordinary reconciliation still treats it as
+        // ambiguous and never resubmits by itself.
+        if ($response->status() === 404) {
+            return ['status' => 'unknown', 'lookup_state' => 'not_found', 'safe_to_submit_same_key' => true];
+        }
+
+        if (! $response->successful() || ! is_array($response->json())) {
             return ['status' => 'unknown'];
         }
 
