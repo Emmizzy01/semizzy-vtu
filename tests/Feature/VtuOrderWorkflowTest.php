@@ -589,7 +589,30 @@ class VtuOrderWorkflowTest extends TestCase
             'services.vtu.sogo.base_url' => 'https://api.sogo.africa/v1',
             'services.vtu.sogo.api_key' => 'sogo-test-key',
         ]);
-        Http::fake(fn () => Http::response(['status' => 'pending'], 200));
+        $submissionCount = 0;
+        Http::fake(function ($request) use (&$submissionCount) {
+            $path = (string) parse_url($request->url(), PHP_URL_PATH);
+
+            if (str_contains($path, '/transactions/')) {
+                return Http::response([], 404);
+            }
+
+            if (str_contains($path, '/bills/airtime')) {
+                $submissionCount++;
+
+                // The purchase call is the simulated pre-crash submission.
+                // Reconciliation may resubmit only after the explicit lookup 404.
+                if ($submissionCount === 1) {
+                    return Http::response(['status' => 'pending'], 200);
+                }
+
+                return Http::response([
+                    'data' => ['status' => 'completed', 'reference' => 'SOGO-RECOVERED'],
+                ], 200);
+            }
+
+            return Http::response(['status' => 'pending'], 200);
+        });
 
         [$user, $wallet, $product] = $this->preparedCustomer(1000, 1500);
         $product->forceFill(['metadata' => ['provider_mappings' => [
@@ -606,22 +629,6 @@ class VtuOrderWorkflowTest extends TestCase
         unset($order->_created_for_request);
         $order->forceFill(['provider' => 'sogo', 'status' => 'processing'])->save();
         $attempt->forceFill(['provider' => 'sogo', 'outcome' => 'reserved', 'definitive_failure' => false])->save();
-
-        Http::fake(function ($request) {
-            $path = (string) parse_url($request->url(), PHP_URL_PATH);
-
-            if (str_contains($path, '/transactions/')) {
-                return Http::response([], 404);
-            }
-
-            if (str_contains($path, '/bills/airtime')) {
-                return Http::response([
-                    'data' => ['status' => 'completed', 'reference' => 'SOGO-RECOVERED'],
-                ], 200);
-            }
-
-            return Http::response(['status' => 'pending'], 200);
-        });
 
         $recovered = $service->reconcile($order->fresh());
 
@@ -653,7 +660,7 @@ class VtuOrderWorkflowTest extends TestCase
         Http::assertSent(fn ($request) => str_contains($request->url(), '/bills/airtime')
             && $request->method() === 'POST'
             && $request->hasHeader('Idempotency-Key', $order->public_id));
-        Http::assertSentCount(2);
+        Http::assertSentCount(3);
     }
 
     public function test_generic_failed_provider_status_stays_unresolved_without_refund(): void
