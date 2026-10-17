@@ -64,6 +64,10 @@ class VtuOrderWorkflowTest extends TestCase
     public function test_purchase_rechecks_catalogue_price_under_lock_before_debiting(): void
     {
         [$user, $wallet, $product] = $this->preparedCustomer(1000, 1500);
+        // This regression covers catalogue-priced data plans. Airtime now uses
+        // the customer's explicit amount, so its charge must not follow a
+        // later catalogue face-value change.
+        $product->forceFill(['service_type' => 'data'])->save();
 
         $provider = new class((int) $product->getKey()) implements VtuProvider {
             public int $submissions = 0;
