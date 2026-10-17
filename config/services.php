@@ -8,6 +8,32 @@ return [
         'endpoint' => env('VTU_PROVIDER_ENDPOINT'),
         'token' => env('VTU_PROVIDER_TOKEN'),
         'stuck_order_minutes' => (int) env('VTU_STUCK_ORDER_MINUTES', 60),
+        // Multi-provider routing is deliberately opt-in until adapters, account credentials,
+        // live catalogue mappings, webhook handling, and failover tests pass release gates.
+        'multi_provider' => [
+            'enabled' => (bool) env('VTU_MULTI_PROVIDER_ENABLED', false),
+            'priority' => array_values(array_filter(array_map(
+                'trim',
+                explode(',', (string) env('VTU_PROVIDER_PRIORITY', 'sogo,gsubz,dataway')),
+            ))),
+        ],
+        'sogo' => [
+            'base_url' => env('VTU_SOGO_BASE_URL', env('APP_ENV', 'production') === 'production'
+                ? 'https://api.sogo.africa/v1'
+                : 'https://sandbox.sogo.africa/v1'),
+            'api_key' => env('VTU_SOGO_API_KEY'),
+            'webhook_secret' => env('VTU_SOGO_WEBHOOK_SECRET'),
+        ],
+        'gsubz' => [
+            'base_url' => env('VTU_GSUBZ_BASE_URL', 'https://api.gsubz.com'),
+            'api_key' => env('VTU_GSUBZ_API_KEY'),
+            'webhook_secret' => env('VTU_GSUBZ_WEBHOOK_SECRET'),
+        ],
+        'dataway' => [
+            'base_url' => env('VTU_DATAWAY_BASE_URL', 'https://dataway.ng/api/v1/merchant'),
+            'api_key' => env('VTU_DATAWAY_API_KEY'),
+            'webhook_secret' => env('VTU_DATAWAY_WEBHOOK_SECRET'),
+        ],
         // Whole-naira airtime face values; data prices always come from VTpass variations.
         'airtime_denominations' => array_values(array_filter(array_map('intval', explode(',', (string) env('VTU_AIRTIME_DENOMINATIONS', '100,200,500,1000'))))),
         'vtpass' => [
