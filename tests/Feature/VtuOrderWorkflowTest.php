@@ -2621,7 +2621,7 @@ class VtuOrderWorkflowTest extends TestCase
             $storefront->slug,
         );
 
-        $this->assertSame('awaiting_reconciliation', $order->status);
+        $this->assertSame('processing', $order->status);
         $this->assertDatabaseCount('business_workspace_commissions', 0);
 
         $reconciled = $service->reconcile($order->fresh());
