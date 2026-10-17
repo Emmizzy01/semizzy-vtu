@@ -136,7 +136,15 @@ export default function VtuPurchase({ serviceType }: { serviceType: ServiceType 
         if (cancelled) return;
         const list = Array.isArray(body.data) ? body.data as Product[] : [];
         setProducts(list);
-        setProductCode((current) => current && list.some((product) => product.code === current) ? current : (list[0]?.code ?? ''));
+        const requestedNetwork = typeof window !== 'undefined'
+          ? new URLSearchParams(window.location.search).get('network')?.trim().toLowerCase()
+          : undefined;
+        const preferredProduct = requestedNetwork
+          ? list.find((product) => product.network.trim().toLowerCase() === requestedNetwork)
+          : undefined;
+        setProductCode((current) => current && list.some((product) => product.code === current)
+          ? current
+          : (preferredProduct?.code ?? list[0]?.code ?? ''));
       })
       .catch((cause: unknown) => {
         if (!cancelled) setError(cause instanceof Error ? cause.message : 'Products could not be loaded.');
