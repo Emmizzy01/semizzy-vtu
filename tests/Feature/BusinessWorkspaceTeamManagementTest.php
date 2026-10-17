@@ -198,7 +198,7 @@ class BusinessWorkspaceTeamManagementTest extends TestCase
             'business_workspace_id' => $workspace->id,
             'user_id' => $agent->id,
             'role' => 'agent',
-            'permissions' => ['orders.view'],
+            'permissions' => ['orders.view', 'members.view'],
             'status' => 'active',
         ]);
 
