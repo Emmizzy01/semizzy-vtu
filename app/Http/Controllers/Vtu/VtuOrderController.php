@@ -96,6 +96,7 @@ class VtuOrderController extends Controller
             'idempotency_key' => ['required', 'string', 'max:128'],
             'transaction_pin' => ['nullable', 'string', 'regex:/^\\d{4}(?:\\d{2})?$/'],
             'meter_type' => ['nullable', 'string', 'in:prepaid,postpaid'],
+            'subscription_type' => ['nullable', 'string', 'in:change'],
             'contact_phone' => ['nullable', 'string', 'max:20', 'regex:/^\\+?[0-9\\s-]{10,20}$/'],
             'amount' => ['nullable', 'numeric', 'min:1', 'max:1000000'],
         ]);
@@ -125,6 +126,7 @@ class VtuOrderController extends Controller
                 $validated['idempotency_key'],
                 array_filter([
                     'meter_type' => $validated['meter_type'] ?? null,
+                    'subscription_type' => $validated['subscription_type'] ?? null,
                     'contact_phone' => $validated['contact_phone'] ?? null,
                 ], fn ($value) => $value !== null),
                 isset($validated['amount']) ? (int) round((float) $validated['amount'] * 100) : null,
