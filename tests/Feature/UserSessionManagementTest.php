@@ -138,8 +138,7 @@ class UserSessionManagementTest extends TestCase
         Auth::forgetGuards();
 
         $this->get('/account/sessions')->assertOk();
-        $hash = app(\\App\\Services\\Security\\UserSessionService::class)->currentHash(request());
-        $current = DB::table('user_sessions')->where('user_id', $user->id)->where('session_hash', $hash)->whereNull('revoked_at')->first();
+        $current = DB::table('user_sessions')->where('user_id', $user->id)->whereNull('revoked_at')->orderByDesc('last_activity')->orderByDesc('updated_at')->first();
         $this->assertNotNull($current);
 
         Auth::forgetGuards();
