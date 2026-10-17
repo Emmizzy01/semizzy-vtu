@@ -312,8 +312,8 @@ class VtuOrderService
         }
 
         $providerStatus = $result['status'] ?? 'unknown';
-        $definitiveFailure = ($result['definitive_failure'] ?? false) === true
-            && $providerStatus === 'failed';
+        $definitiveFailure = app(ProviderFailoverPolicy::class)
+            ->mayFailover((string) $order->provider, $result);
         $attempt->forceFill([
             'outcome' => in_array($providerStatus, ['success', 'failed', 'pending'], true) ? $providerStatus : 'unknown',
             'provider_reference' => is_string($result['provider_reference'] ?? null)
