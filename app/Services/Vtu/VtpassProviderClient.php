@@ -34,8 +34,9 @@ class VtpassProviderClient implements VtuProvider
 
     public function assertProductConfigured(VtuProduct $product): void
     {
-        if (($product->metadata['catalog_source'] ?? null) === 'vtpass'
-            && ($product->metadata['purchase_approved'] ?? false) !== true) {
+        // Every product routed through this adapter must have explicit approval.
+        // Do not rely on catalog_source: legacy rows may lack that metadata.
+        if (($product->metadata['purchase_approved'] ?? false) !== true) {
             throw new LogicException('This VTpass catalogue product requires recorded sandbox verification and authorised approval before purchase.');
         }
 
