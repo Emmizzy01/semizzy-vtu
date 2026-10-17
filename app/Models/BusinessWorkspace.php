@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class BusinessWorkspace extends Model
@@ -35,6 +36,11 @@ class BusinessWorkspace extends Model
     public function memberships(): HasMany
     {
         return $this->hasMany(BusinessWorkspaceMember::class);
+    }
+
+    public function storefront(): HasOne
+    {
+        return $this->hasOne(BusinessWorkspaceStorefront::class, 'business_workspace_id');
     }
 
     public function users(): BelongsToMany
@@ -70,6 +76,15 @@ class BusinessWorkspace extends Model
         $membership = $this->membershipFor($user);
 
         return $membership !== null && in_array($membership->role, ['admin', 'manager'], true);
+    }
+
+    public function canManageStorefront(User $user): bool
+    {
+        if ($this->canManage($user)) {
+            return true;
+        }
+
+        return $this->membershipFor($user)?->hasPermission('store.manage') ?? false;
     }
 
     public function hasActiveMember(User $user): bool
