@@ -58,9 +58,13 @@ return new class extends Migration
         });
 
         Schema::table('vtu_orders', function (Blueprint $table): void {
-            if (Schema::getConnection()->getDriverName() !== 'sqlite') {
+            if (Schema::getConnection()->getDriverName() === 'sqlite') {
+                // SQLite needs the constrained column list so Laravel can rebuild
+                // the table without the foreign key during rollback.
+                $table->dropForeign(['business_workspace_storefront_id']);
+            } else {
                 // MySQL may use the composite index to support the foreign key,
-                // so remove the constraint before dropping that index.
+                // so remove the explicitly named constraint before that index.
                 $table->dropForeign('vtu_orders_storefront_fk');
             }
 
