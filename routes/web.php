@@ -21,6 +21,7 @@ use App\Http\Controllers\Admin\FeatureControlController;
 use App\Models\PlatformFeatureControl;
 use App\Http\Controllers\Security\TransactionPinController;
 use App\Http\Controllers\Account\ProfileController;
+use App\Http\Controllers\Account\BusinessWorkspaceController;
 use App\Http\Controllers\Account\UserSessionController;
 use App\Http\Controllers\Account\AccountTierController;
 use App\Http\Controllers\Support\SupportTicketController;
