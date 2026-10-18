@@ -6,7 +6,7 @@ type Tier={level:string;label:string;configured:boolean;active:boolean;current:b
 type Props={currentLevel:string;accountType:string;kycStatus:string;tiers:Tier[];nextLevel:string|null;kycVerified:boolean;pendingRequest:null|{id:number;requested_level:string;status:string;created_at:string|null}};
 const money=(n:number|null)=>n===null?'Not configured':new Intl.NumberFormat('en-NG',{style:'currency',currency:'NGN',maximumFractionDigits:2}).format(n/100);
 const titleCase=(s:string)=>s.replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
-const tierTitle=(s:string)=>({level_1:'Tier 1',level_2:'Tier 2',level_3:'Tier 3',level_4:'Merchant (Tier 4)'} as Record<string,string>)[s]||titleCase(s);
+const tierTitle=(s:string)=>({level_1:'Tier1',level_2:'Tier2',level_3:'Tier3',level_4:'Tier4/Merchant'} as Record<string,string>)[s]||titleCase(s);
 export default function AccountTiers({currentLevel,accountType,kycStatus,tiers,nextLevel,kycVerified,pendingRequest}:Props){
  const [note,setNote]=useState('');const [busy,setBusy]=useState(false);const current=tiers.find(t=>t.current);const next=tiers.find(t=>t.level===nextLevel);
  const submit=()=>{setBusy(true);router.post('/account/tiers/upgrade',{note},{preserveScroll:true,onFinish:()=>setBusy(false)});};
