@@ -252,6 +252,28 @@ class VtuProviderAdaptersTest extends TestCase
         Http::assertNothingSent();
     }
 
+
+    public function test_dataway_http_errors_and_unrecognized_statuses_remain_ambiguous(): void
+    {
+        Http::fakeSequence()
+            ->push(['message' => 'temporary outage'], 503)
+            ->push(['status' => 'queued_for_processing', 'reference' => 'DATAWAY-TXN-2'], 200);
+
+        $client = app(DatawayProviderClient::class);
+        $order = $this->order();
+
+        $httpError = $client->submit($order);
+        $unrecognized = $client->submit($order);
+
+        foreach ([$httpError, $unrecognized] as $result) {
+            $this->assertSame('unknown', $result['status']);
+            $this->assertArrayNotHasKey('definitive_failure', $result);
+            $this->assertArrayNotHasKey('safe_to_submit_same_key', $result);
+        }
+
+        $this->assertCount(2, Http::recorded());
+    }
+
     public function test_sogo_and_dataway_signatures_use_raw_body_and_reject_tampering(): void
     {
         $body = '{"event":"transaction.successful","data":{"reference":"TXN-1"}}';
