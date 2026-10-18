@@ -3,7 +3,7 @@ import { Head, usePage } from '@inertiajs/react';
 import ThemeToggle from './ThemeToggle';
 import { applyThemePreference } from './theme';
 import {
-  Activity, ArrowLeftRight, CreditCard, Landmark, LayoutDashboard, LifeBuoy,
+  Activity, ArrowLeftRight, CreditCard, GraduationCap, Landmark, LayoutDashboard, LifeBuoy,
   Eye, EyeOff, LogOut, Menu, Package, PlugZap, Search, ShieldCheck, Smartphone, SlidersHorizontal,
   Tv, UserRound, Users, WalletCards, Wifi, X, Zap,
 } from 'lucide-react';
@@ -54,6 +54,7 @@ export default function DashboardLayout({ title, description, admin = false, chi
     { label: 'Electricity', href: '/wallet/vtu/electricity', icon: Zap },
     { label: 'Cable TV', href: '/wallet/vtu/tv', icon: Tv },
     { label: 'Internet', href: '/services', icon: PlugZap },
+    { label: 'Education', href: '/services/education', icon: GraduationCap },
     { label: 'Transactions', href: (customerPreview ? '/customer/dashboard' : '/dashboard') + '#activity', icon: Activity, match: '#activity' },
   ];
   const customerFooter: NavItem[] = [
@@ -76,6 +77,7 @@ export default function DashboardLayout({ title, description, admin = false, chi
       { label: 'VTU products', href: '/admin/vtu-products', icon: Package },
       { label: 'VTU website requests', href: '/admin/vtu-website-requests', icon: Package },
       { label: 'Streaming catalogue', href: '/admin/streaming-subscriptions', icon: Tv },
+      { label: 'Education catalogue', href: '/admin/education-services', icon: GraduationCap },
       { label: 'Users, types & levels', href: '/admin/users', icon: Users },
       { label: 'User level policies', href: '/admin/user-levels', icon: UserRound },
       { label: 'Level upgrade requests', href: '/admin/user-level-upgrade-requests', icon: ShieldCheck },
