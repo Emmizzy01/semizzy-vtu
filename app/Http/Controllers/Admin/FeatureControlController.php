@@ -29,6 +29,15 @@ class FeatureControlController extends Controller
     public function update(Request $request, string $featureKey, IntegrationSettings $settings): RedirectResponse
     {
         $data = $request->validate(['is_enabled' => ['required', 'boolean'], 'reason' => ['required', 'string', 'min:8', 'max:500']]);
+        if ($featureKey === 'service.manual_deposit' && (bool) $data['is_enabled']) {
+            foreach (['bank_name', 'account_name', 'account_number'] as $requiredSetting) {
+                if (trim((string) $settings->get('manual_deposit.'.$requiredSetting, '')) === '') {
+                    return back()->withErrors([
+                        'is_enabled' => 'Configure manual deposit bank name, account name and account number before enabling this service.',
+                    ]);
+                }
+            }
+        }
         DB::transaction(function () use ($request, $featureKey, $data, $settings): void {
             $feature = PlatformFeatureControl::query()->where('feature_key', $featureKey)->lockForUpdate()->firstOrFail();
             abort_if($feature->is_core || ! $feature->is_implemented, 422, 'Core and roadmap-only features cannot be toggled here.');
@@ -47,13 +56,6 @@ class FeatureControlController extends Controller
             $oldValue = $feature->is_enabled ? '1' : '0';
             $newValue = $enabled ? '1' : '0';
             if ($oldValue === $newValue) return;
-            if ($featureKey === 'service.manual_deposit' && $enabled) {
-                foreach (['bank_name', 'account_name', 'account_number'] as $requiredSetting) {
-                    if (trim((string) $settings->get('manual_deposit.'.$requiredSetting, '')) === '') {
-                        abort(422, 'Configure manual deposit bank name, account name and account number before enabling this service.');
-                    }
-                }
-            }
             $feature->forceFill(['is_enabled' => $enabled, 'updated_by_user_id' => $request->user()->id])->save();
             if ($featureKey === 'service.airtime_data') $settings->set('service.airtime_data.enabled', $newValue, (int) $request->user()->id);
             if ($featureKey === 'service.manual_deposit') $settings->set('manual_deposit.enabled', $newValue, (int) $request->user()->id);
