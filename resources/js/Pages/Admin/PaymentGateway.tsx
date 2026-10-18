@@ -1,5 +1,6 @@
 import { ArrowLeft, Copy, CreditCard, ShieldCheck, WalletCards } from 'lucide-react';
 import { Head, useForm } from '@inertiajs/react';
+import DashboardLayout from '../../Components/DashboardLayout';
 
 type ManualDepositSettings = { enabled: boolean; bank_name: string; account_name: string; account_number: string; instructions: string };
 
@@ -20,7 +21,7 @@ export default function PaymentGateway({ gateway, manualDeposit }: { gateway: Ga
   const depositForm = useForm({ ...manualDeposit, reason: '' });
 
   return (
-    <>
+    <DashboardLayout title="Payment gateway" description="Configure Paystack funding and manual bank deposits." admin>
       <Head title="Payment Gateway" />
       <main className="mx-auto max-w-7xl px-4 py-7 sm:px-6 sm:py-9 lg:px-8">
         <a href="/admin/dashboard" className="inline-flex min-h-10 items-center gap-2 text-sm font-semibold text-[var(--muted)] hover:text-[var(--brand)]"><ArrowLeft size={16} /> Admin overview</a>
@@ -76,7 +77,7 @@ export default function PaymentGateway({ gateway, manualDeposit }: { gateway: Ga
           {form.recentlySuccessful && <p className="text-sm font-semibold text-emerald-600">Settings saved.</p>}
         </form>
       </main>
-    </>
+    </DashboardLayout>
   );
 }
 
