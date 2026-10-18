@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowDownToLine, ArrowUpRight, ArrowLeftRight, Activity, BatteryCharging, CheckCircle2, Eye, EyeOff, GraduationCap, Headphones, Laptop, ShieldCheck, Smartphone, SmartphoneNfc, Tv, Watch, Wifi, Zap, Sparkles, WalletCards, Gift, ChevronRight, HandCoins, PlaySquare, Droplets, Dice5, KeyRound, MessageCircle, Plane, MoreHorizontal } from 'lucide-react';
+import { ArrowDownToLine, ArrowUpRight, ArrowLeftRight, BatteryCharging, CheckCircle2, Eye, EyeOff, GraduationCap, Headphones, Laptop, ShieldCheck, Smartphone, SmartphoneNfc, Tv, Watch, Wifi, Zap, Sparkles, WalletCards, Gift, ChevronRight, HandCoins, PlaySquare, Droplets, Dice5, KeyRound, MessageCircle, Plane, MoreHorizontal } from 'lucide-react';
 import DashboardLayout from '../Components/DashboardLayout';
 
 type Wallet = { balance_minor: number; available_balance_minor: number; currency: string; status: string } | null;
