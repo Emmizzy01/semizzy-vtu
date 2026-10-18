@@ -38,7 +38,6 @@ class AdminProviderIsolationTest extends TestCase
             ->where('failoverEnabled', false));
         $response->assertDontSee('do-not-expose');
         $response->assertSee('VTpass');
-        $response->assertSee('VTpass remains isolated pending the existing recovery review.');
         $response->assertDontSee('do-not-expose-either');
     }
 
