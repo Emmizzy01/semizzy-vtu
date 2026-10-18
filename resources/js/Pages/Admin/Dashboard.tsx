@@ -47,18 +47,36 @@ export default function AdminDashboard({ prototypeMetrics, newUsersLastSevenDays
       </section>
 
       <section className="mt-6 rounded-xl border bg-white p-5 shadow-sm dark:border-white/10 dark:bg-slate-900" aria-labelledby="provider-balance-heading">
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3"><h2 id="provider-balance-heading" className="font-bold">Provider integrations</h2><span className="rounded-full bg-amber-500/10 px-2 py-1 text-xs text-amber-700 dark:text-amber-300">Purchase release gates apply</span></div>
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-          {providerIntegrations.map(provider => <article key={provider.name} className="rounded-xl border p-4 dark:border-slate-700">
-            <div className="flex items-center justify-between gap-2"><span className="grid h-8 w-8 place-items-center rounded-full bg-emerald-700 text-xs font-bold text-white">{provider.name.slice(0, 1)}</span><span className="rounded-full bg-gray-100 px-2 py-1 text-[10px] text-gray-700 dark:bg-slate-800 dark:text-gray-300">{provider.selected ? 'Selected' : 'Not selected'}</span></div>
-            <p className="mt-3 font-bold">{provider.name}</p>
-            <p className="mt-1 text-sm font-semibold text-gray-600 dark:text-gray-300">{provider.status}</p>
-            <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">Credentials: {provider.credentialsConfigured ? 'Configured (hidden)' : 'Missing'}</p>
-            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">New purchases: {provider.purchasesAllowed ? 'Enabled' : 'Blocked pending release verification'}</p>
-          </article>)}
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <h2 id="provider-balance-heading" className="font-bold">API Provider Balance - Enabled Only</h2>
+          <a href="/admin/api-providers" className="inline-flex min-h-9 items-center gap-2 rounded-lg bg-[#0f8a4f] px-3 py-2 text-xs font-bold text-white"><PlugZap size={15}/> Manage API providers</a>
         </div>
-        <p className="mt-3 text-xs leading-5 text-gray-500 dark:text-gray-400">Status comes from the server configuration. Secret values are never shown here. A configured credential or selected route does not by itself certify that live purchasing is approved.</p>
-        <a href="/admin/api-providers" className="mt-3 inline-flex min-h-10 items-center gap-2 rounded-lg bg-[#0f8a4f] px-4 py-2 text-xs font-bold text-white"><PlugZap size={15}/> Manage API providers</a>
+        {providerIntegrations.some(provider => provider.purchasesAllowed) ? (
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {providerIntegrations.filter(provider => provider.purchasesAllowed).map(provider => (
+              <article key={provider.name} className="rounded-xl border p-4 dark:border-slate-700">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="grid h-8 w-8 place-items-center rounded-full bg-[#0f8a4f] text-xs font-bold text-white">{provider.name.slice(0, 1)}</span>
+                  <span className="rounded-full bg-emerald-100 px-2 py-1 text-[10px] font-semibold text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200">Enabled</span>
+                </div>
+                <p className="mt-3 font-bold">{provider.name}</p>
+                <p className="mt-1 text-sm font-bold text-[#0f8a4f]">Balance unavailable</p>
+                <div className="mt-2">
+                  <p className="flex justify-between text-[11px]"><span>Success</span><span>{provider.performance.successRate === null ? '—' : provider.performance.successRate.toFixed(1) + '%'}</span></p>
+                  <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-gray-100 dark:bg-slate-800"><div className="h-full rounded-full bg-[#0f8a4f]" style={{ width: (provider.performance.successRate ?? 0) + '%' }}/></div>
+                </div>
+                <p className="mt-2 text-[10px] text-gray-500 dark:text-gray-400">Provider balance is not exposed by the current verified reporting source.</p>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <div className="rounded-xl border border-dashed p-5 text-center dark:border-slate-700">
+            <PlugZap size={22} className="mx-auto text-gray-400"/>
+            <p className="mt-2 text-sm font-semibold text-gray-600 dark:text-gray-300">No providers currently released for purchases</p>
+            <p className="mt-1 text-xs leading-5 text-gray-500 dark:text-gray-400">Providers appear here only after their purchase release gates are satisfied. Provider balances remain unavailable until a verified balance source is integrated.</p>
+          </div>
+        )}
+        <p className="mt-3 text-xs leading-5 text-gray-500 dark:text-gray-400">A selected route or configured credential alone does not certify that live purchasing is approved. Secret values and unverified balances are never shown.</p>
       </section>
 
       <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
