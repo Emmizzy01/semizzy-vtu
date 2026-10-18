@@ -3,6 +3,7 @@
 namespace App\Services\Vtu;
 
 use App\Models\VtuProduct;
+use App\Services\IntegrationSettings;
 use Illuminate\Support\Facades\Http;
 use LogicException;
 use RuntimeException;
