@@ -3,6 +3,8 @@
 use App\Models\User;
 use App\Models\UserPermission;
 use App\Models\StaffPermissionAudit;
+use App\Models\EducationOrder;
+use App\Services\Education\EducationOrderCoordinator;
 use App\Services\Payments\PaymentReconciliationService;
 use App\Services\Payments\PaymentRefundMonitoringService;
 use App\Services\Payments\PaymentRefundReconciliationService;
@@ -302,6 +304,55 @@ Artisan::command('vtu:reconcile-orders {--limit=100}', function (
 })->purpose('Reconcile pending or ambiguous VTU provider orders');
 
 Schedule::command('vtu:reconcile-orders --limit=100')
+    ->everyFiveMinutes()
+    ->withoutOverlapping();
+
+Artisan::command('education:reconcile-orders {--limit=100}', function (
+    EducationOrderCoordinator $coordinator,
+) {
+    $limit = (int) $this->option('limit');
+    if ($limit < 1 || $limit > 500) {
+        $this->error('The limit must be between 1 and 500.');
+
+        return 1;
+    }
+
+    // Only reconcile orders that were actually dispatched and have remained
+    // unresolved long enough to avoid repeated provider lookups during normal processing.
+    $candidates = EducationOrder::query()
+        ->whereIn('status', ['processing', 'pending', 'unknown'])
+        ->whereNotNull('dispatch_started_at')
+        ->where('dispatch_started_at', '<=', now()->subMinute())
+        ->where('updated_at', '<=', now()->subMinutes(5))
+        ->orderBy('updated_at')
+        ->orderBy('dispatch_started_at')
+        ->limit($limit)
+        ->get();
+
+    $changed = 0;
+    foreach ($candidates as $order) {
+        $before = $order->status;
+        try {
+            // The coordinator uses the provider identity persisted on the order;
+            // it never resubmits or routes the purchase to another provider here.
+            $after = $coordinator->reconcile($order);
+            if ($after->status !== $before) {
+                $changed++;
+            }
+        } catch (\\Throwable $exception) {
+            report($exception);
+        }
+    }
+
+    $this->table(
+        ['Checked', 'Status changed', 'Still unresolved'],
+        [[$candidates->count(), $changed, $candidates->count() - $changed]],
+    );
+
+    return 0;
+})->purpose('Reconcile pending or ambiguous education provider orders without resubmitting purchases');
+
+Schedule::command('education:reconcile-orders --limit=100')
     ->everyFiveMinutes()
     ->withoutOverlapping();
 
