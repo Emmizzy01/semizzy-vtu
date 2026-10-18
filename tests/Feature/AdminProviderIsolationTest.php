@@ -29,16 +29,16 @@ class AdminProviderIsolationTest extends TestCase
         $response->assertOk();
         $response->assertInertia(fn ($page) => $page
             ->component('Admin/ApiProviders')
-            ->where('provider.isolated', true)
-            ->where('provider.name', 'VTpass')
-            ->where('provider.configurationLocked', true)
-            ->where('provider.purchasesEnabled', false)
-            ->missing('provider.vtpassApiKeyConfigured')
-            ->missing('provider.vtpassSecretKeyConfigured')
-            ->missing('provider.vtpassBaseUrl'));
+            ->where('providers.3.key', 'vtpass')
+            ->where('providers.3.purchaseHold', true)
+            ->where('providers.3.purchaseRoutingEnabled', false)
+            ->missing('providers.3.api_key')
+            ->missing('providers.3.secret_key')
+            ->missing('providers.3.base_url')
+            ->where('failoverEnabled', false));
         $response->assertDontSee('do-not-expose');
         $response->assertSee('VTpass');
-        $response->assertSee('Technical review pending. Existing orders and reconciliation remain available.');
+        $response->assertSee('VTpass remains isolated pending the existing recovery review.');
         $response->assertDontSee('do-not-expose-either');
     }
 
