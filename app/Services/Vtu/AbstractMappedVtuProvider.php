@@ -18,8 +18,8 @@ abstract class AbstractMappedVtuProvider implements VtuProvider
     public function assertConfigured(): void
     {
         $key = $this->providerKey();
-        $baseUrl = (string) config("services.vtu.{$key}.base_url", '');
-        $apiKey = (string) config("services.vtu.{$key}.api_key", '');
+        $baseUrl = $this->baseUrl();
+        $apiKey = $this->apiKey();
 
         if (parse_url($baseUrl, PHP_URL_SCHEME) !== 'https' || $apiKey === '') {
             throw new LogicException("The {$key} VTU provider is not securely configured.");
@@ -58,12 +58,30 @@ abstract class AbstractMappedVtuProvider implements VtuProvider
     {
         $key = $this->providerKey();
 
-        return Http::baseUrl(rtrim((string) config("services.vtu.{$key}.base_url"), '/'))
-            ->withToken((string) config("services.vtu.{$key}.api_key"))
+        return Http::baseUrl(rtrim($this->baseUrl(), '/'))
+            ->withToken($this->apiKey())
             ->acceptJson()
             ->asJson()
             ->connectTimeout(5)
             ->timeout(60);
+    }
+
+    protected function baseUrl(): string
+    {
+        $key = $this->providerKey();
+        return (string) app(IntegrationSettings::class)->get(
+            "vtu.{$key}.base_url",
+            config("services.vtu.{$key}.base_url", ''),
+        );
+    }
+
+    protected function apiKey(): string
+    {
+        $key = $this->providerKey();
+        return (string) app(IntegrationSettings::class)->get(
+            "vtu.{$key}.api_key",
+            config("services.vtu.{$key}.api_key", ''),
+        );
     }
 
     protected function amountNaira(VtuOrder $order): string
