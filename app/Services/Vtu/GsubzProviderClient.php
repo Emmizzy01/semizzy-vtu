@@ -1,9 +1,9 @@
 <?php
 
-namespace App\\Services\\Vtu;
+namespace App\Services\Vtu;
 
-use App\\Models\\VtuOrder;
-use App\\Models\\VtuProduct;
+use App\Models\VtuOrder;
+use App\Models\VtuProduct;
 
 class GsubzProviderClient extends AbstractMappedVtuProvider
 {
@@ -29,8 +29,7 @@ class GsubzProviderClient extends AbstractMappedVtuProvider
         if ($product->service_type === 'data') $payload['plan'] = $mapping['plan_code'];
 
         $response = $this->http()->asForm()->post('/api/pay/', $payload);
-        // A transport/HTTP error is ambiguous: GSUBZ explicitly says to verify
-        // requestID after a timeout or gateway error before trying again.
+        // Transport/HTTP errors are ambiguous; verify the original requestID first.
         if (! $response->successful() || ! is_array($response->json())) return ['status' => 'unknown'];
 
         $body = $response->json();
@@ -38,10 +37,8 @@ class GsubzProviderClient extends AbstractMappedVtuProvider
             ['success', 'successful'], ['failed', 'fail'], ['pending', 'processing']);
         $result = $this->normalized($status, $body);
 
-        // GSUBZ's published response contract defines a successful HTTP response
-        // with status=failed as a purchase that did not go through. Keep this
-        // separate from permission to fail over: ProviderFailoverPolicy still
-        // requires explicit operational allowlisting.
+        // Only a recognized business-level failed status in a valid HTTP response
+        // is treated as definitive. ProviderFailoverPolicy still requires allowlisting.
         $result['definitive_failure'] = $status === 'failed';
 
         return $result;
