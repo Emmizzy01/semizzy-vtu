@@ -82,6 +82,24 @@ Route::middleware('auth')->group(function (): void {
     Route::get('/dashboard', [DashboardController::class, 'customer'])->name('dashboard');
     Route::get('/security/transaction-pin', [TransactionPinController::class, 'show'])->name('security.transaction-pin');
     Route::put('/security/transaction-pin', [TransactionPinController::class, 'update'])->middleware('throttle:5,1')->name('security.transaction-pin.update');
+    Route::get('/wallet/transfer', fn () => Inertia::render('Services/ComingSoon', ['serviceName' => 'Wallet transfer']))->name('wallet.transfer');
+    Route::get('/account/referrals', fn () => Inertia::render('Services/ComingSoon', ['serviceName' => 'Refer & Earn']))->name('account.referrals');
+    Route::get('/services/coming-soon/{feature}', function (string $feature) {
+        $features = [
+            'internet' => 'Internet bills',
+            'water-bill' => 'Water Bill',
+            'betting' => 'Betting',
+            'education' => 'Education services',
+            'airtime-to-cash' => 'Airtime to Cash',
+            'e-pin' => 'E-PIN',
+            'bulk-sms' => 'Bulk SMS',
+            'gift-cards' => 'Gift Cards',
+            'flight' => 'Flight booking',
+            'gadget-catalogue' => 'Shop Gadgets',
+        ];
+        abort_unless(isset($features[$feature]), 404);
+        return Inertia::render('Services/ComingSoon', ['serviceName' => $features[$feature]]);
+    })->name('services.coming-soon');
     Route::get('/services', function (IntegrationSettings $settings) {
     $manualDepositFeature = PlatformFeatureControl::query()->where('feature_key', 'service.manual_deposit')->value('is_enabled');
     return Inertia::render('Services/Index', ['availability' => [
