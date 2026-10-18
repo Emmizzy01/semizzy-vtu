@@ -116,4 +116,50 @@ class PaymentRefundReconciliationTest extends TestCase
         $this->assertSame('review_required', $refund->fresh()->status);
         $this->assertNotSame('succeeded', $refund->fresh()->status);
     }
+
+    public function test_unavailable_provider_refund_lookup_keeps_refund_pending_for_retry(): void
+    {
+        config(['services.paystack.secret_key' => 'sk_test_refund_reconcile']);
+        Http::fake(['api.paystack.co/refund/123458' => Http::response([
+            'status' => false,
+            'message' => 'Temporary provider outage',
+        ], 503)]);
+
+        $user = User::query()->create([
+            'name' => 'Refund Unavailable Customer',
+            'email' => 'refund-unavailable@example.test',
+            'password' => 'test-password',
+        ]);
+        $wallet = app(WalletAccountService::class)->openForUser($user);
+        $intent = app(PaymentIntentService::class)->create($wallet, 10000, 'paystack');
+        $intent->forceFill([
+            'status' => 'paid',
+            'provider_transaction_id' => '987656',
+            'paid_at' => now(),
+        ])->save();
+
+        $refund = PaymentRefund::query()->create([
+            'public_id' => (string) \\Illuminate\\Support\\Str::uuid(),
+            'payment_intent_id' => $intent->id,
+            'requested_by_user_id' => $user->id,
+            'idempotency_key' => 'refund-reconcile-unavailable',
+            'amount_minor' => 2500,
+            'reason' => 'Provider unavailable test',
+            'status' => 'provider_pending',
+            'provider_refund_reference' => '123458',
+            'provider_status' => 'pending',
+            'metadata' => ['currency' => 'NGN'],
+            'created_at' => now()->subHour(),
+            'updated_at' => now()->subHour(),
+            'status_changed_at' => now()->subHour(),
+        ]);
+
+        $stats = app(PaymentRefundReconciliationService::class)->reconcile();
+
+        $this->assertSame(1, $stats['checked']);
+        $this->assertSame(1, $stats['unavailable']);
+        $this->assertSame('provider_pending', $refund->fresh()->status);
+        $this->assertSame('pending', $refund->fresh()->provider_status);
+        $this->assertSame(0, (int) $wallet->fresh()->balance_minor);
+    }
 }
