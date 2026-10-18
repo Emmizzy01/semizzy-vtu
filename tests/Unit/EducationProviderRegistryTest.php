@@ -13,7 +13,7 @@ class EducationProviderRegistryTest extends TestCase
     public function test_unregistered_provider_fails_closed_instead_of_falling_back_to_another_provider(): void
     {
         $product = new EducationServiceProduct([
-            'provider' => 'gsubz',
+            'provider' => 'not-registered-provider',
             'provider_product_code' => 'waec',
         ]);
 
