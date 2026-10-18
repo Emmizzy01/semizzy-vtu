@@ -215,4 +215,139 @@ class EducationOrderCoordinatorTest extends TestCase
         $this->assertDatabaseCount('wallet_ledger_entries', 1);
     }
 
+
+
+    public function test_reconciliation_confirmed_success_persists_delivery_payload_without_second_debit(): void
+    {
+        [$user, $product, $wallet] = $this->setupApprovedProduct('waec-coordinator-reconcile-success');
+        $provider = new class implements EducationProvider {
+            public int $submissions = 0;
+            public int $lookups = 0;
+            public function assertConfigured(): void {}
+            public function validateCandidate(EducationServiceProduct $product, array $candidate): array
+            {
+                return ['status' => 'valid'];
+            }
+            public function submit(string $orderReference, EducationServiceProduct $product, array $candidate): array
+            {
+                $this->submissions++;
+                return ['status' => 'unknown'];
+            }
+            public function lookup(string $orderReference, EducationServiceProduct $product): array
+            {
+                $this->lookups++;
+                return [
+                    'status' => 'success',
+                    'provider_reference' => 'confirmed-success-ref',
+                    'delivery_payload' => ['serial' => 'SERIAL-TEST-1', 'pin' => 'PIN-TEST-1'],
+                ];
+            }
+        };
+        app()->instance('education.providers.test-education', $provider);
+
+        $coordinator = app(EducationOrderCoordinator::class);
+        $order = $coordinator->purchase(
+            $user, $product->code, 'education-idem-reconcile-success', ['candidate_number' => '1234567890']
+        );
+        $this->assertSame('unknown', $order->status);
+
+        $reconciled = $coordinator->reconcile($order->fresh());
+        $this->assertSame('successful', $reconciled->status);
+        $this->assertSame('confirmed-success-ref', $reconciled->provider_reference);
+        $this->assertSame(['serial' => 'SERIAL-TEST-1', 'pin' => 'PIN-TEST-1'], $reconciled->provider_delivery_payload);
+        $this->assertSame(1, $provider->submissions, 'Reconciliation must never resubmit the purchase.');
+        $this->assertSame(1, $provider->lookups);
+        $this->assertSame(350000, (int) $wallet->fresh()->balance_minor);
+        $this->assertDatabaseCount('wallet_ledger_entries', 1);
+
+        $again = $coordinator->reconcile($reconciled);
+        $this->assertSame('successful', $again->status);
+        $this->assertSame(1, $provider->lookups, 'A terminal order must not be looked up again.');
+        $this->assertDatabaseCount('wallet_ledger_entries', 1);
+    }
+
+    public function test_reconciliation_confirmed_definitive_failure_refunds_once(): void
+    {
+        [$user, $product, $wallet] = $this->setupApprovedProduct('waec-coordinator-reconcile-failure');
+        $provider = new class implements EducationProvider {
+            public int $submissions = 0;
+            public int $lookups = 0;
+            public function assertConfigured(): void {}
+            public function validateCandidate(EducationServiceProduct $product, array $candidate): array
+            {
+                return ['status' => 'valid'];
+            }
+            public function submit(string $orderReference, EducationServiceProduct $product, array $candidate): array
+            {
+                $this->submissions++;
+                return ['status' => 'unknown'];
+            }
+            public function lookup(string $orderReference, EducationServiceProduct $product): array
+            {
+                $this->lookups++;
+                return ['status' => 'failed', 'message_code' => 'PROVIDER_CONFIRMED_FAILURE'];
+            }
+        };
+        app()->instance('education.providers.test-education', $provider);
+
+        $coordinator = app(EducationOrderCoordinator::class);
+        $order = $coordinator->purchase(
+            $user, $product->code, 'education-idem-reconcile-failure', ['candidate_number' => '1234567890']
+        );
+        $this->assertSame('unknown', $order->status);
+
+        $failed = $coordinator->reconcile($order->fresh());
+        $this->assertSame('failed', $failed->status);
+        $this->assertSame('PROVIDER_CONFIRMED_FAILURE', $failed->failure_code);
+        $this->assertSame(500000, (int) $wallet->fresh()->balance_minor);
+        $this->assertSame(1, WalletLedgerEntry::query()->count() - 1, 'Exactly one refund ledger entry must be added.');
+        $this->assertSame(1, WalletTransaction::query()->where('type', 'credit')->count());
+        $this->assertSame(1, $provider->submissions);
+
+        $again = $coordinator->reconcile($failed);
+        $this->assertSame('failed', $again->status);
+        $this->assertSame(1, $provider->lookups, 'A terminal order must not be looked up again.');
+        $this->assertSame(500000, (int) $wallet->fresh()->balance_minor);
+        $this->assertSame(1, WalletTransaction::query()->where('type', 'credit')->count());
+    }
+
+    public function test_temporary_lookup_exception_keeps_order_unknown_without_refund_or_resubmit(): void
+    {
+        [$user, $product, $wallet] = $this->setupApprovedProduct('waec-coordinator-lookup-exception');
+        $provider = new class implements EducationProvider {
+            public int $submissions = 0;
+            public int $lookups = 0;
+            public function assertConfigured(): void {}
+            public function validateCandidate(EducationServiceProduct $product, array $candidate): array
+            {
+                return ['status' => 'valid'];
+            }
+            public function submit(string $orderReference, EducationServiceProduct $product, array $candidate): array
+            {
+                $this->submissions++;
+                return ['status' => 'unknown'];
+            }
+            public function lookup(string $orderReference, EducationServiceProduct $product): array
+            {
+                $this->lookups++;
+                throw new \RuntimeException('Temporary provider lookup outage');
+            }
+        };
+        app()->instance('education.providers.test-education', $provider);
+
+        $coordinator = app(EducationOrderCoordinator::class);
+        $order = $coordinator->purchase(
+            $user, $product->code, 'education-idem-lookup-exception', ['candidate_number' => '1234567890']
+        );
+        $this->assertSame('unknown', $order->status);
+
+        $reconciled = $coordinator->reconcile($order->fresh());
+        $this->assertSame('unknown', $reconciled->status);
+        $this->assertSame(1, $provider->lookups);
+        $this->assertSame(1, $provider->submissions);
+        $this->assertSame(350000, (int) $wallet->fresh()->balance_minor);
+        $this->assertSame(1, WalletLedgerEntry::query()->count());
+        $this->assertSame(0, WalletTransaction::query()->where('type', 'credit')->count());
+    }
+
 }
