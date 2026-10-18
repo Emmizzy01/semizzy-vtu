@@ -8,6 +8,10 @@ return new class extends Migration
 {
     public function up(): void
     {
+        if (Schema::hasTable('streaming_subscription_products')) {
+            return;
+        }
+
         Schema::create('streaming_subscription_products', function (Blueprint $table): void {
             $table->id();
             $table->string('platform', 60);
