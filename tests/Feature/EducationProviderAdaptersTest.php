@@ -212,11 +212,15 @@ class EducationProviderAdaptersTest extends TestCase
     {
         $order = new EducationOrder();
         $order->provider_delivery_payload = ['pin' => 'TEST-EXAM-PIN-12345'];
+        $order->encrypted_candidate_details = ['profile_id' => 'TEST-CANDIDATE-12345'];
 
         $stored = (string) $order->getAttributes()['provider_delivery_payload'];
+        $storedCandidate = (string) $order->getAttributes()['encrypted_candidate_details'];
 
         $this->assertStringNotContainsString('TEST-EXAM-PIN-12345', $stored);
+        $this->assertStringNotContainsString('TEST-CANDIDATE-12345', $storedCandidate);
         $this->assertSame(['pin' => 'TEST-EXAM-PIN-12345'], $order->provider_delivery_payload);
+        $this->assertSame(['profile_id' => 'TEST-CANDIDATE-12345'], $order->encrypted_candidate_details);
     }
 
     public function test_dataway_education_remains_blocked_until_its_contract_is_verified(): void
