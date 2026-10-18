@@ -685,6 +685,72 @@ class VtuOrderWorkflowTest extends TestCase
         $this->assertDatabaseCount('wallet_transactions', 2);
     }
 
+    public function test_stale_recovery_dispatch_lease_is_reclaimed_after_fresh_not_found_lookup(): void
+    {
+        config([
+            'services.vtu.multi_provider.enabled' => true,
+            'services.vtu.sogo.base_url' => 'https://api.sogo.africa/v1',
+            'services.vtu.sogo.api_key' => 'sogo-test-key',
+        ]);
+
+        $submissionCount = 0;
+        Http::fake(function ($request) use (&$submissionCount) {
+            $path = (string) parse_url($request->url(), PHP_URL_PATH);
+
+            if (str_contains($path, '/transactions/')) {
+                return Http::response([], 404);
+            }
+
+            if (str_contains($path, '/bills/airtime')) {
+                $submissionCount++;
+                if ($submissionCount === 1) {
+                    throw new ConnectionException('Simulated original dispatch timeout.');
+                }
+
+                return Http::response([
+                    'data' => ['status' => 'completed', 'reference' => 'STALE-LEASE-RECOVERED'],
+                ], 200);
+            }
+
+            return Http::response(['status' => 'unknown'], 503);
+        });
+
+        [$user, $wallet, $product] = $this->preparedCustomer(1000, 1500);
+        $product->forceFill(['metadata' => ['provider_mappings' => [
+            'sogo' => ['network' => 'mtn'],
+        ]]])->save();
+
+        $service = app(VtuOrderService::class);
+        $order = $service->purchase($user, $product->code, '08012345678', 'stale-recovery-lease-1');
+        $this->assertSame('awaiting_reconciliation', $order->status);
+
+        $attempt = \App\Models\VtuProviderAttempt::query()
+            ->where('vtu_order_id', $order->getKey())
+            ->firstOrFail();
+        \Illuminate\Support\Facades\DB::table('vtu_provider_attempts')
+            ->where('id', $attempt->getKey())
+            ->update([
+                'outcome' => 'recovery_dispatching',
+                'updated_at' => now()->subMinutes(3),
+            ]);
+
+        $recovered = $service->reconcile($order->fresh());
+
+        $this->assertSame('successful', $recovered->status);
+        $this->assertSame(2, $submissionCount, 'Only the original dispatch and one lease-reclaimed resubmission are allowed.');
+        $this->assertSame(1, \App\Models\VtuProviderAttempt::query()
+            ->where('vtu_order_id', $order->getKey())->count());
+        $this->assertSame('success', $attempt->fresh()->outcome);
+        $this->assertSame(2, \App\Models\WalletTransaction::query()->count(), 'Lease recovery must not debit the wallet twice.');
+        $this->assertSame(500, (int) $wallet->fresh()->available_balance_minor);
+        Http::assertSent(fn ($request) => str_contains($request->url(), 'api.sogo.africa')
+            && $request->method() === 'GET'
+            && str_contains($request->url(), '/transactions/'.$order->public_id));
+        Http::assertSent(fn ($request) => str_contains($request->url(), 'api.sogo.africa')
+            && $request->method() === 'POST'
+            && $request->hasHeader('Idempotency-Key', $order->public_id));
+    }
+
     public function test_reserved_sogo_attempt_recovers_after_crash_only_on_explicit_not_found_signal(): void
     {
         config([
