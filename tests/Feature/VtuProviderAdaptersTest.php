@@ -159,11 +159,20 @@ class VtuProviderAdaptersTest extends TestCase
             ->push(['code' => '429', 'status' => 'failed', 'description' => 'TOO_MANY_REQUESTS'], 200)
             ->push(['code' => '500', 'status' => 'failed', 'description' => 'SERVER_ERROR'], 200)
             ->push(['code' => '502', 'status' => 'failed', 'description' => 'GATEWAY_ERROR'], 200)
+            ->push(['code' => '999', 'status' => 'failed', 'description' => 'UNKNOWN_ERROR'], 200)
+            ->push(['code' => '429', 'status' => 'failed', 'description' => 'TOO_MANY_REQUESTS'], 200)
+            ->push(['code' => '500', 'status' => 'failed', 'description' => 'SERVER_ERROR'], 200)
+            ->push(['code' => '502', 'status' => 'failed', 'description' => 'GATEWAY_ERROR'], 200)
             ->push(['code' => '999', 'status' => 'failed', 'description' => 'UNKNOWN_ERROR'], 200);
 
         $client = app(GsubzProviderClient::class);
         foreach (range(1, 4) as $_) {
             $result = $client->submit($this->order());
+            $this->assertSame('failed', $result['status']);
+            $this->assertFalse($result['definitive_failure']);
+        }
+        foreach (range(1, 4) as $_) {
+            $result = $client->lookup($this->order());
             $this->assertSame('failed', $result['status']);
             $this->assertFalse($result['definitive_failure']);
         }
