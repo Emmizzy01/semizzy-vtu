@@ -9,6 +9,9 @@ type Provider = {
   configured: boolean;
   environment: string;
   baseHost: string | null;
+  baseUrl: string;
+  allowedBaseUrls: string[];
+  apiKeyConfigured: boolean;
   catalogueImportSupported: boolean;
   purchaseRoutingEnabled: boolean;
   purchaseHold: boolean;
@@ -24,8 +27,24 @@ export default function ApiProviders({ providers, failoverEnabled, routingEnable
 }) {
   const [category, setCategory] = useState<Record<string, string>>({ sogo: 'data', gsubz: 'data', dataway: 'data' });
   const [reason, setReason] = useState<Record<string, string>>({});
+  const [credentials, setCredentials] = useState<Record<string, { base_url: string; api_key: string; reason: string }>>(() => Object.fromEntries(providers.filter(p => p.catalogueImportSupported).map(p => [p.key, { base_url: p.baseUrl || p.allowedBaseUrls[0] || '', api_key: '', reason: '' }])));
   const [busy, setBusy] = useState('');
   const [error, setError] = useState('');
+
+  const saveCredentials = (provider: Provider) => {
+    const draft = credentials[provider.key] || { base_url: provider.allowedBaseUrls[0] || '', api_key: '', reason: '' };
+    if (draft.reason.trim().length < 8) {
+      setError('Enter an audit reason of at least 8 characters before saving provider settings.');
+      return;
+    }
+    setError('');
+    setBusy(provider.key + ':credentials');
+    router.put('/admin/api-providers/' + provider.key + '/credentials', draft, {
+      preserveScroll: true,
+      onFinish: () => setBusy(''),
+      onSuccess: () => setCredentials(old => ({ ...old, [provider.key]: { ...draft, api_key: '' } })),
+    });
+  };
 
   const importCatalogue = (provider: Provider) => {
     if ((reason[provider.key] || '').trim().length < 8) {
@@ -80,6 +99,26 @@ export default function ApiProviders({ providers, failoverEnabled, routingEnable
                 <Status label="Catalogue import" value={provider.catalogueImportSupported ? 'Available' : 'Held'} />
                 <Status label="Customer purchase routing" value={provider.purchaseRoutingEnabled ? 'Enabled' : 'Not enabled'} />
               </div>
+              {provider.catalogueImportSupported && (
+                <div className="mt-5 space-y-3 rounded-2xl border border-[var(--line)] p-4">
+                  <div className="flex items-center gap-2 text-sm font-bold"><LockKeyhole size={17} /> Secure provider credentials</div>
+                  <label className="block text-xs font-semibold text-[var(--muted)]">Official HTTPS endpoint
+                    <select value={(credentials[provider.key]?.base_url || provider.baseUrl || provider.allowedBaseUrls[0])} onChange={e => setCredentials(old => ({ ...old, [provider.key]: { ...(old[provider.key] || { base_url: '', api_key: '', reason: '' }), base_url: e.target.value } }))} className="mt-1 w-full rounded-xl border border-[var(--line)] bg-transparent px-3 py-2.5 text-sm text-[var(--foreground)]">
+                      {provider.allowedBaseUrls.map(url => <option key={url} value={url}>{url}</option>)}
+                    </select>
+                  </label>
+                  <label className="block text-xs font-semibold text-[var(--muted)]">API key / secret
+                    <input type="password" autoComplete="new-password" value={credentials[provider.key]?.api_key || ''} onChange={e => setCredentials(old => ({ ...old, [provider.key]: { ...(old[provider.key] || { base_url: provider.baseUrl, api_key: '', reason: '' }), api_key: e.target.value } }))} placeholder={provider.apiKeyConfigured ? 'Key already saved — leave blank to keep it' : 'Enter provider API key'} className="mt-1 w-full rounded-xl border border-[var(--line)] bg-transparent px-3 py-2.5 text-sm text-[var(--foreground)]" />
+                  </label>
+                  <label className="block text-xs font-semibold text-[var(--muted)]">Audit reason
+                    <input value={credentials[provider.key]?.reason || ''} onChange={e => setCredentials(old => ({ ...old, [provider.key]: { ...(old[provider.key] || { base_url: provider.baseUrl, api_key: '', reason: '' }), reason: e.target.value } }))} placeholder="Why are you updating this provider?" className="mt-1 w-full rounded-xl border border-[var(--line)] bg-transparent px-3 py-2.5 text-sm text-[var(--foreground)]" />
+                  </label>
+                  <button type="button" disabled={busy !== ''} onClick={() => saveCredentials(provider)} className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-xl border border-[var(--line)] px-4 py-2 text-sm font-bold disabled:opacity-50">
+                    <LockKeyhole size={15} />{busy === provider.key + ':credentials' ? 'Saving securely…' : 'Save provider credentials'}
+                  </button>
+                  <p className="text-xs leading-5 text-[var(--muted)]">Secrets are stored server-side and never returned to this page. Saving credentials enables catalogue reads only; it does not enable customer purchases or automatic failover.</p>
+                </div>
+              )}
               {provider.catalogueImportSupported && (
                 <div className="mt-5 space-y-3 rounded-2xl border border-[var(--line)] p-4">
                   <div className="flex items-center gap-2 text-sm font-bold"><Download size={17} /> Import services / products</div>
