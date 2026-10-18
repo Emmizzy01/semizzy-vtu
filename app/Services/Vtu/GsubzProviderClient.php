@@ -20,7 +20,7 @@ class GsubzProviderClient extends AbstractMappedVtuProvider
         $product = $this->orderProduct($order);
         $mapping = $this->mapping($product);
         $payload = [
-            'api' => (string) config('services.vtu.gsubz.api_key'),
+            'api' => $this->apiKey(),
             'serviceID' => $mapping['network'],
             'phone' => $order->recipient,
             'requestID' => $order->public_id,
