@@ -177,6 +177,7 @@ Route::middleware(['auth', 'can:staff.permissions.manage'])->prefix('admin')->na
     Route::put('/payment-gateway', [IntegrationSettingsController::class, 'updatePaymentGateway'])->name('payment-gateway.update');
     Route::get('/storefront-commissions', [StorefrontCommissionController::class, 'index'])->middleware('throttle:30,1')->name('storefront-commissions.index');
     Route::post('/provider-catalogue/{provider}/import', [\App\Http\Controllers\Admin\ProviderCatalogueImportController::class, 'import'])->whereIn('provider', ['sogo', 'gsubz', 'dataway'])->middleware('throttle:3,1')->name('provider-catalogue.import');
+    Route::put('/api-providers/{provider}/credentials', [IntegrationSettingsController::class, 'saveProviderCredentials'])->whereIn('provider', ['sogo', 'gsubz', 'dataway'])->middleware('throttle:10,1')->name('api-providers.credentials');
     Route::get('/api-providers', [IntegrationSettingsController::class, 'apiProviders'])->name('api-providers');
     Route::put('/api-providers', [IntegrationSettingsController::class, 'updateApiProviders'])->name('api-providers.update');
     Route::put('/storefronts/{storefront}/commission-rate', [StorefrontCommissionController::class, 'updateRate'])->middleware('throttle:10,1')->name('storefronts.commission-rate.update');
