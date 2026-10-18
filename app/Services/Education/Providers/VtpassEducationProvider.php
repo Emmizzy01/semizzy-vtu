@@ -2,6 +2,7 @@
 
 namespace App\Services\Education\Providers;
 
+use App\Models\EducationOrder;
 use App\Models\EducationServiceProduct;
 use App\Services\Education\EducationProvider;
 use Illuminate\Http\Client\ConnectionException;
@@ -93,9 +94,18 @@ final class VtpassEducationProvider implements EducationProvider
 
     private function requestId(string $orderReference): string
     {
-        // Deterministic per order so submit and requery always use the same ID.
-        // Activation stays disabled until VTpass account tests confirm this ID format.
-        return 'EDU'.strtoupper(substr(hash('sha256', $orderReference), 0, 29));
+        // VTpass requires YYYYMMDDHHII in the first 12 characters, in Africa/Lagos time.
+        // Read the timestamp reserved before network submission so later requery calls
+        // reproduce the exact same request_id even if recovery runs days later.
+        $order = EducationOrder::query()->where('public_id', $orderReference)->first();
+        $timestamp = $order?->dispatch_started_at ?? $order?->created_at;
+
+        if ($timestamp === null) {
+            throw new LogicException('VTpass education requires a persisted order timestamp before submission or lookup.');
+        }
+
+        return $timestamp->copy()->timezone('Africa/Lagos')->format('YmdHi')
+            .strtoupper(substr(hash('sha256', $orderReference), 0, 20));
     }
 
     /** @param array<string,mixed> $body */
