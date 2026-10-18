@@ -33,6 +33,7 @@ use App\Http\Controllers\Payments\PaymentRefundController;
 use App\Http\Controllers\Vtu\VtuOrderController;
 use App\Http\Controllers\Vtu\VtuBillerVerificationController;
 use App\Http\Controllers\Kyc\KycSubmissionController;
+use App\Http\Controllers\VtuWebsiteRequestController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -80,6 +81,8 @@ Route::middleware('auth')->group(function (): void {
     Route::put('/profile', [ProfileController::class, 'update'])->middleware('throttle:10,1')->name('profile.update');
     Route::put('/profile/password', [ProfileController::class, 'updatePassword'])->middleware('throttle:5,1')->name('profile.password.update');
     Route::get('/dashboard', [DashboardController::class, 'customer'])->name('dashboard');
+    Route::get('/service-requests/vtu-website', [VtuWebsiteRequestController::class, 'index'])->name('vtu-website-requests.index');
+    Route::post('/service-requests/vtu-website', [VtuWebsiteRequestController::class, 'store'])->middleware('throttle:5,1')->name('vtu-website-requests.store');
     Route::get('/security/transaction-pin', [TransactionPinController::class, 'show'])->name('security.transaction-pin');
     Route::put('/security/transaction-pin', [TransactionPinController::class, 'update'])->middleware('throttle:5,1')->name('security.transaction-pin.update');
     Route::get('/wallet/transfer', fn () => Inertia::render('Services/ComingSoon', ['serviceName' => 'Wallet transfer']))->name('wallet.transfer');
@@ -145,6 +148,8 @@ Route::put('/admin/platform-theme', [PlatformSettingsController::class, 'updateT
 Route::middleware(['auth', 'can:staff.permissions.manage'])->prefix('admin')->name('admin.')->group(function (): void {
     Route::get('/search', GlobalSearchController::class)->middleware('throttle:30,1')->name('search');
     Route::get('/support', [SupportTicketOperationsController::class, 'index'])->middleware('throttle:30,1')->name('support.index');
+    Route::get('/vtu-website-requests', [VtuWebsiteRequestController::class, 'adminIndex'])->middleware('throttle:30,1')->name('vtu-website-requests.index');
+    Route::put('/vtu-website-requests/{websiteRequest}/status', [VtuWebsiteRequestController::class, 'updateStatus'])->middleware('throttle:10,1')->name('vtu-website-requests.status');
     Route::post('/support/{ticket}/reply', [SupportTicketOperationsController::class, 'reply'])->middleware('throttle:10,1')->name('support.reply');
     Route::put('/support/{ticket}/status', [SupportTicketOperationsController::class, 'updateStatus'])->middleware('throttle:20,1')->name('support.status');
     Route::get('/feature-controls', [FeatureControlController::class, 'index'])->name('feature-controls.index');
