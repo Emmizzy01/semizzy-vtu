@@ -228,4 +228,42 @@ class ManualDepositWorkflowTest extends TestCase
         $this->actingAs($user)->get('/admin/manual-deposits')->assertForbidden();
         $this->actingAs($user)->get('/admin/manual-deposits/settings')->assertForbidden();
     }
+
+    public function test_admin_cannot_approve_own_manual_deposit_even_after_viewing_evidence(): void
+    {
+        Storage::fake('local');
+        $actor = User::query()->create([
+            'name' => 'Self Review Admin',
+            'email' => 'self-review-admin@example.test',
+            'password' => 'not-a-real-password',
+        ]);
+        UserPermission::query()->create([
+            'user_id' => $actor->id,
+            'permission' => 'staff.permissions.manage',
+        ]);
+        $wallet = app(WalletAccountService::class)->openForUser($actor);
+        $path = UploadedFile::fake()->image('self-deposit-proof.png')->store('manual-deposits', 'local');
+        $deposit = ManualDeposit::query()->create([
+            'public_id' => 'c7c6a2a0-76d3-4a2e-9a12-0f0ad0e90001',
+            'user_id' => $actor->id,
+            'wallet_id' => $wallet->id,
+            'amount_minor' => 12500,
+            'transfer_reference' => 'SELF-REVIEW-TRANSFER-0001',
+            'evidence_path' => $path,
+            'evidence_sha256' => hash_file('sha256', Storage::disk('local')->path($path)),
+            'status' => 'pending',
+            'idempotency_key' => 'manual-deposit:self-review-0001',
+        ]);
+
+        $this->actingAs($actor)->get('/admin/manual-deposits/'.$deposit->public_id.'/evidence')->assertOk();
+        $this->actingAs($actor)->post('/admin/manual-deposits/'.$deposit->public_id.'/review', [
+            'decision' => 'approve',
+            'reason' => 'I reviewed my own transfer',
+        ])->assertForbidden();
+
+        $this->assertDatabaseHas('manual_deposits', ['id' => $deposit->id, 'status' => 'pending']);
+        $this->assertSame(0, (int) $wallet->fresh()->balance_minor);
+        $this->assertDatabaseCount('wallet_transactions', 0);
+        $this->assertDatabaseCount('wallet_ledger_entries', 0);
+    }
 }
