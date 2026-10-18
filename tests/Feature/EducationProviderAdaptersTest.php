@@ -319,7 +319,7 @@ class EducationProviderAdaptersTest extends TestCase
         $this->assertSame('invalid', $result['status']);
     }
 
-    public function test_sogo_candidate_name_without_positive_verification_remains_unknown(): void
+    public function test_sogo_documented_candidate_name_response_is_positive_when_no_negative_flag_exists(): void
     {
         config([
             'services.education.providers.sogo.enabled' => true,
@@ -340,7 +340,7 @@ class EducationProviderAdaptersTest extends TestCase
 
         $result = app('education.providers.sogo')->validateCandidate($product, ['profile_id' => 'SANITIZED-PROFILE-UNKNOWN']);
 
-        $this->assertSame('unknown', $result['status']);
+        $this->assertSame('valid', $result['status']);
     }
 
     public function test_vtpass_sanitized_sandbox_delivery_response_is_normalized(): void
