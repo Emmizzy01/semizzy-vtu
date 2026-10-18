@@ -30,11 +30,14 @@ class DatawayProviderClient extends AbstractMappedVtuProvider
             ];
             $path = '/airtime/purchase/';
         } else {
-            if (! is_numeric($mapping['product_id'])) {
-                throw new LogicException('Dataway data mapping requires a verified numeric product_id.');
+            $productId = filter_var($mapping['product_id'], FILTER_VALIDATE_INT, [
+                'options' => ['min_range' => 1],
+            ]);
+            if ($productId === false) {
+                throw new LogicException('Dataway data mapping requires a verified positive integer product_id.');
             }
             $payload = [
-                'product_id' => (int) $mapping['product_id'],
+                'product_id' => $productId,
                 'phone' => $order->recipient,
                 'reference' => $order->public_id,
             ];
