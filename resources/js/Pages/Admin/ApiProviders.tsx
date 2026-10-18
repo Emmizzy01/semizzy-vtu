@@ -1,5 +1,6 @@
 import { ArrowLeft, CircleCheck, CircleX, LockKeyhole, PlugZap, ShieldCheck } from 'lucide-react';
 import { Head, useForm } from '@inertiajs/react';
+import DashboardLayout from '../../Components/DashboardLayout';
 
 type Provider = {
   isolated: boolean;
@@ -23,7 +24,7 @@ export default function ApiProviders({ provider }: { provider: Provider }) {
   });
 
   return (
-    <>
+    <DashboardLayout title="API providers" description="Review provider configuration and transaction-readiness status." admin>
       <Head title="API Providers" />
       <main className="mx-auto max-w-7xl px-4 py-7 sm:px-6 sm:py-9 lg:px-8">
         <a href="/admin/dashboard" className="inline-flex min-h-10 items-center gap-2 text-sm font-semibold text-[var(--muted)] hover:text-[var(--brand)]"><ArrowLeft size={16} /> Admin overview</a>
@@ -66,7 +67,7 @@ export default function ApiProviders({ provider }: { provider: Provider }) {
           </>
         )}
       </main>
-    </>
+    </DashboardLayout>
   );
 }
 
