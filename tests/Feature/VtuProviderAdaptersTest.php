@@ -148,6 +148,7 @@ class VtuProviderAdaptersTest extends TestCase
         $result = app(GsubzProviderClient::class)->submit($this->order());
 
         $this->assertSame('failed', $result['status']);
+        $this->assertTrue($result['definitive_failure'], 'GSUBZ documents a successful HTTP response with status=failed as a purchase that did not go through.');
         Http::assertSent(fn ($request) => str_ends_with($request->url(), '/api/pay/')
             && $request['requestID'] === '550e8400-e29b-41d4-a716-446655440000');
     }
@@ -175,7 +176,9 @@ class VtuProviderAdaptersTest extends TestCase
         $failure = $client->lookup($order);
 
         $this->assertSame('success', $success['status']);
+        $this->assertFalse($success['definitive_failure']);
         $this->assertSame('failed', $failure['status']);
+        $this->assertTrue($failure['definitive_failure'], 'Verified GSUBZ status=failed is the documented final non-delivery outcome.');
         Http::assertSent(fn ($request) => str_ends_with($request->url(), '/api/verify/')
             && $request->method() === 'POST'
             && $request['requestID'] === $order->public_id
