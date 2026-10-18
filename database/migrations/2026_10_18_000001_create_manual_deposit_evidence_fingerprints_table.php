@@ -11,7 +11,9 @@ return new class extends Migration
     {
         Schema::create('manual_deposit_evidence_fingerprints', function (Blueprint $table): void {
             $table->char('evidence_sha256', 64)->primary();
-            $table->foreignId('first_manual_deposit_id')->nullable()->constrained('manual_deposits')->nullOnDelete();
+            $table->unsignedBigInteger('first_manual_deposit_id')->nullable();
+            $table->foreign('first_manual_deposit_id', 'md_evidence_first_deposit_fk')
+                ->references('id')->on('manual_deposits')->nullOnDelete();
             $table->timestamps();
         });
 
