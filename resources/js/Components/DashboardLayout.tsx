@@ -20,7 +20,7 @@ type DashboardLayoutProps = {
   walletBalanceVisible?: boolean;
   onToggleWalletBalance?: () => void;
 };
-type NavItem = { label: string; href: string; icon: typeof LayoutDashboard; match?: string };
+type NavItem = { label: string; href: string; icon: typeof LayoutDashboard; match?: string; emoji?: string };
 
 export default function DashboardLayout({ title, description, admin = false, children, customerPreview = false, walletBalance = null, walletBalanceVisible = true, onToggleWalletBalance }: DashboardLayoutProps) {
   const { platform, auth } = usePage<{ platform?: { name?: string; theme_mode?: 'light' | 'dark' }; auth?: { user?: { name?: string; email?: string; tier?: string; level?: string; user_level?: string; user_type?: string; avatar_url?: string | null; avatarUrl?: string | null } | null } }>().props;
@@ -58,11 +58,11 @@ export default function DashboardLayout({ title, description, admin = false, chi
     { label: 'Transactions', href: (customerPreview ? '/customer/dashboard' : '/dashboard') + '#activity', icon: Activity, match: '#activity' },
   ];
   const customerFooter: NavItem[] = [
-    { label: 'Home', href: customerPreview ? '/customer/dashboard' : '/dashboard', icon: LayoutDashboard },
-    { label: 'Orders', href: (customerPreview ? '/customer/dashboard' : '/dashboard') + '#orders', icon: Package, match: '#orders' },
-    { label: 'Wallet', href: (customerPreview ? '/customer/dashboard' : '/dashboard') + '#wallet', icon: WalletCards, match: '#wallet' },
-    { label: 'Support', href: '/support', icon: LifeBuoy },
-    { label: 'Profile', href: '/profile', icon: UserRound },
+    { label: 'Home', href: customerPreview ? '/customer/dashboard' : '/dashboard', icon: LayoutDashboard, emoji: '🏠' },
+    { label: 'Orders', href: (customerPreview ? '/customer/dashboard' : '/dashboard') + '#orders', icon: Package, match: '#orders', emoji: '📜' },
+    { label: 'Wallet', href: (customerPreview ? '/customer/dashboard' : '/dashboard') + '#wallet', icon: WalletCards, match: '#wallet', emoji: '👛' },
+    { label: 'Support', href: '/support', icon: LifeBuoy, emoji: '🎧' },
+    { label: 'Profile', href: '/profile', icon: UserRound, emoji: '👤' },
   ];
   const adminGroups: { title: string; items: NavItem[] }[] = [
     { title: 'Workspace', items: [{ label: 'Admin Dashboard', href: '/admin/dashboard', icon: LayoutDashboard }] },
@@ -108,7 +108,7 @@ export default function DashboardLayout({ title, description, admin = false, chi
       className={compact
         ? `flex min-h-[58px] min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-1 text-[10px] ${selected ? 'font-bold text-[#0f8a4f]' : 'text-gray-400'}`
         : `flex min-h-11 items-center gap-3 rounded-lg p-2.5 text-[13px] transition ${selected ? 'bg-[#0f8a4f]/10 font-bold text-[#0f8a4f]' : 'text-gray-600 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-slate-800'}`}>
-      <Icon size={compact ? 19 : 18} aria-hidden="true" /><span className={compact ? 'truncate' : 'min-w-0 flex-1'}>{item.label}</span>
+      {compact ? <span aria-hidden="true" className="text-[18px] leading-5">{item.emoji}</span> : <Icon size={18} aria-hidden="true" />}<span className={compact ? 'truncate' : 'min-w-0 flex-1'}>{item.label}</span>
     </a>;
   };
 
@@ -117,7 +117,7 @@ export default function DashboardLayout({ title, description, admin = false, chi
     <main className="min-h-screen bg-[#eef4ef] pb-20 text-gray-900 dark:bg-[#0f1f17] dark:text-gray-100">
       <header className="sticky top-0 z-40 border-b border-black/5 bg-white/95 backdrop-blur dark:border-white/10 dark:bg-slate-950/95">
         <div className={`mx-auto flex ${admin ? "max-w-[1400px]" : "max-w-[1200px]"} items-center justify-between gap-3 px-4 py-3 sm:px-6`}>
-          <a href={admin ? '/admin/dashboard' : customerPreview ? '/customer/dashboard' : '/dashboard'} className="flex min-w-0 items-center gap-2 font-bold text-xl lg:hidden">
+          <a href={admin ? '/admin/dashboard' : customerPreview ? '/customer/dashboard' : '/dashboard'} className={`flex min-w-0 items-center gap-2 font-bold text-xl ${admin ? 'lg:hidden' : 'md:hidden'}`}>
             <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[#0f8a4f] text-sm text-white">S</span>
             <span className="truncate">{platformName}</span>
             {admin && <span className="hidden rounded-full bg-[#0f8a4f]/10 px-2 py-1 text-[10px] font-bold text-[#0f8a4f] sm:inline">ADMIN</span>}
@@ -129,15 +129,15 @@ export default function DashboardLayout({ title, description, admin = false, chi
             </a>}
             {admin && <form action="/admin/search" method="get" className="hidden md:block"><label className="flex h-9 items-center gap-2 rounded-lg border px-3 text-xs text-gray-500"><Search size={14}/><input name="q" minLength={2} maxLength={100} required placeholder="Search admin records" className="w-36 bg-transparent outline-none lg:w-52"/><button type="submit" className="font-bold text-[#0f8a4f]">Search</button></label></form>}
             <form method="post" action="/logout"><input type="hidden" name="_token" value={typeof document === 'undefined' ? '' : (document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ?? '')}/><button type="submit" aria-label="Sign out" className="grid h-9 w-9 place-items-center rounded-full text-gray-500 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-slate-800"><LogOut size={17}/></button></form>
-            <button type="button" onClick={() => setMenuOpen(v => !v)} aria-label={menuOpen ? 'Close navigation menu' : 'Open navigation menu'} aria-expanded={menuOpen} className="grid h-10 w-10 place-items-center rounded-lg border lg:hidden">{menuOpen ? <X size={19}/> : <Menu size={19}/>}</button>
+            <button type="button" onClick={() => setMenuOpen(v => !v)} aria-label={menuOpen ? 'Close navigation menu' : 'Open navigation menu'} aria-expanded={menuOpen} className={`grid h-10 w-10 place-items-center rounded-lg border ${admin ? 'lg:hidden' : 'md:hidden'}`}>{menuOpen ? <X size={19}/> : <Menu size={19}/>}</button>
           </div>
         </div>
       </header>
       {menuOpen && <nav aria-label="Mobile menu" className="border-b bg-white px-4 py-3 dark:border-white/10 dark:bg-slate-950 lg:hidden"><div className="mx-auto grid max-w-7xl gap-1">
         {admin ? adminGroups.map(group => <section key={group.title} className="py-1"><p className="px-3 pb-1 text-[10px] font-bold uppercase tracking-wider text-gray-400">{group.title}</p>{group.items.map(item => link(item))}</section>) : customerItems.map(item => link(item))}
       </div></nav>}
-      <div className={`mx-auto grid ${admin ? "max-w-[1400px]" : "max-w-[1200px]"} lg:grid-cols-[260px_minmax(0,1fr)]`}>
-        <aside className="sticky top-[65px] hidden h-[calc(100vh-65px)] overflow-y-auto border-r border-black/5 bg-white p-6 dark:border-white/10 dark:bg-slate-950 lg:block">
+      <div className={`mx-auto grid ${admin ? "max-w-[1400px] lg:grid-cols-[260px_minmax(0,1fr)]" : "max-w-[1200px] md:grid-cols-[260px_minmax(0,1fr)]"}`}>
+        <aside className={`sticky top-[65px] hidden h-[calc(100vh-65px)] overflow-y-auto border-r border-black/5 bg-white p-6 dark:border-white/10 dark:bg-slate-950 ${admin ? 'lg:block' : 'md:block'}`}>
           <a href={admin ? '/admin/dashboard' : customerPreview ? '/customer/dashboard' : '/dashboard'} className="mb-6 flex items-center gap-2 font-bold text-xl"><span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[#0f8a4f] text-sm text-white">S</span><span className="truncate">{platformName}</span>{admin && <span className="rounded-full bg-[#0f8a4f]/10 px-2 py-1 text-[10px] font-bold text-[#0f8a4f]">ADMIN</span>}</a>
           {!admin && <div className="mb-6"><section aria-label="Wallet summary" className="mb-6 rounded-xl bg-gradient-to-br from-[#0e7a44] to-[#0a5c32] p-4 text-white"><p className="text-xs text-white/80">Wallet Balance</p><div className="mt-1 flex items-center gap-2"><p className="min-w-0 flex-1 break-words text-lg font-extrabold">{walletBalance ? (walletBalanceVisible ? walletBalance : "••••••") : "—"}</p>{walletBalance && onToggleWalletBalance && <button type="button" onClick={onToggleWalletBalance} aria-label={walletBalanceVisible ? "Hide wallet balance" : "Show wallet balance"} className="grid h-8 w-8 shrink-0 place-items-center rounded-full hover:bg-white/10">{walletBalanceVisible ? <EyeOff size={16}/> : <Eye size={16}/>}</button>}</div><div className="mt-3 flex gap-2"><a href="/wallet/manual-deposits" className="flex min-h-9 flex-1 items-center justify-center rounded-lg bg-white px-2 py-2 text-[11px] font-extrabold text-[#0a5c32]">Fund Wallet</a><a href="/wallet/transfer" className="flex min-h-9 flex-1 items-center justify-center rounded-lg bg-[#12a15a] px-2 py-2 text-[11px] font-extrabold text-white">Transfer</a></div></section><p className="mb-3 text-[10px] font-bold uppercase tracking-wider text-gray-400">Your account</p><nav className="space-y-1">{customerItems.map(item => link(item))}</nav><div className="mt-6 rounded-xl bg-[#eef4ef] p-3 text-xs text-gray-500 dark:bg-slate-800 dark:text-gray-300">Need help? <a href="/support" className="font-bold text-[#0f8a4f]">Contact support</a></div></div>}
           {admin && adminGroups.map(group => <section key={group.title} className="mb-6"><p className="mb-2 px-3 text-[10px] font-bold uppercase tracking-wider text-gray-400">{group.title}</p><nav className="space-y-1">{group.items.map(item => link(item))}</nav></section>)}
@@ -147,7 +147,7 @@ export default function DashboardLayout({ title, description, admin = false, chi
           {children}
         </section>
       </div>
-      {!admin && <nav aria-label="Main navigation" className="fixed inset-x-0 bottom-0 z-50 flex h-[72px] items-center justify-around border-t border-black/5 bg-white px-2 pb-[env(safe-area-inset-bottom)] dark:border-white/10 dark:bg-slate-950">
+      {!admin && <nav aria-label="Main navigation" className="fixed inset-x-0 bottom-0 z-50 flex h-[72px] items-center justify-around border-t border-black/5 bg-white px-2 pb-[env(safe-area-inset-bottom)] dark:border-white/10 dark:bg-slate-950 md:hidden">
         {customerFooter.map(item => link(item, true))}
       </nav>}
     </main>
