@@ -370,8 +370,9 @@ class EducationProviderAdaptersTest extends TestCase
             'requires_candidate_validation' => false,
         ]);
 
+        $order = $this->createVtpassOrderReference();
         $result = app('education.providers.vtpass')->submit(
-            'education-order-vtpass-sandbox-001',
+            $order->public_id,
             $product,
             ['phone' => '08030000000'],
         );
@@ -379,9 +380,12 @@ class EducationProviderAdaptersTest extends TestCase
         $this->assertSame('success', $result['status']);
         $this->assertSame('SANDBOX-VTPASS-EDU-001', $result['provider_reference']);
         $this->assertSame('SANITIZED-VTPASS-PIN', $result['delivery_payload']['purchased_code']);
+        $expectedRequestId = $order->dispatch_started_at->copy()->timezone('Africa/Lagos')->format('YmdHi')
+            .strtoupper(substr(hash('sha256', $order->public_id), 0, 20));
         Http::assertSent(fn ($request) => str_ends_with($request->url(), '/pay')
             && ($request['serviceID'] ?? null) === 'waec'
-            && isset($request['request_id']));
+            && ($request['request_id'] ?? null) === $expectedRequestId
+            && preg_match('/^\\d{12}[A-F0-9]{20}$/', (string) ($request['request_id'] ?? '')) === 1);
     }
 
     public function test_gsubz_lookup_uses_verify_endpoint_and_returns_sanitized_pin_payload(): void
@@ -466,13 +470,34 @@ class EducationProviderAdaptersTest extends TestCase
             'requires_candidate_validation' => false,
         ]);
 
-        $result = app('education.providers.vtpass')->lookup('education-order-vtpass-lookup-001', $product);
+        $order = $this->createVtpassOrderReference();
+        $result = app('education.providers.vtpass')->lookup($order->public_id, $product);
 
         $this->assertSame('success', $result['status']);
         $this->assertSame('SANITIZED-VTPASS-LOOKUP-PIN', $result['delivery_payload']['purchased_code']);
-        $expectedRequestId = 'EDU'.strtoupper(substr(hash('sha256', 'education-order-vtpass-lookup-001'), 0, 29));
+        $expectedRequestId = $order->dispatch_started_at->copy()->timezone('Africa/Lagos')->format('YmdHi')
+            .strtoupper(substr(hash('sha256', $order->public_id), 0, 20));
         Http::assertSent(fn ($request) => str_ends_with($request->url(), '/requery')
-            && ($request['request_id'] ?? null) === $expectedRequestId);
+            && ($request['request_id'] ?? null) === $expectedRequestId
+            && preg_match('/^\\d{12}[A-F0-9]{20}$/', (string) ($request['request_id'] ?? '')) === 1);
+    }
+
+    private function createVtpassOrderReference(): EducationOrder
+    {
+        return EducationOrder::query()->create([
+            'public_id' => (string) Str::uuid(),
+            'user_id' => 1,
+            'wallet_id' => 1,
+            'education_service_product_id' => 1,
+            'idempotency_key' => 'vtpass-test-'.Str::uuid(),
+            'request_hash' => hash('sha256', (string) Str::uuid()),
+            'provider' => 'vtpass',
+            'status' => 'processing',
+            'amount_minor' => 350000,
+            'currency' => 'NGN',
+            'candidate_details' => [],
+            'dispatch_started_at' => now(),
+        ]);
     }
 
 }
