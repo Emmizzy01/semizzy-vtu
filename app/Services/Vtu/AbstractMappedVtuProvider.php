@@ -5,6 +5,7 @@ namespace App\Services\Vtu;
 use App\Models\VtuOrder;
 use App\Models\VtuProduct;
 use App\Services\IntegrationSettings;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Support\Facades\Http;
 use LogicException;
