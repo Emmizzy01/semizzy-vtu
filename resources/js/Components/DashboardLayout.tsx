@@ -4,7 +4,7 @@ import ThemeToggle from './ThemeToggle';
 import { applyThemePreference } from './theme';
 import {
   Activity, ArrowLeftRight, CreditCard, Landmark, LayoutDashboard, LifeBuoy,
-  LogOut, Menu, Package, PlugZap, Search, ShieldCheck, Smartphone, SlidersHorizontal,
+  Eye, EyeOff, LogOut, Menu, Package, PlugZap, Search, ShieldCheck, Smartphone, SlidersHorizontal,
   Tv, UserRound, Users, WalletCards, Wifi, X, Zap,
 } from 'lucide-react';
 
@@ -16,10 +16,13 @@ type DashboardLayoutProps = {
   canManageStaff?: boolean;
   canApproveRefunds?: boolean;
   customerPreview?: boolean;
+  walletBalance?: string | null;
+  walletBalanceVisible?: boolean;
+  onToggleWalletBalance?: () => void;
 };
 type NavItem = { label: string; href: string; icon: typeof LayoutDashboard; match?: string };
 
-export default function DashboardLayout({ title, description, admin = false, children, customerPreview = false }: DashboardLayoutProps) {
+export default function DashboardLayout({ title, description, admin = false, children, customerPreview = false, walletBalance = null, walletBalanceVisible = true, onToggleWalletBalance }: DashboardLayoutProps) {
   const { platform, auth } = usePage<{ platform?: { name?: string; theme_mode?: 'light' | 'dark' }; auth?: { user?: { name?: string; email?: string; tier?: string; level?: string; user_level?: string; user_type?: string; avatar_url?: string | null; avatarUrl?: string | null } | null } }>().props;
   const currentUser = auth?.user;
   const userName = currentUser?.name?.trim() || 'Semizzy user';
@@ -128,7 +131,7 @@ export default function DashboardLayout({ title, description, admin = false, chi
       <div className="mx-auto grid max-w-[1600px] lg:grid-cols-[260px_minmax(0,1fr)]">
         <aside className="sticky top-[65px] hidden h-[calc(100vh-65px)] overflow-y-auto border-r border-black/5 bg-white p-6 dark:border-white/10 dark:bg-slate-950 lg:block">
           <a href={admin ? '/admin/dashboard' : customerPreview ? '/customer/dashboard' : '/dashboard'} className="mb-6 flex items-center gap-2 font-bold text-xl"><span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[#0f8a4f] text-sm text-white">S</span><span className="truncate">{platformName}</span>{admin && <span className="rounded-full bg-[#0f8a4f]/10 px-2 py-1 text-[10px] font-bold text-[#0f8a4f]">ADMIN</span>}</a>
-          {!admin && <div className="mb-6"><p className="mb-3 text-[10px] font-bold uppercase tracking-wider text-gray-400">Your account</p><nav className="space-y-1">{customerItems.map(item => link(item))}</nav><div className="mt-6 rounded-xl bg-[#eef4ef] p-3 text-xs text-gray-500">Need help? <a href="/support" className="font-bold text-[#0f8a4f]">Contact support</a></div></div>}
+          {!admin && <div className="mb-6"><section aria-label="Wallet summary" className="mb-6 rounded-xl bg-gradient-to-br from-[#0e7a44] to-[#0a5c32] p-4 text-white"><p className="text-xs text-white/80">Wallet Balance</p><div className="mt-1 flex items-center gap-2"><p className="min-w-0 flex-1 break-words text-lg font-extrabold">{walletBalance ? (walletBalanceVisible ? walletBalance : "••••••") : "—"}</p>{walletBalance && onToggleWalletBalance && <button type="button" onClick={onToggleWalletBalance} aria-label={walletBalanceVisible ? "Hide wallet balance" : "Show wallet balance"} className="grid h-8 w-8 shrink-0 place-items-center rounded-full hover:bg-white/10">{walletBalanceVisible ? <EyeOff size={16}/> : <Eye size={16}/>}</button>}</div><a href="/wallet/manual-deposits" className="mt-3 inline-flex min-h-9 w-full items-center justify-center rounded-lg bg-white px-3 py-2 text-xs font-extrabold text-[#0a5c32]">Fund Wallet</a></section><p className="mb-3 text-[10px] font-bold uppercase tracking-wider text-gray-400">Your account</p><nav className="space-y-1">{customerItems.map(item => link(item))}</nav><div className="mt-6 rounded-xl bg-[#eef4ef] p-3 text-xs text-gray-500 dark:bg-slate-800 dark:text-gray-300">Need help? <a href="/support" className="font-bold text-[#0f8a4f]">Contact support</a></div></div>}
           {admin && adminGroups.map(group => <section key={group.title} className="mb-6"><p className="mb-2 px-3 text-[10px] font-bold uppercase tracking-wider text-gray-400">{group.title}</p><nav className="space-y-1">{group.items.map(item => link(item))}</nav></section>)}
         </aside>
         <section className="min-w-0 p-4 sm:p-6 lg:p-8">
