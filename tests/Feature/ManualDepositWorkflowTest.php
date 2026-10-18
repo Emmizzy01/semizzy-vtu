@@ -94,7 +94,12 @@ class ManualDepositWorkflowTest extends TestCase
             'evidence' => UploadedFile::fake()->createWithContent('receipt.pdf', $receiptContent),
         ])->assertRedirect('/wallet/manual-deposits');
 
+        $firstDeposit = ManualDeposit::query()->where('transfer_reference', 'DUPLICATE-RECEIPT-0001')->firstOrFail();
         $deposit = ManualDeposit::query()->where('transfer_reference', 'DUPLICATE-RECEIPT-0002')->firstOrFail();
+        $this->assertDatabaseHas('manual_deposit_evidence_fingerprints', [
+            'evidence_sha256' => hash('sha256', $receiptContent),
+            'first_manual_deposit_id' => $firstDeposit->id,
+        ]);
         $this->assertTrue((bool) $deposit->duplicate_evidence);
         $this->assertSame(0, (int) $wallet->fresh()->balance_minor);
         $this->assertDatabaseHas('manual_deposit_audits', ['manual_deposit_id' => $deposit->id, 'event_type' => 'duplicate_evidence_detected', 'outcome' => 'flagged']);

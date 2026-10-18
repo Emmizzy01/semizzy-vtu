@@ -188,6 +188,50 @@ class VtuOrderMariaDbConcurrencyTest extends TestCase
         @unlink($state);
     }
 
+    public function test_two_independent_deposit_submissions_with_same_evidence_are_atomically_deduplicated(): void
+    {
+        $firstCustomer = User::query()->create([
+            'name' => 'Concurrent Evidence Customer A',
+            'email' => 'evidence-a-'.Str::uuid().'@example.test',
+            'password' => Hash::make('test-only-password'),
+        ]);
+        $secondCustomer = User::query()->create([
+            'name' => 'Concurrent Evidence Customer B',
+            'email' => 'evidence-b-'.Str::uuid().'@example.test',
+            'password' => Hash::make('test-only-password'),
+        ]);
+        $firstWallet = app(WalletAccountService::class)->openForUser($firstCustomer);
+        $secondWallet = app(WalletAccountService::class)->openForUser($secondCustomer);
+        $evidenceHash = hash('sha256', 'same-concurrent-receipt-evidence');
+        $firstReference = 'CONCURRENT-EVIDENCE-'.Str::uuid();
+        $secondReference = 'CONCURRENT-EVIDENCE-'.Str::uuid();
+        $state = $this->newStateFile();
+
+        $results = $this->runWorkers([
+            ['submit-deposit', $state, (string) $firstCustomer->getKey(), '150000', $firstReference, $evidenceHash, 'manual-deposits/concurrent-a.pdf'],
+            ['submit-deposit', $state, (string) $secondCustomer->getKey(), '150000', $secondReference, $evidenceHash, 'manual-deposits/concurrent-b.pdf'],
+        ]);
+
+        $this->assertSame(['duplicate', 'first'], collect(array_column($results, 'stdout'))->sort()->values()->all());
+        $deposits = ManualDeposit::query()->where('evidence_sha256', $evidenceHash)->get();
+        $this->assertCount(2, $deposits);
+        $this->assertSame(1, $deposits->where('duplicate_evidence', true)->count());
+        $this->assertSame(1, $deposits->where('duplicate_evidence', false)->count());
+
+        $fingerprint = DB::table('manual_deposit_evidence_fingerprints')->where('evidence_sha256', $evidenceHash)->first();
+        $this->assertNotNull($fingerprint);
+        $this->assertContains((int) $fingerprint->first_manual_deposit_id, $deposits->pluck('id')->map(fn ($id) => (int) $id)->all());
+        $this->assertSame(1, DB::table('manual_deposit_audits')
+            ->whereIn('manual_deposit_id', $deposits->pluck('id'))
+            ->where('event_type', 'duplicate_evidence_detected')
+            ->where('outcome', 'flagged')
+            ->count());
+        $this->assertSame(0, (int) $firstWallet->fresh()->balance_minor);
+        $this->assertSame(0, (int) $secondWallet->fresh()->balance_minor);
+
+        @unlink($state);
+    }
+
     public function test_two_independent_workers_open_only_one_first_wallet_for_a_user(): void
     {
         $user = User::query()->create([

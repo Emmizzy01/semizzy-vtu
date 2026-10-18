@@ -21,7 +21,7 @@ $app->make(Kernel::class)->bootstrap();
 
 $mode = $argv[1] ?? '';
 $statePath = $argv[2] ?? '';
-if ($statePath === '' || ! in_array($mode, ['purchase', 'reconcile', 'open-wallet', 'review-deposit', 'refund-webhook'], true)) {
+if ($statePath === '' || ! in_array($mode, ['purchase', 'reconcile', 'open-wallet', 'review-deposit', 'refund-webhook', 'submit-deposit'], true)) {
     fwrite(STDERR, "Invalid worker arguments.\n");
     exit(2);
 }
@@ -52,6 +52,28 @@ try {
             ],
         ]);
         fwrite(STDOUT, "processed\\n");
+        exit(0);
+    }
+    if ($mode === 'submit-deposit') {
+        $user = User::query()->findOrFail((int) ($argv[3] ?? 0));
+        $wallet = \\App\\Models\\Wallet::query()
+            ->where('user_id', $user->getKey())
+            ->where('currency', 'NGN')
+            ->firstOrFail();
+        $amountMinor = (int) ($argv[4] ?? 0);
+        $transferReference = (string) ($argv[5] ?? '');
+        $evidenceHash = (string) ($argv[6] ?? '');
+        $evidencePath = (string) ($argv[7] ?? '');
+        $provider->arriveAndWait('deposit_evidence_barrier', 2);
+        $deposit = app(\\App\\Services\\Payments\\ManualDepositSubmissionService::class)->submit(
+            $user,
+            $wallet,
+            $amountMinor,
+            $transferReference,
+            $evidencePath,
+            $evidenceHash,
+        );
+        fwrite(STDOUT, $deposit->duplicate_evidence ? "duplicate\\n" : "first\\n");
         exit(0);
     }
     if ($mode === 'review-deposit') {

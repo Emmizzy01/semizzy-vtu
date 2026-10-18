@@ -8,6 +8,7 @@ use App\Models\ManualDepositAudit;
 use App\Models\PlatformFeatureControl;
 use App\Models\Wallet;
 use App\Services\IntegrationSettings;
+use App\Services\Payments\ManualDepositSubmissionService;
 use App\Services\Wallets\WalletAccountService;
 use App\Services\Wallets\WalletLedgerService;
 use Illuminate\Http\RedirectResponse;
@@ -56,7 +57,7 @@ class ManualDepositController extends Controller
         ]);
     }
 
-    public function submit(Request $request, WalletAccountService $wallets): RedirectResponse
+    public function submit(Request $request, WalletAccountService $wallets, ManualDepositSubmissionService $submissions): RedirectResponse
     {
         $validated = $request->validate([
             'amount_minor' => ['required', 'integer', 'min:10000', 'max:500000000'],
@@ -75,36 +76,20 @@ class ManualDepositController extends Controller
         abort_unless($user, 401);
         $wallet = $wallets->openForUser($user, 'NGN');
         $evidenceHash = hash_file('sha256', $request->file('evidence')->getRealPath());
-        $duplicateEvidence = ManualDeposit::query()->where('evidence_sha256', $evidenceHash)->exists();
         $path = $request->file('evidence')->store('manual-deposits', 'local');
         if (! $path) {
             return back()->withErrors(['evidence' => 'Proof could not be stored securely. Please try again.']);
         }
 
-        $deposit = ManualDeposit::query()->create([
-            'public_id' => (string) Str::uuid(),
-            'user_id' => $user->id,
-            'wallet_id' => $wallet->id,
-            'amount_minor' => (int) $validated['amount_minor'],
-            'transfer_reference' => trim($validated['transfer_reference']),
-            'evidence_path' => $path,
-            'evidence_sha256' => $evidenceHash,
-            'duplicate_evidence' => $duplicateEvidence,
-            'status' => 'pending',
-            'idempotency_key' => 'manual-deposit:'.Str::uuid(),
-        ]);
-        ManualDepositAudit::query()->create([
-            'manual_deposit_id' => $deposit->id,
-            'actor_user_id' => $user->id,
-            'event_type' => 'submitted',
-            'outcome' => 'pending',
-            'context' => ['amount_minor' => $deposit->amount_minor, 'currency' => 'NGN'],
-            'created_at' => now(),
-        ]);
-
-        if ($duplicateEvidence) {
-            ManualDepositAudit::query()->create(['manual_deposit_id' => $deposit->id, 'actor_user_id' => $user->id, 'event_type' => 'duplicate_evidence_detected', 'outcome' => 'flagged', 'created_at' => now()]);
-        }
+        $deposit = $submissions->submit(
+            $user,
+            $wallet,
+            (int) $validated['amount_minor'],
+            trim($validated['transfer_reference']),
+            $path,
+            $evidenceHash,
+        );
+        $duplicateEvidence = (bool) $deposit->duplicate_evidence;
         return redirect()->route('wallet.manual-deposits.index')->with('status', $duplicateEvidence ? 'Deposit submitted but flagged because this receipt matches earlier evidence. Wallet credit is blocked pending investigation.' : 'Deposit submitted for verification. Your wallet has not been credited yet.');
     }
 
