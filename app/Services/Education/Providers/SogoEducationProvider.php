@@ -59,8 +59,9 @@ final class SogoEducationProvider implements EducationProvider
         }
 
         $body = $response->json();
-        $data = is_array($body['data'] ?? null) ? $body['data'] : $body;
-        if (($data['verified'] ?? false) === true || ($data['valid'] ?? false) === true) {
+        $data = is_array($body['verification'] ?? null) ? $body['verification'] : (is_array($body['data'] ?? null) ? $body['data'] : $body);
+        if (($data['verified'] ?? false) === true || ($data['valid'] ?? false) === true
+            || ($exam === 'JAMB' && $data !== [] && (isset($data['candidate_name']) || isset($data['customer_name']) || isset($data['name'])))) {
             return ['status' => 'valid', 'reference' => isset($data['reference']) ? (string) $data['reference'] : null];
         }
         if (($data['verified'] ?? null) === false || ($data['valid'] ?? null) === false) {
@@ -78,10 +79,22 @@ final class SogoEducationProvider implements EducationProvider
             throw new LogicException('Sogo education product is missing its verified provider product code.');
         }
 
+        $exam = strtolower(trim((string) $product->exam_body));
+        if (! in_array($exam, ['jamb', 'waec'], true)) {
+            throw new LogicException('Sogo education supports only mapped JAMB and WAEC products.');
+        }
         $payload = [
+            'provider' => $exam,
             'variation_code' => $variation,
             'amount' => round(((int) ($product->provider_cost_minor ?? $product->price_minor)) / 100, 2),
         ];
+        if ($exam === 'waec') {
+            $serviceType = $product->metadata['service_type'] ?? null;
+            if (! in_array($serviceType, ['result_checker', 'registration'], true)) {
+                throw new LogicException('Sogo WAEC product must declare service_type as result_checker or registration.');
+            }
+            $payload['service_type'] = $serviceType;
+        }
         foreach (['profile_id', 'candidate_number', 'phone', 'email'] as $field) {
             if (isset($candidate[$field]) && is_scalar($candidate[$field])) {
                 $payload[$field] = (string) $candidate[$field];
@@ -137,6 +150,9 @@ final class SogoEducationProvider implements EducationProvider
     /** @param array<string,mixed> $data */
     private function normalize(array $data): array
     {
+        if (is_array($data['transaction'] ?? null)) {
+            $data = $data['transaction'];
+        }
         $status = strtolower((string) ($data['status'] ?? ''));
         $reference = $data['reference'] ?? $data['id'] ?? null;
         $message = $data['code'] ?? $data['message_code'] ?? null;
