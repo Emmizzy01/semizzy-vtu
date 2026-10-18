@@ -54,7 +54,7 @@ class SogoProviderClient extends AbstractMappedVtuProvider
         // custom/staging host must not inherit live recovery semantics by default.
         if ($response->status() === 404) {
             $host = strtolower((string) parse_url(
-                (string) config('services.vtu.sogo.base_url', ''),
+                $this->baseUrl(),
                 PHP_URL_HOST,
             ));
 
