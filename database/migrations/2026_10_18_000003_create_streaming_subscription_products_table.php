@@ -23,7 +23,7 @@ return new class extends Migration
             $table->boolean('purchase_approved')->default(false);
             $table->timestamps();
             $table->index(['platform', 'is_active']);
-            $table->index(['provider', 'provider_product_code']);
+            $table->index(['provider', 'provider_product_code'], 'stream_sub_provider_code_idx');
         });
     }
 
