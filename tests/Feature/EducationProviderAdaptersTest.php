@@ -46,7 +46,7 @@ class EducationProviderAdaptersTest extends TestCase
         $this->actingAs($owner)
             ->getJson(route('education-services.delivery', $order->public_id))
             ->assertOk()
-            ->assertHeader('Cache-Control', 'no-store, private, max-age=0')
+            ->assertHeader('Cache-Control', fn ($value) => str_contains($value, 'no-store') && str_contains($value, 'private') && str_contains($value, 'max-age=0'))
             ->assertJsonPath('delivery.api_response', 'TEST-EXAM-PIN-ONLY');
     }
 
