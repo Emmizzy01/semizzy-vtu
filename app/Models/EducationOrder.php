@@ -12,7 +12,7 @@ class EducationOrder extends Model
         'public_id', 'user_id', 'wallet_id', 'education_service_product_id',
         'wallet_transaction_id', 'idempotency_key', 'request_hash', 'provider',
         'provider_reference', 'status', 'amount_minor', 'currency',
-        'candidate_details', 'safe_provider_response', 'failure_code',
+        'candidate_details', 'safe_provider_response', 'provider_delivery_payload', 'failure_code',
         'dispatch_started_at', 'completed_at',
     ];
 
@@ -22,6 +22,7 @@ class EducationOrder extends Model
             'amount_minor' => 'integer',
             'candidate_details' => 'array',
             'safe_provider_response' => 'array',
+            'provider_delivery_payload' => 'encrypted:array',
             'dispatch_started_at' => 'datetime',
             'completed_at' => 'datetime',
         ];
