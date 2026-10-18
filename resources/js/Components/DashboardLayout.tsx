@@ -7,7 +7,6 @@ import {
   Activity,
   ArrowLeftRight,
   CreditCard,
-  Grid2X2,
   LifeBuoy,
   LayoutDashboard,
   LogOut,
