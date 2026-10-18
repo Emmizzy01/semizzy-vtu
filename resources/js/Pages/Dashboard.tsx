@@ -18,9 +18,9 @@ export default function CustomerDashboard({ wallet, transactions, orders = [], t
   return (
     <DashboardLayout title={isAdminPreview ? 'Customer dashboard preview' : 'Your dashboard'} description={isAdminPreview ? 'Preview the customer experience for your own staff account. Customer data and permissions are unchanged.' : 'Your wallet, digital services, and recent activity in one secure place.'} customerPreview={isAdminPreview}>
       {isAdminPreview && <aside className="mb-5 flex flex-col gap-3 rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-sm font-extrabold">Staff preview mode</p><p className="mt-1 text-xs leading-5 text-[var(--muted)]">This is your own account’s customer view, not a customer impersonation session.</p></div><a href="/admin/dashboard" className="inline-flex min-h-10 items-center justify-center rounded-xl bg-[var(--brand)] px-4 py-2 text-sm font-bold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)] focus-visible:ring-offset-2">Back to Command Center</a></aside>}
-      <section className="mx-auto grid w-full max-w-[1400px] grid-cols-1 items-start gap-4 pb-3 lg:grid-cols-12 lg:gap-5">
+      <section className="mx-auto flex w-full max-w-[1400px] flex-col gap-4 pb-3 lg:gap-5">
 
-        <article className="relative col-span-1 overflow-hidden rounded-[28px] bg-gradient-to-br from-[#0e7a44] to-[#0a5c32] text-white shadow-sm lg:col-span-7">
+        <article className="relative w-full overflow-hidden rounded-[20px] bg-gradient-to-br from-[#0e7a44] to-[#0a5c32] text-white shadow-sm">
           <div className="relative z-10 p-5 sm:p-6">
             <div className="flex items-center justify-between gap-3"><span className="inline-flex items-center gap-2 text-xs font-bold text-white/90"><ShieldCheck size={17}/> {wallet?.status === 'active' ? 'Available' : wallet ? 'Wallet ' + wallet.status : 'Wallet not set up'} <span className="text-white/70">●</span></span><a href="/wallet/manual-deposits" className="inline-flex min-h-10 items-center gap-2 rounded-full border border-white/25 bg-white/10 px-4 text-xs font-extrabold hover:bg-white/20"><ArrowDownToLine size={16}/> Add Money</a></div>
             <div className="mt-3 flex items-center gap-2"><p className="text-3xl font-black tracking-tight">{wallet ? (balanceVisible ? money(wallet.available_balance_minor, wallet.currency) : '••••••') : '—'}</p>{wallet && <button type="button" onClick={() => setBalanceVisible(v=>!v)} aria-label={balanceVisible ? 'Hide balance' : 'Show balance'} className="grid h-8 w-8 place-items-center rounded-full hover:bg-white/10">{balanceVisible ? <EyeOff size={17}/> : <Eye size={17}/>}</button>}<a href="#activity" aria-label="View wallet activity"><ChevronRight size={23}/></a></div>
@@ -30,13 +30,13 @@ export default function CustomerDashboard({ wallet, transactions, orders = [], t
           <div aria-hidden="true" className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-white/10" /><div aria-hidden="true" className="pointer-events-none absolute -bottom-16 right-20 h-32 w-32 rounded-full bg-white/10" /><a href="#activity" className="relative z-10 flex items-center justify-between gap-3 bg-white/90 px-5 py-3 text-xs text-slate-800 dark:bg-slate-950/90 dark:text-slate-100"><span className="flex min-w-0 items-center gap-2"><CheckCircle2 size={18} className="shrink-0 text-emerald-600"/><span className="truncate">{transactions[0] ? (transactions[0].description || transactions[0].type.replaceAll('_',' ')) + ' ' + money(transactions[0].amount_minor,transactions[0].currency) : 'Your latest wallet activity will appear here'}</span></span><span className="flex shrink-0 items-center gap-1 font-bold">Wallet <ChevronRight size={16}/></span></a>
         </article>
 
-        <div className="grid grid-cols-4 gap-2 rounded-[26px] bg-[var(--surface)] p-4 shadow-sm lg:col-span-5 lg:grid-cols-4 lg:content-center lg:gap-3">
+        <div className="grid grid-cols-4 gap-3 rounded-[16px] bg-transparent p-0 lg:grid-cols-4 lg:gap-3">
           {[{title:'Airtime',icon:<Smartphone size={24}/>,href:'/wallet/vtu/airtime'},{title:'Data',icon:<Wifi size={24}/>,href:'/wallet/vtu/data'},{title:'Bills',icon:<Zap size={24}/>,href:'/services'},{title:'TV',icon:<Tv size={24}/>,href:'/wallet/vtu/tv'}].map(item=><a key={item.title} href={item.href} className="flex min-h-[88px] min-w-0 flex-col items-center justify-center gap-2 rounded-2xl px-1 py-2 text-center transition hover:bg-[var(--page)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)] focus-visible:ring-offset-2"><span className="grid h-14 w-14 place-items-center rounded-[20px] bg-emerald-50 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-300">{item.icon}</span><span className="text-[11px] font-bold">{item.title}</span></a>)}
         </div>
 
         {customer?.kycStatus && !['verified','approved','complete','completed'].includes(customer.kycStatus.toLowerCase()) && <a href="/profile" className="flex items-center gap-3 rounded-[24px] bg-[var(--surface)] p-4 shadow-sm lg:col-span-12"><span className="grid h-14 w-14 shrink-0 place-items-center rounded-full bg-amber-100 text-amber-600"><CircleAlert size={28}/></span><span className="min-w-0 flex-1"><span className="block font-extrabold">KYC verification needed</span><span className="mt-1 block text-xs text-[var(--muted)]">Complete your identity checks to access eligible account limits.</span></span><ChevronRight size={19}/></a>}
 
-        <section aria-labelledby="dashboard-promo-heading" className="relative min-h-[96px] overflow-hidden rounded-[20px] bg-gradient-to-r from-emerald-800 via-emerald-600 to-green-500 p-4 text-white shadow-sm lg:col-span-12">
+        <section aria-labelledby="dashboard-promo-heading" className="relative min-h-[96px] overflow-hidden rounded-[16px] bg-gradient-to-r from-[#0a5c32] to-[#12a15a] p-4 text-white shadow-sm">
           <div className="relative z-10 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="max-w-2xl">
               <span className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/10 px-3 py-1 text-[10px] font-extrabold uppercase tracking-wider"><Sparkles size={14}/> SEMIZZY • EVERYDAY SERVICES</span>
@@ -49,7 +49,7 @@ export default function CustomerDashboard({ wallet, transactions, orders = [], t
           <div aria-hidden="true" className="pointer-events-none absolute -bottom-20 right-28 h-40 w-40 rounded-full bg-white/10 blur-2xl"/>
         </section>
 
-        <section aria-labelledby="popular-data-heading" className="rounded-[26px] bg-[var(--surface)] p-4 shadow-sm lg:col-span-5">
+        <section aria-labelledby="popular-data-heading" className="rounded-[16px] border bg-white p-4 shadow-sm">
           <div className="mb-4 flex items-center justify-between gap-3">
             <div><h2 id="popular-data-heading" className="font-extrabold">Popular data plans</h2><p className="mt-1 text-xs text-[var(--muted)]">Choose a network to view available bundles and validity.</p></div>
             <Wifi size={22} className="shrink-0 text-[var(--brand)]" aria-hidden="true"/>
