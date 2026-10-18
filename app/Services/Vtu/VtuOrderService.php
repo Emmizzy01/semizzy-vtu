@@ -343,7 +343,7 @@ class VtuOrderService
 
         $providerStatus = $result['status'] ?? 'unknown';
         $definitiveFailure = app(ProviderFailoverPolicy::class)
-            ->mayFailover((string) $order->provider, $result);
+            ->isDefinitiveFailure((string) $order->provider, $result);
         $attempt->forceFill([
             'outcome' => in_array($providerStatus, ['success', 'failed', 'pending'], true) ? $providerStatus : 'unknown',
             'provider_reference' => is_string($result['provider_reference'] ?? null)
@@ -800,7 +800,7 @@ class VtuOrderService
             $status = $result['status'] ?? 'unknown';
             $knownStatus = is_string($status) && in_array($status, ['success', 'failed', 'pending'], true);
             $definitiveFailure = $knownStatus
-                && app(ProviderFailoverPolicy::class)->mayFailover((string) $lockedAttempt->provider, $result);
+                && app(ProviderFailoverPolicy::class)->isDefinitiveFailure((string) $lockedAttempt->provider, $result);
 
             $lockedAttempt->forceFill([
                 'outcome' => $knownStatus ? $status : 'unknown',
@@ -860,7 +860,7 @@ class VtuOrderService
         // and whose response carries the strict boolean signal, is terminal.
         // This also applies to reconciliation results and verified webhooks.
         if ($providerStatus === 'failed'
-            && ! app(ProviderFailoverPolicy::class)->mayFailover((string) $order->provider, $result)) {
+            && ! app(ProviderFailoverPolicy::class)->isDefinitiveFailure((string) $order->provider, $result)) {
             return $this->markAwaitingReconciliation($order, 'provider_failure_not_verified', $result, $sourceAttempt);
         }
 
