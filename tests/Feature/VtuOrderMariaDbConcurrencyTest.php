@@ -38,7 +38,7 @@ class VtuOrderMariaDbConcurrencyTest extends TestCase
         DB::purge('mysql');
         PlatformFeatureControl::query()->where('feature_key', 'service.airtime_data')
             ->update(['is_enabled' => true, 'is_implemented' => true]);
-        app(\\App\\Services\\IntegrationSettings::class)->set('service.airtime_data.enabled', '1', null);
+        app(\App\Services\IntegrationSettings::class)->set('service.airtime_data.enabled', '1', null);
 
         config([
             'services.vtu.name' => 'concurrency-test-provider',
