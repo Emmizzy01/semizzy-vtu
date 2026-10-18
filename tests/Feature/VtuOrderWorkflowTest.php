@@ -2382,7 +2382,7 @@ class VtuOrderWorkflowTest extends TestCase
             'reserved-second-sogo-recovery',
         );
 
-        $firstAttempt = \\App\\Models\\VtuProviderAttempt::query()
+        $firstAttempt = \App\Models\VtuProviderAttempt::query()
             ->where('vtu_order_id', $order->getKey())
             ->where('attempt_number', 1)
             ->firstOrFail();
@@ -2394,7 +2394,7 @@ class VtuOrderWorkflowTest extends TestCase
             'finished_at' => now(),
         ])->save();
 
-        \\Illuminate\\Support\\Facades\\DB::table('vtu_orders')
+        \Illuminate\Support\Facades\DB::table('vtu_orders')
             ->where('id', $order->getKey())
             ->update([
                 'provider' => 'sogo',
@@ -2404,7 +2404,7 @@ class VtuOrderWorkflowTest extends TestCase
             ]);
         $order = $order->fresh();
 
-        $attempt = \\App\\Models\\VtuProviderAttempt::query()->create([
+        $attempt = \App\Models\VtuProviderAttempt::query()->create([
             'vtu_order_id' => $order->getKey(),
             'attempt_number' => 2,
             'provider' => 'sogo',
@@ -2427,9 +2427,9 @@ class VtuOrderWorkflowTest extends TestCase
         $this->assertSame('success', $attempt->fresh()->outcome);
         $this->assertSame(1, $sogoLookups, 'Recovery must look up the persisted second-attempt provider first.');
         $this->assertSame(1, $sogoSubmissions, 'Only one same-identity recovery submission is permitted.');
-        $this->assertSame(2, \\App\\Models\\VtuProviderAttempt::query()
+        $this->assertSame(2, \App\Models\VtuProviderAttempt::query()
             ->where('vtu_order_id', $order->getKey())->count(), 'Recovery must not reserve a third attempt.');
-        $this->assertSame(2, \\App\\Models\\WalletTransaction::query()->count(), 'Recovery must not debit or refund again.');
+        $this->assertSame(2, \App\Models\WalletTransaction::query()->count(), 'Recovery must not debit or refund again.');
         $this->assertSame(500, (int) $wallet->fresh()->available_balance_minor);
         Http::assertSent(fn ($request) => str_contains($request->url(), 'api.sogo.africa')
             && $request->method() === 'GET'
