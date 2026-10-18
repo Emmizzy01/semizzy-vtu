@@ -107,7 +107,7 @@ class EducationProviderAdaptersTest extends TestCase
         Http::fake([
             'https://api.gsubz.com/api/pay/' => Http::response([
                 'code' => 500,
-                'status' => 'failed',
+                'status' => 'error',
                 'transactionID' => 98766,
             ], 200),
         ]);
@@ -121,6 +121,32 @@ class EducationProviderAdaptersTest extends TestCase
         $result = app('education.providers.gsubz')->submit('education-order-uncertain', $product, ['phone' => '08031234567']);
 
         $this->assertSame('unknown', $result['status']);
+    }
+
+    public function test_gsubz_explicit_failed_status_is_a_definitive_failure(): void
+    {
+        config([
+            'services.education.providers.gsubz.enabled' => true,
+            'services.education.providers.gsubz.base_url' => 'https://api.gsubz.com',
+            'services.education.providers.gsubz.api_key' => 'test-only-key',
+        ]);
+        Http::fake([
+            'https://api.gsubz.com/api/pay/' => Http::response([
+                'code' => 200,
+                'status' => 'failed',
+                'transactionID' => 98767,
+            ], 200),
+        ]);
+
+        $product = new EducationServiceProduct([
+            'exam_body' => 'NECO',
+            'provider_product_code' => 'neco',
+            'metadata' => ['service_id' => 'neco', 'plan' => 'neco'],
+            'requires_candidate_validation' => false,
+        ]);
+        $result = app('education.providers.gsubz')->submit('education-order-definitive-failure', $product, ['phone' => '08031234567']);
+
+        $this->assertSame('failed', $result['status']);
     }
 
     public function test_education_delivery_payload_is_encrypted_at_rest(): void
