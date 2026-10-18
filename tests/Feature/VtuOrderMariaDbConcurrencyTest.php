@@ -55,6 +55,86 @@ class VtuOrderMariaDbConcurrencyTest extends TestCase
         parent::tearDown();
     }
 
+    public function test_two_independent_refund_webhook_workers_compensate_a_confirmed_failure_once(): void
+    {
+        $customer = User::query()->create([
+            'name' => 'Concurrent Refund Customer',
+            'email' => 'refund-customer-'.Str::uuid().'@example.test',
+            'password' => Hash::make('test-only-password'),
+        ]);
+        $approver = User::query()->create([
+            'name' => 'Concurrent Refund Approver',
+            'email' => 'refund-approver-'.Str::uuid().'@example.test',
+            'password' => Hash::make('test-only-password'),
+        ]);
+        $wallet = app(WalletAccountService::class)->openForUser($customer);
+        app(WalletLedgerService::class)->post(
+            walletId: (int) $wallet->getKey(),
+            type: 'credit',
+            amountMinor: 10000,
+            idempotencyKey: 'concurrent-refund-opening:'.$customer->getKey(),
+            reference: 'concurrent-refund-opening:'.$customer->getKey(),
+            description: 'Concurrency test opening balance',
+            actorUserId: (int) $customer->getKey(),
+        );
+
+        $intent = app(PaymentIntentService::class)->create($wallet, 10000, 'paystack');
+        $intent->forceFill([
+            'status' => 'paid',
+            'provider_transaction_id' => '987654',
+            'paid_at' => now(),
+        ])->save();
+
+        $publicId = (string) Str::uuid();
+        $debit = app(WalletLedgerService::class)->post(
+            walletId: (int) $wallet->getKey(),
+            type: 'debit',
+            amountMinor: 3000,
+            idempotencyKey: 'refund-reserve:'.$publicId,
+            reference: $intent->reference,
+            description: 'Concurrency test refund reservation',
+            actorUserId: (int) $approver->getKey(),
+            metadata: ['payment_refund_id' => $publicId],
+            correlationId: $publicId,
+        );
+        $refund = PaymentRefund::query()->create([
+            'public_id' => $publicId,
+            'payment_intent_id' => $intent->getKey(),
+            'requested_by_user_id' => $customer->getKey(),
+            'approved_by_user_id' => $approver->getKey(),
+            'wallet_debit_transaction_id' => $debit->getKey(),
+            'idempotency_key' => 'concurrent-refund-webhook:'.$publicId,
+            'amount_minor' => 3000,
+            'reason' => 'Concurrent failure webhook test',
+            'status' => 'provider_pending',
+            'provider_refund_reference' => '123456',
+            'provider_status' => 'pending',
+            'metadata' => ['currency' => 'NGN'],
+            'status_changed_at' => now(),
+        ]);
+
+        $state = $this->newStateFile();
+        $results = $this->runWorkers([
+            ['refund-webhook', $state, (string) $refund->getKey(), '123456'],
+            ['refund-webhook', $state, (string) $refund->getKey(), '123456'],
+        ]);
+
+        $this->assertSame([0, 0], array_column($results, 'exit'));
+        $this->assertSame('failed', $refund->fresh()->status);
+        $this->assertSame(10000, (int) $wallet->fresh()->balance_minor);
+        $this->assertSame(3, DB::table('wallet_transactions')->count(),
+            'Opening credit, refund reservation debit, and one compensation credit are expected.');
+        $this->assertSame(1, DB::table('wallet_transactions')
+            ->where('idempotency_key', 'refund-failure-compensation:'.$publicId)->count());
+        $compensationId = DB::table('wallet_transactions')
+            ->where('idempotency_key', 'refund-failure-compensation:'.$publicId)->value('id');
+        $this->assertNotNull($compensationId);
+        $this->assertSame(1, DB::table('wallet_ledger_entries')
+            ->where('wallet_transaction_id', $compensationId)->count());
+
+        @unlink($state);
+    }
+
     public function test_two_independent_staff_workers_approve_a_manual_deposit_and_credit_once(): void
     {
         $customer = User::query()->create([
