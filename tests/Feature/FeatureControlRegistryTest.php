@@ -83,6 +83,7 @@ class FeatureControlRegistryTest extends TestCase
     {
         $admin = User::query()->create(['name' => 'Feature Admin', 'email' => 'manual-feature-admin@example.test', 'password' => 'not-a-real-password']);
         UserPermission::query()->create(['user_id' => $admin->id, 'permission' => 'staff.permissions.manage']);
+        PlatformFeatureControl::query()->where('feature_key', 'service.manual_deposit')->update(['is_enabled' => false]);
 
         $this->actingAs($admin)->put('/admin/feature-controls/service.manual_deposit', [
             'is_enabled' => true,
