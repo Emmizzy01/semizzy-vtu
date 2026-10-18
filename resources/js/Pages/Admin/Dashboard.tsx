@@ -1,4 +1,4 @@
-import { Activity, CreditCard, PlugZap, Users, WalletCards } from 'lucide-react';
+import { Activity, PlugZap, Users } from 'lucide-react';
 import DashboardLayout from '../../Components/DashboardLayout';
 
 type PrototypeMetrics = {
@@ -24,19 +24,19 @@ export default function AdminDashboard({ prototypeMetrics, newUsersLastSevenDays
   capabilities: Capabilities;
 }) {
   const cards = [
-    { label: 'Total Revenue', value: prototypeMetrics.totalRevenueMinor === null ? '—' : nairaFromMinor(prototypeMetrics.totalRevenueMinor), detail: 'Verified revenue reporting pending', icon: <CreditCard size={18} />, href: '/admin/payment-gateway' },
-    { label: 'Active Users', value: prototypeMetrics.activeUsers === null ? '—' : prototypeMetrics.activeUsers.toLocaleString('en-NG'), detail: 'Activity reporting pending', icon: <Users size={18} />, href: '/admin/users' },
+    { label: 'Total Revenue', value: prototypeMetrics.totalRevenueMinor === null ? '—' : nairaFromMinor(prototypeMetrics.totalRevenueMinor), detail: 'Verified revenue reporting pending', href: '/admin/payment-gateway' },
+    { label: 'Active Users', value: prototypeMetrics.activeUsers === null ? '—' : prototypeMetrics.activeUsers.toLocaleString('en-NG'), detail: 'Activity reporting pending', href: '/admin/users' },
     { label: 'New Users Today', value: prototypeMetrics.newUsersToday.toLocaleString('en-NG'), detail: 'Registered today', icon: <Users size={18} />, href: '/admin/users' },
-    { label: 'High-Value Users', value: prototypeMetrics.highValueUsers === null ? '—' : prototypeMetrics.highValueUsers.toLocaleString('en-NG'), detail: 'Verified spend ranking pending', icon: <WalletCards size={18} />, href: '/admin/users' },
-    { label: 'API Success Rate', value: prototypeMetrics.apiSuccessRate === null ? '—' : prototypeMetrics.apiSuccessRate.toFixed(1) + '%', detail: 'Provider telemetry pending', icon: <PlugZap size={18} />, href: '/admin/api-providers' },
-    { label: 'Pending Txns', value: prototypeMetrics.pendingTransactions.toLocaleString('en-NG'), detail: 'Wallet transactions awaiting resolution', icon: <Activity size={18} />, href: '/admin/vtu-orders' },
+    { label: 'High-Value Users', value: prototypeMetrics.highValueUsers === null ? '—' : prototypeMetrics.highValueUsers.toLocaleString('en-NG'), detail: 'Verified spend ranking pending', href: '/admin/users' },
+    { label: 'API Success Rate', value: prototypeMetrics.apiSuccessRate === null ? '—' : prototypeMetrics.apiSuccessRate.toFixed(1) + '%', detail: 'Provider telemetry pending', href: '/admin/api-providers' },
+    { label: 'Pending Txns', value: prototypeMetrics.pendingTransactions.toLocaleString('en-NG'), detail: 'Wallet transactions awaiting resolution', href: '/admin/vtu-orders' },
   ];
 
   return (
     <DashboardLayout title="Admin Dashboard" description="" admin canManageStaff={capabilities.manageStaff} canApproveRefunds={capabilities.approveRefunds}>
       <section aria-label="Platform overview" className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
         {cards.map(card => {
-          const body = <><p className="text-[11px] text-gray-500 dark:text-gray-400">{card.label}</p><p className="mt-1 break-words text-lg font-bold tabular-nums">{card.value}</p><p className="mt-1 text-[11px] text-gray-500 dark:text-gray-400">{card.detail}</p></>;
+          const body = <><p className="text-[11px] text-gray-500 dark:text-gray-400">{card.label}</p><p className="mt-1 break-words text-lg font-bold tabular-nums">{card.value}</p><p className="mt-1 text-[11px] text-gray-500 dark:text-gray-400">{card.detail}</p>{card.label === 'API Success Rate' && <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-gray-100 dark:bg-slate-800"><div className="h-full rounded-full bg-[#0f8a4f]" style={{ width: prototypeMetrics.apiSuccessRate === null ? '0%' : Math.max(0, Math.min(100, prototypeMetrics.apiSuccessRate)) + '%' }}/></div>}</>;
           return <a key={card.label} href={card.href} className="min-w-0 rounded-xl border bg-white p-4 shadow-sm transition hover:border-[#0f8a4f] dark:border-white/10 dark:bg-slate-900">{body}</a>;
         })}
       </section>
@@ -75,7 +75,7 @@ export default function AdminDashboard({ prototypeMetrics, newUsersLastSevenDays
           {recentUsers.length > 0 ? <div className="space-y-3 text-sm">
             {recentUsers.map(user => <div key={user.id} className="flex items-center justify-between gap-3">
               <div className="flex min-w-0 items-center gap-2"><div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-gray-200 text-xs dark:bg-slate-700">{user.name.split(/\\s+/).slice(0, 2).map(part => part[0]).join('').toUpperCase()}</div><div className="min-w-0"><p className="truncate text-xs font-medium">{user.name}</p><p className="text-[11px] text-gray-500 dark:text-gray-400">{user.phone}{user.createdAt ? ' • ' + new Date(user.createdAt).toLocaleString('en-NG', { dateStyle: 'short', timeStyle: 'short' }) : ''}</p></div></div>
-              <a href={'/admin/kyc-reviews?user_id=' + user.id} className="shrink-0 rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-800 dark:bg-green-950 dark:text-green-200">Verify</a>
+              <a href={'/admin/users?search=' + encodeURIComponent(user.name)} className="shrink-0 rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-800 dark:bg-green-950 dark:text-green-200">Verify</a>
             </div>)}
           </div> : <div className="flex min-h-28 flex-col items-center justify-center rounded-lg border border-dashed p-5 text-center dark:border-slate-700"><Users size={22} className="text-gray-400"/><p className="mt-2 text-sm font-semibold text-gray-600 dark:text-gray-300">No recent users to display</p><p className="mt-1 text-xs leading-5 text-gray-500 dark:text-gray-400">New registrations from the last seven days will appear here.</p></div>}
           {capabilities.manageStaff && <a href="/admin/users" className="mt-3 inline-flex min-h-9 items-center rounded-lg border px-3 text-xs font-bold text-[#0f8a4f]">View all users</a>}
