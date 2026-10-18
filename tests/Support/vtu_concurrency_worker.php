@@ -19,7 +19,7 @@ $app->make(Kernel::class)->bootstrap();
 
 $mode = $argv[1] ?? '';
 $statePath = $argv[2] ?? '';
-if ($statePath === '' || ! in_array($mode, ['purchase', 'reconcile', 'open-wallet', 'review-deposit'], true)) {
+if ($statePath === '' || ! in_array($mode, ['purchase', 'reconcile', 'open-wallet', 'review-deposit', 'refund-webhook'], true)) {
     fwrite(STDERR, "Invalid worker arguments.\n");
     exit(2);
 }
@@ -35,6 +35,23 @@ $provider = new ConcurrentVtuTestProvider($statePath);
 $app->instance(VtuProvider::class, $provider);
 
 try {
+    if ($mode === 'refund-webhook') {
+        $refund = PaymentRefund::query()->findOrFail((int) ($argv[3] ?? 0));
+        $intent = $refund->paymentIntent()->firstOrFail();
+        $providerRef = (string) ($argv[4] ?? '');
+        $provider->arriveAndWait('refund_webhook_barrier', 2);
+        app(PaymentRefundService::class)->applyPaystackEvent('refund.failed', [
+            'data' => [
+                'status' => 'failed',
+                'transaction_reference' => $intent->reference,
+                'refund_reference' => $providerRef,
+                'amount' => $refund->amount_minor,
+                'currency' => $intent->currency,
+            ],
+        ]);
+        fwrite(STDOUT, "processed\\n");
+        exit(0);
+    }
     if ($mode === 'review-deposit') {
         $admin = User::query()->findOrFail((int) ($argv[3] ?? 0));
         $publicId = (string) ($argv[4] ?? '');
