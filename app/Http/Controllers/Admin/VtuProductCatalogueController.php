@@ -84,7 +84,7 @@ class VtuProductCatalogueController extends Controller
         $product = DB::transaction(function () use ($request, $data): VtuProduct {
             $metadata = $this->metadata($data);
             $active = (bool) ($data['is_active'] ?? false);
-            $this->assertActivatable($data['service_type'], $data['network'], $metadata, $active);
+            $this->assertActivatable($data['service_type'], $data['network'], $metadata, $active, $data['provider_key'] ?? null);
             $product = VtuProduct::query()->create([
                 'service_type' => $data['service_type'], 'network' => trim($data['network']),
                 'provider_key' => $data['provider_key'] ?? null, 'provider_product_code' => $data['provider_product_code'] ?? null,
@@ -110,7 +110,7 @@ class VtuProductCatalogueController extends Controller
             $before = $locked->only(['service_type', 'provider_key', 'provider_product_code', 'provider_cost_minor', 'data_type', 'validity', 'pricing_by_user_category', 'commission_by_user_category', 'network', 'code', 'name', 'price_minor', 'face_value_minor', 'is_active', 'metadata']);
             $metadata = $this->metadata($data, $locked->metadata ?? []);
             $active = (bool) ($data['is_active'] ?? false);
-            $this->assertActivatable($locked->service_type, $locked->network, $metadata, $active);
+            $this->assertActivatable($locked->service_type, $locked->network, $metadata, $active, $data['provider_key'] ?? $locked->provider_key);
             $locked->forceFill([
                 'name' => trim($data['name']), 'price_minor' => $data['price_minor'],
                 'face_value_minor' => $data['face_value_minor'] ?? null,
@@ -172,12 +172,34 @@ class VtuProductCatalogueController extends Controller
         ], fn ($value): bool => $value !== null && $value !== ''));
     }
 
-    private function assertActivatable(string $type, string $network, array $metadata, bool $active): void
+    private function assertActivatable(string $type, string $network, array $metadata, bool $active, ?string $providerKey = null): void
     {
         if (! $active) return;
         if (! in_array($type, ['airtime', 'data'], true)) {
-            abort(422, 'This VTpass category is catalogue-only until its dedicated purchase flow has been implemented and verified.');
+            abort(422, 'This category remains catalogue-only until its dedicated purchase and recovery workflow is implemented and verified.');
         }
+
+        // Dataway is importable for catalogue/pricing review, but remains excluded from
+        // customer purchase routing until its account-specific lookup contract is verified.
+        if ($providerKey === 'dataway') {
+            abort(422, 'Dataway products remain inactive for customer purchases until its transaction lookup and recovery contract is verified.');
+        }
+
+        if (in_array($providerKey, ['sogo', 'gsubz'], true)) {
+            if (($metadata['purchase_approved'] ?? false) !== true) {
+                abort(422, 'Verify the provider mapping and explicitly approve this product before enabling customer sales.');
+            }
+            $mapping = data_get($metadata, 'provider_mappings.'.$providerKey, []);
+            $required = ['network'];
+            if ($type === 'data') $required[] = $providerKey === 'sogo' ? 'variation_code' : 'plan_code';
+            foreach ($required as $field) {
+                if (! is_array($mapping) || ! isset($mapping[$field]) || trim((string) $mapping[$field]) === '') {
+                    abort(422, 'The '.$providerKey.' mapping is missing required field '.$field.'.');
+                }
+            }
+            return;
+        }
+
         if (($metadata['catalog_source'] ?? null) === 'vtpass' && ($metadata['purchase_approved'] ?? false) !== true) {
             abort(422, 'A VTpass product cannot be activated until sandbox verification is recorded and an authorised operator approves sales.');
         }
