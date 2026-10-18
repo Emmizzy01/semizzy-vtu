@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use LogicException;
 
 class WalletLedgerEntry extends Model
 {
@@ -27,6 +28,19 @@ class WalletLedgerEntry extends Model
             'balance_after_minor' => 'integer',
             'created_at' => 'datetime',
         ];
+    }
+
+    protected static function booted(): void
+    {
+        // Ledger entries are historical financial evidence. Corrections must be
+        // represented by a new compensating transaction, never by rewriting history.
+        static::updating(static function (WalletLedgerEntry $entry): void {
+            throw new LogicException('Wallet ledger entries are append-only and cannot be updated.');
+        });
+
+        static::deleting(static function (WalletLedgerEntry $entry): void {
+            throw new LogicException('Wallet ledger entries are append-only and cannot be deleted.');
+        });
     }
 
     public function wallet(): BelongsTo
