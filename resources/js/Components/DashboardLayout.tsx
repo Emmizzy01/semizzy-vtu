@@ -8,7 +8,6 @@ import {
   ArrowLeftRight,
   CreditCard,
   Grid2X2,
-  Gift,
   LifeBuoy,
   LayoutDashboard,
   LogOut,
@@ -42,8 +41,6 @@ export default function DashboardLayout({
   description,
   admin = false,
   children,
-  canManageStaff = false,
-  canApproveRefunds = false,
   customerPreview = false,
 }: DashboardLayoutProps) {
   const { platform, auth } = usePage<{ platform?: { name?: string; theme_mode?: 'light' | 'dark'; skin?: 'modern-green' | 'navy-teal' | 'minimal-blue' | 'obsidian-luxe' | 'arctic-light' }; auth?: { user?: { name?: string; email?: string; tier?: string; level?: string; user_level?: string; user_type?: string; avatar_url?: string | null; avatarUrl?: string | null } | null } }>().props;
@@ -167,8 +164,6 @@ export default function DashboardLayout({
     );
   };
 
-  const mobileItems = customerItems;
-
   return (
     <>
       <Head title={title} />
@@ -225,7 +220,7 @@ export default function DashboardLayout({
           </nav>
         )}
 
-        <div className={`mx-auto grid max-w-[1600px] ${(admin || customerPreview) ? 'lg:grid-cols-[250px_minmax(0,1fr)]' : ''}`}>
+        <div className={`mx-auto grid max-w-[1600px] lg:grid-cols-[250px_minmax(0,1fr)]`}>
           {<aside className="sticky top-[65px] hidden h-[calc(100vh-65px)] overflow-y-auto border-r border-[var(--line)] bg-[var(--surface)] px-4 py-6 lg:block">
             {admin ? adminGroups.map((group) => (
               <section key={group.title} className="mb-6">
