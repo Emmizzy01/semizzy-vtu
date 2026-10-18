@@ -40,4 +40,17 @@ class ProviderFailoverPolicyTest extends TestCase
         $this->assertTrue($policy->mayFailover('sogo', $result));
         $this->assertFalse($policy->mayFailover('dataway', $result));
     }
+    public function test_definitive_failure_is_still_refundable_when_failover_is_disabled(): void
+    {
+        config([
+            'services.vtu.multi_provider.failover_enabled' => false,
+            'services.vtu.multi_provider.definitive_failure_providers' => ['sogo'],
+        ]);
+        $policy = new ProviderFailoverPolicy();
+        $result = ['status' => 'failed', 'definitive_failure' => true];
+
+        $this->assertTrue($policy->isDefinitiveFailure('sogo', $result));
+        $this->assertFalse($policy->mayFailover('sogo', $result));
+    }
+
 }
