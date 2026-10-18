@@ -41,6 +41,10 @@ class VtuProductCatalogueController extends Controller
         return Inertia::render('Admin/VtuProducts/Index', [
             'products' => $products->getCollection()->map(fn (VtuProduct $product): array => [
                 'id' => $product->id, 'service_type' => $product->service_type,
+                'provider_key' => $product->provider_key, 'provider_product_code' => $product->provider_product_code,
+                'provider_cost_minor' => $product->provider_cost_minor, 'data_type' => $product->data_type, 'validity' => $product->validity,
+                'pricing_by_user_category' => $product->pricing_by_user_category ?? [],
+                'commission_by_user_category' => $product->commission_by_user_category ?? [],
                 'network' => $product->network, 'code' => $product->code, 'name' => $product->name,
                 'price_minor' => $product->price_minor, 'face_value_minor' => $product->face_value_minor,
                 'currency' => $product->currency, 'is_active' => $product->is_active,
@@ -83,6 +87,10 @@ class VtuProductCatalogueController extends Controller
             $this->assertActivatable($data['service_type'], $data['network'], $metadata, $active);
             $product = VtuProduct::query()->create([
                 'service_type' => $data['service_type'], 'network' => trim($data['network']),
+                'provider_key' => $data['provider_key'] ?? null, 'provider_product_code' => $data['provider_product_code'] ?? null,
+                'provider_cost_minor' => $data['provider_cost_minor'] ?? null, 'data_type' => $data['data_type'] ?? null, 'validity' => $data['validity'] ?? null,
+                'pricing_by_user_category' => $data['pricing_by_user_category'] ?? null,
+                'commission_by_user_category' => $data['commission_by_user_category'] ?? null,
                 'code' => trim($data['code']), 'name' => trim($data['name']),
                 'price_minor' => $data['price_minor'], 'face_value_minor' => $data['face_value_minor'] ?? null,
                 'currency' => 'NGN', 'is_active' => $active, 'metadata' => $metadata,
@@ -99,13 +107,20 @@ class VtuProductCatalogueController extends Controller
         $data = $this->validatedData($request, false);
         DB::transaction(function () use ($request, $product, $data): void {
             $locked = VtuProduct::query()->whereKey($product->getKey())->lockForUpdate()->firstOrFail();
-            $before = $locked->only(['service_type', 'network', 'code', 'name', 'price_minor', 'face_value_minor', 'is_active', 'metadata']);
+            $before = $locked->only(['service_type', 'provider_key', 'provider_product_code', 'provider_cost_minor', 'data_type', 'validity', 'pricing_by_user_category', 'commission_by_user_category', 'network', 'code', 'name', 'price_minor', 'face_value_minor', 'is_active', 'metadata']);
             $metadata = $this->metadata($data, $locked->metadata ?? []);
             $active = (bool) ($data['is_active'] ?? false);
             $this->assertActivatable($locked->service_type, $locked->network, $metadata, $active);
             $locked->forceFill([
                 'name' => trim($data['name']), 'price_minor' => $data['price_minor'],
                 'face_value_minor' => $data['face_value_minor'] ?? null,
+                'provider_key' => $data['provider_key'] ?? $locked->provider_key,
+                'provider_product_code' => $data['provider_product_code'] ?? $locked->provider_product_code,
+                'provider_cost_minor' => $data['provider_cost_minor'] ?? $locked->provider_cost_minor,
+                'data_type' => $data['data_type'] ?? $locked->data_type,
+                'validity' => $data['validity'] ?? $locked->validity,
+                'pricing_by_user_category' => $data['pricing_by_user_category'] ?? $locked->pricing_by_user_category,
+                'commission_by_user_category' => $data['commission_by_user_category'] ?? $locked->commission_by_user_category,
                 'is_active' => $active, 'metadata' => $metadata,
             ])->save();
             $this->audit($request, 'vtu_product.updated.'.$locked->id, $before, $locked->fresh()->only(['service_type', 'network', 'code', 'name', 'price_minor', 'face_value_minor', 'is_active', 'metadata']), $data['reason']);
@@ -118,6 +133,13 @@ class VtuProductCatalogueController extends Controller
     {
         return $request->validate([
             'service_type' => [$creating ? 'required' : 'sometimes', 'string', Rule::in(['airtime', 'data'])],
+            'provider_key' => ['nullable', 'string', Rule::in(['vtpass', 'sogo', 'gsubz', 'dataway', 'manual'])],
+            'provider_product_code' => ['nullable', 'string', 'max:120'],
+            'provider_cost_minor' => ['nullable', 'integer', 'min:0', 'max:1000000000'],
+            'pricing_by_user_category' => ['nullable', 'array'],
+            'pricing_by_user_category.*' => ['nullable', 'numeric', 'min:0', 'max:10000000'],
+            'commission_by_user_category' => ['nullable', 'array'],
+            'commission_by_user_category.*' => ['nullable', 'numeric', 'min:0', 'max:10000000'],
             'network' => [$creating ? 'required' : 'sometimes', 'string', 'max:40'],
             'code' => [$creating ? 'required' : 'sometimes', 'string', 'max:80', Rule::unique('vtu_products', 'code')->ignore($request->route('product'))],
             'name' => ['required', 'string', 'max:160'],
