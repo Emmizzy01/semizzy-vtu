@@ -24,12 +24,12 @@ export default function AdminDashboard({ prototypeMetrics, newUsersLastSevenDays
   capabilities: Capabilities;
 }) {
   const cards = [
-    { label: 'Total Revenue', value: prototypeMetrics.totalRevenueMinor === null ? '—' : nairaFromMinor(prototypeMetrics.totalRevenueMinor), detail: 'Verified revenue reporting pending', href: '/admin/payment-gateway' },
-    { label: 'Active Users', value: prototypeMetrics.activeUsers === null ? '—' : prototypeMetrics.activeUsers.toLocaleString('en-NG'), detail: 'Activity reporting pending', href: '/admin/users' },
+    { label: 'Total Revenue', value: prototypeMetrics.totalRevenueMinor === null ? '—' : nairaFromMinor(prototypeMetrics.totalRevenueMinor), detail: 'Verified revenue reporting pending' },
+    { label: 'Active Users', value: prototypeMetrics.activeUsers === null ? '—' : prototypeMetrics.activeUsers.toLocaleString('en-NG'), detail: 'Activity reporting pending' },
     { label: 'New Users Today', value: prototypeMetrics.newUsersToday.toLocaleString('en-NG'), detail: 'Registered today', icon: <Users size={18} />, href: '/admin/users' },
     { label: 'High-Value Users', value: prototypeMetrics.highValueUsers === null ? '—' : prototypeMetrics.highValueUsers.toLocaleString('en-NG'), detail: 'Verified spend ranking pending', href: '/admin/users' },
-    { label: 'API Success Rate', value: prototypeMetrics.apiSuccessRate === null ? '—' : prototypeMetrics.apiSuccessRate.toFixed(1) + '%', detail: 'Provider telemetry pending', href: '/admin/api-providers' },
-    { label: 'Pending Txns', value: prototypeMetrics.pendingTransactions.toLocaleString('en-NG'), detail: 'Wallet transactions awaiting resolution', href: '/admin/vtu-orders' },
+    { label: 'API Success Rate', value: prototypeMetrics.apiSuccessRate === null ? '—' : prototypeMetrics.apiSuccessRate.toFixed(1) + '%', detail: 'Provider telemetry pending' },
+    { label: 'Pending Txns', value: prototypeMetrics.pendingTransactions.toLocaleString('en-NG'), detail: 'Wallet transactions awaiting resolution' },
   ];
 
   return (
@@ -37,7 +37,7 @@ export default function AdminDashboard({ prototypeMetrics, newUsersLastSevenDays
       <section aria-label="Platform overview" className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
         {cards.map(card => {
           const body = <><p className="text-[11px] text-gray-500 dark:text-gray-400">{card.label}</p><p className="mt-1 break-words text-lg font-bold tabular-nums">{card.value}</p><p className="mt-1 text-[11px] text-gray-500 dark:text-gray-400">{card.detail}</p>{card.label === 'API Success Rate' && <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-gray-100 dark:bg-slate-800"><div className="h-full rounded-full bg-[#0f8a4f]" style={{ width: prototypeMetrics.apiSuccessRate === null ? '0%' : Math.max(0, Math.min(100, prototypeMetrics.apiSuccessRate)) + '%' }}/></div>}</>;
-          return <a key={card.label} href={card.href} className="min-w-0 rounded-xl border bg-white p-4 shadow-sm transition hover:border-[#0f8a4f] dark:border-white/10 dark:bg-slate-900">{body}</a>;
+          return <article key={card.label} className="min-w-0 rounded-xl border bg-white p-4 shadow-sm dark:border-white/10 dark:bg-slate-900">{body}</article>;
         })}
       </section>
 
