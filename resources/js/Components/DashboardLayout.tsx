@@ -1,10 +1,9 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { Head, usePage } from '@inertiajs/react';
 import ThemeToggle from './ThemeToggle';
-import MobileAppHeader from './MobileAppHeader';
 import { applyThemePreference } from './theme';
 import {
-  Activity, ArrowLeftRight, CreditCard, Gift, Landmark, LayoutDashboard, LifeBuoy,
+  Activity, ArrowLeftRight, CreditCard, Landmark, LayoutDashboard, LifeBuoy,
   LogOut, Menu, Package, PlugZap, Search, ShieldCheck, Smartphone, SlidersHorizontal,
   Tv, UserRound, Users, WalletCards, Wifi, X, Zap,
 } from 'lucide-react';
@@ -105,7 +104,6 @@ export default function DashboardLayout({ title, description, admin = false, chi
   return <>
     <Head title={title} />
     <main className="min-h-screen bg-[#eef4ef] pb-20 text-gray-900">
-      <MobileAppHeader admin={admin} customerPreview={customerPreview} />
       <header className="sticky top-0 z-40 border-b border-black/5 bg-white/95 backdrop-blur">
         <div className="mx-auto flex max-w-[1600px] items-center justify-between gap-3 px-4 py-3 sm:px-6">
           <a href={admin ? '/admin/dashboard' : customerPreview ? '/customer/dashboard' : '/dashboard'} className="flex min-w-0 items-center gap-2 font-bold text-xl">
