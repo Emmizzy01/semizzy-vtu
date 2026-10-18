@@ -109,7 +109,7 @@ class VtuOrderWorkflowTest extends TestCase
                 10000,
             );
             $this->fail('The VTU service must reject airtime/data purchases when the platform setting is disabled.');
-        } catch (\\InvalidArgumentException $exception) {
+        } catch (\InvalidArgumentException $exception) {
             $this->assertStringContainsString('service is not yet enabled', $exception->getMessage());
             $this->assertSame(1500, (int) $wallet->fresh()->available_balance_minor);
             $this->assertDatabaseCount('vtu_orders', 0);
