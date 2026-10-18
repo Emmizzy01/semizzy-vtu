@@ -15,7 +15,7 @@ return new class extends Migration
                 $table->foreignId('user_id')->constrained()->restrictOnDelete();
                 $table->foreignId('wallet_id')->constrained()->restrictOnDelete();
                 $table->foreignId('education_service_product_id')->constrained('education_service_products')->restrictOnDelete();
-                $table->foreignId('wallet_transaction_id')->nullable()->constrained()->restrictOnDelete();
+                // Keep the ledger transaction ID as a durable reference without a cross-table FK.\n                // This avoids migration teardown ordering coupling in MariaDB tests.\n                $table->unsignedBigInteger('wallet_transaction_id')->nullable();
                 $table->string('idempotency_key', 128);
                 $table->char('request_hash', 64);
                 $table->string('provider', 60);
