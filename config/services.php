@@ -12,8 +12,8 @@ return [
         // live catalogue mappings, webhook handling, and failover tests pass release gates.
         'multi_provider' => [
             'enabled' => (bool) env('VTU_MULTI_PROVIDER_ENABLED', false),
-            // Initial provider selection can be enabled independently; post-submit failover stays OFF by default.
-            'failover_enabled' => (bool) env('VTU_FAILOVER_ENABLED', false),
+            // Hard-off for this release by operator decision: no environment value may enable post-submit failover.
+            'failover_enabled' => false,
             'priority' => array_values(array_filter(array_map(
                 'trim',
                 explode(',', (string) env('VTU_PROVIDER_PRIORITY', 'sogo,gsubz,dataway')),
