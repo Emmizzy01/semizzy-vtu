@@ -20,7 +20,7 @@ class ProviderCatalogueImportTest extends TestCase
             'services.vtu.dataway.api_key' => 'test-key',
         ]);
         Http::fake([
-            'dataway.ng/api/v1/merchant/billers/*' => Http::response([
+            'dataway.ng/*' => Http::response([
                 'count' => 1,
                 'data' => [[
                     'id' => 1,
