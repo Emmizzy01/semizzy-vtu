@@ -84,7 +84,7 @@ final class GsubzEducationProvider implements EducationProvider
     {
         return Http::baseUrl(rtrim((string) config('services.education.providers.gsubz.base_url'), '/'))
             ->withToken((string) config('services.education.providers.gsubz.api_key'))
-            ->acceptJson()->connectTimeout(5)->timeout(20);
+            ->acceptJson()->connectTimeout(5)->timeout(60);
     }
 
     /** @param array<string,mixed> $body */
@@ -107,7 +107,9 @@ final class GsubzEducationProvider implements EducationProvider
                 ], fn ($value) => $value !== null),
             ];
         }
-        if ($lookup && in_array($status, ['failed', 'fail', 'refunded'], true)) {
+        if (in_array($status, ['failed', 'fail', 'refunded'], true)) {
+            // GSUBZ documents status=failed as a purchase that did not go through.
+            // Unknown transport/HTTP outcomes remain unknown; only explicit provider status is final.
             return ['status' => 'failed', 'provider_reference' => is_scalar($reference) ? (string) $reference : null, 'message_code' => $code ?? 'provider_confirmed_failed'];
         }
         if (in_array($status, ['pending', 'processing'], true)) {
