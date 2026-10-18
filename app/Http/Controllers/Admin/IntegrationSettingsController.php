@@ -107,17 +107,25 @@ class IntegrationSettingsController extends Controller
     public function apiProviders(IntegrationSettings $settings): InertiaResponse
     {
         $providers = [];
+        $endpoints = [
+            'sogo' => ['https://sandbox.sogo.africa/v1', 'https://api.sogo.africa/v1'],
+            'gsubz' => ['https://api.gsubz.com'],
+            'dataway' => ['https://dataway.ng/api/v1/merchant'],
+            'vtpass' => ['https://sandbox.vtpass.com/api', 'https://vtpass.com/api'],
+        ];
         foreach (['sogo' => 'Sogo Africa', 'gsubz' => 'GSUBZ', 'dataway' => 'Dataway', 'vtpass' => 'VTpass'] as $key => $label) {
-            $base = (string) config("services.vtu.{$key}.base_url", '');
-            $secretConfigured = $key === 'vtpass'
-                ? ((string) config('services.vtu.vtpass.api_key', '') !== '' && (string) config('services.vtu.vtpass.secret_key', '') !== '')
-                : ((string) config("services.vtu.{$key}.api_key", '') !== '');
+            $base = (string) $settings->get("vtu.{$key}.base_url", config("services.vtu.{$key}.base_url", ''));
+            $apiKey = (string) $settings->get("vtu.{$key}.api_key", config("services.vtu.{$key}.api_key", ''));
+            $secretConfigured = $apiKey !== '' && parse_url($base, PHP_URL_SCHEME) === 'https';
             $providers[] = [
                 'key' => $key,
                 'name' => $label,
-                'configured' => $secretConfigured && parse_url($base, PHP_URL_SCHEME) === 'https',
+                'configured' => $secretConfigured,
+                'apiKeyConfigured' => $apiKey !== '',
                 'environment' => str_contains(strtolower($base), 'sandbox') ? 'Sandbox' : 'Live endpoint',
+                'baseUrl' => $base,
                 'baseHost' => parse_url($base, PHP_URL_HOST) ?: null,
+                'allowedBaseUrls' => $endpoints[$key],
                 'catalogueImportSupported' => in_array($key, ['sogo', 'gsubz', 'dataway'], true),
                 'purchaseRoutingEnabled' => $key !== 'vtpass'
                     && (bool) config('services.vtu.multi_provider.enabled', false)
@@ -132,6 +140,70 @@ class IntegrationSettingsController extends Controller
             'routingEnabled' => (bool) config('services.vtu.multi_provider.enabled', false),
             'priority' => config('services.vtu.multi_provider.priority', ['sogo', 'gsubz', 'dataway']),
         ]);
+    }
+
+    public function saveProviderCredentials(Request $request, string $provider, IntegrationSettings $settings): RedirectResponse
+    {
+        abort_unless(in_array($provider, ['sogo', 'gsubz', 'dataway'], true), 404);
+
+        $data = $request->validate([
+            'base_url' => ['required', 'url', 'starts_with:https://', 'max:2048'],
+            'api_key' => ['nullable', 'string', 'max:1000'],
+            'reason' => ['required', 'string', 'min:8', 'max:500'],
+        ]);
+        $allowed = [
+            'sogo' => ['https://sandbox.sogo.africa/v1', 'https://api.sogo.africa/v1'],
+            'gsubz' => ['https://api.gsubz.com'],
+            'dataway' => ['https://dataway.ng/api/v1/merchant'],
+        ];
+        $base = rtrim(trim($data['base_url']), '/');
+        if (! in_array($base, $allowed[$provider], true)) {
+            return back()->withErrors(['base_url' => 'Choose an official HTTPS endpoint for this provider.']);
+        }
+
+        $key = trim((string) ($data['api_key'] ?? ''));
+        $existingKey = (string) $settings->get("vtu.{$provider}.api_key", config("services.vtu.{$provider}.api_key", ''));
+        $effectiveKey = $key !== '' ? $key : $existingKey;
+        if ($effectiveKey === '') {
+            return back()->withErrors(['api_key' => 'Enter the provider API key before saving or importing a catalogue.']);
+        }
+        if ($provider === 'sogo' && str_contains($base, 'sandbox.sogo.africa') && ! str_starts_with($effectiveKey, 'sogo_sk_test_')) {
+            return back()->withErrors(['api_key' => 'The Sogo sandbox endpoint requires a sandbox secret key.']);
+        }
+        if ($provider === 'sogo' && str_contains($base, 'api.sogo.africa') && ! str_starts_with($effectiveKey, 'sogo_sk_live_')) {
+            return back()->withErrors(['api_key' => 'The Sogo live endpoint requires a live secret key.']);
+        }
+        if ($provider === 'gsubz' && ! str_starts_with($effectiveKey, 'ap_')) {
+            return back()->withErrors(['api_key' => 'Enter a GSUBZ API key beginning with ap_.']);
+        }
+        if ($provider === 'dataway' && ! str_starts_with($effectiveKey, 'bp_live_')) {
+            return back()->withErrors(['api_key' => 'Enter the Dataway Merchant API key beginning with bp_live_.']);
+        }
+
+        $actor = (int) $request->user()->id;
+        $reason = trim($data['reason']);
+        DB::transaction(function () use ($settings, $provider, $base, $key, $existingKey, $effectiveKey, $actor, $reason): void {
+            $updates = ["vtu.{$provider}.base_url" => $base];
+            if ($key !== '') $updates["vtu.{$provider}.api_key"] = $key;
+            foreach ($updates as $settingKey => $newValue) {
+                $fallback = str_ends_with($settingKey, '.base_url')
+                    ? (string) config("services.vtu.{$provider}.base_url", '')
+                    : (string) config("services.vtu.{$provider}.api_key", '');
+                $oldValue = (string) $settings->get($settingKey, $fallback);
+                if (hash_equals(hash('sha256', $oldValue), hash('sha256', (string) $newValue))) continue;
+                $settings->set($settingKey, (string) $newValue, $actor);
+                PlatformSettingAudit::query()->create([
+                    'actor_user_id' => $actor,
+                    'setting_key' => $settingKey,
+                    'old_value_hash' => hash('sha256', $oldValue),
+                    'new_value_hash' => hash('sha256', (string) $newValue),
+                    'reason' => $reason,
+                    'created_at' => now(),
+                ]);
+            }
+        }, attempts: 3);
+
+        return back()->with('success', strtoupper($provider).' credentials saved securely. Catalogue import is enabled; customer purchase routing remains separately gated.');
     }
 
     public function updateApiProviders(Request $request, IntegrationSettings $settings): RedirectResponse
