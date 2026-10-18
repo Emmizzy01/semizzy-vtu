@@ -103,6 +103,18 @@ class VtuProviderAdaptersTest extends TestCase
             && str_contains($request->url(), '/transactions/550e8400-e29b-41d4-a716-446655440000'));
     }
 
+    public function test_sogo_sandbox_404_does_not_authorize_resubmission(): void
+    {
+        config(['services.vtu.sogo.base_url' => 'https://sandbox.sogo.africa/v1']);
+        Http::fake(['sandbox.sogo.africa/*' => Http::response(['message' => 'not found'], 404)]);
+
+        $result = app(SogoProviderClient::class)->lookup($this->order());
+
+        $this->assertSame('unknown', $result['status']);
+        $this->assertSame('not_found', $result['lookup_state']);
+        $this->assertArrayNotHasKey('safe_to_submit_same_key', $result);
+    }
+
     public function test_sogo_non_404_lookup_errors_do_not_claim_safe_resubmission(): void
     {
         Http::fake(['api.sogo.africa/*' => Http::response(['message' => 'temporarily unavailable'], 503)]);
