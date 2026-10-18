@@ -1,0 +1,221 @@
+<?php
+
+namespace App\Services\Education;
+
+use App\Exceptions\Wallet\IdempotencyConflict;
+use App\Models\EducationOrder;
+use App\Models\EducationProviderAttempt;
+use App\Models\EducationServiceProduct;
+use App\Models\User;
+use App\Services\Wallets\WalletAccountService;
+use App\Services\Wallets\WalletLedgerService;
+use Illuminate\Database\QueryException;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
+use Throwable;
+
+class EducationOrderCoordinator
+{
+    public function __construct(
+        private readonly EducationPurchaseService $preflight,
+        private readonly EducationProviderRegistry $providers,
+        private readonly WalletAccountService $walletAccounts,
+        private readonly WalletLedgerService $ledger,
+    ) {
+    }
+
+    /**
+     * Creates a single debited order and durable attempt before provider submission.
+     * Unknown outcomes stay debited and are reconciled; they are never blindly retried.
+     *
+     * @param array<string, scalar|null> $candidate
+     */
+    public function purchase(User $user, string $productCode, string $idempotencyKey, array $candidate): EducationOrder
+    {
+        $requestHash = hash('sha256', json_encode([
+            'user_id' => $user->getKey(),
+            'product_code' => $productCode,
+            'candidate' => $candidate,
+        ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
+
+        $existing = EducationOrder::query()
+            ->where('user_id', $user->getKey())
+            ->where('idempotency_key', $idempotencyKey)
+            ->first();
+
+        if ($existing !== null) {
+            return $this->returnExisting($existing, $requestHash);
+        }
+
+        $product = $this->preflight->preflight($user, $productCode, $idempotencyKey, $candidate);
+        $provider = $this->providers->forProduct($product);
+        $wallet = $this->walletAccounts->openForUser($user, 'NGN');
+
+        try {
+            $order = DB::transaction(function () use ($user, $product, $wallet, $idempotencyKey, $requestHash, $candidate): EducationOrder {
+                $existing = EducationOrder::query()
+                    ->where('user_id', $user->getKey())
+                    ->where('idempotency_key', $idempotencyKey)
+                    ->lockForUpdate()
+                    ->first();
+
+                if ($existing !== null) {
+                    return $this->returnExisting($existing, $requestHash);
+                }
+
+                $lockedProduct = EducationServiceProduct::query()->whereKey($product->getKey())->lockForUpdate()->firstOrFail();
+                if (! $lockedProduct->is_active || ! $lockedProduct->purchase_approved || $lockedProduct->currency !== 'NGN') {
+                    throw new \LogicException('Education product approval changed before reservation.');
+                }
+
+                $order = EducationOrder::query()->create([
+                    'public_id' => (string) Str::uuid(),
+                    'user_id' => $user->getKey(),
+                    'wallet_id' => $wallet->getKey(),
+                    'education_service_product_id' => $lockedProduct->getKey(),
+                    'idempotency_key' => $idempotencyKey,
+                    'request_hash' => $requestHash,
+                    'provider' => (string) $lockedProduct->provider,
+                    'status' => 'processing',
+                    'amount_minor' => (int) $lockedProduct->price_minor,
+                    'currency' => 'NGN',
+                    'candidate_details' => $candidate,
+                    'dispatch_started_at' => now(),
+                ]);
+
+                $transaction = $this->ledger->post(
+                    walletId: (int) $wallet->getKey(),
+                    type: 'debit',
+                    amountMinor: (int) $lockedProduct->price_minor,
+                    idempotencyKey: 'education-purchase:'.$order->public_id,
+                    reference: $order->public_id,
+                    description: 'Education purchase: '.$lockedProduct->name,
+                    actorUserId: (int) $user->getKey(),
+                    metadata: [
+                        'education_order_id' => $order->public_id,
+                        'product_code' => $lockedProduct->code,
+                    ],
+                    correlationId: $order->public_id,
+                );
+
+                $order->forceFill(['wallet_transaction_id' => $transaction->getKey()])->save();
+                EducationProviderAttempt::query()->create([
+                    'education_order_id' => $order->getKey(),
+                    'attempt_number' => 1,
+                    'provider' => (string) $lockedProduct->provider,
+                    'outcome' => 'started',
+                    'request_fingerprint' => hash('sha256', implode('|', [
+                        $order->public_id, $lockedProduct->provider, $lockedProduct->code,
+                    ])),
+                    'started_at' => now(),
+                ]);
+
+                return $order;
+            }, attempts: 3);
+        } catch (QueryException $exception) {
+            $existing = EducationOrder::query()
+                ->where('user_id', $user->getKey())
+                ->where('idempotency_key', $idempotencyKey)
+                ->first();
+
+            if ($existing !== null) {
+                return $this->returnExisting($existing, $requestHash);
+            }
+
+            throw $exception;
+        }
+
+        if ($order->status !== 'processing' || $order->dispatch_started_at === null) {
+            return $order;
+        }
+
+        try {
+            $result = $provider->submit($order->public_id, $product, $candidate);
+        } catch (Throwable) {
+            // Provider outcome is ambiguous. Keep the debit and durable attempt for lookup.
+            $this->recordOutcome($order, 'unknown', null, 'submission_outcome_unknown');
+            return $order->fresh();
+        }
+
+        $status = $result['status'] ?? 'unknown';
+        if (! in_array($status, ['success', 'failed', 'pending', 'unknown'], true)) {
+            $status = 'unknown';
+        }
+
+        return $this->recordOutcome(
+            $order,
+            $status,
+            isset($result['provider_reference']) ? (string) $result['provider_reference'] : null,
+            isset($result['message_code']) ? (string) $result['message_code'] : null,
+        );
+    }
+
+    private function returnExisting(EducationOrder $order, string $requestHash): EducationOrder
+    {
+        if (! hash_equals((string) $order->request_hash, $requestHash)) {
+            throw new IdempotencyConflict('This education idempotency key was already used for a different request.');
+        }
+
+        // An existing processing/unknown order is returned for reconciliation; never resubmit here.
+        return $order;
+    }
+
+    private function recordOutcome(EducationOrder $order, string $status, ?string $providerReference, ?string $messageCode): EducationOrder
+    {
+        return DB::transaction(function () use ($order, $status, $providerReference, $messageCode): EducationOrder {
+            $locked = EducationOrder::query()->whereKey($order->getKey())->lockForUpdate()->firstOrFail();
+            if (in_array($locked->status, ['successful', 'failed', 'cancelled'], true)) {
+                return $locked;
+            }
+
+            $attempt = EducationProviderAttempt::query()
+                ->where('education_order_id', $locked->getKey())
+                ->where('attempt_number', 1)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            $attempt->forceFill([
+                'outcome' => $status,
+                'provider_reference' => $providerReference,
+                'message_code' => $messageCode,
+                'finished_at' => in_array($status, ['success', 'failed'], true) ? now() : null,
+            ])->save();
+
+            $locked->forceFill([
+                'provider_reference' => $providerReference ?? $locked->provider_reference,
+                'safe_provider_response' => [
+                    'status' => $status,
+                    'provider_reference' => $providerReference,
+                    'message_code' => $messageCode,
+                ],
+            ]);
+
+            if ($status === 'success') {
+                $locked->status = 'successful';
+                $locked->completed_at = now();
+            } elseif ($status === 'failed') {
+                // Only a provider-confirmed definitive failure triggers a refund.
+                $this->ledger->post(
+                    walletId: (int) $locked->wallet_id,
+                    type: 'credit',
+                    amountMinor: (int) $locked->amount_minor,
+                    idempotencyKey: 'education-refund:'.$locked->public_id,
+                    reference: $locked->public_id,
+                    description: 'Refund for failed education purchase',
+                    actorUserId: (int) $locked->user_id,
+                    metadata: ['education_order_id' => $locked->public_id, 'reason' => 'provider_definitive_failure'],
+                    correlationId: $locked->public_id,
+                );
+                $locked->status = 'failed';
+                $locked->failure_code = $messageCode ?? 'provider_failed';
+                $locked->completed_at = now();
+            } else {
+                $locked->status = $status === 'pending' ? 'pending' : 'unknown';
+            }
+
+            $locked->save();
+
+            return $locked->fresh();
+        }, attempts: 3);
+    }
+}
