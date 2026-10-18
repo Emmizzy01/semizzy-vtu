@@ -147,4 +147,37 @@ class PaymentRefundWorkflowTest extends TestCase
         $this->assertDatabaseCount('wallet_transactions', 3);
         $this->assertDatabaseCount('wallet_ledger_entries', 3);
     }
+    public function test_refund_requester_cannot_approve_their_own_refund_even_with_approval_permission(): void
+    {
+        Http::fake();
+        $customer = User::query()->create([
+            'name' => 'Self Approving Customer',
+            'email' => 'self-approving-refund@example.test',
+            'password' => 'test-password',
+        ]);
+        UserPermission::query()->create([
+            'user_id' => $customer->id,
+            'permission' => 'refunds.approve',
+        ]);
+        $intent = $this->paidIntent($customer, 10000);
+
+        $request = $this->actingAs($customer)->postJson('/wallet/refund-requests', [
+            'payment_intent_id' => $intent->public_id,
+            'amount_minor' => 2500,
+            'reason' => 'Self approval protection test',
+            'idempotency_key' => 'refund-self-approval-protection',
+        ])->assertCreated();
+
+        $this->actingAs($customer)
+            ->postJson('/admin/payment-refunds/'.$request->json('data.id').'/approve')
+            ->assertForbidden();
+
+        $this->assertSame(10000, (int) $intent->wallet()->first()->fresh()->balance_minor);
+        $this->assertDatabaseHas('payment_refunds', [
+            'public_id' => $request->json('data.id'),
+            'status' => 'requested',
+        ]);
+        Http::assertNothingSent();
+    }
+
 }
