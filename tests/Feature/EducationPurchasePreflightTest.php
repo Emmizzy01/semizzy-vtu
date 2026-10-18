@@ -86,7 +86,7 @@ class EducationPurchasePreflightTest extends TestCase
             'requires_candidate_validation' => true, 'is_active' => true, 'purchase_approved' => true,
         ]);
 
-        app()->instance('education.providers.authorization-gate-provider', new class implements \\App\\Services\\Education\\EducationProvider {
+        app()->instance('education.providers.authorization-gate-provider', new class implements \App\Services\Education\EducationProvider {
             public function assertConfigured(): void
             {
                 throw new LogicException('Provider merchant authorization has not been verified.');
