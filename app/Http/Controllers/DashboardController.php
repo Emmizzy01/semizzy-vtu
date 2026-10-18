@@ -12,6 +12,7 @@ use App\Models\Wallet;
 use App\Models\WalletTransaction;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
 
@@ -54,9 +55,13 @@ class DashboardController extends Controller
 
         $newUsersToday = User::query()->whereDate('created_at', now()->toDateString())->count();
         $newUsersLastSevenDays = User::query()->where('created_at', '>=', now()->subDays(7))->count();
+        $recentUserColumns = ['id', 'name', 'kyc_status', 'created_at'];
+        if (Schema::hasColumn('users', 'mobile_number')) {
+            $recentUserColumns[] = 'mobile_number';
+        }
         $recentUsers = $canManageStaff
             ? User::query()->where('created_at', '>=', now()->subDays(7))->latest('created_at')->limit(3)
-                ->get(['id', 'name', 'mobile_number', 'kyc_status', 'created_at'])
+                ->get($recentUserColumns)
                 ->map(function (User $recentUser): array {
                     $digits = preg_replace('/\\D+/', '', (string) ($recentUser->mobile_number ?? '')) ?? '';
                     $maskedPhone = $digits === '' ? 'Phone not provided' : substr($digits, 0, min(4, strlen($digits))) . ' •• ' . substr($digits, -2);
