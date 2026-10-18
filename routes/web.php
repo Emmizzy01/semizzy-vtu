@@ -8,6 +8,7 @@ use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\Auth\LoginChallengeController;
 use App\Http\Controllers\Auth\PasswordResetController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\EducationServiceController;
 use App\Http\Controllers\Payments\PaymentFundingController;
 use App\Http\Controllers\Payments\ManualDepositController;
 use App\Http\Controllers\Admin\ManualDepositSettingsController;
