@@ -83,7 +83,7 @@ export default function AdminDashboard({ prototypeMetrics, newUsersLastSevenDays
         <section className="rounded-xl border bg-white p-5 shadow-sm dark:border-white/10 dark:bg-slate-900" aria-labelledby="high-value-users-heading">
           <h2 id="high-value-users-heading" className="mb-4 font-bold">High-Value Users (Top Spenders)</h2>
           <div className="flex min-h-28 flex-col items-center justify-center rounded-lg border border-dashed p-5 text-center dark:border-slate-700"><Activity size={22} className="text-gray-400"/><p className="mt-2 text-sm font-semibold text-gray-600 dark:text-gray-300">Verified spend ranking unavailable</p><p className="mt-1 text-xs leading-5 text-gray-500 dark:text-gray-400">This panel is ready for the verified cross-service spend report. No sample users or spending totals are shown.</p></div>
-          {capabilities.manageStaff && <a href="/admin/users" className="mt-3 inline-flex min-h-9 items-center rounded-lg border px-3 text-xs font-bold text-[#0f8a4f]">View users</a>}
+          {capabilities.manageStaff && <a href="/admin/users" className="mt-3 inline-flex min-h-8 items-center rounded-full border px-3 py-1 text-xs font-bold">View</a>}
         </section>
       </div>
     </DashboardLayout>
