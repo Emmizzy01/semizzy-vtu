@@ -60,12 +60,13 @@ final class SogoEducationProvider implements EducationProvider
 
         $body = $response->json();
         $data = is_array($body['verification'] ?? null) ? $body['verification'] : (is_array($body['data'] ?? null) ? $body['data'] : $body);
-        if (($data['verified'] ?? false) === true || ($data['valid'] ?? false) === true
-            || ($exam === 'JAMB' && $data !== [] && (isset($data['candidate_name']) || isset($data['customer_name']) || isset($data['name'])))) {
-            return ['status' => 'valid', 'reference' => isset($data['reference']) ? (string) $data['reference'] : null];
-        }
+        // An explicit negative result must win even if the response also contains a name.
+        // Candidate details alone are not proof that the provider verified the profile.
         if (($data['verified'] ?? null) === false || ($data['valid'] ?? null) === false) {
             return ['status' => 'invalid', 'message' => 'The provider rejected the candidate details.'];
+        }
+        if (($data['verified'] ?? false) === true || ($data['valid'] ?? false) === true) {
+            return ['status' => 'valid', 'reference' => isset($data['reference']) ? (string) $data['reference'] : null];
         }
 
         return ['status' => 'unknown', 'message' => 'The provider response did not positively confirm candidate validity.'];
