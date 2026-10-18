@@ -1,4 +1,5 @@
 import { Head } from '@inertiajs/react';
+import DashboardLayout from '../../../Components/DashboardLayout';
 import { AlertCircle, CheckCircle2, Clock3, Search, ShieldCheck, ShieldOff, Users, RefreshCw, History, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
@@ -134,7 +135,7 @@ export default function StaffAccessDashboard() {
   }
 
   return (
-    <>
+    <DashboardLayout title="Staff access management" description="Manage staff permissions and review the access audit trail." admin>
       <Head title="Staff access management" />
       <main className="min-h-screen bg-[var(--page)] px-4 py-5 text-[var(--ink)] sm:px-6 lg:px-10 lg:py-8">
         <div className="mx-auto max-w-7xl">
@@ -222,7 +223,7 @@ export default function StaffAccessDashboard() {
           <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end"><button type="button" disabled={busy} onClick={() => setActiveUser(null)} className="rounded-xl border border-[var(--line)] px-4 py-2.5 text-sm font-bold">Cancel</button><button type="button" disabled={busy || reason.trim().length < 8} onClick={() => void submitChange()} className={action === 'granted' ? 'inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--brand)] px-4 py-2.5 text-sm font-bold text-white disabled:opacity-50' : 'inline-flex items-center justify-center gap-2 rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-bold text-white disabled:opacity-50'}>{busy ? <RefreshCw size={15} className="animate-spin" /> : action === 'granted' ? <ShieldCheck size={16} /> : <ShieldOff size={16} />}{busy ? 'Saving…' : action === 'granted' ? 'Grant permission' : 'Revoke permission'}</button></div>
         </section>
       </div>}
-    </>
+    </DashboardLayout>
   );
 }
 
