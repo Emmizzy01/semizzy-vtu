@@ -9,7 +9,7 @@ type PrototypeMetrics = {
   apiSuccessRate: number | null;
   pendingTransactions: number;
 };
-type RecentUser = { id: number; name: string; phone: string; createdAt: string | null };
+type RecentUser = { id: number; name: string; phone: string; kycStatus: string; createdAt: string | null };
 type Capabilities = { manageStaff: boolean; approveRefunds: boolean };
 
 function nairaFromMinor(minor: number) {
@@ -75,7 +75,7 @@ export default function AdminDashboard({ prototypeMetrics, newUsersLastSevenDays
           {recentUsers.length > 0 ? <div className="space-y-3 text-sm">
             {recentUsers.map(user => <div key={user.id} className="flex items-center justify-between gap-3">
               <div className="flex min-w-0 items-center gap-2"><div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-gray-200 text-xs dark:bg-slate-700">{user.name.split(/\\s+/).slice(0, 2).map(part => part[0]).join('').toUpperCase()}</div><div className="min-w-0"><p className="truncate text-xs font-medium">{user.name}</p><p className="text-[11px] text-gray-500 dark:text-gray-400">{user.phone}{user.createdAt ? ' • ' + new Date(user.createdAt).toLocaleString('en-NG', { dateStyle: 'short', timeStyle: 'short' }) : ''}</p></div></div>
-              <a href={'/admin/users?search=' + encodeURIComponent(user.name)} className="shrink-0 rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-800 dark:bg-green-950 dark:text-green-200">Verify</a>
+              {user.kycStatus === 'pending' || user.kycStatus === 'manual_review' ? <a href="/admin/kyc-reviews" className="shrink-0 rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-800 dark:bg-green-950 dark:text-green-200">Verify</a> : <a href={'/admin/users?search=' + encodeURIComponent(user.name)} className="shrink-0 rounded-full border px-3 py-1 text-xs font-semibold text-[#0f8a4f]">View</a>}
             </div>)}
           </div> : <div className="flex min-h-28 flex-col items-center justify-center rounded-lg border border-dashed p-5 text-center dark:border-slate-700"><Users size={22} className="text-gray-400"/><p className="mt-2 text-sm font-semibold text-gray-600 dark:text-gray-300">No recent users to display</p><p className="mt-1 text-xs leading-5 text-gray-500 dark:text-gray-400">New registrations from the last seven days will appear here.</p></div>}
           {capabilities.manageStaff && <a href="/admin/users" className="mt-3 inline-flex min-h-9 items-center rounded-lg border px-3 text-xs font-bold text-[#0f8a4f]">View all users</a>}
