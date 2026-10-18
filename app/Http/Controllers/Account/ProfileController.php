@@ -23,6 +23,11 @@ class ProfileController extends Controller
             'profile' => [
                 'name' => $user->name,
                 'email' => $user->email,
+                'avatar_url' => $user->avatar_path ? Storage::disk('public')->url($user->avatar_path) : null,
+                'address' => $user->address,
+                'date_of_birth' => $user->date_of_birth?->format('Y-m-d'),
+                'sex' => $user->sex,
+                'mobile_number' => $user->mobile_number,
                 'user_type' => $user->user_type ?: 'customer',
                 'user_level' => $user->user_level ?: 'level_1',
                 'kyc_status' => $user->kyc_status ?: 'unverified',
@@ -36,13 +41,37 @@ class ProfileController extends Controller
     {
         /** @var User $user */
         $user = $request->user();
-        $data = $request->validate(['name' => ['required', 'string', 'min:2', 'max:120']]);
+        $data = $request->validate([
+            'name' => ['required', 'string', 'min:2', 'max:120'],
+            'address' => ['nullable', 'string', 'max:255'],
+            'date_of_birth' => ['nullable', 'date_format:Y-m-d', 'before:today'],
+            'sex' => ['nullable', 'in:male,female,other,prefer_not_to_say'],
+            'mobile_number' => ['nullable', 'regex:/^\\+[1-9][0-9]{7,14}$/'],
+            'avatar' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:3072'],
+        ]);
         $oldName = $user->name;
         $name = trim($data['name']);
-        if ($name !== $oldName) {
-            $user->forceFill(['name' => $name])->save();
-            $security->record($user->id, 'profile_name_updated', 'success', ['changed' => true]);
+        $updates = [
+            'name' => $name,
+            'address' => isset($data['address']) ? trim($data['address']) : null,
+            'date_of_birth' => $data['date_of_birth'] ?? null,
+            'sex' => $data['sex'] ?? null,
+            'mobile_number' => $data['mobile_number'] ?? null,
+        ];
+        if ($request->hasFile('avatar')) {
+            $path = $request->file('avatar')->store('avatars/'.$user->id, 'public');
+            if ($user->avatar_path) Storage::disk('public')->delete($user->avatar_path);
+            $updates['avatar_path'] = $path;
         }
+        $user->forceFill($updates)->save();
+        if ($name !== $oldName) $security->record($user->id, 'profile_name_updated', 'success', ['changed' => true]);
+        $security->record($user->id, 'profile_details_updated', 'success', [
+            'address_changed' => array_key_exists('address', $data),
+            'date_of_birth_changed' => array_key_exists('date_of_birth', $data),
+            'sex_changed' => array_key_exists('sex', $data),
+            'mobile_number_changed' => array_key_exists('mobile_number', $data),
+            'avatar_changed' => $request->hasFile('avatar'),
+        ]);
         return back()->with('status', 'Profile saved.');
     }
 
