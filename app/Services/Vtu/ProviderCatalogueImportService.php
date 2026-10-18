@@ -92,8 +92,9 @@ class ProviderCatalogueImportService
 
     private function sogo(string $category): array
     {
-        $key = (string) config('services.vtu.sogo.api_key', '');
-        $base = rtrim((string) config('services.vtu.sogo.base_url', ''), '/');
+        $settings = app(IntegrationSettings::class);
+        $key = (string) $settings->get('vtu.sogo.api_key', config('services.vtu.sogo.api_key', ''));
+        $base = rtrim((string) $settings->get('vtu.sogo.base_url', config('services.vtu.sogo.base_url', '')), '/');
         $this->assertCredentials($base, $key, 'Sogo');
         $http = Http::baseUrl($base)->withToken($key)->acceptJson()->connectTimeout(5)->timeout(30);
         $response = $http->get('bills/catalog');
@@ -134,8 +135,9 @@ class ProviderCatalogueImportService
 
     private function gsubz(string $category): array
     {
-        $key = (string) config('services.vtu.gsubz.api_key', '');
-        $base = rtrim((string) config('services.vtu.gsubz.base_url', ''), '/');
+        $settings = app(IntegrationSettings::class);
+        $key = (string) $settings->get('vtu.gsubz.api_key', config('services.vtu.gsubz.api_key', ''));
+        $base = rtrim((string) $settings->get('vtu.gsubz.base_url', config('services.vtu.gsubz.base_url', '')), '/');
         $this->assertCredentials($base, $key, 'GSUBZ');
         $http = Http::baseUrl($base)->withToken($key)->acceptJson()->connectTimeout(5)->timeout(30);
         $response = $http->get('api/category/');
@@ -180,8 +182,9 @@ class ProviderCatalogueImportService
 
     private function dataway(string $category): array
     {
-        $key = (string) config('services.vtu.dataway.api_key', '');
-        $base = rtrim((string) config('services.vtu.dataway.base_url', ''), '/');
+        $settings = app(IntegrationSettings::class);
+        $key = (string) $settings->get('vtu.dataway.api_key', config('services.vtu.dataway.api_key', ''));
+        $base = rtrim((string) $settings->get('vtu.dataway.base_url', config('services.vtu.dataway.base_url', '')), '/');
         $this->assertCredentials($base, $key, 'Dataway');
         $http = Http::baseUrl($base)->withToken($key)->acceptJson()->connectTimeout(5)->timeout(30);
         $response = $http->get('billers/', ['category' => $category]);
