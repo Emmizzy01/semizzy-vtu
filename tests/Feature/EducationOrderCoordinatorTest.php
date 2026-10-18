@@ -119,6 +119,47 @@ class EducationOrderCoordinatorTest extends TestCase
         $this->assertDatabaseCount('wallet_ledger_entries', 1);
     }
 
+    public function test_uncertain_provider_lookup_keeps_order_unknown_and_never_refunds_or_resubmits(): void
+    {
+        [$user, $product, $wallet] = $this->setupApprovedProduct('waec-coordinator-uncertain-lookup');
+        $provider = new class implements EducationProvider {
+            public int $submissions = 0;
+            public int $lookups = 0;
+            public function assertConfigured(): void {}
+            public function validateCandidate(EducationServiceProduct $product, array $candidate): array
+            {
+                return ['status' => 'valid'];
+            }
+            public function submit(string $orderReference, EducationServiceProduct $product, array $candidate): array
+            {
+                $this->submissions++;
+                return ['status' => 'unknown', 'provider_reference' => 'uncertain-provider-ref'];
+            }
+            public function lookup(string $orderReference, EducationServiceProduct $product): array
+            {
+                $this->lookups++;
+                return ['status' => 'unknown', 'message_code' => 'LOOKUP_NOT_CONCLUSIVE'];
+            }
+        };
+        app()->instance('education.providers.test-education', $provider);
+
+        $coordinator = app(EducationOrderCoordinator::class);
+        $order = $coordinator->purchase(
+            $user, $product->code, 'education-idem-uncertain-lookup', ['candidate_number' => '1234567890']
+        );
+        $this->assertSame('unknown', $order->status);
+        $this->assertSame(1, $provider->submissions);
+
+        $reconciled = $coordinator->reconcile($order->fresh());
+        $this->assertSame('unknown', $reconciled->status);
+        $this->assertSame('LOOKUP_NOT_CONCLUSIVE', $reconciled->failure_code ?? $reconciled->safe_provider_response['message_code'] ?? null);
+        $this->assertSame(1, $provider->lookups);
+        $this->assertSame(1, $provider->submissions, 'An uncertain lookup must not cause a purchase resubmission.');
+        $this->assertSame(350000, (int) $wallet->fresh()->balance_minor);
+        $this->assertDatabaseCount('wallet_ledger_entries', 1, 'An uncertain lookup must not issue a refund.');
+        $this->assertSame(0, WalletTransaction::query()->where('type', 'credit')->count());
+    }
+
     public function test_idempotency_key_cannot_be_reused_for_different_candidate_payload(): void
     {
         [$user, $product] = $this->setupApprovedProduct('waec-coordinator-conflict');
