@@ -56,7 +56,7 @@ class DashboardController extends Controller
         $newUsersLastSevenDays = User::query()->where('created_at', '>=', now()->subDays(7))->count();
         $recentUsers = $canManageStaff
             ? User::query()->where('created_at', '>=', now()->subDays(7))->latest('created_at')->limit(3)
-                ->get(['id', 'name', 'mobile_number', 'created_at'])
+                ->get(['id', 'name', 'mobile_number', 'kyc_status', 'created_at'])
                 ->map(function (User $recentUser): array {
                     $digits = preg_replace('/\\D+/', '', (string) ($recentUser->mobile_number ?? '')) ?? '';
                     $maskedPhone = $digits === '' ? 'Phone not provided' : substr($digits, 0, min(4, strlen($digits))) . ' •• ' . substr($digits, -2);
@@ -64,6 +64,7 @@ class DashboardController extends Controller
                         'id' => (int) $recentUser->id,
                         'name' => (string) $recentUser->name,
                         'phone' => $maskedPhone,
+                        'kycStatus' => (string) ($recentUser->kyc_status ?? 'unverified'),
                         'createdAt' => $recentUser->created_at?->toISOString(),
                     ];
                 })->values()
