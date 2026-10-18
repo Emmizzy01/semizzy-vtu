@@ -24,16 +24,13 @@ class VtuOrderController extends Controller
             'service_type' => ['sometimes', 'string', 'in:airtime,data,electricity-bill,tv-subscription'],
             'network' => ['sometimes', 'string', 'max:40'],
         ]);
-        $airDataFeature = PlatformFeatureControl::query()->where('feature_key', 'service.airtime_data')->first(['is_enabled', 'is_implemented']);
-        $airDataFeatureEnabled = $airDataFeature !== null && $airDataFeature->is_enabled && $airDataFeature->is_implemented;
-
         if ((! isset($validated['service_type']) || in_array($validated['service_type'], ['airtime', 'data'], true))
-            && (! $airDataFeatureEnabled || ! filter_var(app(IntegrationSettings::class)->get('service.airtime_data.enabled', false), FILTER_VALIDATE_BOOLEAN))) {
+            && ! filter_var(app(IntegrationSettings::class)->get('service.airtime_data.enabled', false), FILTER_VALIDATE_BOOLEAN)) {
             return response()->json(['message' => 'Airtime and data purchases are temporarily unavailable.'], 503);
         }
 
         $serviceControls = PlatformFeatureControl::query()
-            ->whereIn('feature_key', ['service.electricity', 'service.tv'])
+            ->whereIn('feature_key', ['service.airtime_data', 'service.electricity', 'service.tv'])
             ->get(['feature_key', 'is_enabled', 'is_implemented'])
             ->keyBy('feature_key');
 
@@ -73,6 +70,7 @@ class VtuOrderController extends Controller
                 }
 
                 $featureKey = match ($product->service_type) {
+                    'airtime', 'data' => 'service.airtime_data',
                     'electricity-bill' => 'service.electricity',
                     'tv-subscription' => 'service.tv',
                     default => null,
@@ -109,14 +107,6 @@ class VtuOrderController extends Controller
         if ($productType === 'airtime' && ! isset($validated['amount'])) {
             return response()->json(['message' => 'Enter the airtime amount you want to purchase.'], 422);
         }
-        if (in_array($productType, ['airtime', 'data'], true)) {
-            $airDataFeature = PlatformFeatureControl::query()->where('feature_key', 'service.airtime_data')->first(['is_enabled', 'is_implemented']);
-            if ($airDataFeature === null || ! $airDataFeature->is_enabled || ! $airDataFeature->is_implemented
-                || ! filter_var(app(IntegrationSettings::class)->get('service.airtime_data.enabled', false), FILTER_VALIDATE_BOOLEAN)) {
-                return response()->json(['message' => 'Airtime and data purchases are temporarily unavailable.'], 503);
-            }
-        }
-
         $user = $request->user();
         abort_unless($user, 401);
         if (! $user->transaction_pin_hash) return response()->json(['message' => 'Set up a transaction PIN before making wallet-funded purchases.', 'setup_url' => '/security/transaction-pin'], 428);
@@ -124,6 +114,14 @@ class VtuOrderController extends Controller
         $pinStatus = app(TransactionPinService::class)->verify($user, (string) $validated['transaction_pin']);
         if ($pinStatus === 'locked') return response()->json(['message' => 'Transaction PIN is locked for 15 minutes after repeated failures.'], 423);
         if ($pinStatus !== 'verified') return response()->json(['message' => 'Transaction PIN is incorrect.'], 422);
+
+        if (in_array($productType, ['airtime', 'data'], true)) {
+            $airDataFeature = PlatformFeatureControl::query()->where('feature_key', 'service.airtime_data')->first(['is_enabled', 'is_implemented']);
+            if ($airDataFeature === null || ! $airDataFeature->is_enabled || ! $airDataFeature->is_implemented
+                || ! filter_var(app(IntegrationSettings::class)->get('service.airtime_data.enabled', false), FILTER_VALIDATE_BOOLEAN)) {
+                return response()->json(['message' => 'Airtime and data purchases are temporarily unavailable.'], 503);
+            }
+        }
 
         try {
             $order = $orders->purchase(

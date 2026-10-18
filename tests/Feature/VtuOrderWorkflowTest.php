@@ -10,6 +10,7 @@ use App\Models\VtuOrder;
 use App\Models\VtuProduct;
 use App\Models\PlatformFeatureControl;
 use App\Services\Vtu\VtuOrderService;
+use App\Services\IntegrationSettings;
 use App\Services\Vtu\VtuProvider;
 use App\Exceptions\Wallet\InsufficientWalletFunds;
 use App\Services\Wallets\WalletAccountService;
@@ -30,8 +31,9 @@ class VtuOrderWorkflowTest extends TestCase
         // These tests exercise the electricity/TV workflow internals under an
         // explicitly enabled test configuration. Production defaults remain
         // disabled until provider-specific workflows are approved.
-        PlatformFeatureControl::query()->whereIn('feature_key', ['service.electricity', 'service.tv'])
+        PlatformFeatureControl::query()->whereIn('feature_key', ['service.airtime_data', 'service.electricity', 'service.tv'])
             ->update(['is_enabled' => true, 'is_implemented' => true]);
+        app(IntegrationSettings::class)->set('service.airtime_data.enabled', '1', null);
 
         config([
             'services.vtu.name' => 'test_provider',

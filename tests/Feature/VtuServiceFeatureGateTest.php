@@ -62,11 +62,16 @@ class VtuServiceFeatureGateTest extends TestCase
             'metadata' => ['purchase_supported' => true, 'provider_service_id' => 'mtn'],
         ]);
 
-        $this->actingAs($user)->getJson('/wallet/vtu/products?service_type=airtime')->assertStatus(503);
+        $user->forceFill(['transaction_pin_hash' => Hash::make('4928')])->save();
+
+        $this->actingAs($user)->getJson('/wallet/vtu/products?service_type=airtime')
+            ->assertOk()
+            ->assertJsonPath('data.0.is_active', false);
         $this->actingAs($user)->postJson('/wallet/vtu/orders', [
             'product_code' => 'missing-airtime-feature-product',
             'recipient' => '08012345678',
             'idempotency_key' => 'missing-airtime-feature-control',
+            'transaction_pin' => '4928',
             'amount' => 100,
         ])->assertStatus(503)->assertJsonPath('message', 'Airtime and data purchases are temporarily unavailable.');
 
