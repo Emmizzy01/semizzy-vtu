@@ -30,21 +30,7 @@ export default function CustomerDashboard({ wallet, transactions, orders = [], t
     <DashboardLayout title={isAdminPreview ? 'Customer dashboard preview' : 'Your dashboard'} description={isAdminPreview ? 'Preview the customer experience for your own staff account. Customer data and permissions are unchanged.' : 'Your wallet, digital services, and recent activity in one secure place.'} customerPreview={isAdminPreview}>
       {isAdminPreview && <aside className="mb-5 flex flex-col gap-3 rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-sm font-extrabold">Staff preview mode</p><p className="mt-1 text-xs leading-5 text-[var(--muted)]">This is your own account’s customer view, not a customer impersonation session.</p></div><a href="/admin/dashboard" className="inline-flex min-h-10 items-center justify-center rounded-xl bg-[var(--brand)] px-4 py-2 text-sm font-bold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)] focus-visible:ring-offset-2">Back to Command Center</a></aside>}
       <section className="mx-auto grid w-full max-w-[1400px] grid-cols-1 items-start gap-4 pb-3 lg:grid-cols-12 lg:gap-5">
-        <header className="col-span-1 flex items-center gap-3 rounded-[24px] bg-[var(--surface)] p-4 shadow-sm lg:col-span-12">
-          {customer?.avatarUrl
-            ? <img src={customer.avatarUrl} alt="" className="h-14 w-14 shrink-0 rounded-full object-cover" />
-            : <span aria-hidden="true" className="grid h-14 w-14 shrink-0 place-items-center rounded-full bg-emerald-100 text-lg font-black text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200">{(customer?.name || 'S').trim().split(/\s+/).map(part => part[0]).join('').slice(0, 2).toUpperCase()}</span>}
-          <div className="min-w-0 flex-1">
-            <p className="text-xs font-semibold text-[var(--muted)]">Welcome back</p>
-            <h1 className="truncate text-lg font-extrabold">{customer?.name || 'Semizzy user'}</h1>
-            <div className="mt-1 flex flex-wrap gap-2">
-              {customer?.type && <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold capitalize text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200">Account: {customer.type.replaceAll('_', ' ')}</span>}
-              {customer?.tier && <span className="rounded-full border border-[var(--line)] px-2.5 py-1 text-[10px] font-bold text-[var(--muted)]">Tier: {formatTier(customer.tier)}</span>}
-              {customer?.level && <span className="rounded-full border border-[var(--line)] px-2.5 py-1 text-[10px] font-bold text-[var(--muted)]">Account level: {formatTier(customer.level)}</span>}
-            </div>
-          </div>
-          <a href="/profile" className="shrink-0 rounded-xl border border-[var(--line)] px-3 py-2 text-xs font-bold">Profile</a>
-        </header>
+
         <article className="col-span-1 overflow-hidden rounded-[28px] bg-emerald-600 text-white shadow-sm lg:col-span-7">
           <div className="p-5 sm:p-6">
             <div className="flex items-center justify-between gap-3"><span className="inline-flex items-center gap-2 text-xs font-bold text-white/90"><ShieldCheck size={17}/> {wallet?.status === 'active' ? 'Available' : wallet ? 'Wallet ' + wallet.status : 'Wallet not set up'} <span className="text-white/70">●</span></span><a href="/wallet/manual-deposits" className="inline-flex min-h-10 items-center gap-2 rounded-full border border-white/25 bg-white/10 px-4 text-xs font-extrabold hover:bg-white/20"><ArrowDownToLine size={16}/> Add Money</a></div>
