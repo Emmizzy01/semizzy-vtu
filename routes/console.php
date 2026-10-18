@@ -387,13 +387,13 @@ Artisan::command('semizzy:schema-audit', function () {
 
     $missing = [];
     foreach ($required as $table => $columns) {
-        if (!\\Illuminate\\Support\\Facades\\Schema::hasTable($table)) {
+        if (!\Illuminate\Support\Facades\Schema::hasTable($table)) {
             $missing[] = [$table, '(table missing)'];
             continue;
         }
 
         foreach ($columns as $column) {
-            if (!\\Illuminate\\Support\\Facades\\Schema::hasColumn($table, $column)) {
+            if (!\Illuminate\Support\Facades\Schema::hasColumn($table, $column)) {
                 $missing[] = [$table, $column];
             }
         }
