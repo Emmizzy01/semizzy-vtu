@@ -197,9 +197,32 @@ class VtuProviderAdaptersTest extends TestCase
 
         try {
             app(DatawayProviderClient::class)->submit($order);
-            $this->fail('Dataway data purchases must require a verified numeric product_id.');
+            $this->fail('Dataway data purchases must require a verified positive integer product_id.');
         } catch (LogicException $exception) {
-            $this->assertStringContainsString('verified numeric product_id', $exception->getMessage());
+            $this->assertStringContainsString('verified positive integer product_id', $exception->getMessage());
+        }
+
+        Http::assertNothingSent();
+    }
+
+    public function test_dataway_data_purchase_rejects_non_positive_or_fractional_product_ids_before_http_dispatch(): void
+    {
+        Http::fake();
+
+        foreach ([0, -1, 1.5, '0', '-2', '42.5'] as $invalidProductId) {
+            $order = $this->order('data');
+            $product = $order->product;
+            $product->metadata = ['provider_mappings' => [
+                'dataway' => ['product_id' => $invalidProductId],
+            ]];
+            $order->setRelation('product', $product);
+
+            try {
+                app(DatawayProviderClient::class)->submit($order);
+                $this->fail('Dataway must reject non-positive or fractional product IDs before dispatch.');
+            } catch (LogicException $exception) {
+                $this->assertStringContainsString('verified positive integer product_id', $exception->getMessage());
+            }
         }
 
         Http::assertNothingSent();
