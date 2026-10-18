@@ -12,7 +12,7 @@ VTpass remains isolated and must not be included in provider priority, new purch
 
 ## Current implementation status
 
-The environment/configuration keys are scaffolded only. Multi-provider routing remains **disabled by default**. The three providers are candidates, not production-approved integrations. Do not turn on `VTU_MULTI_PROVIDER_ENABLED` until the provider adapters, catalog mappings, webhook verification, transaction recovery, account setup, tests, and release review are complete.
+Admin → API Providers now supports encrypted per-provider credentials and audited catalogue imports for Airtime and Data. Imported products are always inactive and require pricing/mapping review. Customer multi-provider purchase routing remains **disabled by default**. The three providers are not yet production-approved for customer purchases; do not turn on `VTU_MULTI_PROVIDER_ENABLED` until purchase mappings, webhook verification, transaction recovery, account setup, tests, and release review are complete.
 
 ## Configuration keys
 
