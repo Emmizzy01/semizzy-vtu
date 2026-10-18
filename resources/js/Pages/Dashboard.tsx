@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowDownToLine, ArrowUpRight, BookOpen, CheckCircle2, Eye, EyeOff, GraduationCap, ShieldCheck, Smartphone, Tv, Wifi, Zap, Megaphone, Sparkles, WalletCards, Headset, Landmark, CircleHelp, Gift, ChevronRight, CircleAlert, HandCoins, PlaySquare, SmartphoneNfc } from 'lucide-react';
+import { ArrowDownToLine, ArrowUpRight, CheckCircle2, Eye, EyeOff, GraduationCap, ShieldCheck, Smartphone, Tv, Wifi, Zap, Megaphone, Sparkles, WalletCards, Headset, Landmark, Gift, ChevronRight, CircleAlert, HandCoins, PlaySquare, SmartphoneNfc } from 'lucide-react';
 import DashboardLayout from '../Components/DashboardLayout';
 
 type Wallet = { balance_minor: number; available_balance_minor: number; currency: string; status: string } | null;
@@ -11,17 +11,6 @@ function money(minor: number, currency = 'NGN') {
   return new Intl.NumberFormat('en-NG', { style: 'currency', currency, maximumFractionDigits: 2 }).format(minor / 100);
 }
 
-function formatTier(value?: string | null) {
-  if (!value) return '';
-  const normalized = value.trim().toLowerCase().replaceAll('-', '_').replaceAll(' ', '_');
-  const match = normalized.match(/^(?:level|tier)_?([1-4])$/);
-  if (match) {
-    const number = Number(match[1]);
-    return number === 4 ? 'Merchant (Tier 4)' : `Tier ${number}`;
-  }
-  if (normalized === 'merchant') return 'Merchant (Tier 4)';
-  return value.replaceAll('_', ' ');
-}
 export default function CustomerDashboard({ wallet, transactions, orders = [], transactionPagination, orderPagination, isAdminPreview = false, customer }: {
   wallet: Wallet; transactions: Transaction[]; orders?: ServiceOrder[]; transactionPagination?: Pagination; orderPagination?: Pagination; isAdminPreview?: boolean; customer?: { name?: string; type?: string; tier?: string | null; level?: string; avatarUrl?: string | null; kycStatus?: string };
 }) {
