@@ -125,7 +125,9 @@ class EducationOrderCoordinator
             throw $exception;
         }
 
-        if ($order->status !== 'processing' || $order->dispatch_started_at === null) {
+        // A competing request may have returned an already-reserved order. Only the
+        // request that actually inserted it may perform the first provider submission.
+        if (! $order->wasRecentlyCreated || $order->status !== 'processing' || $order->dispatch_started_at === null) {
             return $order;
         }
 
@@ -134,6 +136,38 @@ class EducationOrderCoordinator
         } catch (Throwable) {
             // Provider outcome is ambiguous. Keep the debit and durable attempt for lookup.
             $this->recordOutcome($order, 'unknown', null, 'submission_outcome_unknown');
+            return $order->fresh();
+        }
+
+        $status = $result['status'] ?? 'unknown';
+        if (! in_array($status, ['success', 'failed', 'pending', 'unknown'], true)) {
+            $status = 'unknown';
+        }
+
+        return $this->recordOutcome(
+            $order,
+            $status,
+            isset($result['provider_reference']) ? (string) $result['provider_reference'] : null,
+            isset($result['message_code']) ? (string) $result['message_code'] : null,
+        );
+    }
+
+    /**
+     * Reconcile an ambiguous order using the exact provider persisted on the order.
+     * This method never submits or reroutes a purchase.
+     */
+    public function reconcile(EducationOrder $order): EducationOrder
+    {
+        if (in_array($order->status, ['successful', 'failed', 'cancelled'], true)) {
+            return $order;
+        }
+
+        $order->loadMissing('product');
+        $provider = $this->providers->forProvider((string) $order->provider);
+
+        try {
+            $result = $provider->lookup($order->public_id, $order->product);
+        } catch (Throwable) {
             return $order->fresh();
         }
 
@@ -205,6 +239,7 @@ class EducationOrderCoordinator
                     actorUserId: (int) $locked->user_id,
                     metadata: ['education_order_id' => $locked->public_id, 'reason' => 'provider_definitive_failure'],
                     correlationId: $locked->public_id,
+                    isFinancialRecovery: true,
                 );
                 $locked->status = 'failed';
                 $locked->failure_code = $messageCode ?? 'provider_failed';
