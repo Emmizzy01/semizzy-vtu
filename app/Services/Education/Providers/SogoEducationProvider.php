@@ -65,7 +65,10 @@ final class SogoEducationProvider implements EducationProvider
         if (($data['verified'] ?? null) === false || ($data['valid'] ?? null) === false) {
             return ['status' => 'invalid', 'message' => 'The provider rejected the candidate details.'];
         }
-        if (($data['verified'] ?? false) === true || ($data['valid'] ?? false) === true) {
+        // Sogo documents the successful JAMB lookup as returning candidate details;
+        // accept that documented positive shape only when no explicit negative flag exists.
+        if (($data['verified'] ?? false) === true || ($data['valid'] ?? false) === true
+            || ($exam === 'JAMB' && $data !== [] && (isset($data['candidate_name']) || isset($data['customer_name']) || isset($data['name'])))) {
             return ['status' => 'valid', 'reference' => isset($data['reference']) ? (string) $data['reference'] : null];
         }
 
