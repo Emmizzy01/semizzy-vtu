@@ -55,3 +55,31 @@ Capability decision:
 8. Keep the education feature and all products inactive/unapproved until the preceding checks pass and are reviewed.
 
 This document records public documentation findings, not a certification of a provider account, live credentials, legal authorization, or successful live transactions.
+
+
+## Implementation follow-up (2026-10-18)
+
+The provider adapters are present on `main`, but this is not an account-level production certification.
+
+### Public contract confirmations
+
+- **Sogo:** the official Bills API documents `GET /v1/bills/catalog`, `GET /v1/bills/education-plans`, `POST /v1/bills/education/verify-jamb`, and `POST /v1/bills/education`. Education purchase parameters are `provider` (`jamb`/`waec`), `variation_code`, `amount`, plus `profile_id` for JAMB or `service_type` for WAEC. A completed education transaction's sensitive PIN must be retrieved from the authenticated transaction lookup; the webhook intentionally omits it.
+- **GSUBZ:** the official docs confirm `waec`, `neco`, `nabteb`, purchase via `POST /api/pay/`, transaction lookup via `POST /api/verify/`, and require reading the explicit `status` rather than HTTP 200 alone. The exam PIN response can carry delivery details in `api_response`; request timeouts should allow at least 60 seconds. The published service list does not establish JAMB support or a separate candidate-validation endpoint for exam pins.
+- **VTpass:** its WAEC result-checker docs confirm variation listing, `POST /api/pay`, `POST /api/requery`, and PIN fields such as `cards`, `purchased_code`, and `request_id`. Exact NECO/NABTEB/JAMB product mappings still require provider catalogue evidence.
+
+### Sensitive delivery storage
+
+- A nullable `provider_delivery_payload` column has been added to education orders and uses Laravel's `encrypted:array` model cast.
+- Adapter success results pass only the expected delivery fields to the coordinator. The coordinator stores them separately from `safe_provider_response`, encrypted at rest.
+- An authenticated, throttled delivery endpoint is restricted to the order owner, only serves completed orders with a stored payload, and sends `Cache-Control: no-store`.
+- This endpoint is a retrieval primitive, not proof that a customer purchase or customer UI is enabled. The education customer purchase route remains disabled.
+
+### Remaining release gates
+
+1. Run CI against the latest commit and fix any failures.
+2. Use provider-issued sandbox credentials (never commit or paste secrets) to fetch and save sanitized catalogue responses for each provider account. Public docs cannot prove Semizzy's merchant access, scopes, current products or current prices.
+3. Test JAMB candidate verification only with documented supported providers; do not treat missing or malformed verification responses as valid.
+4. Test success, explicit definitive failure, processing, timeout, inconclusive lookup and duplicate reference recovery with sanitized sandbox responses.
+5. Confirm encrypted delivery fields can be retrieved only by the owning authenticated user, and test unauthorized access, not-yet-completed orders, empty delivery payloads and cache headers.
+6. Keep Dataway disabled until its education endpoints, authorization, lookup guarantees and final-failure semantics are independently documented and tested.
+7. Do not enable customer purchases until the provider-account evidence, integration tests, migration deployment plan and customer delivery UI are reviewed.
