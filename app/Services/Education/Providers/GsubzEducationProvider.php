@@ -77,7 +77,7 @@ final class GsubzEducationProvider implements EducationProvider
         if (! $response->successful() || ! is_array($response->json())) {
             return ['status' => 'unknown', 'message_code' => 'lookup_http_'.$response->status()];
         }
-        return $this->normalize($response->json());
+        return $this->normalize($response->json(), true);
     }
 
     private function http(): \Illuminate\Http\Client\PendingRequest
@@ -88,7 +88,7 @@ final class GsubzEducationProvider implements EducationProvider
     }
 
     /** @param array<string,mixed> $body */
-    private function normalize(array $body): array
+    private function normalize(array $body, bool $lookup = false): array
     {
         $status = strtolower(trim((string) ($body['status'] ?? '')));
         $code = isset($body['code']) && is_scalar($body['code']) ? (string) $body['code'] : null;
@@ -96,6 +96,9 @@ final class GsubzEducationProvider implements EducationProvider
 
         if (in_array($status, ['successful', 'success', 'completed'], true)) {
             return ['status' => 'success', 'provider_reference' => is_scalar($reference) ? (string) $reference : null, 'message_code' => $code];
+        }
+        if ($lookup && in_array($status, ['failed', 'fail', 'refunded'], true)) {
+            return ['status' => 'failed', 'provider_reference' => is_scalar($reference) ? (string) $reference : null, 'message_code' => $code ?? 'provider_confirmed_failed'];
         }
         if (in_array($status, ['pending', 'processing'], true)) {
             return ['status' => 'pending', 'provider_reference' => is_scalar($reference) ? (string) $reference : null, 'message_code' => $code];
