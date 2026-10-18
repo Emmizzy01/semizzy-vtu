@@ -64,8 +64,12 @@ class EducationOrderCoordinator
                 }
 
                 $lockedProduct = EducationServiceProduct::query()->whereKey($product->getKey())->lockForUpdate()->firstOrFail();
-                if (! $lockedProduct->is_active || ! $lockedProduct->purchase_approved || $lockedProduct->currency !== 'NGN') {
-                    throw new \LogicException('Education product approval changed before reservation.');
+                if (! $lockedProduct->is_active || ! $lockedProduct->purchase_approved || $lockedProduct->currency !== 'NGN'
+                    || (int) $lockedProduct->price_minor < 1
+                    || (int) $lockedProduct->price_minor !== (int) $product->price_minor
+                    || (string) $lockedProduct->provider !== (string) $product->provider
+                    || (string) $lockedProduct->provider_product_code !== (string) $product->provider_product_code) {
+                    throw new \LogicException('Education product price or provider mapping changed before reservation; retry after reviewing the catalogue.');
                 }
 
                 $order = EducationOrder::query()->create([
