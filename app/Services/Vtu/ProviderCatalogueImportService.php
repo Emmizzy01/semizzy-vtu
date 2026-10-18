@@ -108,7 +108,7 @@ class ProviderCatalogueImportService
             if ($category === 'airtime') {
                 foreach (config('services.vtu.airtime_denominations', [100, 200, 500, 1000]) as $amount) {
                     $items[] = ['code' => $network['slug'].'-'.$amount, 'name' => ($network['name'] ?? strtoupper($network['slug'])).' Airtime ₦'.$amount,
-                        'network' => $network['slug'], 'cost_minor' => (int) $amount * 100,
+                        'network' => $network['slug'], 'cost_minor' => null, 'selling_minor' => (int) $amount * 100,
                         'mapping' => ['network' => $network['slug']]];
                 }
                 continue;
@@ -149,13 +149,14 @@ class ProviderCatalogueImportService
             $id = (string) ($service['serviceID'] ?? $service['service_id'] ?? $service['id'] ?? '');
             $label = (string) ($service['name'] ?? $service['service'] ?? $service['label'] ?? $id);
             if ($id === '') continue;
-            $isAirtime = str_contains(strtolower($label.' '.$id), 'airtime');
+            $isAirtime = str_contains(strtolower($label.' '.$id), 'airtime')
+                || in_array(strtolower($id), ['mtn', 'airtel', 'glo', '9mobile', 'etisalat', 'lebara'], true);
             $isData = str_contains(strtolower($label.' '.$id), 'data') || preg_match('/mtn|airtel|glo|9mobile/i', $id);
             if (($category === 'airtime' && ! $isAirtime) || ($category === 'data' && ! $isData)) continue;
             if ($category === 'airtime') {
                 foreach (config('services.vtu.airtime_denominations', [100, 200, 500, 1000]) as $amount) {
                     $items[] = ['code' => $id.'-'.$amount, 'name' => $label.' ₦'.$amount, 'network' => $this->network($label.' '.$id),
-                        'cost_minor' => (int) $amount * 100, 'mapping' => ['network' => $id]];
+                        'cost_minor' => null, 'selling_minor' => (int) $amount * 100, 'mapping' => ['network' => $id]];
                 }
                 continue;
             }
@@ -192,6 +193,13 @@ class ProviderCatalogueImportService
         foreach ($billers as $biller) {
             if (! is_array($biller) || ! is_string($biller['slug'] ?? null)) continue;
             $slug = $biller['slug'];
+            if ($category === 'airtime') {
+                foreach (config('services.vtu.airtime_denominations', [100, 200, 500, 1000]) as $amount) {
+                    $items[] = ['code' => $slug.'-'.$amount, 'name' => ($biller['name'] ?? strtoupper($slug)).' ₦'.$amount,
+                        'network' => $slug, 'cost_minor' => null, 'selling_minor' => (int) $amount * 100, 'mapping' => ['network' => $slug]];
+                }
+                continue;
+            }
             $plans = $biller['plans'] ?? null;
             if (! is_array($plans)) {
                 $productsResponse = $http->get('billers/'.rawurlencode($slug).'/products/');
@@ -201,13 +209,6 @@ class ProviderCatalogueImportService
             if (! is_array($plans)) continue;
             foreach ($plans as $plan) {
                 if (! is_array($plan)) continue;
-                if ($category === 'airtime') {
-                    foreach (config('services.vtu.airtime_denominations', [100, 200, 500, 1000]) as $amount) {
-                        $items[] = ['code' => $slug.'-'.$amount, 'name' => ($biller['name'] ?? strtoupper($slug)).' ₦'.$amount,
-                            'network' => $slug, 'cost_minor' => (int) $amount * 100, 'mapping' => ['network' => $slug]];
-                    }
-                    break;
-                }
                 $code = (string) ($plan['id'] ?? $plan['code'] ?? '');
                 $amount = $plan['effective_total'] ?? $plan['effective_amount'] ?? $plan['amount'] ?? null;
                 if ($code === '' || ! is_numeric($amount)) continue;
