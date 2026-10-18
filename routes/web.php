@@ -84,6 +84,8 @@ Route::middleware('auth')->group(function (): void {
     Route::put('/profile/password', [ProfileController::class, 'updatePassword'])->middleware('throttle:5,1')->name('profile.password.update');
     Route::get('/dashboard', [DashboardController::class, 'customer'])->name('dashboard');
     Route::get('/services/education', [EducationServiceController::class, 'index'])->name('education-services.index');
+    Route::get('/services/education/orders/{order:public_id}/delivery', [EducationServiceController::class, 'delivery'])
+        ->middleware('throttle:10,1')->name('education-services.delivery');
     Route::get('/service-requests/vtu-website', [VtuWebsiteRequestController::class, 'index'])->name('vtu-website-requests.index');
     Route::post('/service-requests/vtu-website', [VtuWebsiteRequestController::class, 'store'])->middleware('throttle:5,1')->name('vtu-website-requests.store');
     Route::get('/security/transaction-pin', [TransactionPinController::class, 'show'])->name('security.transaction-pin');
