@@ -241,4 +241,44 @@ class PaymentRefundWorkflowTest extends TestCase
         Http::assertSentCount(1);
     }
 
+
+    public function test_replaying_refund_approval_cannot_reserve_or_submit_a_second_refund(): void
+    {
+        Http::fake(['api.paystack.co/refund' => Http::response([
+            'status' => true,
+            'data' => ['id' => 876543, 'status' => 'pending'],
+        ], 200)]);
+
+        $customer = User::query()->create([
+            'name' => 'Refund Replay Customer',
+            'email' => 'refund-replay-customer@example.test',
+            'password' => 'test-password',
+        ]);
+        $approver = User::query()->create([
+            'name' => 'Refund Replay Approver',
+            'email' => 'refund-replay-approver@example.test',
+            'password' => 'test-password',
+        ]);
+        UserPermission::query()->create(['user_id' => $approver->id, 'permission' => 'refunds.approve']);
+        $intent = $this->paidIntent($customer, 10000);
+
+        $request = $this->actingAs($customer)->postJson('/wallet/refund-requests', [
+            'payment_intent_id' => $intent->public_id,
+            'amount_minor' => 2500,
+            'reason' => 'Approval replay protection',
+            'idempotency_key' => 'refund-approval-replay-protection',
+        ])->assertCreated();
+        $url = '/admin/payment-refunds/'.$request->json('data.id').'/approve';
+
+        $this->actingAs($approver)->postJson($url)
+            ->assertOk()
+            ->assertJsonPath('data.status', 'provider_pending');
+
+        $this->actingAs($approver)->postJson($url)->assertStatus(409);
+
+        $this->assertSame(7500, (int) $intent->wallet()->first()->fresh()->balance_minor);
+        $this->assertDatabaseCount('wallet_transactions', 2);
+        $this->assertDatabaseCount('wallet_ledger_entries', 2);
+        Http::assertSentCount(1);
+    }
 }
