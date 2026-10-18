@@ -2,8 +2,8 @@ import { Head } from '@inertiajs/react';
 import { useMemo, useState } from 'react';
 import DashboardLayout from '../../Components/DashboardLayout';
 import {
-  Activity, BookOpen, BriefcaseBusiness, Building2, Boxes, CalendarDays, Code2, Cpu,
-  GraduationCap, HeartHandshake, Home, Leaf, LifeBuoy, Megaphone, Package, PiggyBank,
+  Activity, ArrowLeftRight, BookOpen, BriefcaseBusiness, Building2, Boxes, CalendarDays, Code2, Cpu,
+  Dice5, Droplets, Gift, GraduationCap, HeartHandshake, Home, KeyRound, Leaf, LifeBuoy, Megaphone, MessageCircle, Package, PiggyBank, Plane,
   ShieldCheck, Shirt, ShoppingBag, Smartphone, Sparkles, Store, Truck, WalletCards,
   Wifi, Zap, Tv, Wrench, Search, SlidersHorizontal, type LucideIcon,
 } from 'lucide-react';
@@ -24,10 +24,17 @@ const services: Service[] = [
   { title: 'Transactions & orders', description: 'Review the latest wallet activity and order information on your customer dashboard.', icon: Activity, status: 'available', href: '/dashboard#activity', group: 'Wallet funding & payments' },
   { title: 'Electricity bills', description: 'Dedicated electricity page for meter details, customer verification and payment amount. Purchases remain unavailable until the provider flow is approved.', icon: Zap, status: 'in-progress', href: '/wallet/vtu/electricity', group: 'Bills & subscriptions' },
   { title: 'Cable TV subscriptions', description: 'Dedicated TV page for smartcard verification and package selection. Purchases remain unavailable until the provider flow is approved.', icon: Tv, status: 'in-progress', href: '/wallet/vtu/tv', group: 'Bills & subscriptions' },
-  { title: 'Internet bills', description: 'Authorized internet and broadband provider catalogue is not yet enabled.', icon: Wifi, status: 'in-progress', group: 'Bills & subscriptions' },
+  { title: 'Internet bills', description: 'Authorized internet and broadband provider catalogue is not yet enabled.', icon: Wifi, status: 'in-progress', href: '/services/coming-soon/internet', group: 'Bills & subscriptions' },
+  { title: 'Water Bill', description: 'Water utility billing will be available when the verified provider catalogue is connected.', icon: Droplets, status: 'in-progress', href: '/services/coming-soon/water-bill', group: 'Bills & subscriptions' },
+  { title: 'Betting', description: 'Betting wallet funding for supported platforms will be enabled after provider integration and transaction checks.', icon: Dice5, status: 'in-progress', href: '/services/coming-soon/betting', group: 'Wallet funding & payments' },
+  { title: 'Airtime to Cash', description: 'Airtime conversion requires an approved provider and a verified refund and settlement workflow.', icon: ArrowLeftRight, status: 'in-progress', href: '/services/coming-soon/airtime-to-cash', group: 'Telecoms & mobile top-ups' },
+  { title: 'E-PIN', description: 'Electronic PIN catalogue and fulfilment will appear after provider integration.', icon: KeyRound, status: 'in-progress', href: '/services/coming-soon/e-pin', group: 'Telecoms & mobile top-ups' },
+  { title: 'Bulk SMS', description: 'Bulk messaging plans will be available after provider pricing, delivery reporting and consent controls are connected.', icon: MessageCircle, status: 'in-progress', href: '/services/coming-soon/bulk-sms', group: 'Communications' },
+  { title: 'Gift Cards', description: 'Gift card catalogue, stock and verified pricing are not enabled yet.', icon: Gift, status: 'in-progress', href: '/services/coming-soon/gift-cards', group: 'Digital products & gift cards' },
+  { title: 'Flight booking', description: 'Flight search and ticketing will be enabled when a verified booking provider is connected.', icon: Plane, status: 'in-progress', href: '/services/coming-soon/flight', group: 'Travel & bookings' },
   { title: 'Remita payments', description: 'Authorized RRR/biller verification and settlement reconciliation are still being completed.', icon: Building2, status: 'in-progress', group: 'Bills & subscriptions' },
   { title: 'Transaction security', description: 'Set a separate four-digit transaction PIN; repeated failures trigger a temporary lock and are audited.', icon: ShieldCheck, status: 'available', href: '/security/transaction-pin', group: 'Account & security' },
-  { title: 'Electronics & Gadgets', description: 'Devices, phones, computing equipment and accessories.', icon: Cpu, status: 'in-progress', group: 'Marketplace · Electronics & gadgets' },
+  { title: 'Electronics & Gadgets', description: 'Devices, phones, computing equipment and accessories.', icon: Cpu, status: 'in-progress', href: '/services?category=gadgets', group: 'Marketplace · Electronics & gadgets' },
   { title: 'Fashion, Clothing & Accessories', description: 'Clothing, footwear, bags and fashion accessories.', icon: Shirt, status: 'in-progress', group: 'Marketplace · Fashion & accessories' },
   { title: 'Beauty, Personal Care & Wellness Products', description: 'Beauty, grooming, personal care and wellness products.', icon: Sparkles, status: 'in-progress', group: 'Marketplace · Beauty & personal care' },
   { title: 'Home, Furniture & Appliances', description: 'Furniture, home essentials and appliances.', icon: Home, status: 'in-progress', group: 'Marketplace · Home & appliances' },
@@ -58,7 +65,7 @@ const statusLabel = (status: Service['status']) => status === 'available' ? 'Ava
 
 export default function ServicesIndex({ availability }: { availability: { airtimeData: boolean; manualDeposit: boolean } }) {
   const [search, setSearch] = useState('');
-  const [selectedGroup, setSelectedGroup] = useState('all');
+  const [selectedGroup, setSelectedGroup] = useState(() => typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('category') === 'gadgets' ? 'Marketplace · Electronics & gadgets' : 'all');
   const groups = [...new Set(services.map(service => service.group))];
   const filteredServices = useMemo(() => {
     const term = search.trim().toLocaleLowerCase();
