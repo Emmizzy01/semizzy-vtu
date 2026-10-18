@@ -108,10 +108,17 @@ class IntegrationSettingsController extends Controller
     {
         $driver = (string) $settings->get('vtu.driver', config('services.vtu.driver', 'configured'));
 
-        // Do not expose provider identity, endpoint, environment, or credential status during a technical hold.
+        // Keep VTpass purchases and secret configuration locked during technical review,
+        // but give authorised admins a useful, non-sensitive integration status view.
         if ($driver === 'vtpass') {
             return Inertia::render('Admin/ApiProviders', [
-                'provider' => ['isolated' => true],
+                'provider' => [
+                    'isolated' => true,
+                    'name' => 'VTpass',
+                    'configurationLocked' => true,
+                    'purchasesEnabled' => false,
+                    'statusMessage' => 'Technical review pending. Existing orders and reconciliation remain available.',
+                ],
             ]);
         }
 
