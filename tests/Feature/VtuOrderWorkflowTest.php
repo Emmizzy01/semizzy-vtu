@@ -2330,6 +2330,117 @@ class VtuOrderWorkflowTest extends TestCase
         $this->assertSame(1, Http::recorded(fn ($request) => str_ends_with($request->url(), '/pay'))->count());
     }
 
+    public function test_reserved_second_attempt_requeries_exact_provider_and_resubmits_same_identity_only_after_explicit_not_found(): void
+    {
+        config([
+            'services.vtu.multi_provider.enabled' => true,
+            'services.vtu.multi_provider.priority' => ['gsubz', 'sogo', 'dataway'],
+            'services.vtu.multi_provider.definitive_failure_providers' => ['gsubz'],
+            'services.vtu.gsubz.base_url' => 'https://api.gsubz.com',
+            'services.vtu.gsubz.api_key' => 'gsubz-test-key',
+            'services.vtu.sogo.base_url' => 'https://api.sogo.africa/v1',
+            'services.vtu.sogo.api_key' => 'sogo-test-key',
+        ]);
+
+        $sogoLookups = 0;
+        $sogoSubmissions = 0;
+        Http::fake(function ($request) use (&$sogoLookups, &$sogoSubmissions) {
+            $url = $request->url();
+            $path = (string) parse_url($url, PHP_URL_PATH);
+
+            if (str_contains($url, 'api.gsubz.com') && str_ends_with($path, '/api/pay/')) {
+                return Http::response(['status' => 'pending', 'requestID' => $request['requestID']], 200);
+            }
+
+            if (str_contains($url, 'api.sogo.africa') && str_contains($path, '/transactions/')) {
+                $sogoLookups++;
+                return Http::response([], 404);
+            }
+
+            if (str_contains($url, 'api.sogo.africa') && str_contains($path, '/bills/airtime')) {
+                $sogoSubmissions++;
+                return Http::response([
+                    'data' => ['status' => 'completed', 'reference' => 'SOGO-SECOND-ATTEMPT-RECOVERED'],
+                ], 200);
+            }
+
+            return Http::response(['status' => 'pending'], 200);
+        });
+
+        [$user, $wallet, $product] = $this->preparedCustomer(1000, 1500);
+        $product->forceFill(['metadata' => ['provider_mappings' => [
+            'gsubz' => ['network' => 'mtn'],
+            'sogo' => ['network' => 'mtn'],
+        ]]])->save();
+
+        // Establish the original order/debit and simulate a worker crash after
+        // alternate attempt #2 was durably reserved but before its first submit.
+        $order = app(VtuOrderService::class)->purchase(
+            $user,
+            $product->code,
+            '08012345678',
+            'reserved-second-sogo-recovery',
+        );
+
+        $firstAttempt = \\App\\Models\\VtuProviderAttempt::query()
+            ->where('vtu_order_id', $order->getKey())
+            ->where('attempt_number', 1)
+            ->firstOrFail();
+        $firstAttempt->forceFill([
+            'provider' => 'gsubz',
+            'outcome' => 'failed',
+            'definitive_failure' => true,
+            'failure_code' => 'provider_definitive_failure',
+            'finished_at' => now(),
+        ])->save();
+
+        \\Illuminate\\Support\\Facades\\DB::table('vtu_orders')
+            ->where('id', $order->getKey())
+            ->update([
+                'provider' => 'sogo',
+                'status' => 'processing',
+                'failure_code' => null,
+                'updated_at' => now(),
+            ]);
+        $order = $order->fresh();
+
+        $attempt = \\App\\Models\\VtuProviderAttempt::query()->create([
+            'vtu_order_id' => $order->getKey(),
+            'attempt_number' => 2,
+            'provider' => 'sogo',
+            'outcome' => 'reserved',
+            'definitive_failure' => false,
+            'request_fingerprint' => hash('sha256', implode('|', [
+                $order->public_id,
+                'sogo',
+                $order->product_code,
+                $order->recipient,
+                (string) $order->amount_minor,
+            ])),
+            'started_at' => now(),
+        ]);
+
+        $recovered = app(VtuOrderService::class)->reconcile($order->fresh());
+
+        $this->assertSame('successful', $recovered->status);
+        $this->assertSame('sogo', $recovered->provider);
+        $this->assertSame('success', $attempt->fresh()->outcome);
+        $this->assertSame(1, $sogoLookups, 'Recovery must look up the persisted second-attempt provider first.');
+        $this->assertSame(1, $sogoSubmissions, 'Only one same-identity recovery submission is permitted.');
+        $this->assertSame(2, \\App\\Models\\VtuProviderAttempt::query()
+            ->where('vtu_order_id', $order->getKey())->count(), 'Recovery must not reserve a third attempt.');
+        $this->assertSame(2, \\App\\Models\\WalletTransaction::query()->count(), 'Recovery must not debit or refund again.');
+        $this->assertSame(500, (int) $wallet->fresh()->available_balance_minor);
+        Http::assertSent(fn ($request) => str_contains($request->url(), 'api.sogo.africa')
+            && $request->method() === 'GET'
+            && str_contains($request->url(), '/transactions/'.$order->public_id));
+        Http::assertSent(fn ($request) => str_contains($request->url(), 'api.sogo.africa')
+            && $request->method() === 'POST'
+            && str_contains($request->url(), '/bills/airtime')
+            && $request->hasHeader('Idempotency-Key', $order->public_id));
+        Http::assertNotSent(fn ($request) => str_contains($request->url(), 'dataway'));
+    }
+
     public function test_reserved_second_attempt_recovers_by_querying_its_persisted_provider_without_third_submission_or_debit(): void
     {
         config([
