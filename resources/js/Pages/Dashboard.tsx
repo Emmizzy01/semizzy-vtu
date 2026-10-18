@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowDownToLine, ArrowUpRight, ArrowLeftRight, CheckCircle2, Eye, EyeOff, GraduationCap, ShieldCheck, Smartphone, Tv, Wifi, Zap, Megaphone, Sparkles, WalletCards, Landmark, Gift, ChevronRight, HandCoins, PlaySquare, SmartphoneNfc, Droplets, Dice5, KeyRound, MessageCircle, Plane, MoreHorizontal } from 'lucide-react';
+import { ArrowDownToLine, ArrowUpRight, ArrowLeftRight, CheckCircle2, Eye, EyeOff, GraduationCap, ShieldCheck, Smartphone, Tv, Wifi, Zap, Sparkles, WalletCards, Gift, ChevronRight, HandCoins, PlaySquare, Droplets, Dice5, KeyRound, MessageCircle, Plane, MoreHorizontal } from 'lucide-react';
 import DashboardLayout from '../Components/DashboardLayout';
 
 type Wallet = { balance_minor: number; available_balance_minor: number; currency: string; status: string } | null;
@@ -11,7 +11,7 @@ function money(minor: number, currency = 'NGN') {
   return new Intl.NumberFormat('en-NG', { style: 'currency', currency, maximumFractionDigits: 2 }).format(minor / 100);
 }
 
-export default function CustomerDashboard({ wallet, transactions, orders = [], transactionPagination, orderPagination, isAdminPreview = false, customer }: {
+export default function CustomerDashboard({ wallet, transactions, orders = [], transactionPagination, orderPagination, isAdminPreview = false }: {
   wallet: Wallet; transactions: Transaction[]; orders?: ServiceOrder[]; transactionPagination?: Pagination; orderPagination?: Pagination; isAdminPreview?: boolean; customer?: { name?: string; type?: string; tier?: string | null; level?: string; avatarUrl?: string | null; kycStatus?: string };
 }) {
   const [balanceVisible, setBalanceVisible] = useState(true);
