@@ -4,6 +4,9 @@ namespace Tests\Feature;
 
 use App\Models\EducationOrder;
 use App\Models\EducationServiceProduct;
+use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Str;
 use App\Services\Education\EducationProvider;
 use App\Services\Education\Providers\DatawayEducationProvider;
 use App\Services\Education\Providers\GsubzEducationProvider;
@@ -15,6 +18,62 @@ use Tests\TestCase;
 
 class EducationProviderAdaptersTest extends TestCase
 {
+    use RefreshDatabase;
+    public function test_only_order_owner_can_retrieve_completed_exam_pin_without_cache(): void
+    {
+        $owner = User::factory()->create();
+        $otherUser = User::factory()->create();
+        $order = \App\Models\EducationOrder::query()->create([
+            'public_id' => (string) Str::uuid(),
+            'user_id' => $owner->id,
+            'wallet_id' => 1,
+            'education_service_product_id' => 1,
+            'idempotency_key' => 'test-delivery-'.Str::uuid(),
+            'request_hash' => hash('sha256', 'delivery-test'),
+            'provider' => 'gsubz',
+            'status' => 'successful',
+            'amount_minor' => 350000,
+            'currency' => 'NGN',
+            'candidate_details' => [],
+            'provider_delivery_payload' => ['api_response' => 'TEST-EXAM-PIN-ONLY'],
+            'completed_at' => now(),
+        ]);
+
+        $this->actingAs($otherUser)
+            ->getJson(route('education-services.delivery', $order->public_id))
+            ->assertNotFound();
+
+        $this->actingAs($owner)
+            ->getJson(route('education-services.delivery', $order->public_id))
+            ->assertOk()
+            ->assertHeader('Cache-Control', 'no-store, private, max-age=0')
+            ->assertJsonPath('delivery.api_response', 'TEST-EXAM-PIN-ONLY');
+    }
+
+    public function test_exam_pin_delivery_is_not_returned_for_unfinished_orders(): void
+    {
+        $owner = User::factory()->create();
+        $order = \App\Models\EducationOrder::query()->create([
+            'public_id' => (string) Str::uuid(),
+            'user_id' => $owner->id,
+            'wallet_id' => 1,
+            'education_service_product_id' => 1,
+            'idempotency_key' => 'test-pending-delivery-'.Str::uuid(),
+            'request_hash' => hash('sha256', 'pending-delivery-test'),
+            'provider' => 'gsubz',
+            'status' => 'pending',
+            'amount_minor' => 350000,
+            'currency' => 'NGN',
+            'candidate_details' => [],
+            'provider_delivery_payload' => ['api_response' => 'MUST-NOT-LEAK'],
+        ]);
+
+        $this->actingAs($owner)
+            ->getJson(route('education-services.delivery', $order->public_id))
+            ->assertStatus(409)
+            ->assertDontSee('MUST-NOT-LEAK');
+    }
+
     public function test_provider_adapters_are_registered_and_implement_the_contract(): void
     {
         foreach ([
