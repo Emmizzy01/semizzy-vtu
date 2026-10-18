@@ -71,6 +71,53 @@ class EducationServiceCatalogueTest extends TestCase
         ]);
     }
 
+    public function test_admin_product_edit_updates_pricing_and_keeps_product_locked(): void
+    {
+        $staff = User::query()->create([
+            'name' => 'Education Editor',
+            'email' => 'education-editor@example.test',
+            'password' => 'not-a-real-password',
+        ]);
+        $staff->permissions()->create(['permission' => 'staff.permissions.manage']);
+
+        $product = EducationServiceProduct::query()->create([
+            'service_type' => 'exam_pin',
+            'exam_body' => 'WAEC',
+            'name' => 'Old product name',
+            'code' => 'waec-edit-test',
+            'provider' => 'pending-provider',
+            'provider_product_code' => 'old-sku',
+            'provider_cost_minor' => 100000,
+            'price_minor' => 120000,
+            'is_active' => true,
+            'purchase_approved' => true,
+        ]);
+
+        $this->actingAs($staff)->put('/admin/education-services/'.$product->id, [
+            'service_type' => 'exam_pin',
+            'exam_body' => 'WAEC',
+            'name' => 'Updated product name',
+            'code' => 'waec-edit-test',
+            'provider' => 'verified-later-provider',
+            'provider_product_code' => 'new-sku',
+            'provider_cost_minor' => 110000,
+            'price_minor' => 145000,
+            'requires_candidate_validation' => true,
+            'reason' => 'Update product price and provider mapping',
+        ])->assertRedirect()->assertSessionHasNoErrors();
+
+        $product->refresh();
+        $this->assertSame('Updated product name', $product->name);
+        $this->assertSame(145000, $product->price_minor);
+        $this->assertSame(110000, $product->provider_cost_minor);
+        $this->assertFalse($product->is_active);
+        $this->assertFalse($product->purchase_approved);
+        $this->assertDatabaseHas('platform_setting_audits', [
+            'setting_key' => 'education_product.updated.'.$product->id,
+            'actor_user_id' => $staff->id,
+        ]);
+    }
+
     public function test_education_feature_is_registered_disabled_and_unimplemented_by_default(): void
     {
         $feature = PlatformFeatureControl::query()->where('feature_key', 'service.education')->firstOrFail();
