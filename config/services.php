@@ -52,6 +52,37 @@ return [
         'purchase_isolated' => true,
         ],
     ],
+    // Education adapters are fail-closed by default. Enable only after merchant access,
+    // product mapping, validation and recovery contracts are independently verified.
+    'education' => [
+        'providers' => [
+            'sogo' => [
+                'enabled' => (bool) env('EDUCATION_SOGO_ENABLED', false),
+                'base_url' => env('EDUCATION_SOGO_BASE_URL', env('APP_ENV', 'production') === 'production'
+                    ? 'https://api.sogo.africa/v1'
+                    : 'https://sandbox.sogo.africa/v1'),
+                'api_key' => env('EDUCATION_SOGO_API_KEY'),
+            ],
+            'gsubz' => [
+                'enabled' => (bool) env('EDUCATION_GSUBZ_ENABLED', false),
+                'base_url' => env('EDUCATION_GSUBZ_BASE_URL', 'https://api.gsubz.com'),
+                'api_key' => env('EDUCATION_GSUBZ_API_KEY'),
+            ],
+            'vtpass' => [
+                'enabled' => (bool) env('EDUCATION_VTPASS_ENABLED', false),
+                'base_url' => env('EDUCATION_VTPASS_BASE_URL', env('APP_ENV', 'production') === 'production'
+                    ? 'https://vtpass.com/api'
+                    : 'https://sandbox.vtpass.com/api'),
+                'api_key' => env('EDUCATION_VTPASS_API_KEY'),
+                'secret_key' => env('EDUCATION_VTPASS_SECRET_KEY'),
+            ],
+            'dataway' => [
+                'enabled' => false,
+                'base_url' => env('EDUCATION_DATAWAY_BASE_URL'),
+                'api_key' => env('EDUCATION_DATAWAY_API_KEY'),
+            ],
+        ],
+    ],
     'paystack' => [
         'secret_key' => env('PAYSTACK_SECRET_KEY'),
         'callback_url' => env('PAYSTACK_CALLBACK_URL'),
