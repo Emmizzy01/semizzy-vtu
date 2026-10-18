@@ -63,8 +63,19 @@ export default function CustomerDashboard({ wallet, transactions, orders = [], t
 
         <section className="rounded-[26px] bg-[var(--surface)] p-4 shadow-sm lg:col-span-12" aria-labelledby="dashboard-services-heading">
           <div className="mb-4 flex items-center justify-between gap-2"><div><h2 id="dashboard-services-heading" className="font-extrabold">Popular Services</h2><p className="mt-1 text-[10px] text-[var(--muted)]">Quick access to Semizzy services</p></div><a href="/services" className="inline-flex items-center gap-1 text-xs font-extrabold text-[var(--brand)]">See all <ChevronRight size={16}/></a></div>
-          <div className="grid grid-cols-4 gap-x-2 gap-y-4 sm:grid-cols-4 lg:grid-cols-4" aria-label="Popular services">
+          <div className="grid grid-cols-4 gap-x-2 gap-y-4 sm:grid-cols-3 lg:grid-cols-6" aria-label="Popular services">
             {[{title:'Airtime',href:'/wallet/vtu/airtime',icon:<Smartphone size={23}/>},{title:'Data',href:'/wallet/vtu/data',icon:<Wifi size={23}/>},{title:'Electricity',href:'/wallet/vtu/electricity',icon:<Zap size={23}/>},{title:'Cable TV',href:'/wallet/vtu/tv',icon:<PlaySquare size={23}/>},{title:'Internet',href:'/services',icon:<Wifi size={23}/>},{title:'Education',href:'/services',icon:<GraduationCap size={23}/>},{title:'Government',href:'/services',icon:<Landmark size={23}/>},{title:'Streaming',href:'/services',icon:<Tv size={23}/>},{title:'Betting',href:'/services',icon:<SmartphoneNfc size={23}/>},{title:'SMM',href:'/services',icon:<Megaphone size={23}/>},{title:'Number Services',href:'/services',icon:<SmartphoneNfc size={23}/>},{title:'More',href:'/services',icon:<ArrowUpRight size={23}/> }].map(service=><a key={service.title} href={service.href} className="flex min-h-[84px] min-w-0 flex-col items-center justify-center gap-2 rounded-2xl px-1 py-2 text-center transition hover:bg-[var(--page)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)] focus-visible:ring-offset-2"><span className="grid h-12 w-12 place-items-center rounded-[16px] bg-emerald-50 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-300">{service.icon}</span><span className="text-[10px] font-bold leading-tight sm:text-xs">{service.title}</span></a>)}
+          </div>
+        </section>
+
+        <section aria-labelledby="dashboard-marketplace-heading" className="mt-1 rounded-[26px] bg-[var(--surface)] p-4 shadow-sm lg:col-span-12">
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <div><h2 id="dashboard-marketplace-heading" className="font-extrabold">Explore Semizzy marketplace</h2><p className="mt-1 text-xs leading-5 text-[var(--muted)]">Discover more services and offers as they become available on your account.</p></div>
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[var(--brand-soft)] text-[var(--brand)]"><Gift size={20} aria-hidden="true" /></span>
+          </div>
+          <div className="flex flex-col gap-4 rounded-2xl border border-[var(--line)] bg-[var(--page)] p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0"><p className="text-sm font-extrabold">More than everyday top-ups</p><p className="mt-1 max-w-2xl text-xs leading-5 text-[var(--muted)]">Marketplace listings and promotional offers will be shown here when the relevant catalogue and account features are enabled. No sample products or prices are displayed.</p></div>
+            <a href="/services" className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-[var(--brand)] px-4 py-2 text-xs font-extrabold text-white transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)] focus-visible:ring-offset-2">Explore services <ChevronRight size={16} /></a>
           </div>
         </section>
 
