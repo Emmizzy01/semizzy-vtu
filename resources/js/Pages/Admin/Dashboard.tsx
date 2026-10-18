@@ -1,4 +1,4 @@
-import { Activity, CreditCard, PlugZap, ShieldCheck, Smartphone, Users, WalletCards } from 'lucide-react';
+import { Activity, CreditCard, PlugZap, Users, WalletCards } from 'lucide-react';
 import DashboardLayout from '../../Components/DashboardLayout';
 
 type PrototypeMetrics = {
@@ -16,7 +16,7 @@ function nairaFromMinor(minor: number) {
   return new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN', maximumFractionDigits: 0 }).format(minor / 100);
 }
 
-export default function AdminDashboard({ metrics, prototypeMetrics, newUsersLastSevenDays, recentUsers, capabilities }: {
+export default function AdminDashboard({ prototypeMetrics, newUsersLastSevenDays, recentUsers, capabilities }: {
   metrics: { users: number | null; wallets: number; pendingFunding: number; pendingManualDeposits: number | null; refundsNeedingAction: number | null; unresolvedVtuOrders: number };
   prototypeMetrics: PrototypeMetrics;
   newUsersLastSevenDays: number;
