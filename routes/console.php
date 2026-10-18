@@ -357,3 +357,55 @@ Artisan::command('vtu:catalog-sync {--apply : Save the verified provider catalog
 
     return 0;
 })->purpose('Preview VTpass products safely; persist only when --apply is explicitly supplied');
+
+
+Artisan::command('semizzy:schema-audit', function () {
+    // Read-only audit for the production schema drift reported on 2026-10-18.
+    // This command deliberately does not run migrations or alter database state.
+    $required = [
+        'vtu_products' => [
+            'provider_key',
+            'provider_product_code',
+            'provider_cost_minor',
+            'data_type',
+            'validity',
+            'pricing_by_user_category',
+            'commission_by_user_category',
+        ],
+        'streaming_subscription_products' => [
+            'id', 'platform', 'name', 'code', 'price_minor', 'is_active', 'purchase_approved',
+        ],
+        'vtu_website_requests' => [
+            'id', 'public_id', 'user_id', 'request_type', 'status', 'description',
+        ],
+        'vtu_website_request_events' => [
+            'id', 'request_id', 'action', 'created_at',
+        ],
+        'platform_feature_controls' => ['feature_key', 'is_enabled', 'is_implemented'],
+        'integration_settings' => ['key', 'value'],
+    ];
+
+    $missing = [];
+    foreach ($required as $table => $columns) {
+        if (!\\Illuminate\\Support\\Facades\\Schema::hasTable($table)) {
+            $missing[] = [$table, '(table missing)'];
+            continue;
+        }
+
+        foreach ($columns as $column) {
+            if (!\\Illuminate\\Support\\Facades\\Schema::hasColumn($table, $column)) {
+                $missing[] = [$table, $column];
+            }
+        }
+    }
+
+    if ($missing !== []) {
+        $this->error('Schema audit found missing database objects. No changes were made.');
+        $this->table(['Table', 'Missing object'], $missing);
+        $this->line('Review migration status and schema history before applying any migration.');
+        return 1;
+    }
+
+    $this->info('Schema audit passed: all required tables and columns are present. No changes were made.');
+    return 0;
+})->purpose('Read-only audit of required production database tables and columns');
