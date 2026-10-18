@@ -172,7 +172,7 @@ final class SogoEducationProvider implements EducationProvider
     {
         $allowed = ['delivery', 'pin', 'serial', 'token', 'epin', 'cards', 'tokens', 'purchased_code', 'exam_pin', 'serial_number'];
         $payload = array_intersect_key($data, array_flip($allowed));
-        foreach (['delivery', 'result', 'data'] as $nested) {
+        foreach (['result', 'data'] as $nested) {
             if (is_array($data[$nested] ?? null)) {
                 $payload += array_intersect_key($data[$nested], array_flip($allowed));
             }
