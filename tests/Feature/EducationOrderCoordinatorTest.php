@@ -156,7 +156,7 @@ class EducationOrderCoordinatorTest extends TestCase
         $this->assertSame(1, $provider->lookups);
         $this->assertSame(1, $provider->submissions, 'An uncertain lookup must not cause a purchase resubmission.');
         $this->assertSame(350000, (int) $wallet->fresh()->balance_minor);
-        $this->assertDatabaseCount('wallet_ledger_entries', 1, 'An uncertain lookup must not issue a refund.');
+        $this->assertSame(1, WalletLedgerEntry::query()->count(), 'An uncertain lookup must not issue a refund.');
         $this->assertSame(0, WalletTransaction::query()->where('type', 'credit')->count());
     }
 
