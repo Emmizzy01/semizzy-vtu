@@ -361,6 +361,37 @@ class VtpassProviderClientTest extends TestCase
         $this->assertSame('014', $result['message_code']);
     }
 
+    public function test_purchase_and_requery_share_the_exact_same_persisted_request_id(): void
+    {
+        Http::fakeSequence()
+            ->push([
+                'code' => '000',
+                'content' => ['transactions' => ['status' => 'pending']],
+            ], 200)
+            ->push([
+                'code' => '000',
+                'content' => ['transactions' => ['status' => 'delivered', 'transactionId' => 'vtpass-txn-stable']],
+            ], 200);
+
+        $order = $this->order('airtime', 'mtn');
+        $client = app(VtpassProviderClient::class);
+
+        $submitted = $client->submit($order);
+        $lookedUp = $client->lookup($order);
+
+        $this->assertSame('pending', $submitted['status']);
+        $this->assertSame('success', $lookedUp['status']);
+
+        $requestIds = [];
+        foreach (Http::recorded() as [$request, $response]) {
+            $requestIds[] = $request['request_id'];
+        }
+
+        $this->assertCount(2, $requestIds);
+        $this->assertSame($requestIds[0], $requestIds[1], 'VTpass requery must use the exact original purchase request_id.');
+        $this->assertSame('20261013123412345678123412341234123456789abc', $requestIds[0]);
+    }
+
     public function test_requery_uses_the_same_request_id_and_official_endpoint(): void
     {
         Http::fake(fn () => Http::response([
