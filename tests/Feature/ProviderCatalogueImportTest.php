@@ -50,7 +50,7 @@ class ProviderCatalogueImportTest extends TestCase
         $this->assertFalse($product->is_active);
         $this->assertFalse($product->metadata['purchase_approved']);
         $this->assertSame('42', $product->metadata['provider_mappings']['dataway']['product_id']);
-        Http::assertNothingSent();
+        Http::assertSent(fn ($request) => str_contains($request->url(), '/billers/'));
     }
 
     public function test_provider_import_fails_closed_without_credentials(): void
