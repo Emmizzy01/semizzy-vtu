@@ -43,11 +43,15 @@ class EducationProviderAdaptersTest extends TestCase
             ->getJson(route('education-services.delivery', $order->public_id))
             ->assertNotFound();
 
-        $this->actingAs($owner)
-            ->getJson(route('education-services.delivery', $order->public_id))
-            ->assertOk()
-            ->assertHeader('Cache-Control', fn ($value) => str_contains($value, 'no-store') && str_contains($value, 'private') && str_contains($value, 'max-age=0'))
-            ->assertJsonPath('delivery.api_response', 'TEST-EXAM-PIN-ONLY');
+        $deliveryResponse = $this->actingAs($owner)
+            ->getJson(route('education-services.delivery', $order->public_id));
+
+        $deliveryResponse->assertOk();
+        $cacheControl = (string) $deliveryResponse->headers->get('Cache-Control');
+        $this->assertStringContainsString('no-store', $cacheControl);
+        $this->assertStringContainsString('private', $cacheControl);
+        $this->assertStringContainsString('max-age=0', $cacheControl);
+        $deliveryResponse->assertJsonPath('delivery.api_response', 'TEST-EXAM-PIN-ONLY');
     }
 
     public function test_exam_pin_delivery_is_not_returned_for_unfinished_orders(): void
