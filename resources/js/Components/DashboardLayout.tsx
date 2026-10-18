@@ -81,25 +81,41 @@ export default function DashboardLayout({
   const currentHash = location.hash;
   const overviewHref = customerPreview ? '/customer/dashboard' : admin ? '/admin/dashboard' : '/dashboard';
 
+  // Keep the fixed customer footer to exactly five primary destinations.
   const customerItems: NavItem[] = [
     { label: 'Home', href: customerPreview ? '/customer/dashboard' : '/dashboard', icon: LayoutDashboard, match: customerPreview ? '/customer/dashboard' : '/dashboard' },
     { label: 'Services', href: '/services', icon: Grid2X2, match: '/services' },
-    { label: 'Rewards', href: customerPreview ? '/customer/dashboard#rewards' : '/dashboard#rewards', icon: Gift, match: '#rewards' },
     { label: 'Wallet', href: '/wallet/manual-deposits', icon: WalletCards, match: '/wallet/manual-deposits' },
+    { label: 'Activity', href: customerPreview ? '/customer/dashboard#activity' : '/dashboard#activity', icon: Activity, match: '#activity' },
     { label: 'Profile', href: '/profile', icon: UserRound, match: '/profile' },
+  ];
+  // The full customer sidebar/mobile drawer exposes secondary account tools without
+  // overcrowding the five-item fixed footer.
+  const customerSidebarItems: NavItem[] = [
+    ...customerItems,
     { label: 'Identity verification', href: '/account/kyc', icon: ShieldCheck, match: '/account/kyc' },
+    { label: 'Account levels', href: '/account/tiers', icon: ShieldCheck, match: '/account/tiers' },
+    { label: 'Transaction PIN', href: '/security/transaction-pin', icon: ShieldCheck, match: '/security/transaction-pin' },
+    { label: 'Sessions & devices', href: '/account/sessions', icon: Smartphone, match: '/account/sessions' },
+    { label: 'Business workspaces', href: '/workspaces', icon: Users, match: '/workspaces' },
+    { label: 'Help & support', href: '/support', icon: LifeBuoy, match: '/support' },
   ];
 
   const adminGroups: { title: string; items: NavItem[] }[] = [
     { title: 'Workspace', items: [{ label: 'Command Center', href: '/admin/dashboard', icon: LayoutDashboard, match: '/admin/dashboard' }] },
-    ...(canApproveRefunds ? [{ title: 'Finance', items: [{ label: 'Refund operations', href: '/admin/refunds', icon: CreditCard, match: '/admin/refunds' }] }] : []),
-    ...(canManageStaff ? [{ title: 'Operations', items: [{ label: 'VTU order queue', href: '/admin/vtu-orders', icon: Smartphone, match: '/admin/vtu-orders' },
+    { title: 'Finance', items: [
+      { label: 'Refund operations', href: '/admin/refunds', icon: CreditCard, match: '/admin/refunds' },
+      { label: 'Manual deposits', href: '/admin/manual-deposits', icon: WalletCards, match: '/admin/manual-deposits' },
+      { label: 'Payment gateway & deposit settings', href: '/admin/payment-gateway', icon: CreditCard, match: '/admin/payment-gateway' },
+    ] },
+    { title: 'Operations', items: [
+      { label: 'VTU order queue', href: '/admin/vtu-orders', icon: Smartphone, match: '/admin/vtu-orders' },
       { label: 'VTU product catalogue', href: '/admin/vtu-products', icon: Package, match: '/admin/vtu-products' },
       { label: 'KYC evidence review', href: '/admin/kyc-reviews', icon: ShieldCheck, match: '/admin/kyc-reviews' },
       { label: 'Support tickets', href: '/admin/support', icon: LifeBuoy, match: '/admin/support' },
-      { label: 'Manual deposits', href: '/admin/manual-deposits', icon: WalletCards, match: '/admin/manual-deposits' }] }] : []),
-    ...(canManageStaff ? [{ title: 'Platform', items: [
-      { label: 'Payment gateway & manual deposits', href: '/admin/payment-gateway', icon: CreditCard, match: '/admin/payment-gateway' },
+      { label: 'Users, types & levels', href: '/admin/users', icon: Users, match: '/admin/users' },
+    ] },
+    { title: 'Platform & security', items: [
       { label: 'API providers', href: '/admin/api-providers', icon: PlugZap, match: '/admin/api-providers' },
       { label: 'Staff & permissions', href: '/admin/staff', icon: Users, match: '/admin/staff' },
       { label: 'Site control & settings', href: '/admin/platform-settings', icon: SlidersHorizontal, match: '/admin/platform-settings' },
@@ -109,7 +125,7 @@ export default function DashboardLayout({
       { label: 'User level policies', href: '/admin/user-levels', icon: ShieldCheck, match: '/admin/user-levels' },
       { label: 'Tier upgrade requests', href: '/admin/user-level-upgrade-requests', icon: ShieldCheck, match: '/admin/user-level-upgrade-requests' },
       { label: 'Security activity', href: '/admin/security-events', icon: Activity, match: '/admin/security-events' },
-    ] }] : []),
+    ] },
     { title: 'Customer', items: [
       { label: 'Profile & password', href: '/profile', icon: UserRound, match: '/profile' },
       { label: 'Help & support', href: '/support', icon: LifeBuoy, match: '/support' },
@@ -151,29 +167,7 @@ export default function DashboardLayout({
     );
   };
 
-  const mobileItems = admin
-    ? [
-        { label: 'Home', href: '/admin/dashboard', icon: LayoutDashboard, match: '/admin/dashboard' },
-        ...(canApproveRefunds ? [{ label: 'Refunds', href: '/admin/refunds', icon: CreditCard, match: '/admin/refunds' }] : []),
-        ...(canManageStaff ? [
-          { label: 'VTU orders', href: '/admin/vtu-orders', icon: Smartphone, match: '/admin/vtu-orders' },
-          { label: 'KYC reviews', href: '/admin/kyc-reviews', icon: ShieldCheck, match: '/admin/kyc-reviews' },
-          { label: 'Manual deposits', href: '/admin/manual-deposits', icon: WalletCards, match: '/admin/manual-deposits' },
-          { label: 'Site control', href: '/admin/platform-settings', icon: ShieldCheck, match: '/admin/platform-settings' },
-          { label: 'Feature controls', href: '/admin/feature-controls', icon: SlidersHorizontal, match: '/admin/feature-controls' },
-          { label: 'User levels', href: '/admin/user-levels', icon: ShieldCheck, match: '/admin/user-levels' },
-          { label: 'Users & KYC', href: '/admin/users', icon: Users, match: '/admin/users' },
-          { label: 'Security activity', href: '/admin/security-events', icon: Activity, match: '/admin/security-events' },
-          { label: 'Gateway & manual deposits', href: '/admin/payment-gateway', icon: CreditCard, match: '/admin/payment-gateway' },
-          { label: 'Providers', href: '/admin/api-providers', icon: PlugZap, match: '/admin/api-providers' },
-          { label: 'Staff', href: '/admin/staff', icon: Users, match: '/admin/staff' },
-          { label: 'Staff users', href: '/admin/staff/users', icon: Users, match: '/admin/staff/users' },
-          { label: 'Audits', href: '/admin/staff/permission-audits', icon: Activity, match: '/admin/staff/permission-audits' },
-        ] : []),
-        { label: 'VTU', href: '/wallet/vtu', icon: Smartphone, match: '/wallet/vtu' },
-        { label: 'Customer', href: '/customer/dashboard', icon: WalletCards, match: '/customer/dashboard' },
-      ]
-    : customerItems;
+  const mobileItems = customerItems;
 
   return (
     <>
@@ -226,13 +220,13 @@ export default function DashboardLayout({
                       {group.items.map((item) => renderLink(item))}
                     </section>
                   ))
-                : <>{customerItems.map((item) => renderLink(item))}{customerPreview && <a href="/admin/dashboard" className="mt-3 flex min-h-11 items-center gap-3 rounded-xl border border-[var(--line)] px-3 py-2.5 text-sm font-bold text-[var(--brand)] hover:bg-[var(--page)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)]"><LayoutDashboard size={18} aria-hidden="true" /><span>Back to Command Center</span></a>}</>}
+                : <>{customerSidebarItems.map((item) => renderLink(item))}{customerPreview && <a href="/admin/dashboard" className="mt-3 flex min-h-11 items-center gap-3 rounded-xl border border-[var(--line)] px-3 py-2.5 text-sm font-bold text-[var(--brand)] hover:bg-[var(--page)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)]"><LayoutDashboard size={18} aria-hidden="true" /><span>Back to Command Center</span></a>}</>}
             </div>
           </nav>
         )}
 
         <div className={`mx-auto grid max-w-[1600px] ${(admin || customerPreview) ? 'lg:grid-cols-[250px_minmax(0,1fr)]' : ''}`}>
-          {(admin || customerPreview) && <aside className="sticky top-[65px] hidden h-[calc(100vh-65px)] overflow-y-auto border-r border-[var(--line)] bg-[var(--surface)] px-4 py-6 lg:block">
+          {<aside className="sticky top-[65px] hidden h-[calc(100vh-65px)] overflow-y-auto border-r border-[var(--line)] bg-[var(--surface)] px-4 py-6 lg:block">
             {admin ? adminGroups.map((group) => (
               <section key={group.title} className="mb-6">
                 <p className="mb-2 px-3 text-[10px] font-extrabold uppercase tracking-[0.18em] text-[var(--muted)]">{group.title}</p>
@@ -241,7 +235,7 @@ export default function DashboardLayout({
             )) : (
               <>
                 <p className="mb-2 px-3 text-[10px] font-extrabold uppercase tracking-[0.18em] text-[var(--muted)]">Your account</p>
-                <div className="space-y-1">{customerItems.map((item) => renderLink(item))}</div>
+                <div className="space-y-1">{customerSidebarItems.map((item) => renderLink(item))}</div>
                 {customerPreview && <a href="/admin/dashboard" className="mt-4 flex min-h-11 items-center gap-3 rounded-xl border border-[var(--line)] px-3 py-2.5 text-sm font-bold text-[var(--brand)] hover:bg-[var(--page)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)]"><LayoutDashboard size={18} aria-hidden="true" /><span>Back to Command Center</span></a>}
                 <div className="mt-6 rounded-2xl border border-[var(--line)] bg-[var(--page)] p-4">
                   <p className="text-sm font-bold">Need help?</p>
@@ -264,9 +258,6 @@ export default function DashboardLayout({
 
         {!admin && <nav aria-label="Main navigation" className="fixed inset-x-0 bottom-0 z-50 flex justify-around gap-1 border-t border-[var(--line)] bg-[var(--surface)]/95 px-2 pb-[env(safe-area-inset-bottom)] pt-2 backdrop-blur" style={{ scrollbarWidth: "thin" }}>
           {customerItems.map((item) => renderLink(item, true))}
-        </nav>}
-        {admin && <nav aria-label="Admin quick navigation" className="fixed inset-x-0 bottom-0 z-30 flex justify-start gap-1 overflow-x-auto border-t border-[var(--line)] bg-[var(--surface)]/95 px-2 pb-[env(safe-area-inset-bottom)] pt-2 backdrop-blur lg:hidden" style={{ scrollbarWidth: "thin" }}>
-          {mobileItems.map((item) => renderLink(item, true))}
         </nav>}
       </main>
     </>
