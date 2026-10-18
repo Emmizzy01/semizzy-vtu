@@ -184,6 +184,34 @@ class VtuProviderAdaptersTest extends TestCase
     }
 
 
+    public function test_sogo_and_gsubz_lookup_unknown_statuses_never_authorize_failure_recovery(): void
+    {
+        Http::fakeSequence()
+            ->push(['data' => ['status' => 'queued_for_processing', 'reference' => 'SOGO-UNKNOWN']], 200)
+            ->push(['status' => 'failed', 'description' => 'temporarily unavailable'], 503)
+            ->push(['status' => 'queued_for_processing', 'reference' => 'GSUBZ-UNKNOWN'], 200)
+            ->push(['status' => 'failed', 'description' => 'temporarily unavailable'], 503);
+
+        $order = $this->order();
+        $sogo = app(SogoProviderClient::class);
+        $gsubz = app(GsubzProviderClient::class);
+
+        $results = [
+            $sogo->lookup($order),
+            $sogo->lookup($order),
+            $gsubz->lookup($order),
+            $gsubz->lookup($order),
+        ];
+
+        foreach ($results as $result) {
+            $this->assertSame('unknown', $result['status']);
+            $this->assertArrayNotHasKey('safe_to_submit_same_key', $result);
+            $this->assertArrayNotHasKey('definitive_failure', $result);
+        }
+
+        $this->assertCount(4, Http::recorded());
+    }
+
     public function test_dataway_data_purchase_rejects_unverified_product_ids_before_http_dispatch(): void
     {
         Http::fake();
