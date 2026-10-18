@@ -31,16 +31,6 @@ class ManualDepositSubmissionService
         }
 
         return DB::transaction(function () use ($user, $wallet, $amountMinor, $transferReference, $evidencePath, $evidenceHash): ManualDeposit {
-            // The unique primary key serializes simultaneous submissions of the
-            // same receipt, even when neither request can see an existing deposit.
-            $claimed = DB::table('manual_deposit_evidence_fingerprints')->insertOrIgnore([
-                'evidence_sha256' => $evidenceHash,
-                'first_manual_deposit_id' => null,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
-            $duplicateEvidence = $claimed === 0;
-
             $deposit = ManualDeposit::query()->create([
                 'public_id' => (string) Str::uuid(),
                 'user_id' => $user->getKey(),
@@ -49,15 +39,23 @@ class ManualDepositSubmissionService
                 'transfer_reference' => trim($transferReference),
                 'evidence_path' => $evidencePath,
                 'evidence_sha256' => $evidenceHash,
-                'duplicate_evidence' => $duplicateEvidence,
+                'duplicate_evidence' => false,
                 'status' => 'pending',
                 'idempotency_key' => 'manual-deposit:'.Str::uuid(),
             ]);
 
-            if (! $duplicateEvidence) {
-                DB::table('manual_deposit_evidence_fingerprints')
-                    ->where('evidence_sha256', $evidenceHash)
-                    ->update(['first_manual_deposit_id' => $deposit->getKey(), 'updated_at' => now()]);
+            // Claim the receipt after creating the deposit inside this same
+            // transaction. The unique fingerprint row serializes concurrent
+            // submissions, and the winning row can point directly to its deposit.
+            $claimed = DB::table('manual_deposit_evidence_fingerprints')->insertOrIgnore([
+                'evidence_sha256' => $evidenceHash,
+                'first_manual_deposit_id' => $deposit->getKey(),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+            $duplicateEvidence = $claimed === 0;
+            if ($duplicateEvidence) {
+                $deposit->forceFill(['duplicate_evidence' => true])->save();
             }
 
             ManualDepositAudit::query()->create([
