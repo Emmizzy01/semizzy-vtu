@@ -132,7 +132,7 @@ export default function DashboardLayout({ title, description, admin = false, chi
           {admin && adminGroups.map(group => <section key={group.title} className="mb-6"><p className="mb-2 px-3 text-[10px] font-bold uppercase tracking-wider text-gray-400">{group.title}</p><nav className="space-y-1">{group.items.map(item => link(item))}</nav></section>)}
         </aside>
         <section className="min-w-0 p-4 sm:p-6 lg:p-8">
-          {(admin || customerPreview) && <div className="mb-6 flex flex-wrap items-center justify-between gap-3"><div><h1 className="text-2xl font-bold">{title}</h1><p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{description}</p></div>{admin && <ThemeToggle themeMode={themeMode} />}</div>}
+          {(admin || customerPreview) && <div className="mb-6 flex flex-wrap items-center justify-between gap-3"><div><h1 className="text-2xl font-bold">{title}</h1>{description && <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{description}</p>}</div>{admin && <ThemeToggle themeMode={themeMode} />}</div>}
           {children}
         </section>
       </div>
