@@ -12,9 +12,9 @@ return new class extends Migration
             Schema::create('education_orders', function (Blueprint $table): void {
                 $table->id();
                 $table->uuid('public_id')->unique();
-                $table->foreignId('user_id')->constrained()->restrictOnDelete();
-                $table->foreignId('wallet_id')->constrained()->restrictOnDelete();
-                $table->foreignId('education_service_product_id')->constrained('education_service_products')->restrictOnDelete();
+                $table->unsignedBigInteger('user_id');
+                $table->unsignedBigInteger('wallet_id');
+                $table->unsignedBigInteger('education_service_product_id');
                 // Keep the ledger transaction ID as a durable reference without a cross-table FK.
                 // This avoids migration teardown ordering coupling in MariaDB tests.
                 $table->unsignedBigInteger('wallet_transaction_id')->nullable();
@@ -40,7 +40,7 @@ return new class extends Migration
         if (! Schema::hasTable('education_provider_attempts')) {
             Schema::create('education_provider_attempts', function (Blueprint $table): void {
                 $table->id();
-                $table->foreignId('education_order_id')->constrained('education_orders')->restrictOnDelete();
+                $table->unsignedBigInteger('education_order_id');
                 $table->unsignedSmallInteger('attempt_number');
                 $table->string('provider', 60);
                 $table->string('outcome', 32)->default('started');
