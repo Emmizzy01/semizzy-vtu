@@ -295,6 +295,54 @@ class EducationProviderAdaptersTest extends TestCase
         Http::assertSent(fn ($request) => str_ends_with($request->url(), '/bills/education/verify-jamb'));
     }
 
+    public function test_sogo_explicit_negative_jamb_verification_wins_over_returned_candidate_name(): void
+    {
+        config([
+            'services.education.providers.sogo.enabled' => true,
+            'services.education.providers.sogo.base_url' => 'https://sandbox.sogo.africa/v1',
+            'services.education.providers.sogo.api_key' => 'sogo_sk_test_sanitized',
+        ]);
+        Http::fake([
+            'https://sandbox.sogo.africa/v1/bills/education/verify-jamb' => Http::response([
+                'data' => ['verified' => false, 'candidate_name' => 'SANITIZED TEST CANDIDATE'],
+            ], 200),
+        ]);
+        $product = new EducationServiceProduct([
+            'exam_body' => 'JAMB',
+            'provider_product_code' => 'jamb-verified-variation',
+            'metadata' => [],
+            'requires_candidate_validation' => true,
+        ]);
+
+        $result = app('education.providers.sogo')->validateCandidate($product, ['profile_id' => 'SANITIZED-PROFILE-NEGATIVE']);
+
+        $this->assertSame('invalid', $result['status']);
+    }
+
+    public function test_sogo_candidate_name_without_positive_verification_remains_unknown(): void
+    {
+        config([
+            'services.education.providers.sogo.enabled' => true,
+            'services.education.providers.sogo.base_url' => 'https://sandbox.sogo.africa/v1',
+            'services.education.providers.sogo.api_key' => 'sogo_sk_test_sanitized',
+        ]);
+        Http::fake([
+            'https://sandbox.sogo.africa/v1/bills/education/verify-jamb' => Http::response([
+                'data' => ['candidate_name' => 'SANITIZED TEST CANDIDATE'],
+            ], 200),
+        ]);
+        $product = new EducationServiceProduct([
+            'exam_body' => 'JAMB',
+            'provider_product_code' => 'jamb-verified-variation',
+            'metadata' => [],
+            'requires_candidate_validation' => true,
+        ]);
+
+        $result = app('education.providers.sogo')->validateCandidate($product, ['profile_id' => 'SANITIZED-PROFILE-UNKNOWN']);
+
+        $this->assertSame('unknown', $result['status']);
+    }
+
     public function test_vtpass_sanitized_sandbox_delivery_response_is_normalized(): void
     {
         config([
