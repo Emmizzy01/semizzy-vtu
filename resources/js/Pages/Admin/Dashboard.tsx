@@ -22,7 +22,7 @@ export default function AdminDashboard({ metrics, capabilities }: { metrics: Met
   ];
 
   return (
-    <DashboardLayout title="Admin Dashboard" description="Platform overview" admin canManageStaff={capabilities.manageStaff} canApproveRefunds={capabilities.approveRefunds}>
+    <DashboardLayout title="Admin Dashboard" description="" admin canManageStaff={capabilities.manageStaff} canApproveRefunds={capabilities.approveRefunds}>
       <section aria-label="Platform overview" className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
         {cards.map(card => {
           const body = <><div className="flex items-center justify-between gap-2"><p className="text-[11px] text-gray-500 dark:text-gray-400">{card.label}</p><span className="text-[#0f8a4f]">{card.icon}</span></div><p className="mt-1 break-words text-lg font-bold tabular-nums">{card.value === null ? '—' : card.value.toLocaleString('en-NG')}</p><p className="mt-1 text-[11px] text-gray-500 dark:text-gray-400">{card.detail}</p></>;
