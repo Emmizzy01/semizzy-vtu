@@ -17,6 +17,11 @@ class User extends Authenticatable
         'username',
         'whatsapp_number',
         'whatsapp_verified_at',
+        'address',
+        'date_of_birth',
+        'sex',
+        'mobile_number',
+        'avatar_path',
         'password',
     ];
 
@@ -34,6 +39,7 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'whatsapp_verified_at' => 'datetime',
+            'date_of_birth' => 'date',
             'password' => 'hashed',
             'transaction_pin_locked_until' => 'datetime',
             'transaction_pin_changed_at' => 'datetime',
