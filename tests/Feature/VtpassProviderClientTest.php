@@ -374,6 +374,7 @@ class VtpassProviderClientTest extends TestCase
             ], 200);
 
         $order = $this->order('airtime', 'mtn');
+        $order->created_at = Carbon::parse('2026-10-13 12:34:00', 'Africa/Lagos');
         $client = app(VtpassProviderClient::class);
 
         $submitted = $client->submit($order);
