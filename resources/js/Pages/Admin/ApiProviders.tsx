@@ -1,9 +1,12 @@
-import { ArrowLeft, LockKeyhole, PlugZap, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, CircleCheck, CircleX, LockKeyhole, PlugZap, ShieldCheck } from 'lucide-react';
 import { Head, useForm } from '@inertiajs/react';
 
 type Provider = {
   isolated: boolean;
   name?: string;
+  configurationLocked?: boolean;
+  purchasesEnabled?: boolean;
+  statusMessage?: string;
   genericEndpoint?: string;
   genericEndpointConfigured?: boolean;
   genericTokenConfigured?: boolean;
@@ -25,13 +28,26 @@ export default function ApiProviders({ provider }: { provider: Provider }) {
       <main className="mx-auto max-w-7xl px-4 py-7 sm:px-6 sm:py-9 lg:px-8">
         <a href="/admin/dashboard" className="inline-flex min-h-10 items-center gap-2 text-sm font-semibold text-[var(--muted)] hover:text-[var(--brand)]"><ArrowLeft size={16} /> Admin overview</a>
         {provider.isolated ? (
-          <section className="mt-6 max-w-3xl rounded-3xl border border-[var(--line)] bg-[var(--surface)] p-6 sm:p-8">
-            <span className="grid h-12 w-12 place-items-center rounded-2xl bg-[var(--brand-soft)] text-[var(--brand)]"><LockKeyhole size={24} /></span>
-            <p className="mt-5 text-xs font-extrabold uppercase tracking-[0.18em] text-[var(--brand)]">Provider integrations</p>
-            <h1 className="mt-2 font-display text-2xl font-extrabold sm:text-3xl">Configuration temporarily unavailable</h1>
-            <p className="mt-3 text-sm leading-6 text-[var(--muted)]">Provider configuration is locked while a technical review is outstanding. Existing transaction records and reconciliation remain available. New purchases through the isolated integration are blocked.</p>
-            <p className="mt-3 text-sm leading-6 text-[var(--muted)]">Provider credentials, endpoint details, and provider-selection controls are hidden during this hold.</p>
-          </section>
+          <div className="mt-6 max-w-5xl space-y-5">
+            <section className="rounded-3xl border border-[var(--line)] bg-[var(--surface)] p-6 sm:p-8">
+              <div className="flex items-start gap-4">
+                <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-[var(--brand-soft)] text-[var(--brand)]"><PlugZap size={24} /></span>
+                <div className="min-w-0">
+                  <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-[var(--brand)]">Provider integrations</p>
+                  <h1 className="mt-2 font-display text-2xl font-extrabold sm:text-3xl">{provider.name || 'VTU provider'} integration status</h1>
+                  <p className="mt-3 max-w-3xl text-sm leading-6 text-[var(--muted)]">{provider.statusMessage || 'This integration is isolated while its technical review is pending.'} Provider settings are read-only during this hold.</p>
+                </div>
+              </div>
+            </section>
+            <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <Status title="Configuration access" value="Locked for review" detail="Secret credentials, endpoint configuration and provider selection remain protected." />
+              <article className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-5"><p className="text-xs font-bold text-[var(--muted)]">New purchases</p><h2 className="mt-3 flex items-center gap-2 font-display text-xl font-extrabold"><CircleX size={20} className="text-amber-600" /> Blocked</h2><p className="mt-2 text-sm leading-6 text-[var(--muted)]">No new purchases will be submitted through this isolated integration.</p></article>
+              <article className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-5"><p className="text-xs font-bold text-[var(--muted)]">Existing orders</p><h2 className="mt-3 flex items-center gap-2 font-display text-xl font-extrabold"><CircleCheck size={20} className="text-emerald-600" /> Available</h2><p className="mt-2 text-sm leading-6 text-[var(--muted)]">Existing transaction records and reconciliation remain available.</p></article>
+            </section>
+            <section className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-5 sm:p-6">
+              <div className="flex items-start gap-3"><LockKeyhole size={21} className="mt-0.5 shrink-0 text-[var(--muted)]" /><div><h2 className="font-display text-lg font-extrabold">Why are settings locked?</h2><p className="mt-2 text-sm leading-6 text-[var(--muted)]">The provider's technical review and release checks must be completed before credentials, endpoint details or provider-selection controls can be changed here. This restriction does not hide this status page or remove access to existing transaction records.</p></div></div>
+            </section>
+          </div>
         ) : (
           <>
             <div className="mt-5 flex items-start gap-4"><span className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-[var(--brand-soft)] text-[var(--brand)]"><PlugZap size={26} /></span><div><p className="text-xs font-extrabold uppercase tracking-[0.18em] text-[var(--brand)]">VTU integrations</p><h1 className="mt-1 font-display text-3xl font-extrabold tracking-tight sm:text-4xl">API providers</h1><p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--muted)]">Configure a server-side generic HTTPS adapter. Provider readiness must be verified separately before purchases are enabled.</p></div></div>
