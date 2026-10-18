@@ -475,6 +475,7 @@ class VtuOrderWorkflowTest extends TestCase
     {
         config([
             'services.vtu.multi_provider.enabled' => true,
+            'services.vtu.multi_provider.failover_enabled' => true,
             'services.vtu.multi_provider.priority' => ['sogo', 'gsubz'],
             'services.vtu.multi_provider.definitive_failure_providers' => [],
             'services.vtu.sogo.base_url' => 'https://api.sogo.africa/v1',
@@ -530,6 +531,7 @@ class VtuOrderWorkflowTest extends TestCase
     {
         config([
             'services.vtu.multi_provider.enabled' => true,
+            'services.vtu.multi_provider.failover_enabled' => true,
             'services.vtu.multi_provider.priority' => ['sogo', 'gsubz', 'dataway'],
             'services.vtu.multi_provider.definitive_failure_providers' => ['sogo', 'gsubz'],
             'services.vtu.sogo.base_url' => 'https://api.sogo.africa/v1',
@@ -580,6 +582,7 @@ class VtuOrderWorkflowTest extends TestCase
     {
         config([
             'services.vtu.multi_provider.enabled' => true,
+            'services.vtu.multi_provider.failover_enabled' => true,
             'services.vtu.multi_provider.priority' => ['sogo', 'gsubz'],
             'services.vtu.multi_provider.definitive_failure_providers' => ['sogo'],
             'services.vtu.sogo.base_url' => 'https://api.sogo.africa/v1',
@@ -639,6 +642,7 @@ class VtuOrderWorkflowTest extends TestCase
     {
         config([
             'services.vtu.multi_provider.enabled' => true,
+            'services.vtu.multi_provider.failover_enabled' => true,
             'services.vtu.sogo.base_url' => 'https://api.sogo.africa/v1',
             'services.vtu.sogo.api_key' => 'sogo-test-key',
         ]);
@@ -688,6 +692,7 @@ class VtuOrderWorkflowTest extends TestCase
     {
         config([
             'services.vtu.multi_provider.enabled' => true,
+            'services.vtu.multi_provider.failover_enabled' => true,
             'services.vtu.sogo.base_url' => 'https://api.sogo.africa/v1',
             'services.vtu.sogo.api_key' => 'sogo-test-key',
         ]);
@@ -739,6 +744,7 @@ class VtuOrderWorkflowTest extends TestCase
     {
         config([
             'services.vtu.multi_provider.enabled' => true,
+            'services.vtu.multi_provider.failover_enabled' => true,
             'services.vtu.sogo.base_url' => 'https://api.sogo.africa/v1',
             'services.vtu.sogo.api_key' => 'sogo-test-key',
         ]);
@@ -805,6 +811,7 @@ class VtuOrderWorkflowTest extends TestCase
     {
         config([
             'services.vtu.multi_provider.enabled' => true,
+            'services.vtu.multi_provider.failover_enabled' => true,
             'services.vtu.sogo.base_url' => 'https://api.sogo.africa/v1',
             'services.vtu.sogo.api_key' => 'sogo-test-key',
         ]);
@@ -2334,6 +2341,7 @@ class VtuOrderWorkflowTest extends TestCase
     {
         config([
             'services.vtu.multi_provider.enabled' => true,
+            'services.vtu.multi_provider.failover_enabled' => true,
             'services.vtu.multi_provider.priority' => ['gsubz', 'sogo', 'dataway'],
             'services.vtu.multi_provider.definitive_failure_providers' => ['gsubz'],
             'services.vtu.gsubz.base_url' => 'https://api.gsubz.com',
@@ -2445,6 +2453,7 @@ class VtuOrderWorkflowTest extends TestCase
     {
         config([
             'services.vtu.multi_provider.enabled' => true,
+            'services.vtu.multi_provider.failover_enabled' => true,
             'services.vtu.multi_provider.priority' => ['sogo', 'gsubz', 'dataway'],
             'services.vtu.multi_provider.definitive_failure_providers' => ['sogo'],
             'services.vtu.sogo.base_url' => 'https://api.sogo.africa/v1',
