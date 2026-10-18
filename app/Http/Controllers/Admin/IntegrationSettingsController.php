@@ -62,6 +62,9 @@ class IntegrationSettingsController extends Controller
         $effectiveSecret = $secret !== ''
             ? $secret
             : (string) $settings->get('paystack.secret_key', config('services.paystack.secret_key', ''));
+        if ($data['mode'] === 'live' && $effectiveSecret === '') {
+            return back()->withErrors(['secret_key' => 'Configure a Paystack live secret key before enabling live payment mode.']);
+        }
         $expectedPrefix = $data['mode'] === 'test' ? 'sk_test_' : 'sk_live_';
         if ($effectiveSecret !== '' && ! str_starts_with($effectiveSecret, $expectedPrefix)) {
             return back()->withErrors(['secret_key' => 'The selected '.strtoupper($data['mode']).' mode requires a matching Paystack '.($data['mode'] === 'test' ? 'test' : 'live').' secret key. Enter the matching key before switching modes.']);
