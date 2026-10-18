@@ -70,19 +70,25 @@ abstract class AbstractMappedVtuProvider implements VtuProvider
     protected function baseUrl(): string
     {
         $key = $this->providerKey();
-        return (string) app(IntegrationSettings::class)->get(
-            "vtu.{$key}.base_url",
-            config("services.vtu.{$key}.base_url", ''),
-        );
+        $fallback = config("services.vtu.{$key}.base_url", '');
+        try {
+            return (string) app(IntegrationSettings::class)->get("vtu.{$key}.base_url", $fallback);
+        } catch (QueryException $exception) {
+            if (str_contains($exception->getMessage(), 'integration_settings')) return (string) $fallback;
+            throw $exception;
+        }
     }
 
     protected function apiKey(): string
     {
         $key = $this->providerKey();
-        return (string) app(IntegrationSettings::class)->get(
-            "vtu.{$key}.api_key",
-            config("services.vtu.{$key}.api_key", ''),
-        );
+        $fallback = config("services.vtu.{$key}.api_key", '');
+        try {
+            return (string) app(IntegrationSettings::class)->get("vtu.{$key}.api_key", $fallback);
+        } catch (QueryException $exception) {
+            if (str_contains($exception->getMessage(), 'integration_settings')) return (string) $fallback;
+            throw $exception;
+        }
     }
 
     protected function amountNaira(VtuOrder $order): string
