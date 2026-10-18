@@ -117,7 +117,6 @@ export default function DashboardLayout({ title, description, admin = false, chi
               <span className="hidden max-w-36 sm:block"><span className="block truncate text-xs font-bold">{userName}</span><span className="block truncate text-[10px] text-[#0f8a4f]">{userTier}</span></span>
             </a>}
             {admin && <form action="/admin/search" method="get" className="hidden md:block"><label className="flex h-9 items-center gap-2 rounded-lg border px-3 text-xs text-gray-500"><Search size={14}/><input name="q" minLength={2} maxLength={100} required placeholder="Search admin records" className="w-36 bg-transparent outline-none lg:w-52"/><button type="submit" className="font-bold text-[#0f8a4f]">Search</button></label></form>}
-            {admin && <ThemeToggle themeMode={themeMode} />}
             <form method="post" action="/logout"><input type="hidden" name="_token" value={typeof document === 'undefined' ? '' : (document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ?? '')}/><button type="submit" aria-label="Sign out" className="grid h-9 w-9 place-items-center rounded-full text-gray-500 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-slate-800"><LogOut size={17}/></button></form>
             <button type="button" onClick={() => setMenuOpen(v => !v)} aria-label={menuOpen ? 'Close navigation menu' : 'Open navigation menu'} aria-expanded={menuOpen} className="grid h-10 w-10 place-items-center rounded-lg border lg:hidden">{menuOpen ? <X size={19}/> : <Menu size={19}/>}</button>
           </div>
@@ -132,7 +131,7 @@ export default function DashboardLayout({ title, description, admin = false, chi
           {admin && adminGroups.map(group => <section key={group.title} className="mb-6"><p className="mb-2 px-3 text-[10px] font-bold uppercase tracking-wider text-gray-400">{group.title}</p><nav className="space-y-1">{group.items.map(item => link(item))}</nav></section>)}
         </aside>
         <section className="min-w-0 p-4 sm:p-6 lg:p-8">
-          {(admin || customerPreview) && <div className="mb-6"><h1 className="text-2xl font-bold">{title}</h1><p className="mt-1 text-sm text-gray-500">{description}</p></div>}
+          {(admin || customerPreview) && <div className="mb-6 flex flex-wrap items-center justify-between gap-3"><div><h1 className="text-2xl font-bold">{title}</h1><p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{description}</p></div>{admin && <ThemeToggle themeMode={themeMode} />}</div>}
           {children}
         </section>
       </div>
