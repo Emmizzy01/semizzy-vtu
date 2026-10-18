@@ -65,12 +65,13 @@ class IntegrationSettingsAccessTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->component('Admin/ApiProviders')
-                ->where('provider.isolated', true)
-                ->missing('provider.driver')
-                ->missing('provider.vtpassSelected')
-                ->missing('provider.vtpassBaseUrl')
-                ->missing('provider.vtpassApiKeyConfigured')
-                ->missing('provider.vtpassSecretKeyConfigured'));
+                ->where('providers.3.key', 'vtpass')
+                ->where('providers.3.purchaseHold', true)
+                ->where('providers.3.purchaseRoutingEnabled', false)
+                ->where('failoverEnabled', false)
+                ->missing('providers.3.api_key')
+                ->missing('providers.3.secret_key')
+                ->missing('providers.3.base_url'));
     }
     public function test_staff_admin_can_save_encrypted_payment_settings(): void
     {
