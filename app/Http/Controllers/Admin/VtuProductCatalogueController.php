@@ -11,6 +11,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
 
@@ -131,7 +132,7 @@ class VtuProductCatalogueController extends Controller
 
     private function validatedData(Request $request, bool $creating): array
     {
-        return $request->validate([
+        $data = $request->validate([
             'service_type' => [$creating ? 'required' : 'sometimes', 'string', Rule::in(['airtime', 'data'])],
             'provider_key' => ['nullable', 'string', Rule::in(['vtpass', 'sogo', 'gsubz', 'dataway', 'manual'])],
             'provider_product_code' => ['nullable', 'string', 'max:120'],
@@ -153,6 +154,20 @@ class VtuProductCatalogueController extends Controller
             'provider_variation_code' => ['nullable', 'string', 'max:120', 'regex:/^[a-zA-Z0-9._-]*$/'],
             'reason' => ['required', 'string', 'min:8', 'max:500'],
         ]);
+
+        // User tiers are canonical blueprint levels; accepting arbitrary keys such as
+        // "USER" or "MERCHANT" would silently leave those prices unused by tier routing.
+        foreach (['pricing_by_user_category', 'commission_by_user_category'] as $field) {
+            foreach (array_keys($data[$field] ?? []) as $level) {
+                if (! in_array((string) $level, ['level_1', 'level_2', 'level_3', 'level_4'], true)) {
+                    throw ValidationException::withMessages([
+                        $field => 'Use only Semizzy user levels: level_1, level_2, level_3, level_4.',
+                    ]);
+                }
+            }
+        }
+
+        return $data;
     }
 
     private function metadata(array $data, array $existing = []): array
