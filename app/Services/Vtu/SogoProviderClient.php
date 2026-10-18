@@ -49,12 +49,20 @@ class SogoProviderClient extends AbstractMappedVtuProvider
     {
         $this->assertConfigured();
         $response = $this->http()->get('/transactions/'.rawurlencode($order->public_id), ['type' => 'bill_payment']);
-        // Sogo documents a 404 for this idempotency-key lookup as proof
-        // that the transaction was never created. Preserve that explicit signal
-        // for recovery workers; ordinary reconciliation still treats it as
-        // ambiguous and never resubmits by itself.
+        // Live Sogo documents 404 for an idempotency-key lookup as proof
+        // that the transaction was never created. Sandbox is different: its
+        // docs say transactions are not persisted and lookup always returns 404,
+        // so sandbox 404 must never authorize a retry.
         if ($response->status() === 404) {
-            return ['status' => 'unknown', 'lookup_state' => 'not_found', 'safe_to_submit_same_key' => true];
+            $host = strtolower((string) parse_url(
+                (string) config('services.vtu.sogo.base_url', ''),
+                PHP_URL_HOST,
+            ));
+            $isSandbox = $host === 'sandbox.sogo.africa' || str_starts_with($host, 'sandbox.');
+
+            return $isSandbox
+                ? ['status' => 'unknown', 'lookup_state' => 'not_found']
+                : ['status' => 'unknown', 'lookup_state' => 'not_found', 'safe_to_submit_same_key' => true];
         }
 
         if (! $response->successful() || ! is_array($response->json())) {
