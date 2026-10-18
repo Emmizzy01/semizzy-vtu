@@ -37,9 +37,10 @@ class GsubzProviderClient extends AbstractMappedVtuProvider
             ['success', 'successful'], ['failed', 'fail'], ['pending', 'processing']);
         $result = $this->normalized($status, $body);
 
-        // Only a recognized business-level failed status in a valid HTTP response
-        // is treated as definitive. ProviderFailoverPolicy still requires allowlisting.
-        $result['definitive_failure'] = $status === 'failed';
+        // GSUBZ also uses status=failed for rate limits and upstream errors.
+        // Only documented codes that establish rejection/non-delivery qualify;
+        // 429/500/502 and unknown codes remain ambiguous and require lookup.
+        $result['definitive_failure'] = $this->isDefinitiveFailure($status, $body);
 
         return $result;
     }
@@ -57,8 +58,25 @@ class GsubzProviderClient extends AbstractMappedVtuProvider
         $status = $this->status($body['status'] ?? null,
             ['success', 'successful'], ['failed', 'fail'], ['pending', 'processing']);
         $result = $this->normalized($status, $body);
-        $result['definitive_failure'] = $status === 'failed';
+        // A verify response must meet the same strict failure-code boundary.
+        $result['definitive_failure'] = $this->isDefinitiveFailure($status, $body);
 
         return $result;
+    }
+
+    /**
+     * @param array<string, mixed> $body
+     */
+    private function isDefinitiveFailure(string $status, array $body): bool
+    {
+        if ($status !== 'failed') {
+            return false;
+        }
+
+        $code = filter_var($body['code'] ?? null, FILTER_VALIDATE_INT);
+
+        // 200 is a processed business response; 204/206/400/402 are documented
+        // request/validation/funds failures. Unknown codes fail closed.
+        return in_array($code, [200, 204, 206, 400, 402], true);
     }
 }
