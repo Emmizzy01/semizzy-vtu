@@ -93,6 +93,31 @@ class VtuOrderWorkflowTest extends TestCase
         }
     }
 
+    public function test_disabled_airtime_data_setting_blocks_direct_service_purchase(): void
+    {
+        [$user, $wallet, $product] = $this->preparedCustomer(1000, 1500);
+        app(IntegrationSettings::class)->set('service.airtime_data.enabled', '0', $user->id);
+        Http::fake();
+
+        try {
+            app(VtuOrderService::class)->purchase(
+                $user,
+                $product->code,
+                '08012345678',
+                'disabled-airtime-data-setting-direct-service',
+                [],
+                10000,
+            );
+            $this->fail('The VTU service must reject airtime/data purchases when the platform setting is disabled.');
+        } catch (\\InvalidArgumentException $exception) {
+            $this->assertStringContainsString('service is not yet enabled', $exception->getMessage());
+            $this->assertSame(1500, (int) $wallet->fresh()->available_balance_minor);
+            $this->assertDatabaseCount('vtu_orders', 0);
+            $this->assertDatabaseCount('wallet_transactions', 1);
+            Http::assertNothingSent();
+        }
+    }
+
     public function test_purchase_rechecks_catalogue_price_under_lock_before_debiting(): void
     {
         [$user, $wallet, $product] = $this->preparedCustomer(1000, 1500);

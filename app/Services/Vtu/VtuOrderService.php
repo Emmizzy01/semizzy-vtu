@@ -9,6 +9,7 @@ use App\Models\VtuOrder;
 use App\Models\VtuProviderAttempt;
 use App\Models\VtuProduct;
 use App\Models\PlatformFeatureControl;
+use App\Services\IntegrationSettings;
 use App\Models\Wallet;
 use App\Services\Wallets\WalletAccountService;
 use App\Services\Wallets\WalletLedgerService;
@@ -437,6 +438,10 @@ class VtuOrderService
 
         $feature = PlatformFeatureControl::query()->where('feature_key', $featureKey)->first();
         if ($feature === null || ! $feature->is_enabled || ! $feature->is_implemented) {
+            throw new InvalidArgumentException('This service is not yet enabled for customer purchases.');
+        }
+        if ($featureKey === 'service.airtime_data'
+            && ! filter_var(app(IntegrationSettings::class)->get('service.airtime_data.enabled', false), FILTER_VALIDATE_BOOLEAN)) {
             throw new InvalidArgumentException('This service is not yet enabled for customer purchases.');
         }
     }
