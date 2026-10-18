@@ -46,7 +46,7 @@ class UserLevelPolicyTest extends TestCase
             ->assertInertia(fn ($page) => $page
                 ->component('Account/Tiers')
                 ->where('tiers.3.level', 'level_4')
-                ->where('tiers.3.label', 'Merchant (Tier 4)'));
+                ->where('tiers.3.label', 'Tier4/Merchant'));
 
         $this->assertDatabaseHas('user_level_policies', [
             'level' => 'level_4',
