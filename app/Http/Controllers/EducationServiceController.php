@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\EducationOrder;
 use App\Models\EducationServiceProduct;
 use App\Models\PlatformFeatureControl;
 use App\Models\PlatformSettingAudit;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -33,6 +35,26 @@ class EducationServiceController extends Controller
             'purchaseEnabled' => false,
             'message' => 'Education purchases remain locked until an authorized provider, candidate validation, transaction lookup and recovery workflow are verified.',
         ]);
+    }
+
+    /**
+     * Return an already-fulfilled exam PIN only to the owning authenticated user.
+     * This endpoint intentionally does not create, submit, or reconcile purchases.
+     */
+    public function delivery(Request $request, EducationOrder $order): JsonResponse
+    {
+        abort_unless((int) $order->user_id === (int) $request->user()->getAuthIdentifier(), 404);
+        abort_unless($order->status === 'successful', 409, 'Education order is not fulfilled yet.');
+
+        $delivery = $order->provider_delivery_payload;
+        abort_unless(is_array($delivery) && $delivery !== [], 404, 'No digital delivery payload is available for this order.');
+
+        return response()->json([
+            'order_id' => $order->public_id,
+            'delivery' => $delivery,
+        ])->header('Cache-Control', 'no-store, private, max-age=0')
+          ->header('Pragma', 'no-cache')
+          ->header('X-Content-Type-Options', 'nosniff');
     }
 
     public function adminIndex(Request $request): InertiaResponse
