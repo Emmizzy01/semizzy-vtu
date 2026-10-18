@@ -9,12 +9,8 @@ namespace App\Services\Vtu;
 class ProviderFailoverPolicy
 {
     /** @param array<string, mixed> $result */
-    public function mayFailover(string $provider, array $result): bool
+    public function isDefinitiveFailure(string $provider, array $result): bool
     {
-        if (! (bool) config('services.vtu.multi_provider.failover_enabled', false)) {
-            return false;
-        }
-
         if (($result['status'] ?? null) !== 'failed'
             || ($result['definitive_failure'] ?? false) !== true) {
             return false;
@@ -24,5 +20,12 @@ class ProviderFailoverPolicy
 
         return is_array($verifiedProviders)
             && in_array($provider, $verifiedProviders, true);
+    }
+
+    /** @param array<string, mixed> $result */
+    public function mayFailover(string $provider, array $result): bool
+    {
+        return (bool) config('services.vtu.multi_provider.failover_enabled', false)
+            && $this->isDefinitiveFailure($provider, $result);
     }
 }
