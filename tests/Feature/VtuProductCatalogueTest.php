@@ -275,4 +275,29 @@ class VtuProductCatalogueTest extends TestCase
 
         $this->assertDatabaseMissing('vtu_products', ['code' => 'mtn-missing-map']);
     }
+
+    public function test_catalogue_rejects_noncanonical_user_category_price_keys(): void
+    {
+        $staff = User::query()->create([
+            'name' => 'Tier Pricing Staff',
+            'email' => 'tier-pricing-staff@example.test',
+            'password' => 'not-a-real-password',
+        ]);
+        $staff->permissions()->create(['permission' => 'staff.permissions.manage']);
+
+        $this->actingAs($staff)->from('/admin/vtu-products')->post('/admin/vtu-products', [
+            'service_type' => 'data',
+            'network' => 'MTN',
+            'code' => 'invalid-tier-key-plan',
+            'name' => 'Invalid tier-key plan',
+            'price_minor' => 30000,
+            'is_active' => false,
+            'pricing_by_user_category' => ['MERCHANT' => 28000],
+            'commission_by_user_category' => ['level_4' => 100],
+            'reason' => 'Test canonical Semizzy tier keys',
+        ])->assertSessionHasErrors('pricing_by_user_category');
+
+        $this->assertDatabaseMissing('vtu_products', ['code' => 'invalid-tier-key-plan']);
+    }
+
 }
