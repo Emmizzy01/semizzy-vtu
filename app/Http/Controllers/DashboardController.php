@@ -39,7 +39,7 @@ class DashboardController extends Controller
         return $this->renderCustomerDashboard($request);
     }
 
-    public function admin(Request $request): InertiaResponse
+    public function admin(Request $request, IntegrationSettings $settings): InertiaResponse
     {
         $user = $request->user();
         abort_unless($user, 401);
@@ -75,7 +75,33 @@ class DashboardController extends Controller
                 })->values()
             : [];
 
+        $selectedDriver = (string) $settings->get('vtu.driver', config('services.vtu.driver', 'configured'));
+        $multiProviderEnabled = (bool) config('services.vtu.multi_provider.enabled', false);
+        $providerIntegrations = [
+            [
+                'name' => 'VTpass',
+                'selected' => $selectedDriver === 'vtpass',
+                'credentialsConfigured' => trim((string) config('services.vtu.vtpass.api_key', '')) !== ''
+                    && trim((string) config('services.vtu.vtpass.secret_key', '')) !== '',
+                'status' => $selectedDriver === 'vtpass' ? 'Technical review hold' : 'Not selected',
+                'purchasesAllowed' => false,
+            ],
+        ];
+        foreach (['sogo' => 'Sogo', 'gsubz' => 'GSUBZ', 'dataway' => 'Dataway'] as $key => $label) {
+            $credentialsConfigured = trim((string) config('services.vtu.'.$key.'.api_key', '')) !== '';
+            $providerIntegrations[] = [
+                'name' => $label,
+                'selected' => $multiProviderEnabled && in_array($key, (array) config('services.vtu.multi_provider.priority', []), true),
+                'credentialsConfigured' => $credentialsConfigured,
+                'status' => ! $multiProviderEnabled
+                    ? 'Routing disabled'
+                    : ($credentialsConfigured ? 'Configured — release checks required' : 'Credentials missing'),
+                'purchasesAllowed' => false,
+            ];
+        }
+
         return Inertia::render('Admin/Dashboard', [
+            'providerIntegrations' => $providerIntegrations,
             'capabilities' => [
                 'manageStaff' => $canManageStaff,
                 'approveRefunds' => $canApproveRefunds,
