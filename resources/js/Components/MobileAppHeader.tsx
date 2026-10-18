@@ -13,7 +13,8 @@ export default function MobileAppHeader({ admin = false, customerPreview = false
   }>().props;
   const user = auth?.user;
   const userName = user?.name?.trim() || (admin ? 'Semizzy admin' : 'Semizzy user');
-  const userTier = user?.tier || user?.user_level || user?.level || user?.user_type || (admin ? 'Administrator' : 'Customer');
+  const rawUserTier = user?.tier || user?.user_level || user?.level || user?.user_type || (admin ? 'Administrator' : 'Customer');
+  const userTier = ({ level_1: 'Tier1', level_2: 'Tier2', level_3: 'Tier3', level_4: 'Tier4/Merchant', tier1: 'Tier1', tier2: 'Tier2', tier3: 'Tier3', tier4: 'Tier4/Merchant' } as Record<string, string>)[rawUserTier.toLowerCase()] || rawUserTier.replace(/_/g, ' ');
   const avatarUrl = user?.avatar_url || user?.avatarUrl || null;
   const initials = userName.split(/\s+/).slice(0, 2).map((part) => part[0]).join('').toUpperCase() || 'S';
   const platformName = platform?.name || 'SEMIZZY';
@@ -30,7 +31,7 @@ export default function MobileAppHeader({ admin = false, customerPreview = false
           <span className="min-w-0">
             <span className="block text-[10px] font-semibold uppercase tracking-wide text-[var(--muted)]">{admin ? `${platformName} · Command Center` : 'Welcome back'}</span>
             <span className="block max-w-[55vw] truncate text-sm font-extrabold text-[var(--ink)]">{userName}</span>
-            <span className="block truncate text-[10px] font-bold text-[var(--brand)]">{admin ? userTier : `Tier / level: ${userTier}`}</span>
+            <span className="block truncate text-[10px] font-bold text-[var(--brand)]">{userTier}</span>
           </span>
         </a>
         <div className="flex shrink-0 items-center gap-2">
