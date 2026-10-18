@@ -68,7 +68,9 @@ class ProviderCatalogueImportService
                 // Refresh provider facts only. Preserve admin price decisions and active/approval flags.
                 $existing->forceFill([
                     'provider_product_code' => $values['provider_product_code'],
-                    'provider_cost_minor' => $values['provider_cost_minor'],
+                    // A catalogue may omit provider cost (for example, fixed-value airtime).
+                    // Never erase a previously verified cost with an unknown/null value.
+                    ...($values['provider_cost_minor'] !== null ? ['provider_cost_minor' => $values['provider_cost_minor']] : []),
                     'network' => $values['network'],
                     'data_type' => $values['data_type'],
                     'validity' => $values['validity'],
