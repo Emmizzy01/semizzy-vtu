@@ -16,7 +16,7 @@ class ProfileManagementTest extends TestCase
         $user = User::query()->create(['name' => 'Original Name', 'email' => 'profile@example.test', 'password' => 'initial-password']);
         $this->actingAs($user)->get('/profile')->assertOk()->assertInertia(fn ($page) => $page->component('Account/Profile')->where('profile.email', 'profile@example.test'));
         $this->actingAs($user)->put('/profile', ['name' => 'Updated Name', 'address' => '12 Example Street, Lagos', 'date_of_birth' => '1998-04-12', 'sex' => 'female', 'mobile_number' => '+2348012345678'])->assertRedirect();
-        $this->assertDatabaseHas('users', ['id' => $user->id, 'name' => 'Updated Name', 'email' => 'profile@example.test', 'address' => '12 Example Street, Lagos', 'date_of_birth' => '1998-04-12', 'sex' => 'female', 'mobile_number' => '+2348012345678']);
+        $this->assertDatabaseHas('users', ['id' => $user->id, 'name' => 'Updated Name', 'email' => 'profile@example.test', 'address' => '12 Example Street, Lagos', 'date_of_birth' => '1998-04-12 00:00:00', 'sex' => 'female', 'mobile_number' => '+2348012345678']);
         $this->assertDatabaseHas('transaction_security_events', ['user_id' => $user->id, 'event_type' => 'profile_name_updated', 'outcome' => 'success']);
     }
 
