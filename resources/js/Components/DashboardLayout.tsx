@@ -128,7 +128,6 @@ export default function DashboardLayout({
       { label: 'Help & support', href: '/support', icon: LifeBuoy, match: '/support' },
       { label: 'VTU services', href: '/wallet/vtu', icon: Smartphone, match: '/wallet/vtu' },
       { label: 'Customer view', href: '/customer/dashboard', icon: WalletCards, match: '/customer/dashboard' },
-      ...(canManageStaff ? [{ label: 'Users, types & levels', href: '/admin/users', icon: Users, match: '/admin/users' }] : []),
     ] },
   ];
 
