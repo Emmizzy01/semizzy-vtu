@@ -233,4 +233,107 @@ class EducationProviderAdaptersTest extends TestCase
         $this->expectException(LogicException::class);
         $provider->assertConfigured();
     }
+    public function test_sogo_sanitized_sandbox_response_normalizes_completed_purchase_and_pin(): void
+    {
+        config([
+            'services.education.providers.sogo.enabled' => true,
+            'services.education.providers.sogo.base_url' => 'https://sandbox.sogo.africa/v1',
+            'services.education.providers.sogo.api_key' => 'sogo_sk_test_sanitized',
+        ]);
+        Http::fake([
+            'https://sandbox.sogo.africa/v1/bills/education' => Http::response([
+                'data' => [
+                    'status' => 'completed',
+                    'reference' => 'SANDBOX-EDU-001',
+                    'delivery' => ['pin' => 'SANITIZED-PIN-001', 'serial' => 'SANITIZED-SERIAL-001'],
+                ],
+            ], 200),
+        ]);
+
+        $product = new EducationServiceProduct([
+            'exam_body' => 'WAEC',
+            'provider_product_code' => 'waec-verified-variation',
+            'provider_cost_minor' => 350000,
+            'metadata' => ['service_type' => 'result_checker'],
+            'requires_candidate_validation' => false,
+        ]);
+        $result = app('education.providers.sogo')->submit(
+            'education-order-sogo-sandbox-001',
+            $product,
+            ['phone' => '08030000000'],
+        );
+
+        $this->assertSame('success', $result['status']);
+        $this->assertSame('SANDBOX-EDU-001', $result['provider_reference']);
+        $this->assertSame(['delivery' => ['pin' => 'SANITIZED-PIN-001', 'serial' => 'SANITIZED-SERIAL-001']], $result['delivery_payload']);
+        Http::assertSent(fn ($request) => str_ends_with($request->url(), '/bills/education')
+            && $request->hasHeader('Idempotency-Key', 'education-order-sogo-sandbox-001'));
+    }
+
+    public function test_sogo_candidate_validation_requires_positive_sanitized_confirmation(): void
+    {
+        config([
+            'services.education.providers.sogo.enabled' => true,
+            'services.education.providers.sogo.base_url' => 'https://sandbox.sogo.africa/v1',
+            'services.education.providers.sogo.api_key' => 'sogo_sk_test_sanitized',
+        ]);
+        Http::fake([
+            'https://sandbox.sogo.africa/v1/bills/education/verify-jamb' => Http::response([
+                'data' => ['verified' => true, 'candidate_name' => 'SANITIZED TEST CANDIDATE'],
+            ], 200),
+        ]);
+        $product = new EducationServiceProduct([
+            'exam_body' => 'JAMB',
+            'provider_product_code' => 'jamb-verified-variation',
+            'metadata' => [],
+            'requires_candidate_validation' => true,
+        ]);
+
+        $result = app('education.providers.sogo')->validateCandidate($product, ['profile_id' => 'SANITIZED-PROFILE-001']);
+
+        $this->assertSame('valid', $result['status']);
+        Http::assertSent(fn ($request) => str_ends_with($request->url(), '/bills/education/verify-jamb'));
+    }
+
+    public function test_vtpass_sanitized_sandbox_delivery_response_is_normalized(): void
+    {
+        config([
+            'app.env' => 'testing',
+            'services.education.providers.vtpass.enabled' => true,
+            'services.education.providers.vtpass.base_url' => 'https://sandbox.vtpass.com/api',
+            'services.education.providers.vtpass.api_key' => 'SANITIZED-VTPASS-KEY',
+            'services.education.providers.vtpass.secret_key' => 'SANITIZED-VTPASS-SECRET',
+        ]);
+        Http::fake([
+            'https://sandbox.vtpass.com/api/pay' => Http::response([
+                'code' => '000',
+                'content' => ['transactions' => [
+                    'status' => 'delivered',
+                    'transactionId' => 'SANDBOX-VTPASS-EDU-001',
+                ]],
+                'cards' => [['pin' => 'SANITIZED-VTPASS-PIN', 'serial' => 'SANITIZED-VTPASS-SERIAL']],
+                'purchased_code' => 'SANITIZED-VTPASS-PIN',
+            ], 200),
+        ]);
+        $product = new EducationServiceProduct([
+            'exam_body' => 'WAEC',
+            'provider_product_code' => 'waec-verified-variation',
+            'metadata' => ['provider_service_id' => 'waec', 'provider_variation_code' => 'waec-checker'],
+            'requires_candidate_validation' => false,
+        ]);
+
+        $result = app('education.providers.vtpass')->submit(
+            'education-order-vtpass-sandbox-001',
+            $product,
+            ['phone' => '08030000000'],
+        );
+
+        $this->assertSame('success', $result['status']);
+        $this->assertSame('SANDBOX-VTPASS-EDU-001', $result['provider_reference']);
+        $this->assertSame('SANITIZED-VTPASS-PIN', $result['delivery_payload']['purchased_code']);
+        Http::assertSent(fn ($request) => str_ends_with($request->url(), '/pay')
+            && ($request['serviceID'] ?? null) === 'waec'
+            && isset($request['request_id']));
+    }
+
 }
