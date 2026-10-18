@@ -8,7 +8,7 @@
 
 VTpass remains isolated and must not be included in provider priority, new purchase routing, or failover while its technical-support release blocker remains open.
 
-**Current operator decision (18 October 2026): automatic post-submit failover is OFF.** Set `VTU_FAILOVER_ENABLED=false`. Providers may be configured and tested independently, but an uncertain or failed submitted order must not be sent to another provider. This setting is separate from `VTU_MULTI_PROVIDER_ENABLED`, which controls initial provider selection.
+**Current operator decision (18 October 2026): automatic post-submit failover is hard-disabled in application config.** An uncertain or failed submitted order must not be sent to another provider. This cannot be overridden by an environment variable in the current release. Initial provider selection remains a separate opt-in via `VTU_MULTI_PROVIDER_ENABLED`.
 
 ## Current implementation status
 
@@ -16,7 +16,7 @@ The environment/configuration keys are scaffolded only. Multi-provider routing r
 
 ## Configuration keys
 
-- `VTU_MULTI_PROVIDER_ENABLED=false` — mandatory safe default.
+- `VTU_MULTI_PROVIDER_ENABLED=false` — mandatory safe default for customer purchase routing.
 - `VTU_PROVIDER_PRIORITY=sogo,gsubz,dataway` — preferred order after a provider has been configured and mapped for a particular product.
 - `VTU_SOGO_BASE_URL`, `VTU_SOGO_API_KEY`, `VTU_SOGO_WEBHOOK_SECRET`
 - `VTU_GSUBZ_BASE_URL`, `VTU_GSUBZ_API_KEY`, `VTU_GSUBZ_WEBHOOK_SECRET`
