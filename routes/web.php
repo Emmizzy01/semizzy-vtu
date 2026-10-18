@@ -82,6 +82,7 @@ Route::middleware('auth')->group(function (): void {
     Route::put('/profile', [ProfileController::class, 'update'])->middleware('throttle:10,1')->name('profile.update');
     Route::put('/profile/password', [ProfileController::class, 'updatePassword'])->middleware('throttle:5,1')->name('profile.password.update');
     Route::get('/dashboard', [DashboardController::class, 'customer'])->name('dashboard');
+    Route::get('/services/education', [EducationServiceController::class, 'index'])->name('education-services.index');
     Route::get('/service-requests/vtu-website', [VtuWebsiteRequestController::class, 'index'])->name('vtu-website-requests.index');
     Route::post('/service-requests/vtu-website', [VtuWebsiteRequestController::class, 'store'])->middleware('throttle:5,1')->name('vtu-website-requests.store');
     Route::get('/security/transaction-pin', [TransactionPinController::class, 'show'])->name('security.transaction-pin');
@@ -179,6 +180,9 @@ Route::middleware(['auth', 'can:staff.permissions.manage'])->prefix('admin')->na
     Route::post('/provider-catalogue/{provider}/import', [\App\Http\Controllers\Admin\ProviderCatalogueImportController::class, 'import'])->whereIn('provider', ['sogo', 'gsubz', 'dataway'])->middleware('throttle:3,1')->name('provider-catalogue.import');
     Route::put('/api-providers/{provider}/credentials', [IntegrationSettingsController::class, 'saveProviderCredentials'])->whereIn('provider', ['sogo', 'gsubz', 'dataway'])->middleware('throttle:10,1')->name('api-providers.credentials');
     Route::get('/api-providers', [IntegrationSettingsController::class, 'apiProviders'])->name('api-providers');
+    Route::get('/education-services', [EducationServiceController::class, 'adminIndex'])->name('education-services.index');
+    Route::post('/education-services', [EducationServiceController::class, 'store'])->middleware('throttle:10,1')->name('education-services.store');
+    Route::put('/education-services/{product}', [EducationServiceController::class, 'update'])->whereNumber('product')->middleware('throttle:10,1')->name('education-services.update');
     Route::put('/api-providers', [IntegrationSettingsController::class, 'updateApiProviders'])->name('api-providers.update');
     Route::put('/storefronts/{storefront}/commission-rate', [StorefrontCommissionController::class, 'updateRate'])->middleware('throttle:10,1')->name('storefronts.commission-rate.update');
     Route::post('/storefront-commissions/{commission}/settle', [StorefrontCommissionController::class, 'settle'])->middleware('throttle:10,1')->name('storefront-commissions.settle');
