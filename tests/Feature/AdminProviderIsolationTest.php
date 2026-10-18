@@ -12,7 +12,7 @@ class AdminProviderIsolationTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_provider_screen_hides_provider_identity_and_credentials_during_isolation(): void
+    public function test_provider_screen_shows_safe_status_without_exposing_credentials_during_isolation(): void
     {
         $user = User::factory()->create();
         UserPermission::query()->create([
@@ -30,11 +30,16 @@ class AdminProviderIsolationTest extends TestCase
         $response->assertInertia(fn ($page) => $page
             ->component('Admin/ApiProviders')
             ->where('provider.isolated', true)
+            ->where('provider.name', 'VTpass')
+            ->where('provider.configurationLocked', true)
+            ->where('provider.purchasesEnabled', false)
             ->missing('provider.vtpassApiKeyConfigured')
             ->missing('provider.vtpassSecretKeyConfigured')
             ->missing('provider.vtpassBaseUrl'));
         $response->assertDontSee('do-not-expose');
-        $response->assertDontSee('VTpass');
+        $response->assertSee('VTpass');
+        $response->assertSee('Technical review pending. Existing orders and reconciliation remain available.');
+        $response->assertDontSee('do-not-expose-either');
     }
 
     public function test_provider_settings_cannot_be_changed_while_isolation_is_active(): void
