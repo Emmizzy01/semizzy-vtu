@@ -74,6 +74,7 @@ export default function DashboardLayout({ title, description, admin = false, chi
     { title: 'Operations', items: [
       { label: 'VTU orders', href: '/admin/vtu-orders', icon: Smartphone },
       { label: 'VTU products', href: '/admin/vtu-products', icon: Package },
+      { label: 'VTU website requests', href: '/admin/vtu-website-requests', icon: Package },
       { label: 'Users, types & levels', href: '/admin/users', icon: Users },
       { label: 'User level policies', href: '/admin/user-levels', icon: UserRound },
       { label: 'Level upgrade requests', href: '/admin/user-level-upgrade-requests', icon: ShieldCheck },
