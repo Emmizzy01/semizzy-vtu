@@ -224,4 +224,75 @@ class ProviderCatalogueImportTest extends TestCase
         $this->assertFalse($product->is_active);
     }
 
+    public function test_sogo_data_import_maps_network_plan_type_validity_and_cost_inactive(): void
+    {
+        config([
+            'services.vtu.sogo.base_url' => 'https://sandbox.sogo.africa/v1',
+            'services.vtu.sogo.api_key' => 'sogo_sk_test_catalogue',
+        ]);
+
+        Http::fake([
+            'sandbox.sogo.africa/v1/bills/catalog*' => Http::response([
+                'data' => ['data' => ['providers' => [
+                    ['slug' => 'mtn', 'name' => 'MTN'],
+                ]]],
+            ]),
+            'sandbox.sogo.africa/v1/bills/data-plans*' => Http::response([
+                'data' => ['plans' => [[
+                    'variation_code' => 'mtn-sme-1gb',
+                    'name' => 'MTN SME 1GB',
+                    'amount' => 285,
+                    'type' => 'SME',
+                    'validity' => '30 days',
+                ]]],
+            ]),
+        ]);
+
+        $result = app(ProviderCatalogueImportService::class)->import('sogo', 'data');
+        $product = VtuProduct::query()->where('provider_key', 'sogo')->firstOrFail();
+
+        $this->assertSame(1, $result['created']);
+        $this->assertSame('mtn', $product->network);
+        $this->assertSame('SME', $product->data_type);
+        $this->assertSame('30 days', $product->validity);
+        $this->assertSame(28500, $product->provider_cost_minor);
+        $this->assertSame('mtn-sme-1gb', $product->metadata['provider_mappings']['sogo']['variation_code']);
+        $this->assertFalse($product->is_active);
+        $this->assertFalse($product->metadata['purchase_approved']);
+    }
+
+    public function test_gsubz_data_import_maps_plan_code_network_type_validity_and_cost_inactive(): void
+    {
+        config([
+            'services.vtu.gsubz.base_url' => 'https://api.gsubz.com',
+            'services.vtu.gsubz.api_key' => 'ap_catalogue_test_key',
+        ]);
+
+        Http::fake([
+            'api.gsubz.com/api/category/*' => Http::response([
+                'data' => [['serviceID' => 'mtn-data', 'name' => 'MTN Data']],
+            ]),
+            'api.gsubz.com/api/plans/*' => Http::response([
+                'data' => [[
+                    'plan' => 'mtn-sme-1gb',
+                    'PlanName' => 'MTN SME 1GB',
+                    'api_price' => 290,
+                    'validity' => '30 days',
+                ]],
+            ]),
+        ]);
+
+        $result = app(ProviderCatalogueImportService::class)->import('gsubz', 'data');
+        $product = VtuProduct::query()->where('provider_key', 'gsubz')->firstOrFail();
+
+        $this->assertSame(1, $result['created']);
+        $this->assertSame('mtn', $product->network);
+        $this->assertSame('mtn-data', $product->data_type);
+        $this->assertSame('30 days', $product->validity);
+        $this->assertSame(29000, $product->provider_cost_minor);
+        $this->assertSame('mtn-sme-1gb', $product->metadata['provider_mappings']['gsubz']['plan_code']);
+        $this->assertFalse($product->is_active);
+        $this->assertFalse($product->metadata['purchase_approved']);
+    }
+
 }
