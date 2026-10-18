@@ -59,7 +59,7 @@ export default function DashboardLayout({ title, description, admin = false, chi
   const customerFooter: NavItem[] = [
     { label: 'Home', href: customerPreview ? '/customer/dashboard' : '/dashboard', icon: LayoutDashboard },
     { label: 'Orders', href: (customerPreview ? '/customer/dashboard' : '/dashboard') + '#orders', icon: Package, match: '#orders' },
-    { label: 'Wallet', href: (customerPreview ? '/customer/dashboard' : '/dashboard') + '#activity', icon: WalletCards, match: '#activity' },
+    { label: 'Wallet', href: (customerPreview ? '/customer/dashboard' : '/dashboard') + '#wallet', icon: WalletCards, match: '#wallet' },
     { label: 'Support', href: '/support', icon: LifeBuoy },
     { label: 'Profile', href: '/profile', icon: UserRound },
   ];
