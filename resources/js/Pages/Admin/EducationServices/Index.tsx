@@ -1,4 +1,4 @@
-import { Head, useForm } from '@inertiajs/react';
+import { Head, router, useForm } from '@inertiajs/react';
 import { useState } from 'react';
 import { GraduationCap, ShieldCheck } from 'lucide-react';
 import DashboardLayout from '../../../Components/DashboardLayout';
@@ -6,8 +6,11 @@ import DashboardLayout from '../../../Components/DashboardLayout';
 type Product = { id: number; service_type: string; exam_body: string; name: string; code: string; provider: string | null; provider_product_code: string | null; provider_cost_minor: number | null; price_minor: number; currency: string; requires_candidate_validation: boolean; is_active: boolean; purchase_approved: boolean };
 type Props = { products: Product[]; pagination: { currentPage: number; lastPage: number; total: number }; filters: { search: string; service_type: string }; feature: { is_enabled: boolean; is_implemented: boolean }; purchaseGate: boolean; gateReason: string };
 
-export default function EducationServicesAdmin({ products, pagination, feature, gateReason }: Props) {
+export default function EducationServicesAdmin({ products, pagination, filters, feature, gateReason }: Props) {
   const [editingId, setEditingId] = useState<number | null>(null);
+  const [search, setSearch] = useState(filters.search);
+  const [serviceType, setServiceType] = useState(filters.service_type);
+  const filter = (page = 1) => router.get('/admin/education-services', { search, service_type: serviceType, page }, { preserveState: true, replace: true });
   const form = useForm({ service_type: 'exam_pin', exam_body: 'WAEC', name: '', code: '', provider: '', provider_product_code: '', provider_cost_minor: '', price_minor: '', requires_candidate_validation: true, reason: 'Add education product to catalogue pending provider verification' });
   const submit = (event: React.FormEvent) => {
     event.preventDefault();
@@ -56,8 +59,15 @@ export default function EducationServicesAdmin({ products, pagination, feature, 
         {editingId !== null && <button type="button" onClick={cancelEdit} className="rounded-xl border px-5 py-3 font-bold sm:col-span-2 lg:col-span-3">Cancel editing</button>}
         {Object.values(form.errors).length > 0 && <p className="text-sm text-red-600 sm:col-span-2 lg:col-span-3">{Object.values(form.errors).join(' ')}</p>}
       </form></section>
-      <section className="rounded-2xl bg-white p-5 shadow-sm dark:bg-slate-900"><div className="flex items-center justify-between"><h2 className="text-lg font-bold">Catalogue products</h2><span className="text-sm text-slate-500">{pagination.total} total</span></div>
+      <section className="rounded-2xl bg-white p-5 shadow-sm dark:bg-slate-900">
+        <form onSubmit={event => { event.preventDefault(); filter(1); }} className="mb-4 grid gap-3 sm:grid-cols-[1fr_220px_auto]">
+          <input aria-label="Search education products" value={search} onChange={event => setSearch(event.target.value)} placeholder="Search product, code or exam body" className="rounded-lg border p-3 dark:bg-slate-950" />
+          <select aria-label="Filter by service type" value={serviceType} onChange={event => setServiceType(event.target.value)} className="rounded-lg border p-3 dark:bg-slate-950"><option value="all">All service types</option><option value="exam_pin">Examination PIN</option><option value="registration">Registration</option><option value="verification">Verification</option><option value="other">Other</option></select>
+          <button className="rounded-lg border px-4 py-3 font-semibold">Filter catalogue</button>
+        </form>
+        <div className="flex items-center justify-between"><h2 className="text-lg font-bold">Catalogue products</h2><span className="text-sm text-slate-500">{pagination.total} total</span></div>
         {products.length === 0 ? <p className="py-8 text-center text-sm text-slate-500">No education products have been added.</p> : <div className="mt-4 overflow-x-auto"><table className="w-full min-w-[760px] text-left text-sm"><thead><tr className="border-b text-xs uppercase text-slate-500"><th className="p-3">Service</th><th className="p-3">Product</th><th className="p-3">Provider</th><th className="p-3">Cost</th><th className="p-3">Selling price</th><th className="p-3">Status</th><th className="p-3">Action</th></tr></thead><tbody>{products.map(p=><tr key={p.id} className="border-b border-slate-100 dark:border-slate-800"><td className="p-3">{p.exam_body}<div className="text-xs text-slate-500">{p.service_type}</div></td><td className="p-3 font-semibold">{p.name}<div className="text-xs text-slate-500">{p.code}</div></td><td className="p-3">{p.provider || 'Not assigned'}<div className="text-xs text-slate-500">{p.provider_product_code || 'No provider SKU'}</div></td><td className="p-3">{p.provider_cost_minor == null ? 'Unknown' : '₦' + (p.provider_cost_minor/100).toLocaleString('en-NG',{minimumFractionDigits:2})}</td><td className="p-3">₦{(p.price_minor/100).toLocaleString('en-NG',{minimumFractionDigits:2})}</td><td className="p-3"><span className="rounded-full bg-amber-100 px-2 py-1 text-xs font-bold text-amber-800">Locked</span></td><td className="p-3"><button type="button" onClick={() => editProduct(p)} className="rounded-lg border px-3 py-2 font-semibold">Edit</button></td></tr>)}</tbody></table></div>}
+        <div className="mt-4 flex items-center justify-between text-sm"><span className="text-slate-500">Page {pagination.currentPage} of {pagination.lastPage}</span><div className="flex gap-2"><button type="button" disabled={pagination.currentPage <= 1} onClick={() => filter(pagination.currentPage - 1)} className="rounded-lg border px-3 py-2 disabled:opacity-40">Previous</button><button type="button" disabled={pagination.currentPage >= pagination.lastPage} onClick={() => filter(pagination.currentPage + 1)} className="rounded-lg border px-3 py-2 disabled:opacity-40">Next</button></div></div>
       </section>
     </div>
   </DashboardLayout>;
