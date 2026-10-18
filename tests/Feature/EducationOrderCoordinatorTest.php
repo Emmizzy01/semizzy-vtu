@@ -300,7 +300,7 @@ class EducationOrderCoordinatorTest extends TestCase
         $this->assertSame('failed', $failed->status);
         $this->assertSame('PROVIDER_CONFIRMED_FAILURE', $failed->failure_code);
         $this->assertSame(500000, (int) $wallet->fresh()->balance_minor);
-        $this->assertSame(1, WalletLedgerEntry::query()->count() - 1, 'Exactly one refund ledger entry must be added.');
+        $this->assertDatabaseCount('wallet_ledger_entries', 2); // one debit and exactly one refund
         $this->assertSame(1, WalletTransaction::query()->where('type', 'credit')->count());
         $this->assertSame(1, $provider->submissions);
 
