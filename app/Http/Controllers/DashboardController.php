@@ -112,21 +112,15 @@ class DashboardController extends Controller
                 ->where('vtu_orders.status', 'successful')
                 ->where('vtu_orders.created_at', '>=', now()->subDays(30))
                 ->groupBy('vtu_orders.user_id', 'users.name')
-                ->orderByRaw('SUM(vtu_orders.amount_minor) DESC')
+                ->selectRaw('vtu_orders.user_id as id, users.name as name, SUM(vtu_orders.amount_minor) as spend_minor')
+                ->orderByDesc('spend_minor')
                 ->limit(5)
-                ->get([
-                    'vtu_orders.user_id as id',
-                    'users.name as name',
-                ])
-                ->map(function ($spender): array {
-                    $spendMinor = (int) VtuOrder::query()
-                        ->where('user_id', $spender->id)
-                        ->where('status', 'successful')
-                        ->where('created_at', '>=', now()->subDays(30))
-                        ->sum('amount_minor');
-
-                    return ['id' => (int) $spender->id, 'name' => (string) $spender->name, 'spendMinor' => $spendMinor];
-                })->values()
+                ->get()
+                ->map(fn ($spender): array => [
+                    'id' => (int) $spender->id,
+                    'name' => (string) $spender->name,
+                    'spendMinor' => (int) $spender->spend_minor,
+                ])->values()
             : collect();
 
         $selectedDriver = (string) $settings->get('vtu.driver', config('services.vtu.driver', 'configured'));
