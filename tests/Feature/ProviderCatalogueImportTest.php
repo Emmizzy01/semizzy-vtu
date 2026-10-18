@@ -3,6 +3,9 @@
 namespace Tests\Feature;
 
 use App\Models\VtuProduct;
+use App\Models\User;
+use App\Models\UserPermission;
+use App\Models\IntegrationSetting;
 use App\Services\Vtu\ProviderCatalogueImportService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
