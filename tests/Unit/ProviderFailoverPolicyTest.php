@@ -28,6 +28,11 @@ class ProviderFailoverPolicyTest extends TestCase
         $policy = new ProviderFailoverPolicy();
         $result = ['status' => 'failed', 'definitive_failure' => true];
 
+        config(['services.vtu.multi_provider.failover_enabled' => false]);
+        config(['services.vtu.multi_provider.definitive_failure_providers' => ['sogo']]);
+        $this->assertFalse($policy->mayFailover('sogo', $result), 'Failover remains disabled regardless of provider allowlist.');
+        config(['services.vtu.multi_provider.failover_enabled' => true]);
+
         config(['services.vtu.multi_provider.definitive_failure_providers' => []]);
         $this->assertFalse($policy->mayFailover('sogo', $result));
 
