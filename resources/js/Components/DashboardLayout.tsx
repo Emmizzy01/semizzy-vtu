@@ -69,11 +69,14 @@ export default function DashboardLayout({ title, description, admin = false, chi
       { label: 'Manual deposits', href: '/admin/manual-deposits', icon: WalletCards },
       { label: 'Refund operations', href: '/admin/refunds', icon: CreditCard },
       { label: 'Payment gateway', href: '/admin/payment-gateway', icon: Landmark },
+      { label: 'Storefront commissions', href: '/admin/storefront-commissions', icon: CreditCard },
     ] },
     { title: 'Operations', items: [
       { label: 'VTU orders', href: '/admin/vtu-orders', icon: Smartphone },
       { label: 'VTU products', href: '/admin/vtu-products', icon: Package },
       { label: 'Users, types & levels', href: '/admin/users', icon: Users },
+      { label: 'User level policies', href: '/admin/user-levels', icon: UserRound },
+      { label: 'Level upgrade requests', href: '/admin/user-level-upgrade-requests', icon: ShieldCheck },
       { label: 'KYC reviews', href: '/admin/kyc-reviews', icon: ShieldCheck },
       { label: 'Support tickets', href: '/admin/support', icon: LifeBuoy },
     ] },
@@ -83,6 +86,7 @@ export default function DashboardLayout({ title, description, admin = false, chi
       { label: 'Feature controls', href: '/admin/feature-controls', icon: SlidersHorizontal },
       { label: 'Security activity', href: '/admin/security-events', icon: ShieldCheck },
       { label: 'Staff & permissions', href: '/admin/staff', icon: Users },
+      { label: 'Permission audit history', href: '/admin/staff/permission-audits', icon: Activity },
     ] },
     { title: 'Customer view', items: [{ label: 'Customer dashboard', href: '/customer/dashboard', icon: ArrowLeftRight }] },
   ];
