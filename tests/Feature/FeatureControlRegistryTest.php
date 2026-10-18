@@ -79,6 +79,22 @@ class FeatureControlRegistryTest extends TestCase
         $this->assertDatabaseHas('platform_feature_controls', ['feature_key' => 'test.dependent', 'is_enabled' => 1]);
     }
 
+    public function test_manual_deposits_cannot_be_enabled_without_bank_transfer_details(): void
+    {
+        $admin = User::query()->create(['name' => 'Feature Admin', 'email' => 'manual-feature-admin@example.test', 'password' => 'not-a-real-password']);
+        UserPermission::query()->create(['user_id' => $admin->id, 'permission' => 'staff.permissions.manage']);
+
+        $this->actingAs($admin)->put('/admin/feature-controls/service.manual_deposit', [
+            'is_enabled' => true,
+            'reason' => 'Enable manual deposits after configuration',
+        ])->assertStatus(422);
+
+        $this->assertDatabaseHas('platform_feature_controls', [
+            'feature_key' => 'service.manual_deposit',
+            'is_enabled' => 0,
+        ]);
+    }
+
     public function test_removed_website_builder_and_domains_feature_is_not_offered_in_platform_controls(): void
     {
         $this->assertDatabaseMissing('platform_feature_controls', ['feature_key' => 'service.websites']);
