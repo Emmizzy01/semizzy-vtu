@@ -107,7 +107,16 @@ final class VtpassEducationProvider implements EducationProvider
         $reference = is_array($transactions) ? ($transactions['transactionId'] ?? null) : null;
 
         if ($code === '000' && $raw === 'delivered') {
-            return ['status' => 'success', 'provider_reference' => is_scalar($reference) ? (string) $reference : null, 'message_code' => $code];
+            return [
+                'status' => 'success',
+                'provider_reference' => is_scalar($reference) ? (string) $reference : null,
+                'message_code' => $code,
+                'delivery_payload' => array_filter([
+                    'cards' => isset($body['cards']) && is_array($body['cards']) ? $body['cards'] : null,
+                    'tokens' => isset($body['tokens']) && is_array($body['tokens']) ? $body['tokens'] : null,
+                    'purchased_code' => isset($body['purchased_code']) && is_string($body['purchased_code']) ? $body['purchased_code'] : null,
+                ], fn ($value) => $value !== null),
+            ];
         }
         if ($code === '000' && in_array($raw, ['initiated', 'pending'], true)) {
             return ['status' => 'pending', 'provider_reference' => is_scalar($reference) ? (string) $reference : null, 'message_code' => $code];
