@@ -106,7 +106,7 @@ export default function DashboardLayout({ title, description, admin = false, chi
     <main className="min-h-screen bg-[#eef4ef] pb-20 text-gray-900 dark:bg-[#0f1f17] dark:text-gray-100">
       <header className="sticky top-0 z-40 border-b border-black/5 bg-white/95 backdrop-blur dark:border-white/10 dark:bg-slate-950/95">
         <div className="mx-auto flex max-w-[1600px] items-center justify-between gap-3 px-4 py-3 sm:px-6">
-          <a href={admin ? '/admin/dashboard' : customerPreview ? '/customer/dashboard' : '/dashboard'} className="flex min-w-0 items-center gap-2 font-bold text-xl">
+          <a href={admin ? '/admin/dashboard' : customerPreview ? '/customer/dashboard' : '/dashboard'} className="flex min-w-0 items-center gap-2 font-bold text-xl lg:hidden">
             <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[#0f8a4f] text-sm text-white">S</span>
             <span className="truncate">{platformName}</span>
             {admin && <span className="hidden rounded-full bg-[#0f8a4f]/10 px-2 py-1 text-[10px] font-bold text-[#0f8a4f] sm:inline">ADMIN</span>}
@@ -127,6 +127,7 @@ export default function DashboardLayout({ title, description, admin = false, chi
       </div></nav>}
       <div className="mx-auto grid max-w-[1600px] lg:grid-cols-[260px_minmax(0,1fr)]">
         <aside className="sticky top-[65px] hidden h-[calc(100vh-65px)] overflow-y-auto border-r border-black/5 bg-white p-6 dark:border-white/10 dark:bg-slate-950 lg:block">
+          <a href={admin ? '/admin/dashboard' : customerPreview ? '/customer/dashboard' : '/dashboard'} className="mb-6 flex items-center gap-2 font-bold text-xl"><span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[#0f8a4f] text-sm text-white">S</span><span className="truncate">{platformName}</span>{admin && <span className="rounded-full bg-[#0f8a4f]/10 px-2 py-1 text-[10px] font-bold text-[#0f8a4f]">ADMIN</span>}</a>
           {!admin && <div className="mb-6"><p className="mb-3 text-[10px] font-bold uppercase tracking-wider text-gray-400">Your account</p><nav className="space-y-1">{customerItems.map(item => link(item))}</nav><div className="mt-6 rounded-xl bg-[#eef4ef] p-3 text-xs text-gray-500">Need help? <a href="/support" className="font-bold text-[#0f8a4f]">Contact support</a></div></div>}
           {admin && adminGroups.map(group => <section key={group.title} className="mb-6"><p className="mb-2 px-3 text-[10px] font-bold uppercase tracking-wider text-gray-400">{group.title}</p><nav className="space-y-1">{group.items.map(item => link(item))}</nav></section>)}
         </aside>
