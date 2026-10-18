@@ -153,6 +153,7 @@ class EducationOrderCoordinator
             $status,
             isset($result['provider_reference']) ? (string) $result['provider_reference'] : null,
             isset($result['message_code']) ? (string) $result['message_code'] : null,
+            is_array($result['delivery_payload'] ?? null) ? $result['delivery_payload'] : null,
         );
     }
 
@@ -185,6 +186,7 @@ class EducationOrderCoordinator
             $status,
             isset($result['provider_reference']) ? (string) $result['provider_reference'] : null,
             isset($result['message_code']) ? (string) $result['message_code'] : null,
+            is_array($result['delivery_payload'] ?? null) ? $result['delivery_payload'] : null,
         );
     }
 
@@ -198,9 +200,9 @@ class EducationOrderCoordinator
         return $order;
     }
 
-    private function recordOutcome(EducationOrder $order, string $status, ?string $providerReference, ?string $messageCode): EducationOrder
+    private function recordOutcome(EducationOrder $order, string $status, ?string $providerReference, ?string $messageCode, ?array $deliveryPayload = null): EducationOrder
     {
-        return DB::transaction(function () use ($order, $status, $providerReference, $messageCode): EducationOrder {
+        return DB::transaction(function () use ($order, $status, $providerReference, $messageCode, $deliveryPayload): EducationOrder {
             $locked = EducationOrder::query()->whereKey($order->getKey())->lockForUpdate()->firstOrFail();
             if (in_array($locked->status, ['successful', 'failed', 'cancelled'], true)) {
                 return $locked;
@@ -229,6 +231,11 @@ class EducationOrderCoordinator
             ]);
 
             if ($status === 'success') {
+                if ($deliveryPayload !== null && $deliveryPayload !== []) {
+                    // Model encrypted:array cast encrypts the delivery payload at rest.
+                    // Never copy PINs/tokens into safe_provider_response or logs.
+                    $locked->provider_delivery_payload = $deliveryPayload;
+                }
                 $locked->status = 'successful';
                 $locked->completed_at = now();
             } elseif ($status === 'failed') {
