@@ -129,4 +129,49 @@ class EducationOrderCoordinatorTest extends TestCase
         $this->expectException(IdempotencyConflict::class);
         $coordinator->purchase($user, $product->code, 'education-idem-conflict', ['candidate_number' => '9999999999']);
     }
+
+    public function test_reconciliation_uses_persisted_provider_and_never_resubmits(): void
+    {
+        [$user, $product, $wallet] = $this->setupApprovedProduct('waec-coordinator-reconcile');
+        $provider = new class implements EducationProvider {
+            public int $submissions = 0;
+            public int $lookups = 0;
+            public function assertConfigured(): void {}
+            public function validateCandidate(EducationServiceProduct $product, array $candidate): array
+            {
+                return ['status' => 'valid'];
+            }
+            public function submit(string $orderReference, EducationServiceProduct $product, array $candidate): array
+            {
+                $this->submissions++;
+                return ['status' => 'unknown'];
+            }
+            public function lookup(string $orderReference, EducationServiceProduct $product): array
+            {
+                $this->lookups++;
+                return ['status' => 'success', 'provider_reference' => 'reconciled-ref'];
+            }
+        };
+        app()->instance('education.providers.test-education', $provider);
+
+        $coordinator = app(EducationOrderCoordinator::class);
+        $order = $coordinator->purchase(
+            $user, $product->code, 'education-idem-reconcile', ['candidate_number' => '1234567890']
+        );
+        $this->assertSame('unknown', $order->status);
+        $this->assertSame(1, $provider->submissions);
+
+        // Simulate catalogue remapping after dispatch: reconciliation must still use
+        // the provider identity stored on the order, never the product's new mapping.
+        $product->forceFill(['provider' => 'different-provider'])->save();
+        $reconciled = $coordinator->reconcile($order->fresh());
+
+        $this->assertSame('successful', $reconciled->status);
+        $this->assertSame('test-education', $reconciled->provider);
+        $this->assertSame(1, $provider->submissions);
+        $this->assertSame(1, $provider->lookups);
+        $this->assertSame(350000, (int) $wallet->fresh()->balance_minor);
+        $this->assertDatabaseCount('wallet_ledger_entries', 1);
+    }
+
 }
