@@ -126,4 +126,64 @@ class ProviderCatalogueImportTest extends TestCase
         $this->get('/admin/api-providers')->assertDontSee('bp_live_catalogue_test_key');
     }
 
+
+    public function test_catalogue_refresh_preserves_admin_price_and_activation_decisions(): void
+    {
+        config([
+            'services.vtu.dataway.base_url' => 'https://dataway.ng/api/v1/merchant',
+            'services.vtu.dataway.api_key' => 'test-key',
+        ]);
+
+        $product = VtuProduct::query()->create([
+            'service_type' => 'data',
+            'provider_key' => 'dataway',
+            'provider_product_code' => 'mtn-data-42',
+            'provider_cost_minor' => 25000,
+            'network' => 'mtn-data',
+            'data_type' => 'SME',
+            'validity' => '30',
+            'code' => 'dataway-data-mtn-data-42',
+            'name' => 'Admin-approved MTN Data',
+            'price_minor' => 50000,
+            'currency' => 'NGN',
+            'is_active' => true,
+            'pricing_by_user_category' => ['level_1' => 52000, 'level_4' => 49000],
+            'commission_by_user_category' => ['level_1' => 1000, 'level_4' => 2000],
+            'metadata' => ['purchase_approved' => true, 'provider_mappings' => ['dataway' => ['product_id' => '42']]],
+        ]);
+
+        Http::fake([
+            'dataway.ng/*' => Http::response([
+                'count' => 1,
+                'data' => [[
+                    'id' => 1,
+                    'name' => 'MTN Data',
+                    'slug' => 'mtn-data',
+                    'category' => 'data',
+                    'plans' => [[
+                        'id' => 42,
+                        'name' => '1GB - 30 Days',
+                        'code' => 'MTN-1GB',
+                        'amount' => 300,
+                        'effective_total' => 275,
+                        'validity_days' => 30,
+                        'benefit_type' => 'SME',
+                    ]],
+                ]],
+            ]),
+        ]);
+
+        $result = app(ProviderCatalogueImportService::class)->import('dataway', 'data');
+        $product->refresh();
+
+        $this->assertSame(0, $result['created']);
+        $this->assertSame(1, $result['updated']);
+        $this->assertSame(50000, $product->price_minor);
+        $this->assertTrue($product->is_active);
+        $this->assertSame(['level_1' => 52000, 'level_4' => 49000], $product->pricing_by_user_category);
+        $this->assertSame(['level_1' => 1000, 'level_4' => 2000], $product->commission_by_user_category);
+        $this->assertTrue($product->metadata['purchase_approved']);
+        $this->assertSame(27500, $product->provider_cost_minor);
+    }
+
 }
