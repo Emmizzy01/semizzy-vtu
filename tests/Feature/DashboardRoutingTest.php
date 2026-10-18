@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\User;
 use App\Models\UserPermission;
 use App\Models\VtuOrder;
+use App\Models\VtuProviderAttempt;
 use App\Models\VtuProduct;
 use App\Models\Wallet;
 use App\Models\WalletTransaction;
@@ -274,6 +275,69 @@ class DashboardRoutingTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page->component('Dashboard')
                 ->where('isAdminPreview', true));
+    }
+
+    public function test_admin_dashboard_reports_provider_attempts_and_top_successful_vtu_spenders(): void
+    {
+        $admin = $this->account('reporting-admin@example.test');
+        $spender = $this->account('top-spender@example.test');
+        $this->grant($admin, 'staff.permissions.manage');
+        $wallet = Wallet::query()->create(['user_id' => $spender->id, 'currency' => 'NGN']);
+        $product = VtuProduct::query()->create([
+            'service_type' => 'airtime',
+            'network' => 'mtn',
+            'code' => 'reporting-airtime',
+            'name' => 'Reporting airtime',
+            'price_minor' => 125000,
+            'currency' => 'NGN',
+            'is_active' => true,
+        ]);
+        $order = VtuOrder::query()->create([
+            'public_id' => (string) Str::uuid(),
+            'user_id' => $spender->id,
+            'wallet_id' => $wallet->id,
+            'vtu_product_id' => $product->id,
+            'idempotency_key' => 'reporting-spend-order',
+            'request_hash' => hash('sha256', 'reporting-spend-order'),
+            'service_type' => 'airtime',
+            'network' => 'mtn',
+            'product_code' => $product->code,
+            'recipient' => '08012345678',
+            'amount_minor' => 125000,
+            'currency' => 'NGN',
+            'status' => 'successful',
+            'provider' => 'vtpass',
+            'provider_reference' => 'REPORTING-ORDER-1',
+        ]);
+
+        foreach ([
+            ['attempt_number' => 1, 'outcome' => 'failed', 'started_at' => now()->subMinutes(10), 'finished_at' => now()->subMinutes(9)],
+            ['attempt_number' => 2, 'outcome' => 'success', 'started_at' => now()->subMinutes(5), 'finished_at' => now()->subMinutes(4)],
+        ] as $attempt) {
+            VtuProviderAttempt::query()->create([
+                'vtu_order_id' => $order->id,
+                'attempt_number' => $attempt['attempt_number'],
+                'provider' => 'vtpass',
+                'outcome' => $attempt['outcome'],
+                'definitive_failure' => $attempt['outcome'] === 'failed',
+                'started_at' => $attempt['started_at'],
+                'finished_at' => $attempt['finished_at'],
+            ]);
+        }
+
+        $this->actingAs($admin)
+            ->get('/admin/dashboard')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('prototypeMetrics.apiSuccessRate', 50)
+                ->where('prototypeMetrics.highValueUsers', null)
+                ->has('topVtuSpenders', 1)
+                ->where('topVtuSpenders.0.id', $spender->id)
+                ->where('topVtuSpenders.0.spendMinor', 125000)
+                ->where('providerIntegrations.0.performance.total', 2)
+                ->where('providerIntegrations.0.performance.successful', 1)
+                ->where('providerIntegrations.0.performance.failed', 1)
+                ->where('providerIntegrations.0.performance.successRate', 50));
     }
 
     public function test_admin_dashboard_rejects_accounts_without_admin_permission(): void
