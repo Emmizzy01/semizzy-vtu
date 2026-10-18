@@ -220,4 +220,43 @@ class WalletLedgerServiceTest extends TestCase
         }
     }
 
+
+    public function test_wallet_balance_and_ledger_running_balances_remain_consistent_after_credits_and_debits(): void
+    {
+        $user = User::query()->create([
+            'name' => 'Ledger Reconciliation Customer',
+            'email' => 'ledger-reconciliation@example.test',
+            'password' => 'not-a-real-password',
+        ]);
+        $wallet = app(WalletAccountService::class)->openForUser($user);
+        $ledger = app(WalletLedgerService::class);
+
+        $ledger->post($wallet->id, 'credit', 2500, 'ledger-reconcile-credit-1');
+        $ledger->post($wallet->id, 'debit', 700, 'ledger-reconcile-debit-1');
+        $ledger->post($wallet->id, 'credit', 1250, 'ledger-reconcile-credit-2');
+        $ledger->post($wallet->id, 'debit', 300, 'ledger-reconcile-debit-2');
+
+        $runningBalance = 0;
+        $entries = WalletLedgerEntry::query()
+            ->where('wallet_id', $wallet->id)
+            ->orderBy('id')
+            ->get();
+
+        $this->assertCount(4, $entries);
+
+        foreach ($entries as $entry) {
+            $runningBalance += $entry->entry_type === 'credit'
+                ? (int) $entry->amount_minor
+                : -(int) $entry->amount_minor;
+
+            $this->assertSame($runningBalance, (int) $entry->balance_after_minor);
+            $this->assertSame($runningBalance, (int) $entry->transaction()->firstOrFail()->balance_after_minor);
+        }
+
+        $freshWallet = $wallet->fresh();
+        $this->assertSame(2750, $runningBalance);
+        $this->assertSame($runningBalance, (int) $freshWallet->balance_minor);
+        $this->assertSame($runningBalance, (int) $freshWallet->available_balance_minor);
+        $this->assertSame(4, WalletTransaction::query()->where('wallet_id', $wallet->id)->where('status', 'posted')->count());
+    }
 }
