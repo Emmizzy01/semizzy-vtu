@@ -25,7 +25,7 @@ class VtuOrderController extends Controller
             'network' => ['sometimes', 'string', 'max:40'],
         ]);
         $airDataSetting = app(IntegrationSettings::class)->get('service.airtime_data.enabled', null);
-        if (isset($validated['service_type']) && in_array($validated['service_type'], ['airtime', 'data'], true)
+        if ((! isset($validated['service_type']) || in_array($validated['service_type'], ['airtime', 'data'], true))
             && $airDataSetting !== null && ! filter_var($airDataSetting, FILTER_VALIDATE_BOOLEAN)) {
             return response()->json(['message' => 'Airtime and data purchases are temporarily unavailable.'], 503);
         }
