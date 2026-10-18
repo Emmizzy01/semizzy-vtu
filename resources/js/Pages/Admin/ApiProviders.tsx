@@ -27,7 +27,7 @@ export default function ApiProviders({ providers, failoverEnabled, routingEnable
 }) {
   const [category, setCategory] = useState<Record<string, string>>({ sogo: 'data', gsubz: 'data', dataway: 'data' });
   const [reason, setReason] = useState<Record<string, string>>({});
-  const [credentials, setCredentials] = useState<Record<string, { base_url: string; api_key: string; reason: string }>>(() => Object.fromEntries(providers.filter(p => p.catalogueImportSupported).map(p => [p.key, { base_url: p.baseUrl || p.allowedBaseUrls[0] || '', api_key: '', reason: '' }])));
+  const [credentials, setCredentials] = useState<Record<string, { base_url: string; api_key: string; reason: string }>>(() => Object.fromEntries(providers.filter(p => p.catalogueImportSupported).map(p => [p.key, { base_url: (p.key === 'sogo' && !p.apiKeyConfigured ? p.allowedBaseUrls[0] : (p.baseUrl || p.allowedBaseUrls[0])) || '', api_key: '', reason: '' }])));
   const [busy, setBusy] = useState('');
   const [error, setError] = useState('');
 
