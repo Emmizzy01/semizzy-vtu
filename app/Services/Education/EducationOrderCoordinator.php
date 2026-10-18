@@ -83,7 +83,8 @@ class EducationOrderCoordinator
                     'status' => 'processing',
                     'amount_minor' => (int) $lockedProduct->price_minor,
                     'currency' => 'NGN',
-                    'candidate_details' => $candidate,
+                    'candidate_details' => [],
+                    'encrypted_candidate_details' => $candidate,
                     'dispatch_started_at' => now(),
                 ]);
 
