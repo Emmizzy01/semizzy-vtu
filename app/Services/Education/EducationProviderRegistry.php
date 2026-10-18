@@ -13,10 +13,15 @@ class EducationProviderRegistry
 {
     public function forProduct(EducationServiceProduct $product): EducationProvider
     {
-        $key = strtolower(trim((string) $product->provider));
+        return $this->forProvider((string) $product->provider);
+    }
+
+    public function forProvider(string $providerKey): EducationProvider
+    {
+        $key = strtolower(trim($providerKey));
 
         if ($key === '') {
-            throw new LogicException('No education provider is assigned to this product.');
+            throw new LogicException('No education provider is assigned to this order.');
         }
 
         $binding = 'education.providers.'.$key;
