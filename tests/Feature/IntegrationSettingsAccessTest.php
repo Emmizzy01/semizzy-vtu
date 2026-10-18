@@ -232,6 +232,29 @@ class IntegrationSettingsAccessTest extends TestCase
         $this->assertSame('test', app(\App\Services\IntegrationSettings::class)->get('paystack.mode'));
     }
 
+    public function test_live_paystack_mode_is_rejected_when_no_effective_secret_key_exists(): void
+    {
+        $admin = User::query()->create([
+            'name' => 'Missing Live Key Admin',
+            'email' => 'missing-live-key@example.test',
+            'password' => 'not-a-real-password',
+        ]);
+        UserPermission::query()->create(['user_id' => $admin->id, 'permission' => 'staff.permissions.manage']);
+
+        config(['services.paystack.secret_key' => '']);
+
+        $this->actingAs($admin)->put('/admin/payment-gateway', [
+            'reason' => 'Prevent unconfigured live payment mode',
+            'mode' => 'live',
+            'secret_key' => '',
+            'callback_url' => 'https://semizzy.example.test/wallet/funding/return',
+            'confirm_live' => true,
+        ])->assertSessionHasErrors('secret_key');
+
+        $this->assertDatabaseMissing('integration_settings', ['key' => 'paystack.mode']);
+        $this->assertDatabaseMissing('integration_settings', ['key' => 'paystack.secret_key']);
+    }
+
     public function test_gateway_audit_records_hashes_and_reason_without_persisting_secret_in_audit(): void
     {
         $admin = User::query()->create([
