@@ -5,6 +5,8 @@ namespace Tests\Feature;
 use App\Models\User;
 use App\Models\UserLevelPolicy;
 use App\Models\UserPermission;
+use App\Models\PlatformFeatureControl;
+use App\Services\IntegrationSettings;
 use App\Models\VtuProduct;
 use App\Services\Vtu\VtuOrderService;
 use App\Services\Vtu\VtuProvider;
@@ -17,6 +19,17 @@ use Tests\TestCase;
 class UserLevelPolicyTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        // These policy tests exercise real purchase validation, so opt into the
+        // airtime/data service while keeping production defaults fail-closed.
+        PlatformFeatureControl::query()->where('feature_key', 'service.airtime_data')
+            ->update(['is_enabled' => true, 'is_implemented' => true]);
+        app(IntegrationSettings::class)->set('service.airtime_data.enabled', '1', null);
+    }
 
     public function test_fourth_account_tier_is_presented_as_merchant_without_changing_existing_policy_data(): void
     {
