@@ -96,7 +96,7 @@ class ProviderCatalogueImportService
         $base = rtrim((string) config('services.vtu.sogo.base_url', ''), '/');
         $this->assertCredentials($base, $key, 'Sogo');
         $http = Http::baseUrl($base)->withToken($key)->acceptJson()->connectTimeout(5)->timeout(30);
-        $response = $http->get('/bills/catalog');
+        $response = $http->get('bills/catalog');
         if (! $response->successful()) throw new RuntimeException('Sogo catalogue request failed.');
         $body = $response->json();
         $providers = data_get($body, 'data.'.$category.'.providers', []);
@@ -113,7 +113,7 @@ class ProviderCatalogueImportService
                 }
                 continue;
             }
-            $plansResponse = $http->get('/bills/data-plans', ['network' => $network['slug']]);
+            $plansResponse = $http->get('bills/data-plans', ['network' => $network['slug']]);
             if (! $plansResponse->successful()) throw new RuntimeException('Sogo data-plan catalogue failed; no import was applied.');
             $plans = data_get($plansResponse->json(), 'data.plans', data_get($plansResponse->json(), 'data', []));
             if (! is_array($plans)) continue;
@@ -138,7 +138,7 @@ class ProviderCatalogueImportService
         $base = rtrim((string) config('services.vtu.gsubz.base_url', ''), '/');
         $this->assertCredentials($base, $key, 'GSUBZ');
         $http = Http::baseUrl($base)->withToken($key)->acceptJson()->connectTimeout(5)->timeout(30);
-        $response = $http->get('/api/category/');
+        $response = $http->get('api/category/');
         if (! $response->successful()) throw new RuntimeException('GSUBZ service catalogue request failed.');
         $body = $response->json();
         $services = data_get($body, 'data', $body);
@@ -159,7 +159,7 @@ class ProviderCatalogueImportService
                 }
                 continue;
             }
-            $plansResponse = $http->get('/api/plans/', ['service' => $id]);
+            $plansResponse = $http->get('api/plans/', ['service' => $id]);
             if (! $plansResponse->successful()) throw new RuntimeException('GSUBZ plan catalogue failed; no import was applied.');
             $plans = data_get($plansResponse->json(), 'data', $plansResponse->json());
             if (! is_array($plans)) continue;
@@ -183,7 +183,7 @@ class ProviderCatalogueImportService
         $base = rtrim((string) config('services.vtu.dataway.base_url', ''), '/');
         $this->assertCredentials($base, $key, 'Dataway');
         $http = Http::baseUrl($base)->withToken($key)->acceptJson()->connectTimeout(5)->timeout(30);
-        $response = $http->get('/billers/', ['category' => $category]);
+        $response = $http->get('billers/', ['category' => $category]);
         if (! $response->successful()) throw new RuntimeException('Dataway biller catalogue request failed.');
         $billers = data_get($response->json(), 'data', []);
         if (! is_array($billers)) throw new RuntimeException('Dataway returned an invalid biller catalogue.');
@@ -194,7 +194,7 @@ class ProviderCatalogueImportService
             $slug = $biller['slug'];
             $plans = $biller['plans'] ?? null;
             if (! is_array($plans)) {
-                $productsResponse = $http->get('/billers/'.rawurlencode($slug).'/products/');
+                $productsResponse = $http->get('billers/'.rawurlencode($slug).'/products/');
                 if (! $productsResponse->successful()) throw new RuntimeException('Dataway product catalogue failed; no import was applied.');
                 $plans = data_get($productsResponse->json(), 'data', []);
             }
