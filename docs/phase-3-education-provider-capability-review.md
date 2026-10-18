@@ -69,7 +69,7 @@ The provider adapters are present on `main`, but this is not an account-level pr
 
 ### Sensitive delivery storage
 
-- A nullable `provider_delivery_payload` column has been added to education orders and uses Laravel's `encrypted:array` model cast.
+- Nullable `provider_delivery_payload` and `encrypted_candidate_details` columns have been added to education orders and use Laravel's `encrypted:array` model casts. New coordinator-created orders keep the legacy candidate JSON field empty.
 - Adapter success results pass only the expected delivery fields to the coordinator. The coordinator stores them separately from `safe_provider_response`, encrypted at rest.
 - An authenticated, throttled delivery endpoint is restricted to the order owner, only serves completed orders with a stored payload, and sends `Cache-Control: no-store`.
 - This endpoint is a retrieval primitive, not proof that a customer purchase or customer UI is enabled. The education customer purchase route remains disabled.
