@@ -46,7 +46,8 @@ export default function DashboardLayout({
   const { platform, auth } = usePage<{ platform?: { name?: string; theme_mode?: 'light' | 'dark'; skin?: 'modern-green' | 'navy-teal' | 'minimal-blue' | 'obsidian-luxe' | 'arctic-light' }; auth?: { user?: { name?: string; email?: string; tier?: string; level?: string; user_level?: string; user_type?: string; avatar_url?: string | null; avatarUrl?: string | null } | null } }>().props;
   const currentUser = auth?.user;
   const userName = currentUser?.name?.trim() || 'Semizzy user';
-  const userTier = currentUser?.tier || currentUser?.user_level || currentUser?.level || currentUser?.user_type || 'Customer';
+  const rawUserTier = currentUser?.tier || currentUser?.user_level || currentUser?.level || currentUser?.user_type || 'Customer';
+  const userTier = ({ level_1: 'Tier1', level_2: 'Tier2', level_3: 'Tier3', level_4: 'Tier4/Merchant', tier1: 'Tier1', tier2: 'Tier2', tier3: 'Tier3', tier4: 'Tier4/Merchant' } as Record<string, string>)[rawUserTier.toLowerCase()] || rawUserTier.replace(/_/g, ' ');
   const avatarUrl = currentUser?.avatar_url || currentUser?.avatarUrl || null;
   const userInitials = userName.split(/\s+/).slice(0, 2).map(part => part[0]).join('').toUpperCase() || 'S';
   const platformName = platform?.name || 'SEMIZZY';
@@ -175,7 +176,7 @@ export default function DashboardLayout({
                 {avatarUrl ? <img src={avatarUrl} alt="" className="h-full w-full object-cover" /> : userInitials}
                 <span className="absolute -bottom-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full border border-white bg-amber-100 px-1 text-[8px] font-black text-amber-900 dark:border-slate-900" title={userTier}>{userTier.slice(0, 1).toUpperCase()}</span>
               </span>
-              <span className="min-w-0"><span className="block text-[10px] font-semibold uppercase tracking-wide text-[var(--muted)]">Welcome back</span><span className="block max-w-[38vw] truncate text-sm font-extrabold sm:max-w-none">{userName}</span><span className="block truncate text-[10px] font-bold text-[var(--brand)]">Tier: {userTier}</span></span>
+              <span className="min-w-0"><span className="block text-[10px] font-semibold uppercase tracking-wide text-[var(--muted)]">Welcome back</span><span className="block max-w-[38vw] truncate text-sm font-extrabold sm:max-w-none">{userName}</span><span className="block truncate text-[10px] font-bold text-[var(--brand)]">{userTier}</span></span>
             </a> : <a href={overviewHref} className="flex min-w-0 items-center gap-3" aria-label={`${platformName} dashboard`}>
               <span aria-hidden="true" className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-[var(--brand)] font-display text-lg font-extrabold text-white">S</span>
               <span className="min-w-0"><span className="block font-display text-base font-extrabold tracking-tight">{platformName}</span><span className="block text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--muted)]">{admin ? 'Command Center' : 'Customer preview'}</span></span>
