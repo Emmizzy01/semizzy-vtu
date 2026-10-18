@@ -120,7 +120,7 @@ class EducationServiceController extends Controller
             'service_type' => ['required', Rule::in(['exam_pin', 'registration', 'verification', 'other'])],
             'exam_body' => ['required', 'string', 'max:60'],
             'name' => ['required', 'string', 'max:160'],
-            'code' => [$creating ? 'required' : 'sometimes', 'string', 'max:100', Rule::unique('education_service_products', 'code')->ignore($request->route('product'))],
+            'code' => ['required', 'string', 'max:100', Rule::unique('education_service_products', 'code')->ignore($request->route('product'))],
             'provider' => ['nullable', 'string', 'max:60'],
             'provider_product_code' => ['nullable', 'string', 'max:120'],
             'provider_cost_minor' => ['nullable', 'integer', 'min:0', 'max:1000000000'],
