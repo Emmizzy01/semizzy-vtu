@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Models\UserPermission;
 use App\Models\UserLevelPolicy;
 use App\Models\ManualDeposit;
+use App\Models\PlatformFeatureControl;
 use App\Models\Wallet;
 use App\Services\Wallets\WalletAccountService;
 use App\Services\IntegrationSettings;
@@ -50,6 +51,26 @@ class ManualDepositWorkflowTest extends TestCase
             'transfer_reference' => 'SAFE-DEFAULT-TRANSFER-001',
             'evidence' => UploadedFile::fake()->image('receipt.png'),
         ])->assertForbidden();
+        $this->assertDatabaseCount('manual_deposits', 0);
+    }
+
+    public function test_missing_manual_deposit_feature_control_fails_closed(): void
+    {
+        Storage::fake('local');
+        $customer = User::query()->create(['name' => 'Missing Feature Customer', 'email' => 'missing-manual-feature@example.test', 'password' => 'not-a-real-password']);
+        app(IntegrationSettings::class)->set('manual_deposit.enabled', '1', $customer->id);
+        PlatformFeatureControl::query()->where('feature_key', 'service.manual_deposit')->delete();
+
+        $this->actingAs($customer)->get('/wallet/manual-deposits')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->component('Wallet/ManualDeposit')->where('instructions.enabled', false));
+
+        $this->actingAs($customer)->post('/wallet/manual-deposits', [
+            'amount_minor' => 250000,
+            'transfer_reference' => 'MISSING-FEATURE-TRANSFER-001',
+            'evidence' => UploadedFile::fake()->image('receipt.png'),
+        ])->assertForbidden();
+
         $this->assertDatabaseCount('manual_deposits', 0);
     }
 

@@ -87,7 +87,7 @@ Route::middleware('auth')->group(function (): void {
     return Inertia::render('Services/Index', ['availability' => [
         'airtimeData' => filter_var($settings->get('service.airtime_data.enabled', true), FILTER_VALIDATE_BOOLEAN),
         'manualDeposit' => filter_var($settings->get('manual_deposit.enabled', false), FILTER_VALIDATE_BOOLEAN)
-            && ($manualDepositFeature === null || (bool) $manualDepositFeature),
+            && $manualDepositFeature !== null && (bool) $manualDepositFeature,
     ]]);
 })->name('services.index');
     Route::get('/customer/dashboard', [DashboardController::class, 'customerPreview'])->name('customer.dashboard');

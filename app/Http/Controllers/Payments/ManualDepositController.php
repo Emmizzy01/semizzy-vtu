@@ -28,6 +28,8 @@ class ManualDepositController extends Controller
         abort_unless($user, 401);
         $wallet = Wallet::query()->where('user_id', $user->id)->where('currency', 'NGN')->first();
 
+        $featureEnabled = PlatformFeatureControl::query()->where('feature_key', 'service.manual_deposit')->value('is_enabled');
+
         $deposits = ManualDeposit::query()->where('user_id', $user->id)->latest('id')->limit(30)->get([
             'public_id', 'amount_minor', 'transfer_reference', 'status', 'created_at', 'reviewed_at', 'review_reason',
         ])->map(fn (ManualDeposit $deposit): array => [
@@ -47,7 +49,7 @@ class ManualDepositController extends Controller
                 'account_number' => (string) $settings->get('manual_deposit.account_number', ''),
                 'instructions' => (string) $settings->get('manual_deposit.instructions', 'Transfer the exact amount, then submit your transfer reference and proof. Your wallet is credited only after staff verify the payment.'),
                 'enabled' => filter_var($settings->get('manual_deposit.enabled', false), FILTER_VALIDATE_BOOLEAN)
-                    && (PlatformFeatureControl::query()->where('feature_key', 'service.manual_deposit')->value('is_enabled') ?? true),
+                    && $featureEnabled !== null && (bool) $featureEnabled,
             ],
             'walletCurrency' => $wallet?->currency ?? 'NGN',
             'deposits' => $deposits,
@@ -65,7 +67,7 @@ class ManualDepositController extends Controller
         $featureEnabled = PlatformFeatureControl::query()->where('feature_key', 'service.manual_deposit')->value('is_enabled');
         abort_unless(
             filter_var(app(IntegrationSettings::class)->get('manual_deposit.enabled', false), FILTER_VALIDATE_BOOLEAN)
-                && ($featureEnabled === null || (bool) $featureEnabled),
+                && $featureEnabled !== null && (bool) $featureEnabled,
             403,
             'Manual deposits are temporarily disabled.',
         );
