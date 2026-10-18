@@ -28,12 +28,6 @@ try {
         $user = User::query()->findOrFail((int) ($argv[3] ?? 0));
         $productCode = (string) ($argv[4] ?? '');
         $idempotencyKey = (string) ($argv[5] ?? '');
-        $state = json_decode((string) file_get_contents($statePath), true);
-
-        if (is_array($state) && (int) ($state['purchase_barrier'] ?? 0) === 1) {
-            $provider->arriveAndWait('purchase_arrivals', 2);
-        }
-
         $order = $coordinator->purchase($user, $productCode, $idempotencyKey, [
             'candidate_number' => '1234567890',
         ]);

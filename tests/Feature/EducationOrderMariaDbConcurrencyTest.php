@@ -62,7 +62,7 @@ class EducationOrderMariaDbConcurrencyTest extends TestCase
     public function test_competing_duplicate_purchases_reserve_and_debit_only_once(): void
     {
         [$user, $wallet, $product] = $this->preparedCustomer();
-        $state = $this->newStateFile(['purchase_barrier' => 1]);
+        $state = $this->newStateFile();
 
         $results = $this->runWorkers([
             ['purchase', $state, (string) $user->getKey(), $product->code, 'education-concurrent-same-key'],
@@ -122,10 +122,7 @@ class EducationOrderMariaDbConcurrencyTest extends TestCase
         $this->assertSame(1, $this->readState($state, 'submissions'));
         $this->assertSame(0, $this->readState($state, 'lookups'));
 
-        file_put_contents($state, json_encode([
-            'crash_after_acceptance' => 1,
-            'lookup_status' => 'success',
-        ], JSON_THROW_ON_ERROR));
+        $this->mergeState($state, ['lookup_status' => 'success']);
         $recovery = $this->runWorkers([['reconcile', $state, (string) $order->getKey()]]);
 
         $this->assertSame([0], array_column($recovery, 'exit'));
@@ -149,10 +146,7 @@ class EducationOrderMariaDbConcurrencyTest extends TestCase
         $this->assertSame('unknown', $order->status);
         $this->assertSame(1, $this->readState($state, 'submissions'));
 
-        file_put_contents($state, json_encode([
-            'lookup_status' => 'failed',
-            'lookup_barrier' => 1,
-        ], JSON_THROW_ON_ERROR));
+        $this->mergeState($state, ['lookup_status' => 'failed', 'lookup_barrier' => 1]);
         $results = $this->runWorkers([
             ['reconcile', $state, (string) $order->getKey()],
             ['reconcile', $state, (string) $order->getKey()],
@@ -266,6 +260,13 @@ class EducationOrderMariaDbConcurrencyTest extends TestCase
         }
 
         return $results;
+    }
+
+    private function mergeState(string $path, array $updates): void
+    {
+        $state = json_decode((string) file_get_contents($path), true);
+        $state = is_array($state) ? $state : [];
+        file_put_contents($path, json_encode(array_merge($state, $updates), JSON_THROW_ON_ERROR));
     }
 
     private function readState(string $path, string $key): int
