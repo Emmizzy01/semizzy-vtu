@@ -156,9 +156,27 @@ final class SogoEducationProvider implements EducationProvider
         $status = strtolower((string) ($data['status'] ?? ''));
         $reference = $data['reference'] ?? $data['id'] ?? null;
         $message = $data['code'] ?? $data['message_code'] ?? null;
-        if ($status === 'completed') return ['status' => 'success', 'provider_reference' => is_scalar($reference) ? (string) $reference : null, 'message_code' => is_scalar($message) ? (string) $message : null];
+        if ($status === 'completed') return [
+            'status' => 'success',
+            'provider_reference' => is_scalar($reference) ? (string) $reference : null,
+            'message_code' => is_scalar($message) ? (string) $message : null,
+            'delivery_payload' => $this->extractDeliveryPayload($data),
+        ];
         if ($status === 'failed' || $status === 'refunded') return ['status' => 'failed', 'provider_reference' => is_scalar($reference) ? (string) $reference : null, 'message_code' => is_scalar($message) ? (string) $message : 'provider_final_failure'];
         if (in_array($status, ['processing', 'pending'], true)) return ['status' => 'pending', 'provider_reference' => is_scalar($reference) ? (string) $reference : null, 'message_code' => is_scalar($message) ? (string) $message : null];
         return ['status' => 'unknown', 'provider_reference' => is_scalar($reference) ? (string) $reference : null, 'message_code' => is_scalar($message) ? (string) $message : 'unrecognized_provider_status'];
+    }
+
+    /** Extract only delivery fields; the coordinator encrypts this payload at rest. */
+    private function extractDeliveryPayload(array $data): array
+    {
+        $allowed = ['delivery', 'pin', 'serial', 'token', 'epin', 'cards', 'tokens', 'purchased_code', 'exam_pin', 'serial_number'];
+        $payload = array_intersect_key($data, array_flip($allowed));
+        foreach (['delivery', 'result', 'data'] as $nested) {
+            if (is_array($data[$nested] ?? null)) {
+                $payload += array_intersect_key($data[$nested], array_flip($allowed));
+            }
+        }
+        return $payload;
     }
 }
