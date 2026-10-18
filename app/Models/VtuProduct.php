@@ -9,6 +9,13 @@ class VtuProduct extends Model
 {
     protected $fillable = [
         'service_type',
+        'provider_key',
+        'provider_product_code',
+        'provider_cost_minor',
+        'data_type',
+        'validity',
+        'pricing_by_user_category',
+        'commission_by_user_category',
         'network',
         'code',
         'name',
@@ -23,6 +30,9 @@ class VtuProduct extends Model
     {
         return [
             'price_minor' => 'integer',
+            'provider_cost_minor' => 'integer',
+            'pricing_by_user_category' => 'array',
+            'commission_by_user_category' => 'array',
             'face_value_minor' => 'integer',
             'is_active' => 'boolean',
             'metadata' => 'array',
