@@ -99,7 +99,7 @@ export default function DashboardLayout({ title, description, admin = false, chi
     return <a key={item.label} href={item.href} onClick={() => setMenuOpen(false)} aria-current={selected ? 'page' : undefined}
       className={compact
         ? `flex min-h-[58px] min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-1 text-[10px] ${selected ? 'font-bold text-[#0f8a4f]' : 'text-gray-400'}`
-        : `flex min-h-11 items-center gap-3 rounded-lg p-2.5 text-[13px] transition ${selected ? 'bg-[#0f8a4f]/10 font-bold text-[#0f8a4f]' : 'text-gray-600 hover:bg-gray-50'}`}>
+        : `flex min-h-11 items-center gap-3 rounded-lg p-2.5 text-[13px] transition ${selected ? 'bg-[#0f8a4f]/10 font-bold text-[#0f8a4f]' : 'text-gray-600 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-slate-800'}`}>
       <Icon size={compact ? 19 : 18} aria-hidden="true" /><span className={compact ? 'truncate' : 'min-w-0 flex-1'}>{item.label}</span>
     </a>;
   };
