@@ -339,7 +339,7 @@ Artisan::command('education:reconcile-orders {--limit=100}', function (
             if ($after->status !== $before) {
                 $changed++;
             }
-        } catch (\\Throwable $exception) {
+        } catch (\Throwable $exception) {
             report($exception);
         }
     }
