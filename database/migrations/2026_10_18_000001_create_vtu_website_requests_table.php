@@ -8,7 +8,8 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('vtu_website_requests', function (Blueprint $table): void {
+        if (!Schema::hasTable('vtu_website_requests')) {
+            Schema::create('vtu_website_requests', function (Blueprint $table): void {
             $table->id();
             $table->string('public_id', 24)->unique();
             $table->foreignId('user_id')->constrained()->restrictOnDelete();
@@ -21,11 +22,17 @@ return new class extends Migration
             $table->text('admin_note')->nullable();
             $table->foreignId('reviewed_by_user_id')->nullable()->constrained('users')->nullOnDelete();
             $table->timestamps();
-            $table->index(['status', 'created_at']);
-            $table->index(['user_id', 'created_at']);
-        });
+                $table->index(['status', 'created_at']);
+                $table->index(['user_id', 'created_at']);
+            });
+        }
 
-        Schema::create('vtu_website_request_events', function (Blueprint $table): void {
+        if (!Schema::hasTable('vtu_website_request_events')) {
+            if (!Schema::hasTable('vtu_website_requests')) {
+                throw new RuntimeException('Cannot create VTU website request events without vtu_website_requests.');
+            }
+
+            Schema::create('vtu_website_request_events', function (Blueprint $table): void {
             $table->id();
             $table->foreignId('request_id')->constrained('vtu_website_requests')->restrictOnDelete();
             $table->foreignId('actor_user_id')->nullable()->constrained('users')->nullOnDelete();
@@ -34,8 +41,9 @@ return new class extends Migration
             $table->string('new_status', 32)->nullable();
             $table->text('reason')->nullable();
             $table->timestamp('created_at')->useCurrent();
-            $table->index(['request_id', 'created_at']);
-        });
+                $table->index(['request_id', 'created_at']);
+            });
+        }
     }
 
     public function down(): void
