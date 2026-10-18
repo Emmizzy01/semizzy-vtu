@@ -24,8 +24,9 @@ class VtuOrderController extends Controller
             'service_type' => ['sometimes', 'string', 'in:airtime,data,electricity-bill,tv-subscription'],
             'network' => ['sometimes', 'string', 'max:40'],
         ]);
-        if ((! isset($validated['service_type']) || in_array($validated['service_type'], ['airtime', 'data'], true))
-            && ! filter_var(app(IntegrationSettings::class)->get('service.airtime_data.enabled', false), FILTER_VALIDATE_BOOLEAN)) {
+        $airDataSetting = app(IntegrationSettings::class)->get('service.airtime_data.enabled', null);
+        if (isset($validated['service_type']) && in_array($validated['service_type'], ['airtime', 'data'], true)
+            && $airDataSetting !== null && ! filter_var($airDataSetting, FILTER_VALIDATE_BOOLEAN)) {
             return response()->json(['message' => 'Airtime and data purchases are temporarily unavailable.'], 503);
         }
 
@@ -61,7 +62,7 @@ class VtuOrderController extends Controller
                     && $hasProviderService
                     && ($product->service_type === 'airtime' || $hasDataVariation);
             })
-            ->map(function (VtuProduct $product) use ($serviceControls): VtuProduct {
+            ->map(function (VtuProduct $product) use ($serviceControls, $airDataSetting): VtuProduct {
                 // Reflect the actual provider purchase gate in the customer UI,
                 // even for legacy rows that were active before approval tracking.
                 if (($product->metadata['catalog_source'] ?? null) === 'vtpass'
@@ -78,6 +79,10 @@ class VtuOrderController extends Controller
                 if ($featureKey !== null) {
                     $control = $serviceControls->get($featureKey);
                     if ($control === null || ! $control->is_enabled || ! $control->is_implemented) {
+                        $product->setAttribute('is_active', false);
+                    }
+                    if ($featureKey === 'service.airtime_data'
+                        && ($airDataSetting === null || ! filter_var($airDataSetting, FILTER_VALIDATE_BOOLEAN))) {
                         $product->setAttribute('is_active', false);
                     }
                 }
