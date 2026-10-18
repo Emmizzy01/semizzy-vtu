@@ -183,6 +183,28 @@ class VtuProviderAdaptersTest extends TestCase
         $this->assertCount(2, Http::recorded());
     }
 
+
+    public function test_dataway_data_purchase_rejects_unverified_product_ids_before_http_dispatch(): void
+    {
+        Http::fake();
+
+        $order = $this->order('data');
+        $product = $order->product;
+        $product->metadata = ['provider_mappings' => [
+            'dataway' => ['product_id' => 'unverified-plan-code'],
+        ]];
+        $order->setRelation('product', $product);
+
+        try {
+            app(DatawayProviderClient::class)->submit($order);
+            $this->fail('Dataway data purchases must require a verified numeric product_id.');
+        } catch (LogicException $exception) {
+            $this->assertStringContainsString('verified numeric product_id', $exception->getMessage());
+        }
+
+        Http::assertNothingSent();
+    }
+
     public function test_dataway_pending_duplicate_replay_keeps_the_same_reference_and_never_claims_safe_recovery(): void
     {
         Http::fakeSequence()
