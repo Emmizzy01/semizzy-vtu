@@ -136,6 +136,7 @@ export default function ApiProviders({ providers, failoverEnabled, routingEnable
                   {!provider.configured && <p className="text-xs leading-5 text-amber-700 dark:text-amber-300">Add this provider's API key to the server environment before importing. No secret key is shown here.</p>}
                 </div>
               )}
+              {provider.key === 'vtpass' && <a href="/admin/vtu-products" className="mt-5 inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-xl border border-[var(--line)] px-4 py-2 text-sm font-bold"><Download size={15} /> Open VTpass catalogue sync</a>}
               {provider.purchaseHold && <p className="mt-4 flex items-start gap-2 text-xs leading-5 text-[var(--muted)]"><LockKeyhole size={15} className="mt-0.5 shrink-0" />{provider.key === 'vtpass' ? 'VTpass remains isolated pending the existing recovery review.' : 'Dataway remains excluded from automatic routing until its account-specific transaction lookup contract is verified.'}</p>}
             </article>
           ))}
