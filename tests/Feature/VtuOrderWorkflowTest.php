@@ -68,6 +68,29 @@ class VtuOrderWorkflowTest extends TestCase
         }
     }
 
+    public function test_missing_airtime_data_feature_control_blocks_direct_service_purchase(): void
+    {
+        [$user, $wallet, $product] = $this->preparedCustomer(1000, 1500);
+        PlatformFeatureControl::query()->where('feature_key', 'service.airtime_data')->delete();
+
+        try {
+            app(VtuOrderService::class)->purchase(
+                $user,
+                $product->code,
+                '08012345678',
+                'missing-airtime-data-control-direct-service',
+                [],
+                10000,
+            );
+            $this->fail('The VTU service must reject airtime/data purchases when the feature control is missing.');
+        } catch (\\InvalidArgumentException $exception) {
+            $this->assertStringContainsString('service is not yet enabled', $exception->getMessage());
+            $this->assertSame(1500, (int) $wallet->fresh()->available_balance_minor);
+            $this->assertDatabaseCount('vtu_orders', 0);
+            $this->assertDatabaseCount('wallet_transactions', 1);
+        }
+    }
+
     public function test_purchase_rechecks_catalogue_price_under_lock_before_debiting(): void
     {
         [$user, $wallet, $product] = $this->preparedCustomer(1000, 1500);

@@ -24,8 +24,11 @@ class VtuOrderController extends Controller
             'service_type' => ['sometimes', 'string', 'in:airtime,data,electricity-bill,tv-subscription'],
             'network' => ['sometimes', 'string', 'max:40'],
         ]);
+        $airDataFeature = PlatformFeatureControl::query()->where('feature_key', 'service.airtime_data')->first(['is_enabled', 'is_implemented']);
+        $airDataFeatureEnabled = $airDataFeature !== null && $airDataFeature->is_enabled && $airDataFeature->is_implemented;
+
         if ((! isset($validated['service_type']) || in_array($validated['service_type'], ['airtime', 'data'], true))
-            && ! filter_var(app(IntegrationSettings::class)->get('service.airtime_data.enabled', true), FILTER_VALIDATE_BOOLEAN)) {
+            && (! $airDataFeatureEnabled || ! filter_var(app(IntegrationSettings::class)->get('service.airtime_data.enabled', false), FILTER_VALIDATE_BOOLEAN))) {
             return response()->json(['message' => 'Airtime and data purchases are temporarily unavailable.'], 503);
         }
 
@@ -106,9 +109,12 @@ class VtuOrderController extends Controller
         if ($productType === 'airtime' && ! isset($validated['amount'])) {
             return response()->json(['message' => 'Enter the airtime amount you want to purchase.'], 422);
         }
-        if (in_array($productType, ['airtime', 'data'], true)
-            && ! filter_var(app(IntegrationSettings::class)->get('service.airtime_data.enabled', true), FILTER_VALIDATE_BOOLEAN)) {
-            return response()->json(['message' => 'Airtime and data purchases are temporarily unavailable.'], 503);
+        if (in_array($productType, ['airtime', 'data'], true)) {
+            $airDataFeature = PlatformFeatureControl::query()->where('feature_key', 'service.airtime_data')->first(['is_enabled', 'is_implemented']);
+            if ($airDataFeature === null || ! $airDataFeature->is_enabled || ! $airDataFeature->is_implemented
+                || ! filter_var(app(IntegrationSettings::class)->get('service.airtime_data.enabled', false), FILTER_VALIDATE_BOOLEAN)) {
+                return response()->json(['message' => 'Airtime and data purchases are temporarily unavailable.'], 503);
+            }
         }
 
         $user = $request->user();

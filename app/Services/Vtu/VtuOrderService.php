@@ -98,6 +98,7 @@ class VtuOrderService
                 }
             }
         } else {
+            $this->assertServiceFeatureEnabled($product);
             if (! preg_match('/^\+?[0-9]{10,15}$/', $recipient)) {
                 throw new InvalidArgumentException('Recipient must be a valid phone number.');
             }
@@ -191,9 +192,7 @@ class VtuOrderService
                     throw new InvalidArgumentException('This product is no longer available.');
                 }
 
-                if (! in_array($lockedProduct->service_type, ['airtime', 'data'], true)) {
-                    $this->assertServiceFeatureEnabled($lockedProduct);
-                }
+                $this->assertServiceFeatureEnabled($lockedProduct);
                 $this->provider->assertProductConfigured($lockedProduct);
                 $lockedStorefront = $storefrontSlug !== null
                     ? $this->assertStorefrontProductAvailable($storefrontSlug, $lockedProduct, true)
@@ -427,6 +426,7 @@ class VtuOrderService
     private function assertServiceFeatureEnabled(VtuProduct $product): void
     {
         $featureKey = match ($product->service_type) {
+            'airtime', 'data' => 'service.airtime_data',
             'electricity-bill' => 'service.electricity',
             'tv-subscription' => 'service.tv',
             default => null,
