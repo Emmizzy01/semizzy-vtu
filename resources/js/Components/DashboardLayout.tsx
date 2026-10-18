@@ -129,7 +129,7 @@ export default function DashboardLayout({ title, description, admin = false, chi
             </a>}
             {admin && <form action="/admin/search" method="get" className="hidden md:block"><label className="flex h-9 items-center gap-2 rounded-lg border px-3 text-xs text-gray-500"><Search size={14}/><input name="q" minLength={2} maxLength={100} required placeholder="Search admin records" className="w-36 bg-transparent outline-none lg:w-52"/><button type="submit" className="font-bold text-[#0f8a4f]">Search</button></label></form>}
             <form method="post" action="/logout"><input type="hidden" name="_token" value={typeof document === 'undefined' ? '' : (document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ?? '')}/><button type="submit" aria-label="Sign out" className="grid h-9 w-9 place-items-center rounded-full text-gray-500 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-slate-800"><LogOut size={17}/></button></form>
-            <button type="button" onClick={() => setMenuOpen(v => !v)} aria-label={menuOpen ? 'Close navigation menu' : 'Open navigation menu'} aria-expanded={menuOpen} className={`grid h-10 w-10 place-items-center rounded-lg border ${admin ? 'lg:hidden' : 'md:hidden'}`}>{menuOpen ? <X size={19}/> : <Menu size={19}/>}</button>
+            <button type="button" onClick={() => setMenuOpen(v => !v)} aria-label={menuOpen ? 'Close navigation menu' : 'Open navigation menu'} aria-expanded={menuOpen} className={`grid h-10 w-10 place-items-center rounded-lg border md:hidden`}>{menuOpen ? <X size={19}/> : <Menu size={19}/>}</button>
           </div>
         </div>
       </header>
