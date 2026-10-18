@@ -32,8 +32,15 @@ class EducationProviderAdaptersTest extends TestCase
     {
         config([
             'services.education.providers.sogo.enabled' => false,
+            'services.education.providers.sogo.base_url' => 'https://sandbox.sogo.africa/v1',
+            'services.education.providers.sogo.api_key' => 'sogo_sk_test_fake',
             'services.education.providers.gsubz.enabled' => false,
+            'services.education.providers.gsubz.base_url' => 'https://api.gsubz.com',
+            'services.education.providers.gsubz.api_key' => 'fake-gsubz-key',
             'services.education.providers.vtpass.enabled' => false,
+            'services.education.providers.vtpass.base_url' => 'https://sandbox.vtpass.com/api',
+            'services.education.providers.vtpass.api_key' => 'fake-vtpass-key',
+            'services.education.providers.vtpass.secret_key' => 'fake-vtpass-secret',
         ]);
 
         foreach ([
