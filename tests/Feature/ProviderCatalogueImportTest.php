@@ -186,4 +186,42 @@ class ProviderCatalogueImportTest extends TestCase
         $this->assertSame(27500, $product->provider_cost_minor);
     }
 
+
+    public function test_airtime_import_does_not_erase_known_provider_cost_when_provider_omits_cost(): void
+    {
+        config([
+            'services.vtu.dataway.base_url' => 'https://dataway.ng/api/v1/merchant',
+            'services.vtu.dataway.api_key' => 'test-key',
+            'services.vtu.airtime_denominations' => [100],
+        ]);
+
+        $product = VtuProduct::query()->create([
+            'service_type' => 'airtime',
+            'provider_key' => 'dataway',
+            'provider_product_code' => 'mtn-100',
+            'provider_cost_minor' => 9250,
+            'network' => 'mtn',
+            'code' => 'dataway-airtime-mtn-100',
+            'name' => 'MTN Airtime ₦100',
+            'price_minor' => 10000,
+            'currency' => 'NGN',
+            'is_active' => false,
+            'metadata' => ['purchase_approved' => false],
+        ]);
+
+        Http::fake([
+            'dataway.ng/*' => Http::response([
+                'count' => 1,
+                'data' => [['name' => 'MTN', 'slug' => 'mtn', 'category' => 'airtime']],
+            ]),
+        ]);
+
+        app(ProviderCatalogueImportService::class)->import('dataway', 'airtime');
+        $product->refresh();
+
+        $this->assertSame(9250, $product->provider_cost_minor);
+        $this->assertSame(10000, $product->price_minor);
+        $this->assertFalse($product->is_active);
+    }
+
 }
