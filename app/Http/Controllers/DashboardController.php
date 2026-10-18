@@ -8,6 +8,7 @@ use App\Models\PaymentRefund;
 use App\Models\User;
 use App\Models\UserPermission;
 use App\Models\VtuOrder;
+use App\Models\VtuProviderAttempt;
 use App\Models\Wallet;
 use App\Models\WalletTransaction;
 use App\Services\IntegrationSettings;
@@ -76,6 +77,58 @@ class DashboardController extends Controller
                 })->values()
             : [];
 
+        // Provider telemetry is based on persisted provider attempts from the last 24 hours.
+        // Only definitive success/failure outcomes contribute to the success-rate denominator.
+        $providerAttempts = VtuProviderAttempt::query()
+            ->where('started_at', '>=', now()->subDay())
+            ->get(['provider', 'outcome', 'started_at', 'finished_at']);
+        $providerStats = $providerAttempts->groupBy('provider')->map(function ($attempts): array {
+            $successful = $attempts->where('outcome', 'success')->count();
+            $failed = $attempts->where('outcome', 'failed')->count();
+            $resolved = $successful + $failed;
+            $durations = $attempts->filter(fn ($attempt): bool => $attempt->finished_at !== null && $attempt->started_at !== null)
+                ->map(fn ($attempt): int => max(0, $attempt->finished_at->diffInSeconds($attempt->started_at, true)));
+
+            return [
+                'total' => $attempts->count(),
+                'successful' => $successful,
+                'failed' => $failed,
+                'successRate' => $resolved > 0 ? round(($successful / $resolved) * 100, 1) : null,
+                'averageResponseSeconds' => $durations->isNotEmpty() ? round($durations->avg(), 1) : null,
+            ];
+        });
+        $providerPerformance = $providerStats->all();
+        $resolvedProviderAttempts = $providerAttempts->whereIn('outcome', ['success', 'failed'])->count();
+        $successfulProviderAttempts = $providerAttempts->where('outcome', 'success')->count();
+        $apiSuccessRate = $resolvedProviderAttempts > 0
+            ? round(($successfulProviderAttempts / $resolvedProviderAttempts) * 100, 1)
+            : null;
+
+        // This is explicitly successful VTU purchase value over 30 days, not total platform revenue.
+        // A business-defined high-value threshold and cross-service spend report are not yet configured.
+        $topVtuSpenders = $canManageStaff
+            ? VtuOrder::query()
+                ->join('users', 'users.id', '=', 'vtu_orders.user_id')
+                ->where('vtu_orders.status', 'successful')
+                ->where('vtu_orders.created_at', '>=', now()->subDays(30))
+                ->groupBy('vtu_orders.user_id', 'users.name')
+                ->orderByRaw('SUM(vtu_orders.amount_minor) DESC')
+                ->limit(5)
+                ->get([
+                    'vtu_orders.user_id as id',
+                    'users.name as name',
+                ])
+                ->map(function ($spender): array {
+                    $spendMinor = (int) VtuOrder::query()
+                        ->where('user_id', $spender->id)
+                        ->where('status', 'successful')
+                        ->where('created_at', '>=', now()->subDays(30))
+                        ->sum('amount_minor');
+
+                    return ['id' => (int) $spender->id, 'name' => (string) $spender->name, 'spendMinor' => $spendMinor];
+                })->values()
+            : collect();
+
         $selectedDriver = (string) $settings->get('vtu.driver', config('services.vtu.driver', 'configured'));
         $multiProviderEnabled = (bool) config('services.vtu.multi_provider.enabled', false);
         $providerIntegrations = [
@@ -101,6 +154,12 @@ class DashboardController extends Controller
             ];
         }
 
+        foreach ($providerIntegrations as &$providerIntegration) {
+            $providerIntegration['performance'] = $providerPerformance[$providerIntegration['name'] === 'VTpass' ? 'vtpass' : strtolower($providerIntegration['name'])] ?? [
+                'total' => 0, 'successful' => 0, 'failed' => 0, 'successRate' => null, 'averageResponseSeconds' => null,
+            ];
+        }
+        unset($providerIntegration);
         return Inertia::render('Admin/Dashboard', [
             'providerIntegrations' => $providerIntegrations,
             'capabilities' => [
@@ -122,14 +181,15 @@ class DashboardController extends Controller
                 'totalRevenueMinor' => null,
                 'activeUsers' => null,
                 'newUsersToday' => $newUsersToday,
-                'highValueUsers' => null,
-                'apiSuccessRate' => null,
+                'highValueUsers' => null, // No agreed spend threshold; the ranked list below is based on actual VTU purchases.
+                'apiSuccessRate' => $apiSuccessRate,
                 'pendingTransactions' => WalletTransaction::query()
                     ->whereIn('status', ['pending', 'processing', 'awaiting_reconciliation'])
                     ->count(),
             ],
             'newUsersLastSevenDays' => $newUsersLastSevenDays,
             'recentUsers' => $recentUsers,
+            'topVtuSpenders' => $topVtuSpenders,
         ]);
     }
 
