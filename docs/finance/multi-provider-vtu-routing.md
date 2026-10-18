@@ -8,6 +8,8 @@
 
 VTpass remains isolated and must not be included in provider priority, new purchase routing, or failover while its technical-support release blocker remains open.
 
+**Current operator decision (18 October 2026): automatic post-submit failover is OFF.** Set `VTU_FAILOVER_ENABLED=false`. Providers may be configured and tested independently, but an uncertain or failed submitted order must not be sent to another provider. This setting is separate from `VTU_MULTI_PROVIDER_ENABLED`, which controls initial provider selection.
+
 ## Current implementation status
 
 The environment/configuration keys are scaffolded only. Multi-provider routing remains **disabled by default**. The three providers are candidates, not production-approved integrations. Do not turn on `VTU_MULTI_PROVIDER_ENABLED` until the provider adapters, catalog mappings, webhook verification, transaction recovery, account setup, tests, and release review are complete.
@@ -57,7 +59,7 @@ The published contract documents merchant-scoped billers/products, unique refere
 
 ## Implementation sequence
 
-1. Build provider-specific adapters and contract tests without contacting real provider endpoints.
+1. Build provider-specific adapters and contract tests without contacting real provider endpoints. Keep `VTU_FAILOVER_ENABLED=false` throughout this phase.
 2. Build provider selection and preflight routing with test-only fake adapters.
 3. Persist provider ownership for each attempt and implement reconciliation against the recorded provider.
 4. Add provider-attempt history before enabling post-submit failover. Only explicit, tested definitive failures may allow a new provider attempt.
