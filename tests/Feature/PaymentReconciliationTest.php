@@ -141,4 +141,26 @@ class PaymentReconciliationTest extends TestCase
         $this->assertDatabaseCount('wallet_ledger_entries', 0);
         $this->assertDatabaseCount('wallet_transactions', 0);
     }
+
+    public function test_reconciliation_rerun_after_success_does_not_credit_the_wallet_twice(): void
+    {
+        [$wallet, $intent] = $this->pendingIntent();
+        Http::fake(['api.paystack.co/transaction/verify/*' => Http::response([
+            'status' => true,
+            'data' => [
+                'id' => 54325, 'status' => 'success', 'reference' => $intent->reference,
+                'amount' => 25000, 'currency' => 'NGN',
+            ],
+        ], 200)]);
+
+        $first = app(PaymentReconciliationService::class)->reconcile();
+        $second = app(PaymentReconciliationService::class)->reconcile();
+
+        $this->assertSame(1, $first['credited']);
+        $this->assertSame(0, $second['checked']);
+        $this->assertSame('paid', $intent->fresh()->status);
+        $this->assertSame(25000, (int) $wallet->fresh()->balance_minor);
+        $this->assertDatabaseCount('wallet_transactions', 1);
+        $this->assertDatabaseCount('wallet_ledger_entries', 1);
+    }
 }
