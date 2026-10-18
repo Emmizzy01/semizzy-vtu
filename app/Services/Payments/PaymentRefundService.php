@@ -278,7 +278,10 @@ class PaymentRefundService
         }
 
         $matches = $query->limit(2)->get();
-        if ($matches->isEmpty() && is_string($transactionRef) && $transactionRef !== '') {
+        // An explicit provider refund ID is authoritative. Never fall back to
+        // transaction-level matching when that ID was supplied but did not match:
+        // doing so could apply an unrelated refund event to another pending refund.
+        if ($providerRef === null && $matches->isEmpty() && is_string($transactionRef) && $transactionRef !== '') {
             $intent = PaymentIntent::query()
                 ->where('provider', 'paystack')
                 ->where('reference', $transactionRef)
