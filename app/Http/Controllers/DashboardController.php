@@ -52,6 +52,23 @@ class DashboardController extends Controller
             ->where('permission', 'refunds.approve')
             ->exists();
 
+        $newUsersToday = User::query()->whereDate('created_at', now()->toDateString())->count();
+        $newUsersLastSevenDays = User::query()->where('created_at', '>=', now()->subDays(7))->count();
+        $recentUsers = $canManageStaff
+            ? User::query()->where('created_at', '>=', now()->subDays(7))->latest('created_at')->limit(3)
+                ->get(['id', 'name', 'mobile_number', 'created_at'])
+                ->map(function (User $recentUser): array {
+                    $digits = preg_replace('/\\D+/', '', (string) ($recentUser->mobile_number ?? '')) ?? '';
+                    $maskedPhone = $digits === '' ? 'Phone not provided' : substr($digits, 0, min(4, strlen($digits))) . ' •• ' . substr($digits, -2);
+                    return [
+                        'id' => (int) $recentUser->id,
+                        'name' => (string) $recentUser->name,
+                        'phone' => $maskedPhone,
+                        'createdAt' => $recentUser->created_at?->toISOString(),
+                    ];
+                })->values()
+            : [];
+
         return Inertia::render('Admin/Dashboard', [
             'capabilities' => [
                 'manageStaff' => $canManageStaff,
@@ -67,6 +84,19 @@ class DashboardController extends Controller
                     : null,
                 'unresolvedVtuOrders' => VtuOrder::query()->whereIn('status', ['processing', 'awaiting_reconciliation'])->count(),
             ],
+            'prototypeMetrics' => [
+                // These values are deliberately null until backed by verified reporting queries.
+                'totalRevenueMinor' => null,
+                'activeUsers' => null,
+                'newUsersToday' => $newUsersToday,
+                'highValueUsers' => null,
+                'apiSuccessRate' => null,
+                'pendingTransactions' => WalletTransaction::query()
+                    ->whereIn('status', ['pending', 'processing', 'awaiting_reconciliation'])
+                    ->count(),
+            ],
+            'newUsersLastSevenDays' => $newUsersLastSevenDays,
+            'recentUsers' => $recentUsers,
         ]);
     }
 
