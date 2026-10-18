@@ -36,21 +36,14 @@ export default function CustomerDashboard({ wallet, transactions, orders = [], t
 
         {customer?.kycStatus && !['verified','approved','complete','completed'].includes(customer.kycStatus.toLowerCase()) && <a href="/profile" className="flex items-center gap-3 rounded-[24px] bg-[var(--surface)] p-4 shadow-sm lg:col-span-12"><span className="grid h-14 w-14 shrink-0 place-items-center rounded-full bg-amber-100 text-amber-600"><CircleAlert size={28}/></span><span className="min-w-0 flex-1"><span className="block font-extrabold">KYC verification needed</span><span className="mt-1 block text-xs text-[var(--muted)]">Complete your identity checks to access eligible account limits.</span></span><ChevronRight size={19}/></a>}
 
-        <section className="rounded-[26px] bg-[var(--surface)] p-4 shadow-sm lg:col-span-12" aria-labelledby="dashboard-services-heading">
-          <div className="mb-4 flex items-center justify-between gap-2"><div><h2 id="dashboard-services-heading" className="font-extrabold">Popular Services</h2><p className="mt-1 text-[10px] text-[var(--muted)]">Quick access to Semizzy services</p></div><a href="/services" className="inline-flex items-center gap-1 text-xs font-extrabold text-[var(--brand)]">See all <ChevronRight size={16}/></a></div>
-          <div className="grid grid-cols-4 gap-x-2 gap-y-4 sm:grid-cols-4 lg:grid-cols-4" aria-label="Popular services">
-            {[{title:'Airtime',href:'/wallet/vtu/airtime',icon:<Smartphone size={23}/>},{title:'Data',href:'/wallet/vtu/data',icon:<Wifi size={23}/>},{title:'Electricity',href:'/wallet/vtu/electricity',icon:<Zap size={23}/>},{title:'Cable TV',href:'/wallet/vtu/tv',icon:<PlaySquare size={23}/>},{title:'Internet',href:'/services',icon:<Wifi size={23}/>},{title:'Education',href:'/services',icon:<GraduationCap size={23}/>},{title:'Government',href:'/services',icon:<Landmark size={23}/>},{title:'Streaming',href:'/services',icon:<Tv size={23}/>},{title:'Betting',href:'/services',icon:<SmartphoneNfc size={23}/>},{title:'SMM',href:'/services',icon:<Megaphone size={23}/>},{title:'Number Services',href:'/services',icon:<SmartphoneNfc size={23}/>},{title:'More',href:'/services',icon:<ArrowUpRight size={23}/> }].map(service=><a key={service.title} href={service.href} className="flex min-w-0 flex-col items-center gap-2 text-center"><span className="grid h-12 w-12 place-items-center rounded-[16px] bg-emerald-50 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-300">{service.icon}</span><span className="text-[10px] font-bold leading-tight sm:text-xs">{service.title}</span></a>)}
-          </div>
-        </section>
-
-        <section aria-labelledby="dashboard-promo-heading" className="relative overflow-hidden rounded-[26px] bg-gradient-to-r from-emerald-700 via-emerald-600 to-teal-500 p-5 text-white shadow-sm lg:col-span-12">
+        <section aria-labelledby="dashboard-promo-heading" className="relative min-h-[96px] overflow-hidden rounded-[20px] bg-gradient-to-r from-emerald-800 via-emerald-600 to-green-500 p-4 text-white shadow-sm lg:col-span-12">
           <div className="relative z-10 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="max-w-2xl">
-              <span className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/10 px-3 py-1 text-[10px] font-extrabold uppercase tracking-wider"><Sparkles size={14}/> Semizzy highlights</span>
-              <h2 id="dashboard-promo-heading" className="mt-3 text-xl font-black tracking-tight sm:text-2xl">Stay connected with Semizzy</h2>
-              <p className="mt-2 max-w-xl text-sm leading-6 text-white/85">Airtime, data, bill payments and digital services—conveniently accessible from one secure account.</p>
+              <span className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/10 px-3 py-1 text-[10px] font-extrabold uppercase tracking-wider"><Sparkles size={14}/> SEMIZZY • EVERYDAY SERVICES</span>
+              <h2 id="dashboard-promo-heading" className="mt-3 text-xl font-black tracking-tight sm:text-2xl">Your everyday digital services, all in one place</h2>
+              <p className="mt-2 max-w-xl text-sm leading-6 text-white/85">Top up airtime, explore data bundles and manage eligible services from your secure Semizzy account.</p>
             </div>
-            <a href="/services" className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-full bg-white px-5 py-3 text-sm font-extrabold text-emerald-800 hover:bg-emerald-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-emerald-600">Explore services <ChevronRight size={17}/></a>
+            <a href="/services" className="inline-flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-xl bg-white px-4 py-2 text-xs font-extrabold text-emerald-800 hover:bg-emerald-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-emerald-600">Explore services <ChevronRight size={17}/></a>
           </div>
           <div aria-hidden="true" className="pointer-events-none absolute -right-8 -top-12 h-44 w-44 rounded-full border-[24px] border-white/10"/>
           <div aria-hidden="true" className="pointer-events-none absolute -bottom-20 right-28 h-40 w-40 rounded-full bg-white/10 blur-2xl"/>
@@ -66,6 +59,13 @@ export default function CustomerDashboard({ wallet, transactions, orders = [], t
           </div>
           <a href="/wallet/vtu/data" className="mt-4 inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-xl bg-[var(--page)] px-4 py-2 text-xs font-extrabold text-[var(--brand)] hover:opacity-80">Browse all data plans <ArrowUpRight size={15}/></a>
           <p className="mt-3 text-[10px] leading-4 text-[var(--muted)]">Plan prices, data sizes and validity are shown on the live catalogue. No sample prices are displayed here.</p>
+        </section>
+
+        <section className="rounded-[26px] bg-[var(--surface)] p-4 shadow-sm lg:col-span-12" aria-labelledby="dashboard-services-heading">
+          <div className="mb-4 flex items-center justify-between gap-2"><div><h2 id="dashboard-services-heading" className="font-extrabold">Popular Services</h2><p className="mt-1 text-[10px] text-[var(--muted)]">Quick access to Semizzy services</p></div><a href="/services" className="inline-flex items-center gap-1 text-xs font-extrabold text-[var(--brand)]">See all <ChevronRight size={16}/></a></div>
+          <div className="grid grid-cols-4 gap-x-2 gap-y-4 sm:grid-cols-4 lg:grid-cols-4" aria-label="Popular services">
+            {[{title:'Airtime',href:'/wallet/vtu/airtime',icon:<Smartphone size={23}/>},{title:'Data',href:'/wallet/vtu/data',icon:<Wifi size={23}/>},{title:'Electricity',href:'/wallet/vtu/electricity',icon:<Zap size={23}/>},{title:'Cable TV',href:'/wallet/vtu/tv',icon:<PlaySquare size={23}/>},{title:'Internet',href:'/services',icon:<Wifi size={23}/>},{title:'Education',href:'/services',icon:<GraduationCap size={23}/>},{title:'Government',href:'/services',icon:<Landmark size={23}/>},{title:'Streaming',href:'/services',icon:<Tv size={23}/>},{title:'Betting',href:'/services',icon:<SmartphoneNfc size={23}/>},{title:'SMM',href:'/services',icon:<Megaphone size={23}/>},{title:'Number Services',href:'/services',icon:<SmartphoneNfc size={23}/>},{title:'More',href:'/services',icon:<ArrowUpRight size={23}/> }].map(service=><a key={service.title} href={service.href} className="flex min-w-0 flex-col items-center gap-2 text-center"><span className="grid h-12 w-12 place-items-center rounded-[16px] bg-emerald-50 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-300">{service.icon}</span><span className="text-[10px] font-bold leading-tight sm:text-xs">{service.title}</span></a>)}
+          </div>
         </section>
 
         <section id="activity" className="scroll-mt-6 space-y-4 rounded-[26px] bg-[var(--surface)] p-4 shadow-sm lg:col-span-7" aria-labelledby="recent-transactions-heading">
