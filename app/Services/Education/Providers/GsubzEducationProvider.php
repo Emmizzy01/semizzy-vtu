@@ -95,7 +95,17 @@ final class GsubzEducationProvider implements EducationProvider
         $reference = $body['transactionID'] ?? $body['transactionId'] ?? $body['transaction_id'] ?? null;
 
         if (in_array($status, ['successful', 'success', 'completed'], true)) {
-            return ['status' => 'success', 'provider_reference' => is_scalar($reference) ? (string) $reference : null, 'message_code' => $code];
+            return [
+                'status' => 'success',
+                'provider_reference' => is_scalar($reference) ? (string) $reference : null,
+                'message_code' => $code,
+                'delivery_payload' => array_filter([
+                    'api_response' => isset($body['api_response']) && is_string($body['api_response']) ? $body['api_response'] : null,
+                    'pins' => isset($body['pins']) && is_array($body['pins']) ? $body['pins'] : null,
+                    'pin' => isset($body['pin']) && is_scalar($body['pin']) ? (string) $body['pin'] : null,
+                    'serial' => isset($body['serial']) && is_scalar($body['serial']) ? (string) $body['serial'] : null,
+                ], fn ($value) => $value !== null),
+            ];
         }
         if ($lookup && in_array($status, ['failed', 'fail', 'refunded'], true)) {
             return ['status' => 'failed', 'provider_reference' => is_scalar($reference) ? (string) $reference : null, 'message_code' => $code ?? 'provider_confirmed_failed'];
