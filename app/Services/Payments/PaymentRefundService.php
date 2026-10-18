@@ -93,7 +93,7 @@ class PaymentRefundService
             $refund = DB::transaction(function () use ($publicId, $approver): PaymentRefund {
                 $refund = PaymentRefund::query()->where('public_id', $publicId)->lockForUpdate()->firstOrFail();
                 if ((int) $refund->requested_by_user_id === (int) $approver->id) {
-                    throw new \\Illuminate\\Auth\\Access\\AuthorizationException('You cannot approve your own refund request.');
+                    throw new \Illuminate\Auth\Access\AuthorizationException('You cannot approve your own refund request.');
                 }
                 if (! in_array($refund->status, ['requested', 'blocked_insufficient_wallet_funds'], true)) {
                     throw new ConflictHttpException('Only requested or balance-blocked refunds can be approved.');
