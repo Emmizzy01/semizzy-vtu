@@ -1,4 +1,5 @@
 import { Head } from '@inertiajs/react';
+import DashboardLayout from '../../../Components/DashboardLayout';
 import type { ReactNode } from 'react';
 import { AlertCircle, ArrowDownLeft, CheckCircle2, Clock3, RefreshCw, Search, ShieldCheck, WalletCards, XCircle } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -168,7 +169,7 @@ export default function RefundOperationsDashboard() {
   }
 
   return (
-    <>
+    <DashboardLayout title="Refund operations" description="Review refund requests, provider outcomes and wallet-safe recovery." admin>
       <Head title="Refund operations" />
       <main className="min-h-screen bg-[var(--page)] px-4 py-5 text-[var(--ink)] sm:px-6 lg:px-10 lg:py-8">
         <div className="mx-auto max-w-7xl">
@@ -238,7 +239,7 @@ export default function RefundOperationsDashboard() {
           <p className="mt-5 text-center text-xs text-[var(--muted)]">SEMIZZY financial operations · Access is audited and permission-gated.</p>
         </div>
       </main>
-    </>
+    </DashboardLayout>
   );
 }
 
