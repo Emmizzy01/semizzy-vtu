@@ -11,17 +11,19 @@ type PrototypeMetrics = {
 };
 type RecentUser = { id: number; name: string; phone: string; kycStatus: string; createdAt: string | null };
 type Capabilities = { manageStaff: boolean; approveRefunds: boolean };
+type ProviderIntegration = { name: string; selected: boolean; credentialsConfigured: boolean; status: string; purchasesAllowed: boolean };
 
 function nairaFromMinor(minor: number) {
   return new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN', maximumFractionDigits: 0 }).format(minor / 100);
 }
 
-export default function AdminDashboard({ prototypeMetrics, newUsersLastSevenDays, recentUsers, capabilities }: {
+export default function AdminDashboard({ prototypeMetrics, newUsersLastSevenDays, recentUsers, capabilities, providerIntegrations }: {
   metrics: { users: number | null; wallets: number; pendingFunding: number; pendingManualDeposits: number | null; refundsNeedingAction: number | null; unresolvedVtuOrders: number };
   prototypeMetrics: PrototypeMetrics;
   newUsersLastSevenDays: number;
   recentUsers: RecentUser[];
   capabilities: Capabilities;
+  providerIntegrations: ProviderIntegration[];
 }) {
   const cards = [
     { label: 'Total Revenue', value: prototypeMetrics.totalRevenueMinor === null ? '—' : nairaFromMinor(prototypeMetrics.totalRevenueMinor), detail: 'Verified revenue reporting pending' },
@@ -41,16 +43,18 @@ export default function AdminDashboard({ prototypeMetrics, newUsersLastSevenDays
         })}
       </section>
 
-      <section className="mt-6 rounded-xl border bg-white dark:bg-slate-900 p-5 shadow-sm" aria-labelledby="provider-balance-heading">
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3"><h2 id="provider-balance-heading" className="font-bold">API Provider Balance - Enabled Only</h2><span className="rounded-full bg-gray-100 dark:bg-slate-800 px-2 py-1 text-xs text-gray-500 dark:text-gray-400">Monitoring not connected</span></div>
+      <section className="mt-6 rounded-xl border bg-white p-5 shadow-sm dark:border-white/10 dark:bg-slate-900" aria-labelledby="provider-balance-heading">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3"><h2 id="provider-balance-heading" className="font-bold">Provider integrations</h2><span className="rounded-full bg-amber-500/10 px-2 py-1 text-xs text-amber-700 dark:text-amber-300">Purchase release gates apply</span></div>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-          {['VTU.ng', 'ClubKonnect', 'DataHouse', 'EasyAccess'].map((provider, index) => <article key={provider} className={`rounded-xl border p-4 ${index === 3 ? 'border-yellow-200 bg-yellow-50/50' : ''}`}>
-            <div className="flex items-center justify-between"><span className={`grid h-8 w-8 place-items-center rounded-full text-xs font-bold ${index === 0 ? 'bg-yellow-400' : index === 1 ? 'bg-red-500 text-white' : index === 2 ? 'bg-green-600 text-white' : 'bg-gray-800 text-white'}`}>{provider.slice(0, 1)}</span><span className="rounded-full bg-gray-100 dark:bg-slate-800 px-2 py-1 text-[10px] text-gray-600 dark:text-gray-300">Unverified</span></div>
-            <p className="mt-3 font-bold">{provider}</p><p className="mt-1 text-sm font-bold text-gray-500 dark:text-gray-400">Balance unavailable</p>
-            <div className="mt-3"><p className="flex justify-between text-[11px] text-gray-500 dark:text-gray-400"><span>Success rate</span><span>Not available</span></p><div className="mt-1 h-1.5 rounded-full bg-gray-100 dark:bg-slate-800" /></div>
+          {providerIntegrations.map(provider => <article key={provider.name} className="rounded-xl border p-4 dark:border-slate-700">
+            <div className="flex items-center justify-between gap-2"><span className="grid h-8 w-8 place-items-center rounded-full bg-emerald-700 text-xs font-bold text-white">{provider.name.slice(0, 1)}</span><span className="rounded-full bg-gray-100 px-2 py-1 text-[10px] text-gray-700 dark:bg-slate-800 dark:text-gray-300">{provider.selected ? 'Selected' : 'Not selected'}</span></div>
+            <p className="mt-3 font-bold">{provider.name}</p>
+            <p className="mt-1 text-sm font-semibold text-gray-600 dark:text-gray-300">{provider.status}</p>
+            <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">Credentials: {provider.credentialsConfigured ? 'Configured (hidden)' : 'Missing'}</p>
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">New purchases: {provider.purchasesAllowed ? 'Enabled' : 'Blocked pending release verification'}</p>
           </article>)}
         </div>
-        <p className="mt-3 text-xs leading-5 text-gray-500 dark:text-gray-400">Provider balances and success rates are not supplied by verified monitoring data. This panel deliberately avoids displaying prototype sample figures as live production values.</p>
+        <p className="mt-3 text-xs leading-5 text-gray-500 dark:text-gray-400">Status comes from the server configuration. Secret values are never shown here. A configured credential or selected route does not by itself certify that live purchasing is approved.</p>
         <a href="/admin/api-providers" className="mt-3 inline-flex min-h-10 items-center gap-2 rounded-lg bg-[#0f8a4f] px-4 py-2 text-xs font-bold text-white"><PlugZap size={15}/> Manage API providers</a>
       </section>
 
@@ -58,9 +62,9 @@ export default function AdminDashboard({ prototypeMetrics, newUsersLastSevenDays
         <section className="rounded-xl border bg-white dark:bg-slate-900 p-5 shadow-sm lg:col-span-2" aria-labelledby="provider-success-heading">
           <h2 id="provider-success-heading" className="mb-4 font-bold">API Provider Success Rate (24h)</h2>
           <div className="space-y-3">
-            {['VTU.ng', 'ClubKonnect', 'DataHouse', 'EasyAccess', 'UWS'].map(provider => <div key={provider} className="flex items-center gap-3"><span className="w-24 shrink-0 text-xs">{provider}</span><div className="h-3 flex-1 rounded-full bg-gray-100 dark:bg-slate-800" /><span className="w-24 text-right text-xs text-gray-500 dark:text-gray-400">No telemetry</span></div>)}
+            {providerIntegrations.map(provider => <div key={provider} className="flex items-center gap-3"><span className="w-24 shrink-0 text-xs">{provider}</span><div className="h-3 flex-1 rounded-full bg-gray-100 dark:bg-slate-800" /><span className="w-24 text-right text-xs text-gray-500 dark:text-gray-400">No telemetry</span></div>)}
           </div>
-          <div className="mt-6 overflow-x-auto"><table className="w-full text-xs"><thead><tr className="border-b dark:border-slate-700 text-gray-400"><th className="py-2 text-left">Provider</th><th className="py-2 text-right">Total</th><th className="py-2 text-right">Success</th><th className="py-2 text-right">Failed</th><th className="py-2 text-right">Avg Resp</th></tr></thead><tbody>{['VTU.ng', 'ClubKonnect', 'DataHouse'].map(provider => <tr key={provider} className="border-b dark:border-slate-700 last:border-0"><td className="py-2">{provider}</td><td className="py-2 text-right text-gray-500 dark:text-gray-400">—</td><td className="py-2 text-right text-gray-500 dark:text-gray-400">—</td><td className="py-2 text-right text-gray-500 dark:text-gray-400">—</td><td className="py-2 text-right text-gray-500 dark:text-gray-400">—</td></tr>)}</tbody></table></div>
+          <div className="mt-6 overflow-x-auto"><table className="w-full text-xs"><thead><tr className="border-b dark:border-slate-700 text-gray-400"><th className="py-2 text-left">Provider</th><th className="py-2 text-right">Total</th><th className="py-2 text-right">Success</th><th className="py-2 text-right">Failed</th><th className="py-2 text-right">Avg Resp</th></tr></thead><tbody>{providerIntegrations.slice(0, 3).map(provider => <tr key={provider} className="border-b dark:border-slate-700 last:border-0"><td className="py-2">{provider}</td><td className="py-2 text-right text-gray-500 dark:text-gray-400">—</td><td className="py-2 text-right text-gray-500 dark:text-gray-400">—</td><td className="py-2 text-right text-gray-500 dark:text-gray-400">—</td><td className="py-2 text-right text-gray-500 dark:text-gray-400">—</td></tr>)}</tbody></table></div>
         </section>
         <section className="rounded-xl border bg-white dark:bg-slate-900 p-5 shadow-sm" aria-labelledby="revenue-service-heading">
           <h2 id="revenue-service-heading" className="mb-4 font-bold">Revenue by Service</h2>
