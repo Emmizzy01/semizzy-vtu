@@ -47,6 +47,13 @@ class FeatureControlController extends Controller
             $oldValue = $feature->is_enabled ? '1' : '0';
             $newValue = $enabled ? '1' : '0';
             if ($oldValue === $newValue) return;
+            if ($featureKey === 'service.manual_deposit' && $enabled) {
+                foreach (['bank_name', 'account_name', 'account_number'] as $requiredSetting) {
+                    if (trim((string) $settings->get('manual_deposit.'.$requiredSetting, '')) === '') {
+                        abort(422, 'Configure manual deposit bank name, account name and account number before enabling this service.');
+                    }
+                }
+            }
             $feature->forceFill(['is_enabled' => $enabled, 'updated_by_user_id' => $request->user()->id])->save();
             if ($featureKey === 'service.airtime_data') $settings->set('service.airtime_data.enabled', $newValue, (int) $request->user()->id);
             if ($featureKey === 'service.manual_deposit') $settings->set('manual_deposit.enabled', $newValue, (int) $request->user()->id);
