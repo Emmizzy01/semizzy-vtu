@@ -134,7 +134,6 @@ export default function DashboardLayout({ title, description, admin = false, chi
         <section className="min-w-0 p-4 sm:p-6 lg:p-8">
           {(admin || customerPreview) && <div className="mb-6"><h1 className="text-2xl font-bold">{title}</h1><p className="mt-1 text-sm text-gray-500">{description}</p></div>}
           {children}
-          <footer className="mt-8 border-t border-black/5 py-5 text-center text-xs text-gray-400 dark:border-white/10 dark:text-gray-500">{platformName} · Secure, mobile-first digital services</footer>
         </section>
       </div>
       {!admin && <nav aria-label="Main navigation" className="fixed inset-x-0 bottom-0 z-50 flex h-[72px] items-center justify-around border-t border-black/5 bg-white px-2 pb-[env(safe-area-inset-bottom)] dark:border-white/10 dark:bg-slate-950">
