@@ -142,7 +142,7 @@ class VtuProviderAdaptersTest extends TestCase
     public function test_gsubz_uses_request_id_and_business_status_not_http_status(): void
     {
         Http::fake(['api.gsubz.com/*' => Http::response([
-            'status' => 'failed', 'code' => 'FAILED', 'description' => 'not fulfilled',
+            'status' => 'failed', 'code' => '200', 'description' => 'not fulfilled',
         ], 200)]);
 
         $result = app(GsubzProviderClient::class)->submit($this->order());
@@ -151,6 +151,22 @@ class VtuProviderAdaptersTest extends TestCase
         $this->assertTrue($result['definitive_failure'], 'GSUBZ documents a successful HTTP response with status=failed as a purchase that did not go through.');
         Http::assertSent(fn ($request) => str_ends_with($request->url(), '/api/pay/')
             && $request['requestID'] === '550e8400-e29b-41d4-a716-446655440000');
+    }
+
+    public function test_gsubz_transient_and_unknown_failure_codes_are_not_definitive(): void
+    {
+        Http::fakeSequence()
+            ->push(['code' => '429', 'status' => 'failed', 'description' => 'TOO_MANY_REQUESTS'], 200)
+            ->push(['code' => '500', 'status' => 'failed', 'description' => 'SERVER_ERROR'], 200)
+            ->push(['code' => '502', 'status' => 'failed', 'description' => 'GATEWAY_ERROR'], 200)
+            ->push(['code' => '999', 'status' => 'failed', 'description' => 'UNKNOWN_ERROR'], 200);
+
+        $client = app(GsubzProviderClient::class);
+        foreach (range(1, 4) as $_) {
+            $result = $client->submit($this->order());
+            $this->assertSame('failed', $result['status']);
+            $this->assertFalse($result['definitive_failure']);
+        }
     }
 
     public function test_gsubz_lookup_uses_documented_verify_endpoint_and_request_id_status(): void
