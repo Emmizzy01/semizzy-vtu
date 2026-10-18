@@ -106,33 +106,32 @@ class IntegrationSettingsController extends Controller
 
     public function apiProviders(IntegrationSettings $settings): InertiaResponse
     {
-        $driver = (string) $settings->get('vtu.driver', config('services.vtu.driver', 'configured'));
-
-        // Keep VTpass purchases and secret configuration locked during technical review,
-        // but give authorised admins a useful, non-sensitive integration status view.
-        if ($driver === 'vtpass') {
-            return Inertia::render('Admin/ApiProviders', [
-                'provider' => [
-                    'isolated' => true,
-                    'name' => 'VTpass',
-                    'configurationLocked' => true,
-                    'purchasesEnabled' => false,
-                    'statusMessage' => 'Technical review pending. Existing orders and reconciliation remain available.',
-                ],
-            ]);
+        $providers = [];
+        foreach (['sogo' => 'Sogo Africa', 'gsubz' => 'GSUBZ', 'dataway' => 'Dataway', 'vtpass' => 'VTpass'] as $key => $label) {
+            $base = (string) config("services.vtu.{$key}.base_url", '');
+            $secretConfigured = $key === 'vtpass'
+                ? ((string) config('services.vtu.vtpass.api_key', '') !== '' && (string) config('services.vtu.vtpass.secret_key', '') !== '')
+                : ((string) config("services.vtu.{$key}.api_key", '') !== '');
+            $providers[] = [
+                'key' => $key,
+                'name' => $label,
+                'configured' => $secretConfigured && parse_url($base, PHP_URL_SCHEME) === 'https',
+                'environment' => str_contains(strtolower($base), 'sandbox') ? 'Sandbox' : 'Live endpoint',
+                'baseHost' => parse_url($base, PHP_URL_HOST) ?: null,
+                'catalogueImportSupported' => in_array($key, ['sogo', 'gsubz', 'dataway'], true),
+                'purchaseRoutingEnabled' => $key !== 'vtpass'
+                    && (bool) config('services.vtu.multi_provider.enabled', false)
+                    && $key !== 'dataway',
+                'purchaseHold' => $key === 'vtpass' || $key === 'dataway',
+            ];
         }
 
-        $endpoint = (string) $settings->get('vtu.endpoint', config('services.vtu.endpoint', ''));
-        $token = (string) $settings->get('vtu.token', config('services.vtu.token', ''));
-
-        return Inertia::render('Admin/ApiProviders', ['provider' => [
-            'isolated' => false,
-            'name' => (string) $settings->get('vtu.name', config('services.vtu.name', 'configured_vtu')),
-            'genericEndpoint' => $endpoint,
-            'genericEndpointConfigured' => $endpoint !== '',
-            'genericTokenConfigured' => $token !== '',
-            'catalogCommand' => 'vtu:catalog-sync',
-        ]]);
+        return Inertia::render('Admin/ApiProviders', [
+            'providers' => $providers,
+            'failoverEnabled' => (bool) config('services.vtu.multi_provider.failover_enabled', false),
+            'routingEnabled' => (bool) config('services.vtu.multi_provider.enabled', false),
+            'priority' => config('services.vtu.multi_provider.priority', ['sogo', 'gsubz', 'dataway']),
+        ]);
     }
 
     public function updateApiProviders(Request $request, IntegrationSettings $settings): RedirectResponse
