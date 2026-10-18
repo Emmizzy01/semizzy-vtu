@@ -48,7 +48,7 @@ class SogoProviderClient extends AbstractMappedVtuProvider
     public function lookup(VtuOrder $order): array
     {
         $this->assertConfigured();
-        $response = $this->http()->get('/transactions/'.rawurlencode($order->public_id), ['type' => 'bill_payment']);
+        $response = $this->http()->get('transactions/'.rawurlencode($order->public_id), ['type' => 'bill_payment']);
         // Only the documented official live host may turn a 404 into a
         // same-key retry signal. Sandbox does not persist transactions, and a
         // custom/staging host must not inherit live recovery semantics by default.
