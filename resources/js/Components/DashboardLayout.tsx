@@ -1,26 +1,12 @@
 import { useEffect, useState, type ReactNode } from 'react';
+import { Head, usePage } from '@inertiajs/react';
 import ThemeToggle from './ThemeToggle';
 import MobileAppHeader from './MobileAppHeader';
 import { applyThemePreference } from './theme';
-import { Head, usePage } from '@inertiajs/react';
 import {
-  Activity,
-  ArrowLeftRight,
-  CreditCard,
-  LifeBuoy,
-  LayoutDashboard,
-  LogOut,
-  Menu,
-  Package,
-  PlugZap,
-  Search,
-  ShieldCheck,
-  SlidersHorizontal,
-  Smartphone,
-  Users,
-  UserRound,
-  WalletCards,
-  X,
+  Activity, ArrowLeftRight, CreditCard, Gift, Landmark, LayoutDashboard, LifeBuoy,
+  LogOut, Menu, Package, PlugZap, Search, ShieldCheck, Smartphone, SlidersHorizontal,
+  Tv, UserRound, Users, WalletCards, Wifi, X, Zap,
 } from 'lucide-react';
 
 type DashboardLayoutProps = {
@@ -32,228 +18,130 @@ type DashboardLayoutProps = {
   canApproveRefunds?: boolean;
   customerPreview?: boolean;
 };
-
 type NavItem = { label: string; href: string; icon: typeof LayoutDashboard; match?: string };
 
-export default function DashboardLayout({
-  title,
-  description,
-  admin = false,
-  children,
-  customerPreview = false,
-}: DashboardLayoutProps) {
-  const { platform, auth } = usePage<{ platform?: { name?: string; theme_mode?: 'light' | 'dark'; skin?: 'modern-green' | 'navy-teal' | 'minimal-blue' | 'obsidian-luxe' | 'arctic-light' }; auth?: { user?: { name?: string; email?: string; tier?: string; level?: string; user_level?: string; user_type?: string; avatar_url?: string | null; avatarUrl?: string | null } | null } }>().props;
+export default function DashboardLayout({ title, description, admin = false, children, customerPreview = false }: DashboardLayoutProps) {
+  const { platform, auth } = usePage<{ platform?: { name?: string; theme_mode?: 'light' | 'dark' }; auth?: { user?: { name?: string; email?: string; tier?: string; level?: string; user_level?: string; user_type?: string; avatar_url?: string | null; avatarUrl?: string | null } | null } }>().props;
   const currentUser = auth?.user;
   const userName = currentUser?.name?.trim() || 'Semizzy user';
   const rawUserTier = currentUser?.tier || currentUser?.user_level || currentUser?.level || currentUser?.user_type || 'Customer';
   const userTier = ({ level_1: 'Tier1', level_2: 'Tier2', level_3: 'Tier3', level_4: 'Tier4/Merchant', tier1: 'Tier1', tier2: 'Tier2', tier3: 'Tier3', tier4: 'Tier4/Merchant' } as Record<string, string>)[rawUserTier.toLowerCase()] || rawUserTier.replace(/_/g, ' ');
   const avatarUrl = currentUser?.avatar_url || currentUser?.avatarUrl || null;
-  const userInitials = userName.split(/\s+/).slice(0, 2).map(part => part[0]).join('').toUpperCase() || 'S';
+  const initials = userName.split(/\s+/).slice(0, 2).map(part => part[0]).join('').toUpperCase() || 'S';
   const platformName = platform?.name || 'SEMIZZY';
-  const globalThemeMode = platform?.theme_mode === 'dark' ? 'dark' : 'light';
-  useEffect(() => { applyThemePreference(globalThemeMode); }, [globalThemeMode]);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [location, setLocation] = useState(() => ({
-    path: typeof window === 'undefined' ? '' : window.location.pathname,
-    hash: typeof window === 'undefined' ? '' : window.location.hash,
-  }));
+  const themeMode = platform?.theme_mode === 'dark' ? 'dark' : 'light';
+  useEffect(() => { applyThemePreference(themeMode); }, [themeMode]);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [location, setLocation] = useState(() => ({ path: typeof window === 'undefined' ? '' : window.location.pathname, hash: typeof window === 'undefined' ? '' : window.location.hash }));
   useEffect(() => {
-    const syncLocation = () => setLocation({ path: window.location.pathname, hash: window.location.hash });
-    window.addEventListener('hashchange', syncLocation);
-    window.addEventListener('popstate', syncLocation);
-    return () => {
-      window.removeEventListener('hashchange', syncLocation);
-      window.removeEventListener('popstate', syncLocation);
-    };
+    const sync = () => setLocation({ path: window.location.pathname, hash: window.location.hash });
+    window.addEventListener('hashchange', sync); window.addEventListener('popstate', sync);
+    return () => { window.removeEventListener('hashchange', sync); window.removeEventListener('popstate', sync); };
   }, []);
   useEffect(() => {
-    if (!mobileMenuOpen) return;
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setMobileMenuOpen(false);
-    };
-    window.addEventListener('keydown', closeOnEscape);
-    return () => window.removeEventListener('keydown', closeOnEscape);
-  }, [mobileMenuOpen]);
-  const currentPath = location.path;
-  const currentHash = location.hash;
-  const overviewHref = customerPreview ? '/customer/dashboard' : admin ? '/admin/dashboard' : '/dashboard';
+    if (!menuOpen) return;
+    const close = (event: KeyboardEvent) => { if (event.key === 'Escape') setMenuOpen(false); };
+    window.addEventListener('keydown', close);
+    return () => window.removeEventListener('keydown', close);
+  }, [menuOpen]);
 
-  // Keep the fixed customer footer to exactly five primary destinations.
   const customerItems: NavItem[] = [
-    { label: 'Home', href: customerPreview ? '/customer/dashboard' : '/dashboard', icon: LayoutDashboard, match: customerPreview ? '/customer/dashboard' : '/dashboard' },
-    { label: 'Orders', href: customerPreview ? '/customer/dashboard#orders' : '/dashboard#orders', icon: Package, match: '#orders' },
-    { label: 'Wallet', href: customerPreview ? '/customer/dashboard#activity' : '/dashboard#activity', icon: WalletCards, match: '#activity' },
-    { label: 'Support', href: '/support', icon: LifeBuoy, match: '/support' },
-    { label: 'Profile', href: '/profile', icon: UserRound, match: '/profile' },
+    { label: 'Dashboard', href: customerPreview ? '/customer/dashboard' : '/dashboard', icon: LayoutDashboard },
+    { label: 'Buy Airtime', href: '/wallet/vtu/airtime', icon: Smartphone },
+    { label: 'Buy Data', href: '/wallet/vtu/data', icon: Wifi },
+    { label: 'Electricity', href: '/wallet/vtu/electricity', icon: Zap },
+    { label: 'Cable TV', href: '/wallet/vtu/tv', icon: Tv },
+    { label: 'Internet', href: '/services', icon: PlugZap },
+    { label: 'Transactions', href: (customerPreview ? '/customer/dashboard' : '/dashboard') + '#activity', icon: Activity, match: '#activity' },
   ];
-  // The full customer sidebar/mobile drawer exposes secondary account tools without
-  // overcrowding the five-item fixed footer.
-  const customerSidebarItems: NavItem[] = [
-    ...customerItems,
-    { label: 'Identity verification', href: '/account/kyc', icon: ShieldCheck, match: '/account/kyc' },
-    { label: 'Account levels', href: '/account/tiers', icon: ShieldCheck, match: '/account/tiers' },
-    { label: 'Transaction PIN', href: '/security/transaction-pin', icon: ShieldCheck, match: '/security/transaction-pin' },
-    { label: 'Sessions & devices', href: '/account/sessions', icon: Smartphone, match: '/account/sessions' },
-    { label: 'Business workspaces', href: '/workspaces', icon: Users, match: '/workspaces' },
-    { label: 'Help & support', href: '/support', icon: LifeBuoy, match: '/support' },
+  const customerFooter: NavItem[] = [
+    { label: 'Home', href: customerPreview ? '/customer/dashboard' : '/dashboard', icon: LayoutDashboard },
+    { label: 'Orders', href: (customerPreview ? '/customer/dashboard' : '/dashboard') + '#orders', icon: Package, match: '#orders' },
+    { label: 'Wallet', href: (customerPreview ? '/customer/dashboard' : '/dashboard') + '#activity', icon: WalletCards, match: '#activity' },
+    { label: 'Support', href: '/support', icon: LifeBuoy },
+    { label: 'Profile', href: '/profile', icon: UserRound },
   ];
-
   const adminGroups: { title: string; items: NavItem[] }[] = [
-    { title: 'Workspace', items: [{ label: 'Command Center', href: '/admin/dashboard', icon: LayoutDashboard, match: '/admin/dashboard' }] },
+    { title: 'Workspace', items: [{ label: 'Admin Dashboard', href: '/admin/dashboard', icon: LayoutDashboard }] },
     { title: 'Finance', items: [
-      { label: 'Refund operations', href: '/admin/refunds', icon: CreditCard, match: '/admin/refunds' },
-      { label: 'Manual deposits', href: '/admin/manual-deposits', icon: WalletCards, match: '/admin/manual-deposits' },
-      { label: 'Payment gateway & deposit settings', href: '/admin/payment-gateway', icon: CreditCard, match: '/admin/payment-gateway' },
+      { label: 'Manual deposits', href: '/admin/manual-deposits', icon: WalletCards },
+      { label: 'Refund operations', href: '/admin/refunds', icon: CreditCard },
+      { label: 'Payment gateway', href: '/admin/payment-gateway', icon: Landmark },
     ] },
     { title: 'Operations', items: [
-      { label: 'VTU order queue', href: '/admin/vtu-orders', icon: Smartphone, match: '/admin/vtu-orders' },
-      { label: 'VTU product catalogue', href: '/admin/vtu-products', icon: Package, match: '/admin/vtu-products' },
-      { label: 'KYC evidence review', href: '/admin/kyc-reviews', icon: ShieldCheck, match: '/admin/kyc-reviews' },
-      { label: 'Support tickets', href: '/admin/support', icon: LifeBuoy, match: '/admin/support' },
-      { label: 'Users, types & levels', href: '/admin/users', icon: Users, match: '/admin/users' },
+      { label: 'VTU orders', href: '/admin/vtu-orders', icon: Smartphone },
+      { label: 'VTU products', href: '/admin/vtu-products', icon: Package },
+      { label: 'Users, types & levels', href: '/admin/users', icon: Users },
+      { label: 'KYC reviews', href: '/admin/kyc-reviews', icon: ShieldCheck },
+      { label: 'Support tickets', href: '/admin/support', icon: LifeBuoy },
     ] },
-    { title: 'Platform & security', items: [
-      { label: 'API providers', href: '/admin/api-providers', icon: PlugZap, match: '/admin/api-providers' },
-      { label: 'Staff & permissions', href: '/admin/staff', icon: Users, match: '/admin/staff' },
-      { label: 'Site control & settings', href: '/admin/platform-settings', icon: SlidersHorizontal, match: '/admin/platform-settings' },
-      { label: 'Feature controls', href: '/admin/feature-controls', icon: SlidersHorizontal, match: '/admin/feature-controls' },
-      { label: 'Staff users', href: '/admin/staff/users', icon: Users, match: '/admin/staff/users' },
-      { label: 'Permission audits', href: '/admin/staff/permission-audits', icon: Activity, match: '/admin/staff/permission-audits' },
-      { label: 'User level policies', href: '/admin/user-levels', icon: ShieldCheck, match: '/admin/user-levels' },
-      { label: 'Tier upgrade requests', href: '/admin/user-level-upgrade-requests', icon: ShieldCheck, match: '/admin/user-level-upgrade-requests' },
-      { label: 'Security activity', href: '/admin/security-events', icon: Activity, match: '/admin/security-events' },
+    { title: 'Platform control', items: [
+      { label: 'API providers', href: '/admin/api-providers', icon: PlugZap },
+      { label: 'Site control & settings', href: '/admin/platform-settings', icon: SlidersHorizontal },
+      { label: 'Feature controls', href: '/admin/feature-controls', icon: SlidersHorizontal },
+      { label: 'Security activity', href: '/admin/security-events', icon: ShieldCheck },
+      { label: 'Staff & permissions', href: '/admin/staff', icon: Users },
     ] },
-    { title: 'Customer', items: [
-      { label: 'Profile & password', href: '/profile', icon: UserRound, match: '/profile' },
-      { label: 'Help & support', href: '/support', icon: LifeBuoy, match: '/support' },
-      { label: 'VTU services', href: '/wallet/vtu', icon: Smartphone, match: '/wallet/vtu' },
-      { label: 'Customer view', href: '/customer/dashboard', icon: WalletCards, match: '/customer/dashboard' },
-    ] },
+    { title: 'Customer view', items: [{ label: 'Customer dashboard', href: '/customer/dashboard', icon: ArrowLeftRight }] },
   ];
-
-  const isActive = (item: NavItem) => {
-    if (item.match?.startsWith('#')) return (currentPath === '/dashboard' || currentPath === '/customer/dashboard') && currentHash === item.match;
-    if (item.href.includes('#')) return (currentPath === '/dashboard' || currentPath === '/customer/dashboard') && currentHash === item.href.split('#')[1] ? true : false;
-    if (item.href === '/dashboard' || item.href === '/admin/dashboard' || item.href === '/customer/dashboard') return currentPath === item.href;
-    return item.match === '/wallet/vtu' ? currentPath.startsWith('/wallet/vtu') : item.match ? currentPath === item.match : currentPath === item.href;
+  const active = (item: NavItem) => {
+    if (item.match?.startsWith('#')) return location.hash === item.match;
+    if (item.href.includes('#')) return location.path === item.href.split('#')[0] && location.hash === '#' + item.href.split('#')[1];
+    return item.href === '/dashboard' || item.href === '/customer/dashboard' || item.href === '/admin/dashboard'
+      ? location.path === item.href
+      : location.path === item.href || (item.href === '/services' && location.path.startsWith('/services'));
   };
-
-  const linkClass = (active: boolean) =>
-    `group flex min-h-11 w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)] ${active
-      ? 'bg-[var(--brand-soft)] font-bold text-[var(--brand)]'
-      : 'font-semibold text-[var(--muted)] hover:bg-[var(--page)] hover:text-[var(--ink)]'}`;
-
-  const renderLink = (item: NavItem, compact = false) => {
-    const active = isActive(item);
+  const link = (item: NavItem, compact = false) => {
     const Icon = item.icon;
-    return (
-      <a
-        key={item.href}
-        href={item.href}
-        onClick={() => setMobileMenuOpen(false)}
-        aria-current={active ? 'page' : undefined}
-        className={compact
-          ? `flex min-h-14 min-w-[68px] flex-1 shrink-0 flex-col items-center justify-center gap-1 rounded-xl px-1 text-[10px] transition hover:bg-[var(--page)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--brand)] ${active ? 'font-extrabold text-[var(--brand)]' : 'font-semibold text-[var(--muted)]'}`
-          : linkClass(active)}
-      >
-        <Icon size={compact ? 19 : 18} className="shrink-0" aria-hidden="true" />
-        <span className={compact ? 'max-w-full truncate' : 'min-w-0 flex-1'}>{item.label}</span>
-        {!compact && active && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--brand)]" aria-hidden="true" />}
-      </a>
-    );
+    const selected = active(item);
+    return <a key={item.label} href={item.href} onClick={() => setMenuOpen(false)} aria-current={selected ? 'page' : undefined}
+      className={compact
+        ? `flex min-h-[58px] min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-1 text-[10px] ${selected ? 'font-bold text-[#0f8a4f]' : 'text-gray-400'}`
+        : `flex min-h-11 items-center gap-3 rounded-lg p-2.5 text-[13px] transition ${selected ? 'bg-[#0f8a4f]/10 font-bold text-[#0f8a4f]' : 'text-gray-600 hover:bg-gray-50'}`}>
+      <Icon size={compact ? 19 : 18} aria-hidden="true" /><span className={compact ? 'truncate' : 'min-w-0 flex-1'}>{item.label}</span>
+    </a>;
   };
 
-  return (
-    <>
-      <Head title={title} />
-      <main className="min-h-screen bg-[var(--page)] pb-24 text-[var(--ink)]">
-        <MobileAppHeader admin={admin} customerPreview={customerPreview} />
-        {<header className="sticky top-0 z-40 hidden border-b border-[var(--line)] bg-[var(--surface)]/95 backdrop-blur sm:block">
-          <div className="mx-auto flex max-w-[1600px] items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8">
-            {!admin && !customerPreview ? <a href="/profile" className="flex min-w-0 items-center gap-3" aria-label="Open profile and account level">
-              <span className="relative grid h-11 w-11 shrink-0 place-items-center overflow-hidden rounded-full border-2 border-white bg-emerald-100 text-sm font-extrabold text-emerald-800 shadow-sm dark:border-slate-800 dark:bg-emerald-950 dark:text-emerald-200">
-                {avatarUrl ? <img src={avatarUrl} alt="" className="h-full w-full object-cover" /> : userInitials}
-                <span className="absolute -bottom-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full border border-white bg-amber-100 px-1 text-[8px] font-black text-amber-900 dark:border-slate-900" title={userTier}>{userTier.slice(0, 1).toUpperCase()}</span>
-              </span>
-              <span className="min-w-0"><span className="block text-[10px] font-semibold uppercase tracking-wide text-[var(--muted)]">Welcome back</span><span className="block max-w-[38vw] truncate text-sm font-extrabold sm:max-w-none">{userName}</span><span className="block truncate text-[10px] font-bold text-[var(--brand)]">{userTier}</span></span>
-            </a> : <a href={overviewHref} className="flex min-w-0 items-center gap-3" aria-label={`${platformName} dashboard`}>
-              <span aria-hidden="true" className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-[var(--brand)] font-display text-lg font-extrabold text-white">S</span>
-              <span className="min-w-0"><span className="block font-display text-base font-extrabold tracking-tight">{platformName}</span><span className="block text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--muted)]">{admin ? 'Command Center' : 'Customer preview'}</span></span>
+  return <>
+    <Head title={title} />
+    <main className="min-h-screen bg-[#eef4ef] pb-20 text-gray-900">
+      <MobileAppHeader admin={admin} customerPreview={customerPreview} />
+      <header className="sticky top-0 z-40 border-b border-black/5 bg-white/95 backdrop-blur">
+        <div className="mx-auto flex max-w-[1600px] items-center justify-between gap-3 px-4 py-3 sm:px-6">
+          <a href={admin ? '/admin/dashboard' : customerPreview ? '/customer/dashboard' : '/dashboard'} className="flex min-w-0 items-center gap-2 font-bold text-xl">
+            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[#0f8a4f] text-sm text-white">S</span>
+            <span className="truncate">{platformName}</span>
+            {admin && <span className="hidden rounded-full bg-[#0f8a4f]/10 px-2 py-1 text-[10px] font-bold text-[#0f8a4f] sm:inline">ADMIN</span>}
+          </a>
+          <div className="flex items-center gap-2">
+            {!admin && <a href="/profile" className="flex min-w-0 items-center gap-2 rounded-full px-2 py-1 hover:bg-gray-50">
+              <span className="grid h-8 w-8 shrink-0 place-items-center overflow-hidden rounded-full bg-emerald-100 text-xs font-bold text-emerald-800">{avatarUrl ? <img src={avatarUrl} alt="" className="h-full w-full object-cover" /> : initials}</span>
+              <span className="hidden max-w-36 sm:block"><span className="block truncate text-xs font-bold">{userName}</span><span className="block truncate text-[10px] text-[#0f8a4f]">{userTier}</span></span>
             </a>}
-            {admin && (
-              <form action="/admin/search" method="get" className="hidden max-w-sm flex-1 px-6 lg:block">
-                <label className="flex h-10 items-center gap-2 rounded-xl border border-[var(--line)] bg-[var(--page)] px-3 text-sm text-[var(--muted)]">
-                  <Search size={16} aria-hidden="true" /><input name="q" minLength={2} maxLength={100} required aria-label="Search admin records" placeholder="Global search…" className="min-w-0 flex-1 bg-transparent outline-none placeholder:text-[var(--muted)]" />
-                  <button type="submit" className="rounded-md border border-[var(--line)] px-2 py-1 text-[10px] font-bold">Search</button>
-                </label>
-              </form>
-            )}
-            <div className="flex shrink-0 items-center gap-2">
-              {admin && <a href="/customer/dashboard" className="hidden min-h-10 items-center gap-1 rounded-xl border border-[var(--line)] px-3 py-2 text-xs font-semibold hover:border-[var(--brand)] sm:inline-flex"><ArrowLeftRight size={14} aria-hidden="true" /> Customer view</a>}
-              {admin && <ThemeToggle themeMode={globalThemeMode} />}
-              <form method="post" action="/logout">
-                <input type="hidden" name="_token" value={typeof document === 'undefined' ? '' : (document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ?? '')} />
-                <button type="submit" aria-label="Sign out" className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-[var(--brand)] px-3 text-sm font-bold text-white hover:opacity-90">
-                  <LogOut size={15} aria-hidden="true" /><span className="hidden sm:inline">Sign out</span>
-                </button>
-              </form>
-              <button type="button" onClick={() => setMobileMenuOpen((open) => !open)} aria-label={mobileMenuOpen ? 'Close navigation menu' : 'Open navigation menu'} aria-expanded={mobileMenuOpen} aria-controls="semizzy-mobile-navigation" className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl border border-[var(--line)] bg-[var(--surface)] hover:border-[var(--brand)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)] focus-visible:ring-offset-2 lg:hidden">
-                {mobileMenuOpen ? <X size={20} aria-hidden="true" /> : <Menu size={20} aria-hidden="true" />}
-              </button>
-            </div>
-          </div>
-        </header>}
-
-        {mobileMenuOpen && (
-          <nav id="semizzy-mobile-navigation" aria-label="Mobile navigation menu" className="border-b border-[var(--line)] bg-[var(--surface)] px-4 py-4 lg:hidden">
-            <div className="mx-auto grid max-w-7xl gap-1">
-              {admin
-                ? adminGroups.map((group) => (
-                    <section key={group.title} className="py-1">
-                      <p className="px-3 pb-1 text-[10px] font-extrabold uppercase tracking-[0.16em] text-[var(--muted)]">{group.title}</p>
-                      {group.items.map((item) => renderLink(item))}
-                    </section>
-                  ))
-                : <>{customerSidebarItems.map((item) => renderLink(item))}{customerPreview && <a href="/admin/dashboard" className="mt-3 flex min-h-11 items-center gap-3 rounded-xl border border-[var(--line)] px-3 py-2.5 text-sm font-bold text-[var(--brand)] hover:bg-[var(--page)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)]"><LayoutDashboard size={18} aria-hidden="true" /><span>Back to Command Center</span></a>}</>}
-            </div>
-          </nav>
-        )}
-
-        <div className={`mx-auto grid max-w-[1600px] lg:grid-cols-[250px_minmax(0,1fr)]`}>
-          {<aside className="sticky top-[65px] hidden h-[calc(100vh-65px)] overflow-y-auto border-r border-[var(--line)] bg-[var(--surface)] px-4 py-6 lg:block">
-            {admin ? adminGroups.map((group) => (
-              <section key={group.title} className="mb-6">
-                <p className="mb-2 px-3 text-[10px] font-extrabold uppercase tracking-[0.18em] text-[var(--muted)]">{group.title}</p>
-                <div className="space-y-1">{group.items.map((item) => renderLink(item))}</div>
-              </section>
-            )) : (
-              <>
-                <p className="mb-2 px-3 text-[10px] font-extrabold uppercase tracking-[0.18em] text-[var(--muted)]">Your account</p>
-                <div className="space-y-1">{customerSidebarItems.map((item) => renderLink(item))}</div>
-                {customerPreview && <a href="/admin/dashboard" className="mt-4 flex min-h-11 items-center gap-3 rounded-xl border border-[var(--line)] px-3 py-2.5 text-sm font-bold text-[var(--brand)] hover:bg-[var(--page)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)]"><LayoutDashboard size={18} aria-hidden="true" /><span>Back to Command Center</span></a>}
-                <div className="mt-6 rounded-2xl border border-[var(--line)] bg-[var(--page)] p-4">
-                  <p className="text-sm font-bold">Need help?</p>
-                  <p className="mt-1 text-xs leading-5 text-[var(--muted)]">Keep your transaction reference handy when contacting support.</p>
-                </div>
-              </>
-            )}
-          </aside>}
-
-          <div className="min-w-0 px-4 py-7 sm:px-6 sm:py-9 lg:px-8">
-            {(admin || customerPreview) && <div className="mb-7">
-              <p className="text-xs font-extrabold uppercase tracking-[0.2em] text-[var(--brand)]">{admin ? 'Operations workspace' : 'Customer preview'}</p>
-              <h1 className="mt-2 font-display text-3xl font-extrabold tracking-tight sm:text-4xl">{title}</h1>
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--muted)] sm:text-base">{description}</p>
-            </div>}
-            {children}
-            <footer className="mt-10 border-t border-[var(--line)] py-5 text-center text-xs text-[var(--muted)]">{platformName} · Secure, mobile-first digital services</footer>
+            {admin && <form action="/admin/search" method="get" className="hidden md:block"><label className="flex h-9 items-center gap-2 rounded-lg border px-3 text-xs text-gray-500"><Search size={14}/><input name="q" minLength={2} maxLength={100} required placeholder="Search admin records" className="w-36 bg-transparent outline-none lg:w-52"/><button type="submit" className="font-bold text-[#0f8a4f]">Search</button></label></form>}
+            {admin && <ThemeToggle themeMode={themeMode} />}
+            <form method="post" action="/logout"><input type="hidden" name="_token" value={typeof document === 'undefined' ? '' : (document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ?? '')}/><button type="submit" aria-label="Sign out" className="grid h-9 w-9 place-items-center rounded-full text-gray-500 hover:bg-gray-100"><LogOut size={17}/></button></form>
+            <button type="button" onClick={() => setMenuOpen(v => !v)} aria-label={menuOpen ? 'Close navigation menu' : 'Open navigation menu'} aria-expanded={menuOpen} className="grid h-10 w-10 place-items-center rounded-lg border lg:hidden">{menuOpen ? <X size={19}/> : <Menu size={19}/>}</button>
           </div>
         </div>
-
-        {!admin && <nav aria-label="Main navigation" className="fixed inset-x-0 bottom-0 z-50 flex justify-around gap-1 border-t border-[var(--line)] bg-[var(--surface)]/95 px-2 pb-[env(safe-area-inset-bottom)] pt-2 backdrop-blur" style={{ scrollbarWidth: "thin" }}>
-          {customerItems.map((item) => renderLink(item, true))}
-        </nav>}
-      </main>
-    </>
-  );
+      </header>
+      {menuOpen && <nav aria-label="Mobile menu" className="border-b bg-white px-4 py-3 lg:hidden"><div className="mx-auto grid max-w-7xl gap-1">
+        {admin ? adminGroups.map(group => <section key={group.title} className="py-1"><p className="px-3 pb-1 text-[10px] font-bold uppercase tracking-wider text-gray-400">{group.title}</p>{group.items.map(item => link(item))}</section>) : customerItems.map(item => link(item))}
+      </div></nav>}
+      <div className="mx-auto grid max-w-[1600px] lg:grid-cols-[260px_minmax(0,1fr)]">
+        <aside className="sticky top-[65px] hidden h-[calc(100vh-65px)] overflow-y-auto border-r border-black/5 bg-white p-6 lg:block">
+          {!admin && <div className="mb-6"><p className="mb-3 text-[10px] font-bold uppercase tracking-wider text-gray-400">Your account</p><nav className="space-y-1">{customerItems.map(item => link(item))}</nav><div className="mt-6 rounded-xl bg-[#eef4ef] p-3 text-xs text-gray-500">Need help? <a href="/support" className="font-bold text-[#0f8a4f]">Contact support</a></div></div>}
+          {admin && adminGroups.map(group => <section key={group.title} className="mb-6"><p className="mb-2 px-3 text-[10px] font-bold uppercase tracking-wider text-gray-400">{group.title}</p><nav className="space-y-1">{group.items.map(item => link(item))}</nav></section>)}
+        </aside>
+        <section className="min-w-0 p-4 sm:p-6 lg:p-8">
+          {(admin || customerPreview) && <div className="mb-6"><h1 className="text-2xl font-bold">{title}</h1><p className="mt-1 text-sm text-gray-500">{description}</p></div>}
+          {children}
+          <footer className="mt-8 border-t border-black/5 py-5 text-center text-xs text-gray-400">{platformName} · Secure, mobile-first digital services</footer>
+        </section>
+      </div>
+      {!admin && <nav aria-label="Main navigation" className="fixed inset-x-0 bottom-0 z-50 flex h-[72px] items-center justify-around border-t border-black/5 bg-white px-2 pb-[env(safe-area-inset-bottom)]">
+        {customerFooter.map(item => link(item, true))}
+      </nav>}
+    </main>
+  </>;
 }
