@@ -34,22 +34,18 @@ export default function CustomerDashboard({ wallet, transactions, orders = [], t
           {[{title:'Airtime',icon:<Smartphone size={24}/>,href:'/wallet/vtu/airtime'},{title:'Data',icon:<Wifi size={24}/>,href:'/wallet/vtu/data'},{title:'Bills',icon:<Zap size={24}/>,href:'/services'},{title:'TV',icon:<Tv size={24}/>,href:'/wallet/vtu/tv'}].map(item=><a key={item.title} href={item.href} className="flex min-h-[88px] min-w-0 flex-col items-center justify-center gap-2 rounded-2xl px-1 py-2 text-center transition hover:bg-[var(--page)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)] focus-visible:ring-offset-2"><span className="grid h-14 w-14 place-items-center rounded-[20px] bg-emerald-50 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-300">{item.icon}</span><span className="text-[11px] font-bold">{item.title}</span></a>)}
         </div>
 
-        <section aria-labelledby="dashboard-promo-heading" className="relative min-h-[96px] overflow-hidden rounded-[16px] bg-gradient-to-r from-[#0a5c32] to-[#12a15a] p-4 text-white shadow-sm">
-          <div className="relative z-10 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="max-w-2xl">
-              <span className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/10 px-3 py-1 text-[10px] font-extrabold uppercase tracking-wider"><Sparkles size={14}/> SEMIZZY • EVERYDAY SERVICES</span>
-              <h2 id="dashboard-promo-heading" className="mt-3 text-xl font-black tracking-tight sm:text-2xl">Your everyday digital services, all in one place</h2>
-              <p className="mt-2 max-w-xl text-sm leading-6 text-white/85">Top up airtime, explore data bundles and manage eligible services from your secure Semizzy account.</p>
-            </div>
-            <a href="/services" className="inline-flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-xl bg-white px-4 py-2 text-xs font-extrabold text-emerald-800 hover:bg-emerald-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-emerald-600">Explore services <ChevronRight size={17}/></a>
+        <section aria-labelledby="dashboard-promo-heading" className="relative mt-1 flex min-h-[96px] items-center justify-between gap-3 overflow-hidden rounded-[16px] bg-gradient-to-r from-[#0a5c32] to-[#12a15a] p-4 text-white shadow-sm">
+          <div className="relative z-10 min-w-0">
+            <h2 id="dashboard-promo-heading" className="text-sm font-extrabold leading-5">Enjoy 10% cashback on data purchases</h2>
+            <p className="mt-1 text-[11px] text-white/80">Limited time offer</p>
           </div>
-          <div aria-hidden="true" className="pointer-events-none absolute -right-8 -top-12 h-44 w-44 rounded-full border-[24px] border-white/10"/>
-          <div aria-hidden="true" className="pointer-events-none absolute -bottom-20 right-28 h-40 w-40 rounded-full bg-white/10 blur-2xl"/>
+          <span aria-hidden="true" className="relative z-10 grid h-16 w-16 shrink-0 place-items-center rounded-full bg-white/20 text-3xl">👩‍💼</span>
+          <span aria-hidden="true" className="pointer-events-none absolute -right-6 -top-8 h-28 w-28 rounded-full bg-white/10"/>
         </section>
 
         <section aria-labelledby="popular-data-heading" className="rounded-[16px] border bg-white p-4 shadow-sm">
           <div className="mb-4 flex items-center justify-between gap-3">
-            <div><h2 id="popular-data-heading" className="font-extrabold">Popular data plans</h2><p className="mt-1 text-xs text-[var(--muted)]">Choose a network to view available bundles and validity.</p></div>
+            <div><h2 id="popular-data-heading" className="font-extrabold">Buy Data</h2><p className="mt-1 text-xs text-[var(--muted)]">Choose your network to view available bundles and validity.</p></div>
             <Wifi size={22} className="shrink-0 text-[var(--brand)]" aria-hidden="true"/>
           </div>
           <div className="grid grid-cols-4 gap-2">
@@ -66,15 +62,26 @@ export default function CustomerDashboard({ wallet, transactions, orders = [], t
           </div>
         </section>
 
-        <section aria-labelledby="dashboard-marketplace-heading" className="mt-1 rounded-[16px] border bg-white p-4 shadow-sm">
-          <div className="mb-4 flex items-center justify-between gap-3">
-            <div><h2 id="dashboard-marketplace-heading" className="font-extrabold">Explore Semizzy marketplace</h2><p className="mt-1 text-xs leading-5 text-[var(--muted)]">Discover more services and offers as they become available on your account.</p></div>
-            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[var(--brand-soft)] text-[var(--brand)]"><Gift size={20} aria-hidden="true" /></span>
+        <section aria-label="Gadget sale promotion" className="mt-1 flex items-center justify-between gap-3 rounded-[16px] bg-gradient-to-r from-[#0f8a4f] to-[#0a5c32] p-4 text-white shadow-sm">
+          <div className="min-w-0"><p className="text-[13px] font-extrabold">🔥 Big Gadget Sale! Up to 50% OFF</p><p className="mt-1 text-[11px] text-white/80">Browse available gadgets and offers</p></div>
+          <a href="/services" className="inline-flex min-h-9 shrink-0 items-center justify-center rounded-full bg-white px-4 py-2 text-xs font-extrabold text-[#0a5c32] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white">Shop Now</a>
+        </section>
+
+        <section aria-labelledby="dashboard-gadgets-heading" className="mt-1 rounded-[16px] border bg-white p-4 shadow-sm">
+          <div className="mb-3 flex items-center justify-between gap-3"><h2 id="dashboard-gadgets-heading" className="font-extrabold">Shop Gadgets</h2><a href="/services" className="text-xs font-extrabold text-[#0f8a4f]">See All <ChevronRight size={14} className="inline" aria-hidden="true"/></a></div>
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+            {[{title:'Phones',icon:<Smartphone size={27}/>,tone:'bg-slate-100'},{title:'Power banks',icon:<Zap size={27}/>,tone:'bg-slate-100'},{title:'Headphones',icon:<PlaySquare size={27}/>,tone:'bg-slate-100'},{title:'Laptops',icon:<Landmark size={27}/>,tone:'bg-slate-100'},{title:'Computers',icon:<Landmark size={27}/>,tone:'bg-slate-100'},{title:'Accessories',icon:<SmartphoneNfc size={27}/>,tone:'bg-slate-100'},{title:'Smart watches',icon:<Activity size={27}/>,tone:'bg-slate-100'},{title:'Audio',icon:<PlaySquare size={27}/>,tone:'bg-slate-100'}].map(item=><a key={item.title} href="/services" className="min-w-0 rounded-xl border p-3 shadow-sm transition hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)]">
+              <span className={'grid h-[80px] place-items-center rounded-lg text-[var(--brand)] '+item.tone}>{item.icon}</span>
+              <span className="mt-2 block text-[11px] font-extrabold">{item.title}</span>
+              <span className="mt-1 block text-[10px] text-[var(--muted)]">Browse catalogue</span>
+            </a>)}
           </div>
-          <div className="flex flex-col gap-4 rounded-2xl border border-[var(--line)] bg-[var(--page)] p-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="min-w-0"><p className="text-sm font-extrabold">More than everyday top-ups</p><p className="mt-1 max-w-2xl text-xs leading-5 text-[var(--muted)]">Marketplace listings and promotional offers will be shown here when the relevant catalogue and account features are enabled. No sample products or prices are displayed.</p></div>
-            <a href="/services" className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-[var(--brand)] px-4 py-2 text-xs font-extrabold text-white transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)] focus-visible:ring-offset-2">Explore services <ChevronRight size={16} /></a>
-          </div>
+          <p className="mt-3 text-[10px] leading-4 text-[var(--muted)]">Gadget listings and verified prices will appear when the live catalogue is connected.</p>
+        </section>
+
+        <section aria-label="Referral promotion" className="mt-1 flex items-center justify-between gap-3 rounded-[16px] border border-amber-200 bg-[#fef3c7] p-4">
+          <div className="min-w-0"><p className="text-[13px] font-extrabold text-[#92400e]">💰 Refer &amp; Earn with Semizzy</p><p className="mt-1 text-[11px] text-[#a16207]">Invite friends to discover Semizzy</p></div>
+          <a href="/account/tiers" className="inline-flex min-h-9 shrink-0 items-center justify-center rounded-full bg-[#111827] px-4 py-2 text-xs font-extrabold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-700">Refer Now</a>
         </section>
 
         <section id="activity" className="scroll-mt-6 space-y-4 rounded-[26px] bg-[var(--surface)] p-4 shadow-sm lg:col-span-7" aria-labelledby="recent-transactions-heading">
