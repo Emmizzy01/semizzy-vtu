@@ -87,7 +87,7 @@ class FeatureControlRegistryTest extends TestCase
         $this->actingAs($admin)->put('/admin/feature-controls/service.manual_deposit', [
             'is_enabled' => true,
             'reason' => 'Enable manual deposits after configuration',
-        ])->assertStatus(422);
+        ])->assertSessionHasErrors('is_enabled');
 
         $this->assertDatabaseHas('platform_feature_controls', [
             'feature_key' => 'service.manual_deposit',
