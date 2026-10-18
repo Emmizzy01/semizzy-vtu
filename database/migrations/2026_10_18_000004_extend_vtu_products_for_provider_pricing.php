@@ -16,14 +16,15 @@ return new class extends Migration
             $table->string('validity', 80)->nullable()->after('data_type');
             $table->json('pricing_by_user_category')->nullable()->after('metadata');
             $table->json('commission_by_user_category')->nullable()->after('pricing_by_user_category');
-            $table->index(['provider_key', 'service_type', 'network']);
+            $table->index(['provider_key', 'service_type', 'network'], 'vtu_prod_prov_svc_net_idx');
         });
     }
 
     public function down(): void
     {
         Schema::table('vtu_products', function (Blueprint $table): void {
-            $table->dropIndex(['provider_key', 'service_type', 'network']);
+            $table->dropIndex('vtu_products_provider_key_index');
+            $table->dropIndex('vtu_prod_prov_svc_net_idx');
             $table->dropColumn([
                 'provider_key',
                 'provider_product_code',
