@@ -24,7 +24,7 @@ export default function ProfilePage({ profile }: { profile: Profile }) {
   const [passwordBusy, setPasswordBusy] = useState(false);
   const submitProfile = (e: FormEvent) => {
     e.preventDefault(); setBusy(true);
-    router.put('/profile', { name, address, date_of_birth: dateOfBirth || '', sex, mobile_number: mobileNumber.trim(), avatar }, {
+    router.post('/profile', { _method: 'put', name, address, date_of_birth: dateOfBirth || '', sex, mobile_number: mobileNumber.trim(), avatar }, {
       preserveScroll: true, forceFormData: true, onFinish: () => setBusy(false),
     });
   };
