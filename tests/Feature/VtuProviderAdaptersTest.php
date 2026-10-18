@@ -115,6 +115,18 @@ class VtuProviderAdaptersTest extends TestCase
         $this->assertArrayNotHasKey('safe_to_submit_same_key', $result);
     }
 
+    public function test_sogo_custom_non_live_host_404_does_not_authorize_resubmission(): void
+    {
+        config(['services.vtu.sogo.base_url' => 'https://staging.sogo.example/v1']);
+        Http::fake(['staging.sogo.example/*' => Http::response(['message' => 'not found'], 404)]);
+
+        $result = app(SogoProviderClient::class)->lookup($this->order());
+
+        $this->assertSame('unknown', $result['status']);
+        $this->assertSame('not_found', $result['lookup_state']);
+        $this->assertArrayNotHasKey('safe_to_submit_same_key', $result);
+    }
+
     public function test_sogo_non_404_lookup_errors_do_not_claim_safe_resubmission(): void
     {
         Http::fake(['api.sogo.africa/*' => Http::response(['message' => 'temporarily unavailable'], 503)]);
