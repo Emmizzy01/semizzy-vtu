@@ -82,9 +82,9 @@ export default function DashboardLayout({
   // Keep the fixed customer footer to exactly five primary destinations.
   const customerItems: NavItem[] = [
     { label: 'Home', href: customerPreview ? '/customer/dashboard' : '/dashboard', icon: LayoutDashboard, match: customerPreview ? '/customer/dashboard' : '/dashboard' },
-    { label: 'Services', href: '/services', icon: Grid2X2, match: '/services' },
+    { label: 'Orders', href: customerPreview ? '/customer/dashboard#orders' : '/dashboard#orders', icon: Package, match: '#orders' },
     { label: 'Wallet', href: '/wallet/manual-deposits', icon: WalletCards, match: '/wallet/manual-deposits' },
-    { label: 'Activity', href: customerPreview ? '/customer/dashboard#activity' : '/dashboard#activity', icon: Activity, match: '#activity' },
+    { label: 'Support', href: '/support', icon: LifeBuoy, match: '/support' },
     { label: 'Profile', href: '/profile', icon: UserRound, match: '/profile' },
   ];
   // The full customer sidebar/mobile drawer exposes secondary account tools without
