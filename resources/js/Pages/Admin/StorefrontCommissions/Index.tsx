@@ -1,5 +1,6 @@
 import { Head, router } from '@inertiajs/react';
 import { useState } from 'react';
+import DashboardLayout from '../../../Components/DashboardLayout';
 import { BadgeDollarSign, CheckCircle2, Clock3, RefreshCw, ShieldCheck, Store } from 'lucide-react';
 
 type Storefront = {
@@ -85,9 +86,9 @@ export default function StorefrontCommissionsIndex({ storefronts, commissions }:
   }
 
   return (
-    <>
-      <Head title="Reseller commissions" />
-      <main className="min-h-screen bg-[var(--page)] px-4 py-5 text-[var(--ink)] sm:px-6 lg:px-10 lg:py-8">
+    <DashboardLayout admin title="Reseller commissions" description="Configure storefront commission rates and review eligible settlements.">
+      <Head title="Reseller commissions · Semizzy" />
+      <main className="px-0 py-0 text-[var(--ink)]">
         <div className="mx-auto max-w-7xl space-y-7">
           <header className="flex flex-wrap items-start justify-between gap-4">
             <div className="flex items-start gap-3">
@@ -149,6 +150,6 @@ export default function StorefrontCommissionsIndex({ storefronts, commissions }:
           <p className="text-xs leading-relaxed text-[var(--muted)]">All amounts are Nigerian naira. Rates are stored in basis points (1% = 100 bps). The default rate is 0 bps; configuring a rate is an explicit commercial decision. This page does not run migrations or trigger purchases.</p>
         </div>
       </main>
-    </>
+    </DashboardLayout>
   );
 }
