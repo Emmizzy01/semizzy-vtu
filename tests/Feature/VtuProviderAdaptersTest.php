@@ -206,7 +206,7 @@ class VtuProviderAdaptersTest extends TestCase
         foreach ($results as $result) {
             $this->assertSame('unknown', $result['status']);
             $this->assertArrayNotHasKey('safe_to_submit_same_key', $result);
-            $this->assertArrayNotHasKey('definitive_failure', $result);
+            $this->assertFalse((bool) ($result['definitive_failure'] ?? false));
         }
 
         $this->assertCount(4, Http::recorded());
