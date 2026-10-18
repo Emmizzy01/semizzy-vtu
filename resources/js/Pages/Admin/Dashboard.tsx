@@ -45,7 +45,7 @@ export default function AdminDashboard({ metrics, capabilities }: { metrics: Met
 
   return (
     <DashboardLayout title="Admin Command Center" description="A secure operational overview of SEMIZZY. Implemented administrative sections are listed for discoverability; each protected action still checks your assigned permissions on the server." admin canManageStaff={capabilities.manageStaff} canApproveRefunds={capabilities.approveRefunds}>
-      <section aria-label="Operational metrics" className="grid grid-cols-1 gap-3 sm:grid-cols-2 2xl:grid-cols-4">
+      <section aria-label="Operational metrics" className="grid grid-cols-2 gap-3 sm:grid-cols-3 2xl:grid-cols-6">
         <p className="col-span-full text-xs leading-5 text-[var(--muted)]">Snapshot of saved application records; these counts are not live provider health checks.</p>
         {capabilities.manageStaff && <Metric icon={<Users size={19} />} label="Registered accounts" value={metrics.users} detail={metrics.users === null ? "Account count unavailable" : "All customer and staff accounts"} href="/admin/users" />}
         {capabilities.manageStaff && <Metric icon={<WalletCards size={19} />} label="Wallet accounts" value={metrics.wallets} detail="Wallet records across currencies" />}
@@ -53,6 +53,31 @@ export default function AdminDashboard({ metrics, capabilities }: { metrics: Met
         {capabilities.manageStaff && <Metric icon={<WalletCards size={19} />} label="Manual deposits to review" value={metrics.pendingManualDeposits} detail="Pending bank-transfer evidence reviews" status={metrics.pendingManualDeposits === null ? "unavailable" : metrics.pendingManualDeposits > 0 ? "attention" : "clear"} href="/admin/manual-deposits" />}
         {capabilities.approveRefunds && <Metric icon={<ShieldCheck size={19} />} label="Refunds needing action" value={metrics.refundsNeedingAction} detail={metrics.refundsNeedingAction === null ? "Refund count unavailable" : "Requested, blocked, or review required"} status={metrics.refundsNeedingAction === null ? "unavailable" : metrics.refundsNeedingAction > 0 ? "attention" : "clear"} href="/admin/payment-refunds" />}
         {capabilities.manageStaff && <Metric icon={<Smartphone size={19} />} label="Unresolved VTU orders" value={metrics.unresolvedVtuOrders} detail="Processing or awaiting reconciliation" status={metrics.unresolvedVtuOrders > 0 ? "attention" : "clear"} href="/admin/vtu-orders" />}
+      </section>
+
+      <section aria-labelledby="integration-overview-title" className="mt-6 rounded-[24px] border border-[var(--line)] bg-[var(--surface)] p-4 shadow-sm sm:p-5">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-[10px] font-extrabold uppercase tracking-[0.18em] text-[var(--brand)]">Integrations</p>
+            <h2 id="integration-overview-title" className="mt-1 text-lg font-extrabold">API providers & payment gateways</h2>
+            <p className="mt-1 text-xs leading-5 text-[var(--muted)]">Manage provider settings from one place. Live balances and success rates are not displayed until verified monitoring data is available.</p>
+          </div>
+          <span className="inline-flex w-fit items-center gap-2 rounded-full border border-[var(--line)] px-3 py-2 text-[10px] font-bold text-[var(--muted)]"><Activity size={13} aria-hidden="true" /> Monitoring not asserted</span>
+        </div>
+        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <a href="/admin/api-providers" className="group flex min-w-0 items-center gap-3 rounded-xl border border-[var(--line)] p-3 transition hover:border-[var(--brand)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)]">
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[var(--brand-soft)] text-[var(--brand)]"><PlugZap size={19} /></span>
+            <span className="min-w-0 flex-1"><span className="block text-sm font-extrabold">Service API providers</span><span className="mt-1 block text-[10px] leading-4 text-[var(--muted)]">Configuration & environment</span></span><ArrowUpRight size={16} className="shrink-0 text-[var(--muted)] group-hover:text-[var(--brand)]" />
+          </a>
+          <a href="/admin/payment-gateway" className="group flex min-w-0 items-center gap-3 rounded-xl border border-[var(--line)] p-3 transition hover:border-[var(--brand)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)]">
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[var(--brand-soft)] text-[var(--brand)]"><CreditCard size={19} /></span>
+            <span className="min-w-0 flex-1"><span className="block text-sm font-extrabold">Payment gateways</span><span className="mt-1 block text-[10px] leading-4 text-[var(--muted)]">Funding & callback setup</span></span><ArrowUpRight size={16} className="shrink-0 text-[var(--muted)] group-hover:text-[var(--brand)]" />
+          </a>
+          <a href="/admin/feature-controls" className="group flex min-w-0 items-center gap-3 rounded-xl border border-[var(--line)] p-3 transition hover:border-[var(--brand)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)]">
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[var(--brand-soft)] text-[var(--brand)]"><ShieldCheck size={19} /></span>
+            <span className="min-w-0 flex-1"><span className="block text-sm font-extrabold">Feature controls</span><span className="mt-1 block text-[10px] leading-4 text-[var(--muted)]">Availability & platform safeguards</span></span><ArrowUpRight size={16} className="shrink-0 text-[var(--muted)] group-hover:text-[var(--brand)]" />
+          </a>
+        </div>
       </section>
 
       <section aria-labelledby="workspace-title" className="mt-8">
