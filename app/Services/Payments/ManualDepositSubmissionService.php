@@ -1,13 +1,13 @@
 <?php
 
-namespace App\\Services\\Payments;
+namespace App\Services\Payments;
 
-use App\\Models\\ManualDeposit;
-use App\\Models\\ManualDepositAudit;
-use App\\Models\\User;
-use App\\Models\\Wallet;
-use Illuminate\\Support\\Facades\\DB;
-use Illuminate\\Support\\Str;
+use App\Models\ManualDeposit;
+use App\Models\ManualDepositAudit;
+use App\Models\User;
+use App\Models\Wallet;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use InvalidArgumentException;
 
 class ManualDepositSubmissionService

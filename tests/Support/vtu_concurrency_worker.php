@@ -56,7 +56,7 @@ try {
     }
     if ($mode === 'submit-deposit') {
         $user = User::query()->findOrFail((int) ($argv[3] ?? 0));
-        $wallet = \\App\\Models\\Wallet::query()
+        $wallet = \App\Models\Wallet::query()
             ->where('user_id', $user->getKey())
             ->where('currency', 'NGN')
             ->firstOrFail();
@@ -65,7 +65,7 @@ try {
         $evidenceHash = (string) ($argv[6] ?? '');
         $evidencePath = (string) ($argv[7] ?? '');
         $provider->arriveAndWait('deposit_evidence_barrier', 2);
-        $deposit = app(\\App\\Services\\Payments\\ManualDepositSubmissionService::class)->submit(
+        $deposit = app(\App\Services\Payments\ManualDepositSubmissionService::class)->submit(
             $user,
             $wallet,
             $amountMinor,
@@ -73,7 +73,7 @@ try {
             $evidencePath,
             $evidenceHash,
         );
-        fwrite(STDOUT, $deposit->duplicate_evidence ? "duplicate\\n" : "first\\n");
+        fwrite(STDOUT, $deposit->duplicate_evidence ? "duplicate\n" : "first\n");
         exit(0);
     }
     if ($mode === 'review-deposit') {
