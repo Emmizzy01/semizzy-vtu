@@ -34,6 +34,7 @@ use App\Http\Controllers\Vtu\VtuOrderController;
 use App\Http\Controllers\Vtu\VtuBillerVerificationController;
 use App\Http\Controllers\Kyc\KycSubmissionController;
 use App\Http\Controllers\VtuWebsiteRequestController;
+use App\Http\Controllers\StreamingSubscriptionController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -217,3 +218,16 @@ Route::middleware(['auth', 'can:staff.permissions.manage'])->prefix('admin')->na
     Route::post('/vtu-products', [\App\Http\Controllers\Admin\VtuProductCatalogueController::class, 'store'])->middleware('throttle:20,1')->name('vtu-products.store');
     Route::put('/vtu-products/{product}', [\App\Http\Controllers\Admin\VtuProductCatalogueController::class, 'update'])->whereNumber('product')->middleware('throttle:20,1')->name('vtu-products.update');
 });
+
+
+Route::middleware(['auth', 'throttle:30,1'])->get('/services/streaming-subscriptions', [StreamingSubscriptionController::class, 'index'])
+    ->name('streaming-subscriptions.index');
+
+Route::middleware(['auth', 'can:staff.permissions.manage', 'throttle:30,1'])->get('/admin/streaming-subscriptions', [StreamingSubscriptionController::class, 'adminIndex'])
+    ->name('admin.streaming-subscriptions.index');
+
+Route::middleware(['auth', 'can:staff.permissions.manage', 'throttle:10,1'])->post('/admin/streaming-subscriptions', [StreamingSubscriptionController::class, 'store'])
+    ->name('admin.streaming-subscriptions.store');
+
+Route::middleware(['auth', 'can:staff.permissions.manage', 'throttle:10,1'])->put('/admin/streaming-subscriptions/{product}', [StreamingSubscriptionController::class, 'update'])
+    ->name('admin.streaming-subscriptions.update');
