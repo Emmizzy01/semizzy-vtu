@@ -123,4 +123,22 @@ class PaymentReconciliationTest extends TestCase
             'case_type' => 'provider_failed',
         ]);
     }
+
+    public function test_provider_verification_unavailable_never_changes_intent_or_wallet_balance(): void
+    {
+        [$wallet, $intent] = $this->pendingIntent();
+        Http::fake(['api.paystack.co/transaction/verify/*' => Http::response([
+            'status' => false,
+            'message' => 'Temporary provider outage',
+        ], 503)]);
+
+        $stats = app(PaymentReconciliationService::class)->reconcile();
+
+        $this->assertSame(1, $stats['checked']);
+        $this->assertSame(1, $stats['unavailable']);
+        $this->assertSame('pending', $intent->fresh()->status);
+        $this->assertSame(0, (int) $wallet->fresh()->balance_minor);
+        $this->assertDatabaseCount('wallet_ledger_entries', 0);
+        $this->assertDatabaseCount('wallet_transactions', 0);
+    }
 }
