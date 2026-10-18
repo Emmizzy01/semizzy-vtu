@@ -336,4 +336,95 @@ class EducationProviderAdaptersTest extends TestCase
             && isset($request['request_id']));
     }
 
+    public function test_gsubz_lookup_uses_verify_endpoint_and_returns_sanitized_pin_payload(): void
+    {
+        config([
+            'services.education.providers.gsubz.enabled' => true,
+            'services.education.providers.gsubz.base_url' => 'https://api.gsubz.com',
+            'services.education.providers.gsubz.api_key' => 'test-only-key',
+        ]);
+        Http::fake([
+            'https://api.gsubz.com/api/verify/' => Http::response([
+                'code' => 200,
+                'status' => 'successful',
+                'transactionID' => 'SANDBOX-GSUBZ-LOOKUP-001',
+                'api_response' => 'SANITIZED-LOOKUP-PIN',
+            ], 200),
+        ]);
+        $product = new EducationServiceProduct([
+            'exam_body' => 'WAEC',
+            'provider_product_code' => 'waec',
+            'metadata' => ['service_id' => 'waec', 'plan' => 'waecdirect'],
+            'requires_candidate_validation' => false,
+        ]);
+
+        $result = app('education.providers.gsubz')->lookup('education-order-lookup-001', $product);
+
+        $this->assertSame('success', $result['status']);
+        $this->assertSame('SANITIZED-LOOKUP-PIN', $result['delivery_payload']['api_response']);
+        Http::assertSent(fn ($request) => str_ends_with($request->url(), '/api/verify/')
+            && ($request['requestID'] ?? null) === 'education-order-lookup-001');
+    }
+
+    public function test_sogo_sandbox_lookup_404_remains_unknown_and_never_claims_safe_retry(): void
+    {
+        config([
+            'services.education.providers.sogo.enabled' => true,
+            'services.education.providers.sogo.base_url' => 'https://sandbox.sogo.africa/v1',
+            'services.education.providers.sogo.api_key' => 'sogo_sk_test_sanitized',
+        ]);
+        Http::fake([
+            'https://sandbox.sogo.africa/v1/transactions/education-order-sogo-lookup-001*' => Http::response(['message' => 'not found'], 404),
+        ]);
+        $product = new EducationServiceProduct([
+            'exam_body' => 'WAEC',
+            'provider_product_code' => 'waec-verified-variation',
+            'metadata' => ['service_type' => 'result_checker'],
+            'requires_candidate_validation' => false,
+        ]);
+
+        $result = app('education.providers.sogo')->lookup('education-order-sogo-lookup-001', $product);
+
+        $this->assertSame('unknown', $result['status']);
+        $this->assertSame('sandbox_lookup_not_persisted', $result['message_code']);
+        Http::assertSent(fn ($request) => $request->method() === 'GET'
+            && str_contains($request->url(), '/transactions/education-order-sogo-lookup-001'));
+    }
+
+    public function test_vtpass_lookup_uses_the_same_deterministic_request_id_and_normalizes_pin_delivery(): void
+    {
+        config([
+            'app.env' => 'testing',
+            'services.education.providers.vtpass.enabled' => true,
+            'services.education.providers.vtpass.base_url' => 'https://sandbox.vtpass.com/api',
+            'services.education.providers.vtpass.api_key' => 'SANITIZED-VTPASS-KEY',
+            'services.education.providers.vtpass.secret_key' => 'SANITIZED-VTPASS-SECRET',
+        ]);
+        Http::fake([
+            'https://sandbox.vtpass.com/api/requery' => Http::response([
+                'code' => '000',
+                'content' => ['transactions' => [
+                    'status' => 'delivered',
+                    'transactionId' => 'SANDBOX-VTPASS-LOOKUP-001',
+                ]],
+                'cards' => [['pin' => 'SANITIZED-VTPASS-LOOKUP-PIN', 'serial' => 'SANITIZED-VTPASS-LOOKUP-SERIAL']],
+                'purchased_code' => 'SANITIZED-VTPASS-LOOKUP-PIN',
+            ], 200),
+        ]);
+        $product = new EducationServiceProduct([
+            'exam_body' => 'WAEC',
+            'provider_product_code' => 'waec-verified-variation',
+            'metadata' => ['provider_service_id' => 'waec', 'provider_variation_code' => 'waec-checker'],
+            'requires_candidate_validation' => false,
+        ]);
+
+        $result = app('education.providers.vtpass')->lookup('education-order-vtpass-lookup-001', $product);
+
+        $this->assertSame('success', $result['status']);
+        $this->assertSame('SANITIZED-VTPASS-LOOKUP-PIN', $result['delivery_payload']['purchased_code']);
+        $expectedRequestId = 'EDU'.strtoupper(substr(hash('sha256', 'education-order-vtpass-lookup-001'), 0, 29));
+        Http::assertSent(fn ($request) => str_ends_with($request->url(), '/requery')
+            && ($request['request_id'] ?? null) === $expectedRequestId);
+    }
+
 }
