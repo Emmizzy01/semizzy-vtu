@@ -180,4 +180,65 @@ class PaymentRefundWorkflowTest extends TestCase
         Http::assertNothingSent();
     }
 
+
+    public function test_refund_webhook_with_unknown_explicit_refund_id_cannot_match_by_transaction_reference(): void
+    {
+        Http::fake(['api.paystack.co/refund' => Http::response([
+            'status' => true,
+            'data' => ['id' => 7654321, 'status' => 'pending'],
+        ], 200)]);
+
+        $customer = User::query()->create([
+            'name' => 'Refund Webhook Match Customer',
+            'email' => 'refund-webhook-match-customer@example.test',
+            'password' => 'test-password',
+        ]);
+        $approver = User::query()->create([
+            'name' => 'Refund Webhook Match Approver',
+            'email' => 'refund-webhook-match-approver@example.test',
+            'password' => 'test-password',
+        ]);
+        UserPermission::query()->create(['user_id' => $approver->id, 'permission' => 'refunds.approve']);
+        $intent = $this->paidIntent($customer, 10000);
+
+        $request = $this->actingAs($customer)->postJson('/wallet/refund-requests', [
+            'payment_intent_id' => $intent->public_id,
+            'amount_minor' => 2500,
+            'reason' => 'Unknown provider refund ID test',
+            'idempotency_key' => 'refund-unknown-provider-id',
+        ])->assertCreated();
+        $refundId = $request->json('data.id');
+
+        $this->actingAs($approver)->postJson('/admin/payment-refunds/'.$refundId.'/approve')
+            ->assertOk()
+            ->assertJsonPath('data.status', 'provider_pending');
+
+        $payload = [
+            'event' => 'refund.failed',
+            'data' => [
+                'status' => 'failed',
+                'transaction_reference' => $intent->reference,
+                'refund_reference' => '999999999',
+                'amount' => 2500,
+                'currency' => 'NGN',
+            ],
+        ];
+        $raw = json_encode($payload, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES);
+        $signature = hash_hmac('sha512', $raw, 'sk_test_refund_workflow_secret');
+        $this->call('POST', '/api/payments/webhooks/paystack', [], [], [], [
+            'CONTENT_TYPE' => 'application/json',
+            'HTTP_X_PAYSTACK_SIGNATURE' => $signature,
+        ], $raw)->assertOk();
+
+        $this->assertDatabaseHas('payment_refunds', [
+            'public_id' => $refundId,
+            'status' => 'provider_pending',
+            'provider_refund_reference' => '7654321',
+        ]);
+        $this->assertSame(7500, (int) $intent->wallet()->first()->fresh()->balance_minor);
+        $this->assertDatabaseCount('wallet_transactions', 2);
+        $this->assertDatabaseCount('wallet_ledger_entries', 2);
+        Http::assertSentCount(1);
+    }
+
 }
