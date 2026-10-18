@@ -97,7 +97,7 @@ class ProviderCatalogueImportService
         $key = (string) $settings->get('vtu.sogo.api_key', config('services.vtu.sogo.api_key', ''));
         $base = rtrim((string) $settings->get('vtu.sogo.base_url', config('services.vtu.sogo.base_url', '')), '/');
         $this->assertCredentials($base, $key, 'Sogo');
-        $http = Http::baseUrl($base)->withToken($key)->acceptJson()->connectTimeout(5)->timeout(30);
+        $http = Http::baseUrl($base.'/')->withToken($key)->acceptJson()->connectTimeout(5)->timeout(30);
         $response = $http->get('bills/catalog');
         if (! $response->successful()) throw new RuntimeException('Sogo catalogue request failed.');
         $body = $response->json();
