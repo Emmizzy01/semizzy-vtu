@@ -1,34 +1,43 @@
 import { Activity, CreditCard, PlugZap, ShieldCheck, Smartphone, Users, WalletCards } from 'lucide-react';
 import DashboardLayout from '../../Components/DashboardLayout';
 
-type Metrics = {
-  users: number | null;
-  wallets: number;
-  pendingFunding: number;
-  pendingManualDeposits: number | null;
-  refundsNeedingAction: number | null;
-  unresolvedVtuOrders: number;
+type PrototypeMetrics = {
+  totalRevenueMinor: number | null;
+  activeUsers: number | null;
+  newUsersToday: number;
+  highValueUsers: number | null;
+  apiSuccessRate: number | null;
+  pendingTransactions: number;
 };
+type RecentUser = { id: number; name: string; phone: string; createdAt: string | null };
 type Capabilities = { manageStaff: boolean; approveRefunds: boolean };
 
-export default function AdminDashboard({ metrics, capabilities }: { metrics: Metrics; capabilities: Capabilities }) {
+function nairaFromMinor(minor: number) {
+  return new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN', maximumFractionDigits: 0 }).format(minor / 100);
+}
+
+export default function AdminDashboard({ metrics, prototypeMetrics, newUsersLastSevenDays, recentUsers, capabilities }: {
+  metrics: { users: number | null; wallets: number; pendingFunding: number; pendingManualDeposits: number | null; refundsNeedingAction: number | null; unresolvedVtuOrders: number };
+  prototypeMetrics: PrototypeMetrics;
+  newUsersLastSevenDays: number;
+  recentUsers: RecentUser[];
+  capabilities: Capabilities;
+}) {
   const cards = [
-    ...(capabilities.manageStaff ? [{ label: 'Registered Users', value: metrics.users, detail: 'Customer and staff accounts', icon: <Users size={18} />, href: '/admin/users' }] : []),
-    ...(capabilities.manageStaff ? [{ label: 'Wallet Accounts', value: metrics.wallets, detail: 'Wallet records across currencies', icon: <WalletCards size={18} /> }] : []),
-    ...(capabilities.manageStaff ? [{ label: 'Pending Funding', value: metrics.pendingFunding, detail: 'Funding intents awaiting completion', icon: <CreditCard size={18} />, href: '/admin/payment-gateway' }] : []),
-    ...(capabilities.manageStaff ? [{ label: 'Manual Deposits', value: metrics.pendingManualDeposits, detail: 'Transfer evidence awaiting review', icon: <WalletCards size={18} />, href: '/admin/manual-deposits' }] : []),
-    ...(capabilities.approveRefunds ? [{ label: 'Refunds Needing Action', value: metrics.refundsNeedingAction, detail: 'Requests requiring review', icon: <ShieldCheck size={18} />, href: '/admin/refunds' }] : []),
-    ...(capabilities.manageStaff ? [{ label: 'Unresolved VTU Orders', value: metrics.unresolvedVtuOrders, detail: 'Processing or awaiting reconciliation', icon: <Smartphone size={18} />, href: '/admin/vtu-orders' }] : []),
+    { label: 'Total Revenue', value: prototypeMetrics.totalRevenueMinor === null ? '—' : nairaFromMinor(prototypeMetrics.totalRevenueMinor), detail: 'Verified revenue reporting pending', icon: <CreditCard size={18} />, href: '/admin/payment-gateway' },
+    { label: 'Active Users', value: prototypeMetrics.activeUsers === null ? '—' : prototypeMetrics.activeUsers.toLocaleString('en-NG'), detail: 'Activity reporting pending', icon: <Users size={18} />, href: '/admin/users' },
+    { label: 'New Users Today', value: prototypeMetrics.newUsersToday.toLocaleString('en-NG'), detail: 'Registered today', icon: <Users size={18} />, href: '/admin/users' },
+    { label: 'High-Value Users', value: prototypeMetrics.highValueUsers === null ? '—' : prototypeMetrics.highValueUsers.toLocaleString('en-NG'), detail: 'Verified spend ranking pending', icon: <WalletCards size={18} />, href: '/admin/users' },
+    { label: 'API Success Rate', value: prototypeMetrics.apiSuccessRate === null ? '—' : prototypeMetrics.apiSuccessRate.toFixed(1) + '%', detail: 'Provider telemetry pending', icon: <PlugZap size={18} />, href: '/admin/api-providers' },
+    { label: 'Pending Txns', value: prototypeMetrics.pendingTransactions.toLocaleString('en-NG'), detail: 'Wallet transactions awaiting resolution', icon: <Activity size={18} />, href: '/admin/vtu-orders' },
   ];
 
   return (
     <DashboardLayout title="Admin Dashboard" description="" admin canManageStaff={capabilities.manageStaff} canApproveRefunds={capabilities.approveRefunds}>
       <section aria-label="Platform overview" className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
         {cards.map(card => {
-          const body = <><div className="flex items-center justify-between gap-2"><p className="text-[11px] text-gray-500 dark:text-gray-400">{card.label}</p><span className="text-[#0f8a4f]">{card.icon}</span></div><p className="mt-1 break-words text-lg font-bold tabular-nums">{card.value === null ? '—' : card.value.toLocaleString('en-NG')}</p><p className="mt-1 text-[11px] text-gray-500 dark:text-gray-400">{card.detail}</p></>;
-          return card.href
-            ? <a key={card.label} href={card.href} className="min-w-0 rounded-xl border bg-white dark:bg-slate-900 p-4 shadow-sm transition hover:border-[#0f8a4f]">{body}</a>
-            : <article key={card.label} className="min-w-0 rounded-xl border bg-white dark:bg-slate-900 p-4 shadow-sm">{body}</article>;
+          const body = <><p className="text-[11px] text-gray-500 dark:text-gray-400">{card.label}</p><p className="mt-1 break-words text-lg font-bold tabular-nums">{card.value}</p><p className="mt-1 text-[11px] text-gray-500 dark:text-gray-400">{card.detail}</p></>;
+          return <a key={card.label} href={card.href} className="min-w-0 rounded-xl border bg-white p-4 shadow-sm transition hover:border-[#0f8a4f] dark:border-white/10 dark:bg-slate-900">{body}</a>;
         })}
       </section>
 
@@ -61,15 +70,20 @@ export default function AdminDashboard({ metrics, capabilities }: { metrics: Met
       </div>
 
       <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <section className="rounded-xl border bg-white dark:bg-slate-900 p-5 shadow-sm">
-          <h2 className="mb-4 font-bold">New Users (Last 7 days)</h2>
-          <div className="flex min-h-28 flex-col items-center justify-center rounded-lg border border-dashed dark:border-slate-700 p-5 text-center"><Users size={22} className="text-gray-400"/><p className="mt-2 text-sm font-semibold text-gray-600 dark:text-gray-300">Recent-user list unavailable</p><p className="mt-1 text-xs leading-5 text-gray-500 dark:text-gray-400">The current dashboard data does not include verified recent-user records.</p></div>
-          {capabilities.manageStaff && <a href="/admin/users" className="mt-3 inline-flex min-h-9 items-center rounded-lg border px-3 text-xs font-bold text-[#0f8a4f]">Open user management</a>}
+        <section className="rounded-xl border bg-white p-5 shadow-sm dark:border-white/10 dark:bg-slate-900" aria-labelledby="new-users-heading">
+          <h2 id="new-users-heading" className="mb-4 font-bold">New Users (Last 7 days) - {newUsersLastSevenDays.toLocaleString('en-NG')}</h2>
+          {recentUsers.length > 0 ? <div className="space-y-3 text-sm">
+            {recentUsers.map(user => <div key={user.id} className="flex items-center justify-between gap-3">
+              <div className="flex min-w-0 items-center gap-2"><div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-gray-200 text-xs dark:bg-slate-700">{user.name.split(/\\s+/).slice(0, 2).map(part => part[0]).join('').toUpperCase()}</div><div className="min-w-0"><p className="truncate text-xs font-medium">{user.name}</p><p className="text-[11px] text-gray-500 dark:text-gray-400">{user.phone}{user.createdAt ? ' • ' + new Date(user.createdAt).toLocaleString('en-NG', { dateStyle: 'short', timeStyle: 'short' }) : ''}</p></div></div>
+              <a href={'/admin/kyc-reviews?user_id=' + user.id} className="shrink-0 rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-800 dark:bg-green-950 dark:text-green-200">Verify</a>
+            </div>)}
+          </div> : <div className="flex min-h-28 flex-col items-center justify-center rounded-lg border border-dashed p-5 text-center dark:border-slate-700"><Users size={22} className="text-gray-400"/><p className="mt-2 text-sm font-semibold text-gray-600 dark:text-gray-300">No recent users to display</p><p className="mt-1 text-xs leading-5 text-gray-500 dark:text-gray-400">New registrations from the last seven days will appear here.</p></div>}
+          {capabilities.manageStaff && <a href="/admin/users" className="mt-3 inline-flex min-h-9 items-center rounded-lg border px-3 text-xs font-bold text-[#0f8a4f]">View all users</a>}
         </section>
-        <section className="rounded-xl border bg-white dark:bg-slate-900 p-5 shadow-sm">
-          <h2 className="mb-4 font-bold">High-Value Users (Top Spenders)</h2>
-          <div className="flex min-h-28 flex-col items-center justify-center rounded-lg border border-dashed dark:border-slate-700 p-5 text-center"><Activity size={22} className="text-gray-400"/><p className="mt-2 text-sm font-semibold text-gray-600 dark:text-gray-300">Spending ranking unavailable</p><p className="mt-1 text-xs leading-5 text-gray-500 dark:text-gray-400">Verified lifetime-spend ranking is not available in the current dashboard data.</p></div>
-          {capabilities.manageStaff && <a href="/admin/users" className="mt-3 inline-flex min-h-9 items-center rounded-lg border px-3 text-xs font-bold text-[#0f8a4f]">Open user management</a>}
+        <section className="rounded-xl border bg-white p-5 shadow-sm dark:border-white/10 dark:bg-slate-900" aria-labelledby="high-value-users-heading">
+          <h2 id="high-value-users-heading" className="mb-4 font-bold">High-Value Users (Top Spenders)</h2>
+          <div className="flex min-h-28 flex-col items-center justify-center rounded-lg border border-dashed p-5 text-center dark:border-slate-700"><Activity size={22} className="text-gray-400"/><p className="mt-2 text-sm font-semibold text-gray-600 dark:text-gray-300">Verified spend ranking unavailable</p><p className="mt-1 text-xs leading-5 text-gray-500 dark:text-gray-400">This panel is ready for the verified cross-service spend report. No sample users or spending totals are shown.</p></div>
+          {capabilities.manageStaff && <a href="/admin/users" className="mt-3 inline-flex min-h-9 items-center rounded-lg border px-3 text-xs font-bold text-[#0f8a4f]">View users</a>}
         </section>
       </div>
     </DashboardLayout>
