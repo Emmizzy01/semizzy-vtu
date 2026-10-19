@@ -113,6 +113,24 @@ class VtuBulkPurchaseBatchTest extends TestCase
     }
 
 
+    public function test_bulk_rejects_bill_services_until_batch_verification_is_enabled(): void
+    {
+        Queue::fake();
+        [$user, $product, $payload] = $this->preparedRequest();
+        $product->forceFill([
+            'service_type' => 'tv-subscription',
+            'metadata' => ['purchase_supported' => true],
+        ])->save();
+
+        $response = $this->actingAs($user)->postJson(route('wallet.vtu.orders.bulk'), $payload);
+
+        $response->assertUnprocessable()
+            ->assertJsonPath('message', 'Item 1 is not an active airtime/data bulk selection. Other services remain unavailable for bulk purchase until their batch verification and recovery paths are enabled. No batch was accepted.');
+        $this->assertDatabaseCount('vtu_bulk_purchase_batches', 0);
+        $this->assertDatabaseCount('vtu_bulk_purchase_items', 0);
+        Queue::assertNothingPushed();
+    }
+
     public function test_uncertain_provider_outcome_is_recorded_as_unknown_and_not_retried_in_the_same_batch(): void
     {
         $user = User::factory()->create();
