@@ -175,6 +175,72 @@ class VtuOrderWorkflowTest extends TestCase
         }
     }
 
+    public function test_purchase_rechecks_provider_approval_under_lock_before_debiting(): void
+    {
+        [$user, $wallet, $product] = $this->preparedCustomer(1000, 1500);
+        $product->forceFill([
+            'service_type' => 'data',
+            'provider_key' => 'sogo',
+            'metadata' => [
+                'catalog_source' => 'sogo',
+                'provider_mappings' => ['sogo' => ['network' => 'mtn', 'variation_code' => 'sogo-1gb-7d']],
+                'purchase_approved' => true,
+            ],
+        ])->save();
+
+        $provider = new class((int) $product->getKey()) implements VtuProvider {
+            public int $submissions = 0;
+
+            public function __construct(private readonly int $productId)
+            {
+            }
+
+            public function assertConfigured(): void
+            {
+                // Simulate approval being revoked after preflight but before
+                // the purchase transaction locks and re-reads the catalogue row.
+                $current = VtuProduct::query()->whereKey($this->productId)->firstOrFail();
+                $metadata = $current->metadata ?? [];
+                $metadata['purchase_approved'] = false;
+                $current->forceFill(['metadata' => $metadata])->save();
+            }
+
+            public function assertProductConfigured(VtuProduct $product): void
+            {
+            }
+
+            public function submit(VtuOrder $order): array
+            {
+                $this->submissions++;
+
+                return ['status' => 'pending'];
+            }
+
+            public function lookup(VtuOrder $order): array
+            {
+                return ['status' => 'pending'];
+            }
+        };
+        $this->app->instance(VtuProvider::class, $provider);
+
+        try {
+            app(VtuOrderService::class)->purchase(
+                $user,
+                $product->code,
+                '08012345678',
+                'provider-approval-race-1',
+            );
+            $this->fail('Purchase must reject provider approval revoked after preflight.');
+        } catch (\\InvalidArgumentException $exception) {
+            $this->assertStringContainsString('not approved for customer purchases', $exception->getMessage());
+            $this->assertFalse((bool) $product->fresh()->metadata['purchase_approved']);
+            $this->assertSame(1500, (int) $wallet->fresh()->available_balance_minor);
+            $this->assertDatabaseCount('vtu_orders', 0);
+            $this->assertDatabaseCount('wallet_transactions', 1);
+            $this->assertSame(0, $provider->submissions);
+        }
+    }
+
     public function test_active_sogo_catalogue_product_without_purchase_approval_is_blocked_before_debit(): void
     {
         Http::fake();
