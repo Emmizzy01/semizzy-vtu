@@ -452,6 +452,57 @@ class VtuOrderWorkflowTest extends TestCase
         $this->assertSame(1, $attempts, 'A duplicate successful purchase must not be resubmitted.');
     }
 
+    public function test_concurrent_duplicate_request_during_provider_submission_does_not_repeat_financial_or_provider_effects(): void
+    {
+        [$user, $wallet, $product] = $this->preparedCustomer(1000, 1500);
+        $service = app(VtuOrderService::class);
+        $nestedDuplicate = null;
+        $submissionCount = 0;
+
+        Http::fake(function () use (&$nestedDuplicate, &$submissionCount, $service, $user, $product) {
+            $submissionCount++;
+            // Simulate a duplicate request arriving while the first provider call is in flight.
+            $nestedDuplicate = $service->purchase(
+                $user,
+                $product->code,
+                '08012345678',
+                'concurrent-duplicate-in-flight',
+            );
+
+            return Http::response([
+                'status' => 'success',
+                'provider_reference' => 'provider-order-concurrent-duplicate',
+            ], 200);
+        });
+
+        $first = $service->purchase(
+            $user,
+            $product->code,
+            '08012345678',
+            'concurrent-duplicate-in-flight',
+        );
+
+        $this->assertNotNull($nestedDuplicate);
+        $this->assertSame($first->id, $nestedDuplicate->id);
+        $this->assertSame('successful', $first->status);
+        $this->assertSame(500, (int) $wallet->fresh()->available_balance_minor);
+        $this->assertDatabaseCount('vtu_orders', 1);
+        $this->assertDatabaseCount('wallet_transactions', 2);
+        $order = VtuOrder::query()->sole();
+        $debit = \\App\\Models\\WalletTransaction::query()
+            ->where('reference', $order->public_id)
+            ->where('type', 'debit')
+            ->sole();
+        $this->assertSame(1, \\Illuminate\\Support\\Facades\\DB::table('wallet_ledger_entries')
+            ->where('wallet_transaction_id', $debit->getKey())
+            ->count(), 'The in-flight duplicate must not create another ledger entry.');
+        $this->assertSame(1, \\App\\Models\\VtuProviderAttempt::query()
+            ->where('vtu_order_id', $order->getKey())
+            ->count(), 'The in-flight duplicate must not create another provider attempt.');
+        $this->assertSame(1, $submissionCount, 'The in-flight duplicate must not submit to the provider twice.');
+        Http::assertSentCount(1);
+    }
+
     public function test_definitive_provider_failure_refunds_through_the_ledger(): void
     {
         Http::fake(fn () => Http::response([
