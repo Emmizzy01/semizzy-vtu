@@ -80,7 +80,7 @@ export default function VtuBulkPurchasePanel({
       else if (response.status !== 404 && !cancelled) setError(typeof body.message === 'string' ? body.message : 'Saved batch recovery is temporarily unavailable.');
     }).catch(() => { if (!cancelled) setError('Could not recover the previous batch yet. Keep the same batch key and original items.'); });
     return () => { cancelled = true; };
-  }, [restoredRequest, serviceType, onProductCodeChange]);
+  }, [restoredRequest, serviceType]);
 
   const csrf = () => document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ?? '';
 
