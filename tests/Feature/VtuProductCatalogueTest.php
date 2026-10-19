@@ -430,17 +430,46 @@ class VtuProductCatalogueTest extends TestCase
             ],
         ]);
 
-        $response = $this->actingAs($customer)->getJson('/wallet/vtu/products?service_type=data')->assertOk();
-        $item = collect($response->json('data'))->sole();
+        VtuProduct::query()->create([
+            'service_type' => 'data',
+            'provider_key' => 'gsubz',
+            'provider_product_code' => 'gsubz-internal-product-1gb',
+            'provider_cost_minor' => 28000,
+            'network' => 'mtn',
+            'code' => 'gsubz-data-mtn-1gb-7d',
+            'name' => 'MTN 1GB 7 Days',
+            'price_minor' => 36000,
+            'currency' => 'NGN',
+            'is_active' => true,
+            'metadata' => [
+                'catalog_source' => 'gsubz',
+                'provider_mappings' => ['gsubz' => ['plan_code' => 'internal-gsubz-plan']],
+                'provider_variation_code' => 'internal-gsubz-variation',
+                'provider_service_id' => 'gsubz-mtn-data',
+                'validity' => '7 days',
+                'data_type' => 'SME',
+                'purchase_supported' => true,
+                'purchase_approved' => true,
+                'provider_cost_minor' => 28000,
+                'internal_margin_minor' => 8000,
+            ],
+        ]);
 
-        $this->assertMatchesRegularExpression('/^p[0-9a-z]+\.[a-f0-9]{32}$/', $item['code']);
-        $this->assertStringNotContainsString('sogo', strtolower($item['code']));
-        $this->assertSame('MTN 1GB 7 Days', $item['name']);
-        $this->assertSame(35000, $item['price_minor']);
-        $this->assertSame(['validity' => '7 days', 'data_type' => 'SME'], $item['metadata']);
-        $encoded = json_encode($item, JSON_THROW_ON_ERROR);
-        foreach (['provider_key', 'provider_product_code', 'provider_mappings', 'provider_variation_code', 'provider_service_id', 'provider_cost_minor', 'internal_margin_minor', 'catalog_source', 'sogo'] as $secret) {
-            $this->assertStringNotContainsString($secret, $encoded);
+        $response = $this->actingAs($customer)->getJson('/wallet/vtu/products?service_type=data')->assertOk();
+        $items = collect($response->json('data'));
+        $this->assertCount(2, $items, 'Equivalent plans from both providers should remain visible as separate customer options.');
+        $this->assertSame([35000, 36000], $items->pluck('price_minor')->sort()->values()->all());
+
+        foreach ($items as $item) {
+            $this->assertMatchesRegularExpression('/^p[0-9a-z]+\\.[a-f0-9]{32}$/', $item['code']);
+            $this->assertStringNotContainsString('sogo', strtolower($item['code']));
+            $this->assertStringNotContainsString('gsubz', strtolower($item['code']));
+            $this->assertSame('MTN 1GB 7 Days', $item['name']);
+            $this->assertSame(['validity' => '7 days', 'data_type' => 'SME'], $item['metadata']);
+            $encoded = json_encode($item, JSON_THROW_ON_ERROR);
+            foreach (['provider_key', 'provider_product_code', 'provider_mappings', 'provider_variation_code', 'provider_service_id', 'provider_cost_minor', 'internal_margin_minor', 'catalog_source', 'sogo', 'gsubz'] as $secret) {
+                $this->assertStringNotContainsString($secret, $encoded);
+            }
         }
 
         VtuProduct::query()->create([
