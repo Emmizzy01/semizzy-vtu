@@ -224,7 +224,7 @@ Artisan::command('vtu:run-scheduled-purchases {--limit=100}', function (VtuOrder
             ]);
             $processed++;
             if (!$confirmedFinal) $paused++;
-        } catch (\\Throwable $exception) {
+        } catch (\Throwable $exception) {
             report($exception);
             // Fail closed. Do not auto-retry a run whose provider outcome could be
             // uncertain; operations/user must inspect the stable order reference.
