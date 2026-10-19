@@ -264,6 +264,7 @@ Route::middleware(['auth', 'throttle:60,1'])->prefix('wallet/vtu')->name('wallet
     Route::get('/products', [VtuOrderController::class, 'products'])->name('products');
     Route::post('/orders', [VtuOrderController::class, 'purchase'])->middleware('throttle:10,1')->name('orders.create');
     Route::post('/orders/bulk', [VtuOrderController::class, 'bulkPurchase'])->middleware('throttle:5,1')->name('orders.bulk');
+    Route::get('/orders/bulk/{publicId}', [VtuOrderController::class, 'bulkBatchStatus'])->middleware('throttle:30,1')->name('orders.bulk.status');
     Route::get('/orders/recover', [VtuOrderController::class, 'recover'])->middleware('throttle:30,1')->name('orders.recover');
     Route::get('/orders/{publicId}', [VtuOrderController::class, 'show'])->name('orders.show');
 });
