@@ -273,7 +273,7 @@ class WalletLedgerServiceTest extends TestCase
         try {
             app(WalletLedgerService::class)->post($wallet->id, 'credit', 101, 'disabled-cap-overflow');
             $this->fail('Disabling a tier must not disable its wallet balance cap.');
-        } catch (\\DomainException $exception) {
+        } catch (\DomainException $exception) {
             $this->assertStringContainsString('account level would be exceeded', $exception->getMessage());
         }
 
