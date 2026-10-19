@@ -203,6 +203,15 @@ Artisan::command('vtu:run-scheduled-purchases {--limit=100}', function (VtuOrder
                 'monthly' => $dueAt->copy()->addMonthNoOverflow(),
                 default => null,
             };
+            // Do not replay missed periods in a burst after downtime.
+            while ($next && $next->lessThanOrEqualTo(now())) {
+                $next = match ($schedule->frequency) {
+                    'daily' => $next->addDay(),
+                    'weekly' => $next->addWeek(),
+                    'monthly' => $next->addMonthNoOverflow(),
+                    default => null,
+                };
+            }
             $schedule->update([
                 'status' => $next ? 'active' : 'paused',
                 'last_run_at' => now(),
