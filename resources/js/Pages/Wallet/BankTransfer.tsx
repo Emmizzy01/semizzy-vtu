@@ -58,6 +58,19 @@ export default function BankTransfer() {
     finally { setBusy(false); }
   }
 
+  async function removeBeneficiary(item: Beneficiary) {
+    if (!window.confirm('Remove the saved account ending ' + item.account_number_masked.slice(-4) + '? Accounts with transfer history must remain for records.')) return;
+    setBusy(true); setError(''); setMessage('');
+    try {
+      await jsonRequest('/wallet/bank-transfer/beneficiaries/' + item.id, { method: 'DELETE' });
+      if (beneficiaryId === String(item.id)) setBeneficiaryId('');
+      setMessage('Saved bank account removed.');
+      await refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'The saved account could not be removed.');
+    } finally { setBusy(false); }
+  }
+
   async function requestPayout(event: FormEvent) {
     event.preventDefault(); setBusy(true); setError(''); setMessage('');
     try {
@@ -92,9 +105,12 @@ export default function BankTransfer() {
         </form>
         <h2 className="mt-7 text-lg font-extrabold">Saved bank accounts</h2>
         <div className="mt-3 space-y-2">
-          {beneficiaries.length === 0 ? <p className="rounded-xl bg-slate-50 p-4 text-sm text-slate-500 dark:bg-slate-800">No verified bank accounts saved yet.</p> : beneficiaries.map(item => <button type="button" key={item.id} onClick={() => setBeneficiaryId(String(item.id))} className={`w-full rounded-xl border p-3 text-left ${beneficiaryId === String(item.id) ? 'border-emerald-600 bg-emerald-50 dark:bg-emerald-950/40' : 'border-slate-200 dark:border-slate-700'}`}>
-            <span className="block font-bold">{item.account_name}</span><span className="mt-1 block text-sm text-slate-500">{item.bank_name} · {item.account_number_masked}</span>
-          </button>)}
+          {beneficiaries.length === 0 ? <p className="rounded-xl bg-slate-50 p-4 text-sm text-slate-500 dark:bg-slate-800">No verified bank accounts saved yet.</p> : beneficiaries.map(item => <div key={item.id} className={`flex items-center gap-2 rounded-xl border p-3 ${beneficiaryId === String(item.id) ? 'border-emerald-600 bg-emerald-50 dark:bg-emerald-950/40' : 'border-slate-200 dark:border-slate-700'}`}>
+            <button type="button" onClick={() => setBeneficiaryId(String(item.id))} className="min-w-0 flex-1 text-left">
+              <span className="block font-bold">{item.account_name}</span><span className="mt-1 block text-sm text-slate-500">{item.bank_name} · {item.account_number_masked}</span>
+            </button>
+            <button type="button" disabled={busy} onClick={() => void removeBeneficiary(item)} className="rounded-lg border border-rose-300 px-3 py-2 text-xs font-bold text-rose-700 disabled:opacity-50 dark:text-rose-300">Remove</button>
+          </div>)}
         </div>
       </section>
       <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900 sm:p-7">
