@@ -52,6 +52,8 @@ class PeerWalletTransferController extends Controller
                 (int) $data['amount_minor'],
                 $data['idempotency_key'],
             );
+        } catch (IdempotencyConflict $exception) {
+            return response()->json(['message' => $exception->getMessage()], 409);
         } catch (InvalidArgumentException $exception) {
             return response()->json(['message' => $exception->getMessage()], 422);
         }
