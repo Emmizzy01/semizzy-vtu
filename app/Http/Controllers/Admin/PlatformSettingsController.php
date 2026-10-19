@@ -33,6 +33,12 @@ class PlatformSettingsController extends Controller
             'homepage_gadget_sale_subtitle' => (string) $settings->get('homepage.gadget_sale_subtitle', 'iPhones, Samsung, Laptops'),
             'homepage_referral_title' => (string) $settings->get('homepage.referral_title', '💰 Refer & Earn ₦500 per friend!'),
             'homepage_referral_subtitle' => (string) $settings->get('homepage.referral_subtitle', 'Invite friends to Semizzy'),
+            'branding' => [
+                'logo' => (string) $settings->get('branding.logo', ''),
+                'favicon' => (string) $settings->get('branding.favicon', ''),
+                'social_image' => (string) $settings->get('branding.social_image', ''),
+                'banner' => (string) $settings->get('branding.banner', ''),
+            ],
         ]]);
     }
 
