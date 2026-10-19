@@ -69,6 +69,7 @@ export default function WalletTransfer() {
     <div className="mx-auto grid max-w-5xl gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
       <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900 sm:p-7">
         <h1 className="text-xl font-extrabold">Send to a Semizzy user</h1>
+        <a href="/wallet/bank-transfer" className="mt-3 inline-flex rounded-xl border border-emerald-700 px-4 py-2 text-sm font-bold text-emerald-800 dark:text-emerald-300">Transfer to bank account</a>
         <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">Use the recipient's username or registered email. Check the details before confirming.</p>
         <form className="mt-6 space-y-4" onSubmit={submit}>
           <label className="block text-sm font-semibold">Recipient username or email
