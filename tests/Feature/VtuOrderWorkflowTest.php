@@ -231,7 +231,7 @@ class VtuOrderWorkflowTest extends TestCase
                 'provider-approval-race-1',
             );
             $this->fail('Purchase must reject provider approval revoked after preflight.');
-        } catch (\\InvalidArgumentException $exception) {
+        } catch (\InvalidArgumentException $exception) {
             $this->assertStringContainsString('not approved for customer purchases', $exception->getMessage());
             $this->assertFalse((bool) $product->fresh()->metadata['purchase_approved']);
             $this->assertSame(1500, (int) $wallet->fresh()->available_balance_minor);
