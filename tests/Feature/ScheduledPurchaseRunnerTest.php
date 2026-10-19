@@ -1,0 +1,94 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Models\ScheduledServicePurchase;
+use App\Models\User;
+use App\Models\VtuOrder;
+use App\Services\Vtu\VtuOrderService;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Artisan;
+use Tests\TestCase;
+
+class ScheduledPurchaseRunnerTest extends TestCase
+{
+    use RefreshDatabase;
+
+    public function test_due_schedule_uses_stable_idempotency_key_and_advances_after_confirmed_result(): void
+    {
+        $user = User::query()->create([
+            'name' => 'Scheduled Runner',
+            'email' => 'scheduled-runner@example.test',
+            'password' => 'not-a-real-password',
+        ]);
+        $dueAt = now()->subMinutes(2)->startOfMinute();
+        $schedule = ScheduledServicePurchase::query()->create([
+            'user_id' => $user->id,
+            'service_type' => 'data',
+            'product_code' => 'runner-plan',
+            'recipient' => '08012345678',
+            'frequency' => 'weekly',
+            'next_run_at' => $dueAt,
+            'status' => 'active',
+        ]);
+
+        $order = new VtuOrder();
+        $order->forceFill(['public_id' => 'order-runner-success', 'status' => 'successful']);
+
+        $this->mock(VtuOrderService::class)
+            ->shouldReceive('purchase')
+            ->once()
+            ->withArgs(function ($actualUser, $productCode, $recipient, $key, $details, $amount) use ($user, $schedule, $dueAt): bool {
+                return $actualUser->is($user)
+                    && $productCode === 'runner-plan'
+                    && $recipient === '08012345678'
+                    && $key === 'scheduled:'.$schedule->id.':'.$dueAt->timestamp
+                    && $details === []
+                    && $amount === null;
+            })
+            ->andReturn($order);
+
+        $this->artisan('vtu:run-scheduled-purchases --limit=100')->assertExitCode(0);
+
+        $schedule->refresh();
+        $this->assertSame('active', $schedule->status);
+        $this->assertSame('order-runner-success', $schedule->last_order_public_id);
+        $this->assertSame('successful', $schedule->last_result);
+        $this->assertTrue($schedule->next_run_at->greaterThan(now()));
+        $this->assertNull($schedule->last_error);
+    }
+
+    public function test_due_schedule_pauses_when_provider_outcome_is_not_final(): void
+    {
+        $user = User::query()->create([
+            'name' => 'Scheduled Unknown',
+            'email' => 'scheduled-unknown@example.test',
+            'password' => 'not-a-real-password',
+        ]);
+        $schedule = ScheduledServicePurchase::query()->create([
+            'user_id' => $user->id,
+            'service_type' => 'data',
+            'product_code' => 'runner-unknown-plan',
+            'recipient' => '08012345678',
+            'frequency' => 'daily',
+            'next_run_at' => now()->subMinutes(2),
+            'status' => 'active',
+        ]);
+
+        $order = new VtuOrder();
+        $order->forceFill(['public_id' => 'order-runner-unknown', 'status' => 'processing']);
+
+        $this->mock(VtuOrderService::class)
+            ->shouldReceive('purchase')
+            ->once()
+            ->andReturn($order);
+
+        $this->artisan('vtu:run-scheduled-purchases --limit=100')->assertExitCode(0);
+
+        $schedule->refresh();
+        $this->assertSame('paused', $schedule->status);
+        $this->assertSame('order-runner-unknown', $schedule->last_order_public_id);
+        $this->assertSame('processing', $schedule->last_result);
+        $this->assertStringContainsString('paused until the existing order is reconciled', (string) $schedule->last_error);
+    }
+}
