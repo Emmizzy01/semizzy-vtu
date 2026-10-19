@@ -692,9 +692,9 @@ class VtuOrderWorkflowTest extends TestCase
         // must not create attempt #3, submit another purchase, or refund.
         $reconciled = app(VtuOrderService::class)->reconcile($order->fresh());
         $this->assertSame('awaiting_reconciliation', $reconciled->status);
-        $this->assertSame(2, \\App\\Models\\VtuProviderAttempt::query()
+        $this->assertSame(2, \App\Models\VtuProviderAttempt::query()
             ->where('vtu_order_id', $order->getKey())->count());
-        $this->assertSame(2, \\App\\Models\\WalletTransaction::query()->count());
+        $this->assertSame(2, \App\Models\WalletTransaction::query()->count());
         $this->assertSame(500, (int) $wallet->fresh()->available_balance_minor);
         $postRequests = Http::recorded(fn ($request) => $request->method() === 'POST');
         $this->assertCount(2, $postRequests, 'Recovery must not submit a third purchase.');
