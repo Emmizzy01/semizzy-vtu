@@ -1,13 +1,19 @@
-import { useState, type FormEvent } from 'react';
+import { useState, type FormEvent, type ChangeEvent } from 'react';
 import { Head, router } from '@inertiajs/react';
 import DashboardLayout from '../../Components/DashboardLayout';
 import { AlertTriangle, Globe, Mail, Phone, Save, ShieldCheck, Smartphone, WalletCards } from 'lucide-react';
 
-type Settings = { theme_mode: 'light' | 'dark'; site_name: string; support_email: string; support_phone: string; theme_skin: string; maintenance_mode: boolean; airtime_data_enabled: boolean; manual_deposit_enabled: boolean; homepage_browser_title: string; homepage_cashback_line_one: string; homepage_cashback_line_two: string; homepage_cashback_subtitle: string; homepage_gadget_sale_title: string; homepage_gadget_sale_subtitle: string; homepage_referral_title: string; homepage_referral_subtitle: string };
+type Branding = { logo: string; favicon: string; social_image: string; banner: string };
+type Settings = { branding: Branding; theme_mode: 'light' | 'dark'; site_name: string; support_email: string; support_phone: string; theme_skin: string; maintenance_mode: boolean; airtime_data_enabled: boolean; manual_deposit_enabled: boolean; homepage_browser_title: string; homepage_cashback_line_one: string; homepage_cashback_line_two: string; homepage_cashback_subtitle: string; homepage_gadget_sale_title: string; homepage_gadget_sale_subtitle: string; homepage_referral_title: string; homepage_referral_subtitle: string };
 export default function PlatformSettings({ settings }: { settings: Settings }) {
   const [form, setForm] = useState(settings);
   const [reason, setReason] = useState('');
   const [busy, setBusy] = useState(false);
+  const [assets, setAssets] = useState<{ logo: File | null; favicon: File | null; social_image: File | null; banner: File | null }>({ logo: null, favicon: null, social_image: null, banner: null });
+  const [assetReason, setAssetReason] = useState('Update Semizzy brand assets');
+  const [assetsBusy, setAssetsBusy] = useState(false);
+  const chooseAsset = (key: keyof typeof assets, event: ChangeEvent<HTMLInputElement>) => setAssets(current => ({ ...current, [key]: event.target.files?.[0] ?? null }));
+  const uploadAssets = (event: FormEvent) => { event.preventDefault(); setAssetsBusy(true); router.post('/admin/branding-assets', { ...assets, reason: assetReason }, { forceFormData: true, preserveScroll: true, onSuccess: () => setAssets({ logo: null, favicon: null, social_image: null, banner: null }), onFinish: () => setAssetsBusy(false) }); };
   const update = (key: keyof Settings, value: string | boolean) => setForm(current => ({ ...current, [key]: value }));
   const submit = (e: FormEvent) => { e.preventDefault(); setBusy(true); router.put('/admin/platform-settings', { ...form, reason }, { preserveScroll: true, onFinish: () => setBusy(false) }); };
   return <DashboardLayout title="Site control" description="Manage platform availability, support identity and implemented service switches." admin>
@@ -25,6 +31,30 @@ export default function PlatformSettings({ settings }: { settings: Settings }) {
         </div>
       </section>
       <section className="space-y-3 rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-950">
+      <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-950">
+        <h2 className="flex items-center gap-2 font-semibold"><Globe size={18} />Brand assets</h2>
+        <p className="text-sm text-slate-500 dark:text-slate-400">Change the SEMIZZY ONE logo, browser favicon, social preview image used by WhatsApp and other platforms, and website banner. Uploading assets does not redesign or replace the homepage prototype.</p>
+        <form onSubmit={uploadAssets} className="space-y-4">
+          <div className="grid gap-4 sm:grid-cols-2">
+            {([
+              { key: 'logo', label: 'Website logo', hint: 'PNG, JPG or WebP · max 2 MB', accept: 'image/png,image/jpeg,image/webp' },
+              { key: 'favicon', label: 'Browser favicon', hint: 'PNG or WebP · max 512 KB', accept: 'image/png,image/webp' },
+              { key: 'social_image', label: 'Social sharing / WhatsApp preview', hint: 'Recommended 1200 × 630 · max 5 MB', accept: 'image/png,image/jpeg,image/webp' },
+              { key: 'banner', label: 'Website banner', hint: 'Wide banner image · max 5 MB', accept: 'image/png,image/jpeg,image/webp' },
+            ] as const).map(asset => (
+              <label key={asset.key} className="block rounded-xl border border-slate-200 p-4 dark:border-slate-700">
+                <span className="block font-semibold">{asset.label}</span>
+                <span className="mt-1 block text-xs text-slate-500">{asset.hint}</span>
+                {settings.branding[asset.key] && <img src={settings.branding[asset.key]} alt={asset.label + ' preview'} className="mt-3 max-h-28 max-w-full rounded-lg object-contain" />}
+                <input className="mt-3 block w-full text-sm" type="file" accept={asset.accept} onChange={e => chooseAsset(asset.key, e)} />
+                {assets[asset.key] && <span className="mt-2 block break-all text-xs text-emerald-700">{assets[asset.key]?.name}</span>}
+              </label>
+            ))}
+          </div>
+          <label className="block text-sm font-medium">Reason for brand asset change (audit note)<textarea className="mt-1 w-full rounded-xl border bg-transparent p-3 dark:border-slate-700" rows={2} value={assetReason} onChange={e => setAssetReason(e.target.value)} minLength={8} maxLength={500} required /></label>
+          <button disabled={assetsBusy || !Object.values(assets).some(Boolean)} className="inline-flex items-center gap-2 rounded-xl bg-emerald-700 px-4 py-3 font-semibold text-white disabled:opacity-50"><Save size={17} />{assetsBusy ? 'Uploading…' : 'Save brand assets'}</button>
+        </form>
+      </section>
       <section id="homepage" className="scroll-mt-24 space-y-4 rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-950">
         <h2 className="flex items-center gap-2 font-semibold"><Globe size={18} />Homepage editor</h2>
         <p className="text-sm text-slate-500 dark:text-slate-400">Edit the text shown on the original semizzy-single homepage prototype. The original layout, styling, sections and interactions remain unchanged.</p>
