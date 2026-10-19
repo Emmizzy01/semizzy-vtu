@@ -82,9 +82,9 @@ function naira(amountMinor: number) {
   }).format(amountMinor / 100);
 }
 
-function productLabel(product: Product) {
-  // Airtime is a network selection plus a customer-entered amount, never a fixed denomination.
-  if (product.service_type === 'airtime') return `${product.name} · Enter amount`;
+function productLabel(product: Product, optionLabel = '') {
+  // Airtime is amount-based; duplicate provider routes remain separate neutral options.
+  if (product.service_type === 'airtime') return `${product.name} · Enter amount${optionLabel ? ` · ${optionLabel}` : ''}`;
   const details: string[] = [];
   const validity = product.metadata?.validity;
   const dataType = product.metadata?.data_type;
@@ -94,7 +94,16 @@ function productLabel(product: Product) {
   if (typeof dataType === 'string' && dataType.trim() && !product.name.toLowerCase().includes(dataType.toLowerCase())) {
     details.push(dataType.trim());
   }
-  return `${product.name}${details.length ? ` (${details.join(' · ')})` : ''} · ${naira(product.price_minor)}`;
+  return `${product.name}${details.length ? ` (${details.join(' · ')})` : ''} · ${naira(product.price_minor)}${optionLabel ? ` · ${optionLabel}` : ''}`;
+}
+
+function sameCustomerPlan(a: Product, b: Product) {
+  return a.service_type === b.service_type
+    && a.network === b.network
+    && a.name.trim().toLowerCase() === b.name.trim().toLowerCase()
+    && a.price_minor === b.price_minor
+    && String(a.metadata?.validity ?? '') === String(b.metadata?.validity ?? '')
+    && String(a.metadata?.data_type ?? '') === String(b.metadata?.data_type ?? '');
 }
 
 async function readMessage(response: Response) {
@@ -441,8 +450,8 @@ export default function VtuPurchase({ serviceType }: { serviceType: ServiceType 
                     </select>
                   </label>
 
-                  {!isAirtime && <label className="block text-sm font-semibold">
-                    Product
+                  <label className="block text-sm font-semibold">
+                    {isAirtime ? 'Network route option' : 'Product'}
                     <select
                       value={productCode}
                       onChange={(event) => {
@@ -453,11 +462,15 @@ export default function VtuPurchase({ serviceType }: { serviceType: ServiceType 
                       disabled={loadingProducts || products.length === 0 || submissionUncertain}
                       className="mt-2 w-full rounded-xl border border-[var(--line)] bg-[var(--page)] px-3 py-3 font-normal outline-none focus:border-[var(--brand)]"
                     >
-                      {products.filter((product) => !selectedProduct || product.network === selectedProduct.network).map((product) => (
-                        <option key={product.code} value={product.code}>{productLabel(product)}</option>
-                      ))}
+                      {products.filter((product) => !selectedProduct || product.network === selectedProduct.network).map((product) => {
+                        const siblings = products.filter((candidate) => sameCustomerPlan(candidate, product));
+                        const siblingIndex = siblings.findIndex((candidate) => candidate.code === product.code);
+                        const optionLabel = siblings.length > 1 ? `Option ${siblingIndex + 1}` : '';
+                        return <option key={product.code} value={product.code}>{productLabel(product, optionLabel)}</option>;
+                      })}
                     </select>
-                  </label>}
+                    <span className="mt-1 block text-xs font-normal text-[var(--muted)]">Options are shown separately by plan and price. Provider details are not displayed.</span>
+                  </label>
                 </div>
 
                 <label className="block text-sm font-semibold">
