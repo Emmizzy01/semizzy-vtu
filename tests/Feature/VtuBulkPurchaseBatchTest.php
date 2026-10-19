@@ -5,6 +5,9 @@ namespace Tests\Feature;
 use App\Jobs\ProcessVtuBulkPurchaseBatch;
 use App\Models\User;
 use App\Models\VtuBulkPurchaseBatch;
+use App\Models\VtuBulkPurchaseItem;
+use App\Services\Vtu\VtuOrderService;
+use Illuminate\Support\Carbon;
 use App\Models\VtuProduct;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
@@ -120,6 +123,73 @@ class VtuBulkPurchaseBatchTest extends TestCase
         $this->assertStringContainsString('Reconcile the existing idempotency reference', $item->fresh()->result_message);
         $this->assertSame('partial', $batch->fresh()->status);
         $orders->shouldHaveReceived('purchase')->once();
+    }
+
+    public function test_worker_does_not_reclaim_a_fresh_processing_item(): void
+    {
+        $user = User::factory()->create();
+        $batch = VtuBulkPurchaseBatch::query()->create([
+            'public_id' => (string) \Illuminate\Support\Str::uuid(),
+            'user_id' => $user->id,
+            'batch_key' => 'bulk-fresh-processing-key',
+            'request_hash' => hash('sha256', 'fresh'),
+            'status' => 'processing',
+            'item_count' => 1,
+            'total_amount_minor' => 1000,
+            'currency' => 'NGN',
+            'started_at' => now(),
+        ]);
+        $item = $batch->items()->create([
+            'item_index' => 0,
+            'idempotency_key' => hash('sha256', 'fresh-item'),
+            'product_code' => 'private-code',
+            'service_type' => 'airtime',
+            'recipient' => '08012345678',
+            'amount_minor' => 1000,
+            'status' => 'processing',
+            'started_at' => now(),
+        ]);
+        $orders = \Mockery::mock(VtuOrderService::class);
+        $orders->shouldNotReceive('purchase');
+
+        (new ProcessVtuBulkPurchaseBatch((int) $batch->id))->handle($orders);
+
+        $this->assertSame('processing', $item->fresh()->status);
+        $this->assertSame('processing', $batch->fresh()->status);
+    }
+
+    public function test_worker_marks_abandoned_processing_item_unknown_without_resubmitting(): void
+    {
+        $user = User::factory()->create();
+        $batch = VtuBulkPurchaseBatch::query()->create([
+            'public_id' => (string) \Illuminate\Support\Str::uuid(),
+            'user_id' => $user->id,
+            'batch_key' => 'bulk-stale-processing-key',
+            'request_hash' => hash('sha256', 'stale'),
+            'status' => 'processing',
+            'item_count' => 1,
+            'total_amount_minor' => 1000,
+            'currency' => 'NGN',
+            'started_at' => now()->subMinutes(31),
+        ]);
+        $item = $batch->items()->create([
+            'item_index' => 0,
+            'idempotency_key' => hash('sha256', 'stale-item'),
+            'product_code' => 'private-code',
+            'service_type' => 'airtime',
+            'recipient' => '08012345678',
+            'amount_minor' => 1000,
+            'status' => 'processing',
+            'started_at' => Carbon::now()->subMinutes(31),
+        ]);
+        $orders = \Mockery::mock(VtuOrderService::class);
+        $orders->shouldNotReceive('purchase');
+
+        (new ProcessVtuBulkPurchaseBatch((int) $batch->id))->handle($orders);
+
+        $this->assertSame('unknown', $item->fresh()->status);
+        $this->assertStringContainsString('Reconcile', $item->fresh()->result_message);
+        $this->assertSame('partial', $batch->fresh()->status);
     }
 
     private function preparedRequest(): array
