@@ -39,8 +39,18 @@ use App\Http\Controllers\StreamingSubscriptionController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
-Route::view('/', 'semizzy-home')
-    ->name('home');
+Route::get('/', function (IntegrationSettings $settings) {
+    return view('semizzy-home', ['homepage' => [
+        'browser_title' => (string) $settings->get('homepage.browser_title', 'Semizzy VTU - Single File Dashboard'),
+        'cashback_line_one' => (string) $settings->get('homepage.cashback_line_one', 'Enjoy 10% cashback'),
+        'cashback_line_two' => (string) $settings->get('homepage.cashback_line_two', 'on data purchases'),
+        'cashback_subtitle' => (string) $settings->get('homepage.cashback_subtitle', 'Limited time offer'),
+        'gadget_sale_title' => (string) $settings->get('homepage.gadget_sale_title', '🔥 Big Gadget Sale! Up to 50% OFF'),
+        'gadget_sale_subtitle' => (string) $settings->get('homepage.gadget_sale_subtitle', 'iPhones, Samsung, Laptops'),
+        'referral_title' => (string) $settings->get('homepage.referral_title', '💰 Refer & Earn ₦500 per friend!'),
+        'referral_subtitle' => (string) $settings->get('homepage.referral_subtitle', 'Invite friends to Semizzy'),
+    ]]);
+})->name('home');
 
 Route::get('/store/{storefront:slug}', [BusinessWorkspaceStorefrontController::class, 'show'])->middleware('throttle:60,1')->name('storefronts.show');
 
