@@ -52,7 +52,7 @@ Route::get('/', function (IntegrationSettings $settings) {
     ]]);
 })->name('home');
 
-Route::get('/store/{storefront:slug}', [BusinessWorkspaceStorefrontController::class, 'show'])->middleware('throttle:60,1')->name('storefronts.show');
+Route::get('/help/{slug}', [HelpPageController::class, 'show'])->whereIn('slug', array_keys(HelpPageController::definitions()))->name('help.pages.show');\n\nRoute::get('/store/{storefront:slug}', [BusinessWorkspaceStorefrontController::class, 'show'])->middleware('throttle:60,1')->name('storefronts.show');
 
 Route::middleware('guest')->group(function (): void {
     Route::get('/login', [AuthController::class, 'loginForm'])->name('login');
@@ -180,7 +180,7 @@ Route::middleware(['auth', 'can:staff.permissions.manage'])->prefix('admin')->na
     Route::post('/kyc-reviews/{submission}/review', [KycSubmissionController::class, 'review'])->middleware('throttle:10,1')->name('kyc-reviews.review');
     Route::put('/users/{user}/classification', [UserManagementController::class, 'update'])->middleware('throttle:20,1')->name('users.classification.update');
     Route::put('/users/{user}/status', [UserManagementController::class, 'updateStatus'])->middleware('throttle:10,1')->name('users.status.update');
-    Route::get('/platform-settings', [PlatformSettingsController::class, 'edit'])->name('platform-settings');
+    Route::get('/support-pages', [HelpPageController::class, 'adminEdit'])->name('support-pages.edit');\n    Route::put('/support-pages', [HelpPageController::class, 'adminUpdate'])->middleware('throttle:10,1')->name('support-pages.update');\n    Route::get('/platform-settings', [PlatformSettingsController::class, 'edit'])->name('platform-settings');
     Route::put('/platform-settings', [PlatformSettingsController::class, 'update'])->middleware('throttle:10,1')->name('platform-settings.update');
     Route::get('/manual-deposits', [ManualDepositController::class, 'adminIndex'])->middleware('throttle:30,1')->name('manual-deposits.index');
     Route::get('/manual-deposits/settings', [ManualDepositSettingsController::class, 'edit'])->name('manual-deposits.settings');
