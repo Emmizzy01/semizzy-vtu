@@ -350,7 +350,7 @@ class ProviderCatalogueImportTest extends TestCase
         try {
             app(ProviderCatalogueImportService::class)->import('sogo', 'data');
             $this->fail('Malformed provider catalogue must be rejected.');
-        } catch (\\RuntimeException $exception) {
+        } catch (\RuntimeException $exception) {
             $this->assertStringContainsString('invalid bill catalogue', strtolower($exception->getMessage()));
         }
 
