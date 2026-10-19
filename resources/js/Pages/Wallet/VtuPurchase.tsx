@@ -94,7 +94,7 @@ function productLabel(product: Product) {
   if (typeof dataType === 'string' && dataType.trim() && !product.name.toLowerCase().includes(dataType.toLowerCase())) {
     details.push(dataType.trim());
   }
-  return `${product.name}${details.length ? ` (${details.join(' · ')})` : ''} · `NaN`;
+  return `${product.name}${details.length ? ` (${details.join(' · ')})` : ''} · ${naira(product.price_minor)}`;
 }
 
 async function readMessage(response: Response) {
