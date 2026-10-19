@@ -28,6 +28,14 @@ class PlatformSettingsAccessTest extends TestCase
             'site_name' => 'Semizzy Test', 'support_email' => 'support@example.test',
             'support_phone' => '+2348000000000', 'theme_skin' => 'minimal-blue', 'maintenance_mode' => false,
             'airtime_data_enabled' => false, 'manual_deposit_enabled' => true,
+            'homepage_browser_title' => 'Semizzy VTU - Single File Dashboard',
+            'homepage_cashback_line_one' => 'Enjoy 10% cashback',
+            'homepage_cashback_line_two' => 'on data purchases',
+            'homepage_cashback_subtitle' => 'Limited time offer',
+            'homepage_gadget_sale_title' => 'Big Gadget Sale',
+            'homepage_gadget_sale_subtitle' => 'Phones and laptops',
+            'homepage_referral_title' => 'Refer and Earn',
+            'homepage_referral_subtitle' => 'Invite friends to Semizzy',
             'reason' => 'Temporarily pause airtime orders',
         ])->assertRedirect();
 
@@ -47,7 +55,16 @@ class PlatformSettingsAccessTest extends TestCase
             'site_name' => 'Semizzy', 'support_email' => 'support@example.test',
             'support_phone' => '+2348000000000', 'theme_skin' => 'modern-green',
             'maintenance_mode' => false, 'airtime_data_enabled' => true,
-            'manual_deposit_enabled' => true, 'reason' => 'Enable manual bank deposit',
+            'manual_deposit_enabled' => true,
+            'homepage_browser_title' => 'Semizzy VTU - Single File Dashboard',
+            'homepage_cashback_line_one' => 'Enjoy 10% cashback',
+            'homepage_cashback_line_two' => 'on data purchases',
+            'homepage_cashback_subtitle' => 'Limited time offer',
+            'homepage_gadget_sale_title' => 'Big Gadget Sale',
+            'homepage_gadget_sale_subtitle' => 'Phones and laptops',
+            'homepage_referral_title' => 'Refer and Earn',
+            'homepage_referral_subtitle' => 'Invite friends to Semizzy',
+            'reason' => 'Enable manual bank deposit',
         ])->assertSessionHasErrors('manual_deposit_enabled');
 
         $this->assertSame('0', (string) app(IntegrationSettings::class)->get('manual_deposit.enabled', '0'));
