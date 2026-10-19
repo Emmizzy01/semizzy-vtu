@@ -25,23 +25,30 @@ class VtuBulkPurchaseBatchTest extends TestCase
         $controller = app(\App\Http\Controllers\Vtu\VtuOrderController::class);
         $method = new ReflectionMethod($controller, 'isBatchKeyUniqueConstraintViolation');
 
+        $batchPrevious = new \PDOException('SQLSTATE[23000]: Integrity constraint violation: 19 UNIQUE constraint failed: vtu_bulk_purchase_batches.user_id, vtu_bulk_purchase_batches.batch_key');
+        $batchPrevious->errorInfo = ['23000', 19, 'UNIQUE constraint failed'];
+        $userPrevious = new \PDOException('SQLSTATE[23000]: Integrity constraint violation: 19 UNIQUE constraint failed: users.email');
+        $userPrevious->errorInfo = ['23000', 19, 'UNIQUE constraint failed'];
+        $databasePrevious = new \PDOException('SQLSTATE[HY000]: General error: 1 no such table: vtu_bulk_purchase_batches');
+        $databasePrevious->errorInfo = ['HY000', 1, 'no such table'];
+
         $batchCollision = new QueryException(
             'sqlite',
             'insert into vtu_bulk_purchase_batches (user_id, batch_key) values (?, ?)',
             [],
-            new \PDOException('SQLSTATE[23000]: Integrity constraint violation: 19 UNIQUE constraint failed: vtu_bulk_purchase_batches.user_id, vtu_bulk_purchase_batches.batch_key')
+            $batchPrevious
         );
         $otherUniqueCollision = new QueryException(
             'sqlite',
             'insert into users (email) values (?)',
             [],
-            new \PDOException('SQLSTATE[23000]: Integrity constraint violation: 19 UNIQUE constraint failed: users.email')
+            $userPrevious
         );
         $otherDatabaseFailure = new QueryException(
             'sqlite',
             'insert into vtu_bulk_purchase_batches (user_id, batch_key) values (?, ?)',
             [],
-            new \PDOException('SQLSTATE[HY000]: General error: 1 no such table: vtu_bulk_purchase_batches')
+            $databasePrevious
         );
 
         $this->assertTrue($method->invoke($controller, $batchCollision));
