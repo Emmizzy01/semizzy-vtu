@@ -9,6 +9,7 @@ use App\Services\Vtu\DatawayProviderClient;
 use App\Services\Vtu\GsubzProviderClient;
 use App\Services\Vtu\MultiProviderVtuRouter;
 use App\Services\Vtu\ProviderWebhookSignature;
+use App\Services\IntegrationSettings;
 use App\Services\Vtu\SogoProviderClient;
 use Illuminate\Support\Facades\Http;
 use LogicException;
@@ -238,7 +239,7 @@ class VtuProviderAdaptersTest extends TestCase
 
     public function test_gsubz_lookup_uses_admin_configured_integration_key(): void
     {
-        app(\\App\\Services\\IntegrationSettings::class)->set('vtu.gsubz.api_key', 'admin-configured-gsubz-key', null);
+        app(IntegrationSettings::class)->set('vtu.gsubz.api_key', 'admin-configured-gsubz-key', null);
         Http::fake(['api.gsubz.com/*' => Http::response([
             'code' => '200',
             'status' => 'success',
