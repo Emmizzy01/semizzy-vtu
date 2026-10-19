@@ -272,6 +272,14 @@ Schedule::command('vtu:run-scheduled-purchases --limit=100')
     ->everyMinute()
     ->withoutOverlapping();
 
+// Shared/cPanel hosting may not provide a persistent queue worker. Drain the
+// durable database queue in bounded scheduled windows; supervised queue:work
+// processes may also run. Bulk items are claimed atomically and uncertain items
+// are never blindly resubmitted.
+Schedule::command('queue:work database --stop-when-empty --timeout=60 --max-time=55')
+    ->everyMinute()
+    ->withoutOverlapping();
+
 Artisan::command('payments:reconcile-paystack {--limit=100}', function (PaymentReconciliationService $reconciliation) {
     $limit = (int) $this->option('limit');
     if ($limit < 1 || $limit > 500) {
