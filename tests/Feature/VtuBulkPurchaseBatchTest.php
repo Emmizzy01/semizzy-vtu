@@ -339,7 +339,7 @@ class VtuBulkPurchaseBatchTest extends TestCase
         Queue::fake();
         $user = User::factory()->create();
         $batch = VtuBulkPurchaseBatch::query()->create([
-            'public_id' => (string) \\Illuminate\\Support\\Str::uuid(),
+            'public_id' => (string) \Illuminate\Support\Str::uuid(),
             'user_id' => $user->id,
             'batch_key' => 'bulk-worker-concurrent-key',
             'request_hash' => hash('sha256', 'worker-concurrent'),
@@ -369,7 +369,7 @@ class VtuBulkPurchaseBatchTest extends TestCase
             'status' => 'pending',
         ]);
 
-        (new ProcessVtuBulkPurchaseBatch((int) $batch->id))->failed(new \\RuntimeException('Duplicate worker terminated'));
+        (new ProcessVtuBulkPurchaseBatch((int) $batch->id))->failed(new \RuntimeException('Duplicate worker terminated'));
 
         $this->assertSame('processing', $active->fresh()->status);
         $this->assertSame('pending', $pending->fresh()->status);
