@@ -19,12 +19,13 @@ class PeerWalletTransferTest extends TestCase
 
     private function makeUser(string $name, string $email, string $username): User
     {
-        return User::query()->create([
+        $user = User::query()->create([
             'name' => $name,
             'email' => $email,
-            'username' => $username,
             'password' => 'not-a-real-password',
         ]);
+        $user->forceFill(['username' => $username])->save();
+        return $user;
     }
 
     public function test_transfer_debits_sender_and_credits_recipient_once_with_ledger_entries(): void
