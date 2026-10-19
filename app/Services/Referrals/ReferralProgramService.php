@@ -157,7 +157,7 @@ class ReferralProgramService
             }
 
             $amount = (int) $this->settings->get('referrals.reward_minor', 0);
-            if (! filter_var($this->settings->get('referrals.enabled', false), FILTER_VALIDATE_BOOLEAN) || $amount < 1) {
+            if ($amount < 1) {
                 throw new LogicException('Enable referrals and configure a reward greater than zero before approving rewards.');
             }
 
