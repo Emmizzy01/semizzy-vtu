@@ -11,12 +11,29 @@ class UserLevelPolicyService
 {
     public function rejectionReason(User $user, VtuProduct $product, int $walletId, ?int $transactionAmountMinor = null): ?string
     {
+        return $this->rejectionReasonForAmount(
+            $user,
+            $walletId,
+            $transactionAmountMinor ?? (int) $product->price_minor,
+        );
+    }
+
+    /**
+     * Shared account-tier policy check for every wallet-funded purchase path.
+     * Call again inside the order-reservation transaction to avoid stale preflight decisions.
+     */
+    public function rejectionReasonForAmount(User $user, int $walletId, int $amount): ?string
+    {
         $currentUser = User::query()->whereKey($user->id)->lockForUpdate()->firstOrFail();
         $level = (string) ($currentUser->user_level ?: 'level_1');
         $policy = UserLevelPolicy::query()->where('level', $level)->lockForUpdate()->first();
-        if (! $policy || ! $policy->is_active) return 'Transactions are disabled for this account level. Contact support.';
-        if ($policy->requires_verified_kyc && $currentUser->kyc_status !== 'verified') return 'Complete KYC verification before using this transaction service.';
-        $amount = $transactionAmountMinor ?? (int) $product->price_minor;
+
+        if (! $policy || ! $policy->is_active) {
+            return 'Transactions are disabled for this account level. Contact support.';
+        }
+        if ($policy->requires_verified_kyc && $currentUser->kyc_status !== 'verified') {
+            return 'Complete KYC verification before using this transaction service.';
+        }
         if ($policy->max_single_transaction_minor !== null && $amount > (int) $policy->max_single_transaction_minor) {
             return 'This purchase exceeds the single-transaction limit for your account level.';
         }
@@ -27,6 +44,7 @@ class UserLevelPolicyService
                 return 'This purchase would exceed the daily transaction limit for your account level.';
             }
         }
+
         return null;
     }
 }
