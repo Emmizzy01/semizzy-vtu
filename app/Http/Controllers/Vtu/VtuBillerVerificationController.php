@@ -20,11 +20,12 @@ class VtuBillerVerificationController extends Controller
             'meter_type' => ['nullable', 'string', 'in:prepaid,postpaid'],
         ]);
 
-        $product = VtuProduct::query()
-            ->where('code', $validated['product_code'])
-            ->whereIn('service_type', ['electricity-bill', 'tv-subscription'])
-            ->where('currency', 'NGN')
-            ->first();
+        $product = $this->resolveCustomerSelectionCode($validated['product_code']);
+
+        if ($product !== null && (! in_array($product->service_type, ['electricity-bill', 'tv-subscription'], true)
+            || $product->currency !== 'NGN')) {
+            $product = null;
+        }
 
         if (! $product) {
             return response()->json(['message' => 'Choose a valid electricity or TV service.'], 422);
@@ -65,4 +66,24 @@ class VtuBillerVerificationController extends Controller
             },
         ], $result['status'] === 'unknown' ? 503 : 200);
     }
+    /** Resolve a signed public selection key; legacy internal codes remain accepted for compatibility. */
+    private function resolveCustomerSelectionCode(string $code): ?VtuProduct
+    {
+        if (preg_match('/^p([0-9a-z]+)\\.([a-f0-9]{32})$/D', $code, $matches) === 1) {
+            $id = base_convert($matches[1], 36, 10);
+            if (! ctype_digit($id) || (int) $id < 1) {
+                return null;
+            }
+
+            $expected = substr(hash_hmac('sha256', 'vtu-product:'.$id, (string) config('app.key')), 0, 32);
+            if (! hash_equals($expected, $matches[2])) {
+                return null;
+            }
+
+            return VtuProduct::query()->find((int) $id);
+        }
+
+        return VtuProduct::query()->where('code', $code)->first();
+    }
+
 }
