@@ -137,13 +137,17 @@ class ProcessVtuBulkPurchaseBatch implements ShouldQueue
         $batch = VtuBulkPurchaseBatch::query()->find($this->batchId);
         if (!$batch) return;
 
-        // A processing item could have reached a provider before the worker died.
-        // Preserve it as unknown rather than queueing another submission.
+        // A batch can have duplicate deliveries while another worker is active.
+        // Do not mark a fresh processing item unknown here: this failed callback
+        // cannot prove that it owns every in-flight item. Stale items are safe to
+        // quarantine after the same 30-minute recovery threshold used by handle().
         VtuBulkPurchaseItem::query()->where('batch_id', $batch->id)
             ->where('status', 'processing')
+            ->whereNotNull('started_at')
+            ->where('started_at', '<=', now()->subMinutes(30))
             ->update([
                 'status' => 'unknown',
-                'result_message' => 'Worker stopped during this item. Reconcile its stable order reference before retrying.',
+                'result_message' => 'Worker interruption exceeded 30 minutes. Reconcile the existing order reference before any retry.',
                 'completed_at' => now(),
             ]);
 
