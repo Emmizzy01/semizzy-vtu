@@ -258,7 +258,7 @@ class VtuOrderController extends Controller
             'id' => $order->public_id,
             'service_type' => $order->service_type,
             'network' => $order->network,
-            'product_code' => $order->product_code,
+            'product_code' => $order->product instanceof VtuProduct ? $this->customerSelectionCode($order->product) : null,
             'recipient' => $order->recipient,
             'amount_minor' => $order->amount_minor,
             'currency' => $order->currency,
