@@ -110,7 +110,9 @@ class WalletLedgerService
                     $level = (string) ($owner?->user_level ?: 'level_1');
                     $policy = UserLevelPolicy::query()->where('level', $level)->lockForUpdate()->first();
 
-                    if ($policy?->is_active && $policy->wallet_balance_limit_minor !== null
+                    // A disabled tier blocks purchases, but must not disable its wallet cap:
+                    // funding/recovery credits still need the same balance protection.
+                    if ($policy !== null && $policy->wallet_balance_limit_minor !== null
                         && $balanceBefore + $amountMinor > (int) $policy->wallet_balance_limit_minor) {
                         throw new DomainException('Wallet balance limit for this account level would be exceeded; credit requires reconciliation review.');
                     }
