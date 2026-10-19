@@ -212,15 +212,18 @@ Artisan::command('vtu:run-scheduled-purchases {--limit=100}', function (VtuOrder
                     default => null,
                 };
             }
+            $orderStatus = (string) $order->status;
+            $confirmedFinal = in_array($orderStatus, ['successful', 'failed', 'cancelled'], true);
             $schedule->update([
-                'status' => $next ? 'active' : 'paused',
+                'status' => ($next && $confirmedFinal) ? 'active' : 'paused',
                 'last_run_at' => now(),
-                'next_run_at' => $next ?? $dueAt,
+                'next_run_at' => ($next && $confirmedFinal) ? $next : $dueAt,
                 'last_order_public_id' => $order->public_id,
-                'last_result' => (string) $order->status,
-                'last_error' => null,
+                'last_result' => $orderStatus,
+                'last_error' => $confirmedFinal ? null : 'The provider outcome is not final. This schedule is paused until the existing order is reconciled.',
             ]);
             $processed++;
+            if (!$confirmedFinal) $paused++;
         } catch (\\Throwable $exception) {
             report($exception);
             // Fail closed. Do not auto-retry a run whose provider outcome could be
