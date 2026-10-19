@@ -36,6 +36,7 @@ use App\Http\Controllers\Payments\PaymentRefundController;
 use App\Http\Controllers\Wallet\PeerWalletTransferController;
 use App\Http\Controllers\Wallet\BankPayoutController;
 use App\Http\Controllers\Wallet\ServiceBeneficiaryController;
+use App\Http\Controllers\Wallet\ScheduledServicePurchaseController;
 use App\Http\Controllers\Account\ReferralController;
 use App\Http\Controllers\Admin\ReferralProgramController;
 use App\Http\Controllers\Vtu\VtuOrderController;
@@ -238,6 +239,12 @@ Route::middleware(['auth', 'can:staff.permissions.manage'])->prefix('admin/staff
     Route::get('/permission-audits', [StaffAccessController::class, 'audits'])->middleware('throttle:30,1')->name('audits');
     Route::post('/users/{user}/permissions', [StaffAccessController::class, 'grant'])->middleware('throttle:20,1')->name('permissions.grant');
     Route::delete('/users/{user}/permissions', [StaffAccessController::class, 'revoke'])->middleware('throttle:20,1')->name('permissions.revoke');
+});
+
+Route::middleware(['auth', 'throttle:60,1'])->prefix('wallet/scheduled-purchases')->name('wallet.scheduled-purchases.')->group(function (): void {
+    Route::get('/', [ScheduledServicePurchaseController::class, 'index'])->name('index');
+    Route::post('/', [ScheduledServicePurchaseController::class, 'store'])->middleware('throttle:10,1')->name('store');
+    Route::delete('/{schedule}', [ScheduledServicePurchaseController::class, 'destroy'])->middleware('throttle:10,1')->name('destroy');
 });
 
 Route::middleware(['auth', 'throttle:60,1'])->prefix('wallet/service-beneficiaries')->name('wallet.service-beneficiaries.')->group(function (): void {
