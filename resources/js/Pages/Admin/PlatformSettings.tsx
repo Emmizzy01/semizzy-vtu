@@ -3,7 +3,7 @@ import { Head, router } from '@inertiajs/react';
 import DashboardLayout from '../../Components/DashboardLayout';
 import { AlertTriangle, Globe, Mail, Phone, Save, ShieldCheck, Smartphone, WalletCards } from 'lucide-react';
 
-type Settings = { theme_mode: 'light' | 'dark'; site_name: string; support_email: string; support_phone: string; theme_skin: string; maintenance_mode: boolean; airtime_data_enabled: boolean; manual_deposit_enabled: boolean };
+type Settings = { theme_mode: 'light' | 'dark'; site_name: string; support_email: string; support_phone: string; theme_skin: string; maintenance_mode: boolean; airtime_data_enabled: boolean; manual_deposit_enabled: boolean; homepage_browser_title: string; homepage_cashback_line_one: string; homepage_cashback_line_two: string; homepage_cashback_subtitle: string; homepage_gadget_sale_title: string; homepage_gadget_sale_subtitle: string; homepage_referral_title: string; homepage_referral_subtitle: string };
 export default function PlatformSettings({ settings }: { settings: Settings }) {
   const [form, setForm] = useState(settings);
   const [reason, setReason] = useState('');
@@ -25,6 +25,24 @@ export default function PlatformSettings({ settings }: { settings: Settings }) {
         </div>
       </section>
       <section className="space-y-3 rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-950">
+      <section id="homepage" className="scroll-mt-24 space-y-4 rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-950">
+        <h2 className="flex items-center gap-2 font-semibold"><Globe size={18} />Homepage editor</h2>
+        <p className="text-sm text-slate-500 dark:text-slate-400">Edit the text shown on the original semizzy-single homepage prototype. The original layout, styling, sections and interactions remain unchanged.</p>
+        <label className="block text-sm font-medium">Browser/page title<input className="mt-1 w-full rounded-xl border bg-transparent p-3 dark:border-slate-700" value={form.homepage_browser_title} onChange={e => update('homepage_browser_title', e.target.value)} minLength={2} maxLength={120} required /></label>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <label className="block text-sm font-medium">Cashback banner — first line<input className="mt-1 w-full rounded-xl border bg-transparent p-3 dark:border-slate-700" value={form.homepage_cashback_line_one} onChange={e => update('homepage_cashback_line_one', e.target.value)} maxLength={90} required /></label>
+          <label className="block text-sm font-medium">Cashback banner — second line<input className="mt-1 w-full rounded-xl border bg-transparent p-3 dark:border-slate-700" value={form.homepage_cashback_line_two} onChange={e => update('homepage_cashback_line_two', e.target.value)} maxLength={90} required /></label>
+        </div>
+        <label className="block text-sm font-medium">Cashback banner subtitle<input className="mt-1 w-full rounded-xl border bg-transparent p-3 dark:border-slate-700" value={form.homepage_cashback_subtitle} onChange={e => update('homepage_cashback_subtitle', e.target.value)} maxLength={120} required /></label>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <label className="block text-sm font-medium">Gadget sale banner title<input className="mt-1 w-full rounded-xl border bg-transparent p-3 dark:border-slate-700" value={form.homepage_gadget_sale_title} onChange={e => update('homepage_gadget_sale_title', e.target.value)} maxLength={120} required /></label>
+          <label className="block text-sm font-medium">Gadget sale banner subtitle<input className="mt-1 w-full rounded-xl border bg-transparent p-3 dark:border-slate-700" value={form.homepage_gadget_sale_subtitle} onChange={e => update('homepage_gadget_sale_subtitle', e.target.value)} maxLength={120} required /></label>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <label className="block text-sm font-medium">Referral banner title<input className="mt-1 w-full rounded-xl border bg-transparent p-3 dark:border-slate-700" value={form.homepage_referral_title} onChange={e => update('homepage_referral_title', e.target.value)} maxLength={120} required /></label>
+          <label className="block text-sm font-medium">Referral banner subtitle<input className="mt-1 w-full rounded-xl border bg-transparent p-3 dark:border-slate-700" value={form.homepage_referral_subtitle} onChange={e => update('homepage_referral_subtitle', e.target.value)} maxLength={120} required /></label>
+        </div>
+      </section>
         <h2 className="flex items-center gap-2 font-semibold"><ShieldCheck size={18} />Platform availability</h2>
         <label className="flex items-center justify-between gap-4 rounded-xl bg-slate-50 p-4 dark:bg-slate-900"><span><span className="block font-semibold">Maintenance mode</span><span className="text-sm text-slate-500">Blocks customer web/API activity until turned off.</span></span><input type="checkbox" checked={form.maintenance_mode} onChange={e => update('maintenance_mode', e.target.checked)} /></label>
         <label className="flex items-center justify-between gap-4 rounded-xl bg-slate-50 p-4 dark:bg-slate-900"><span className="flex items-center gap-3"><Smartphone className="text-emerald-700" /><span><span className="block font-semibold">Airtime & data purchases</span><span className="text-sm text-slate-500">Stops catalogue and new order API requests when disabled.</span></span></span><input type="checkbox" checked={form.airtime_data_enabled} onChange={e => update('airtime_data_enabled', e.target.checked)} /></label>
