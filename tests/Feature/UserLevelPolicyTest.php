@@ -204,8 +204,8 @@ class UserLevelPolicyTest extends TestCase
         $provider = new class implements VtuProvider {
             public function assertConfigured(): void {}
             public function assertProductConfigured(VtuProduct $product): void {}
-            public function submit(\\App\\Models\\VtuOrder $order): array { return ['status' => 'pending']; }
-            public function lookup(\\App\\Models\\VtuOrder $order): array { return ['status' => 'pending']; }
+            public function submit(\App\Models\VtuOrder $order): array { return ['status' => 'pending']; }
+            public function lookup(\App\Models\VtuOrder $order): array { return ['status' => 'pending']; }
         };
         $this->app->instance(VtuProvider::class, $provider);
 
