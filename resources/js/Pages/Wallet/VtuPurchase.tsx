@@ -148,16 +148,7 @@ export default function VtuPurchase({ serviceType }: { serviceType: ServiceType 
       .then((body) => {
         if (cancelled) return;
         const rawList = Array.isArray(body.data) ? body.data as Product[] : [];
-        // Hide legacy fixed-denomination rows created by earlier provider imports.
-        // Keep network mappings and let the amount field determine airtime value.
-        const list = serviceType === 'airtime'
-          ? rawList.filter((product) => {
-              const source = product.metadata?.catalog_source;
-              const legacyProviderDenomination = ['sogo', 'gsubz', 'dataway'].includes(String(source))
-                && /-\d{2,}$/.test(product.code);
-              return !legacyProviderDenomination;
-            })
-          : rawList;
+        const list = rawList;
         setProducts(list);
         const query = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
         const requestedCode = query?.get('product_code') ?? undefined;
