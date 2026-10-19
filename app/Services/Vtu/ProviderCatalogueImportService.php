@@ -24,8 +24,9 @@ class ProviderCatalogueImportService
         if (! in_array($provider, ['sogo', 'gsubz', 'dataway'], true)) {
             throw new LogicException('Choose Sogo Africa, GSUBZ, or Dataway for provider catalogue import.');
         }
-        if (! in_array($category, ['airtime', 'data'], true)) {
-            throw new LogicException('This import currently supports Airtime and Data only; other categories need their own purchase and recovery workflow.');
+        $allowed = ['airtime', 'data', 'electricity', 'cable_tv', 'education', 'betting', 'epin', 'esim', 'social-media', 'recharge-pin', 'internet', 'exam', 'airtime_cash'];
+        if (! in_array($category, $allowed, true)) {
+            throw new LogicException('Choose a service category supported by this provider catalogue.');
         }
 
         $items = match ($provider) {
@@ -45,7 +46,7 @@ class ProviderCatalogueImportService
             $cost = max(0, (int) ($item['cost_minor'] ?? 0));
             $existing = VtuProduct::query()->where('code', $code)->first();
             $values = [
-                'service_type' => $category,
+                'service_type' => $item['service_type'] ?? $this->serviceType($category),
                 'provider_key' => $provider,
                 'provider_product_code' => substr((string) $item['code'], 0, 120),
                 'network' => substr((string) $item['network'], 0, 40),
@@ -63,6 +64,9 @@ class ProviderCatalogueImportService
                     'purchase_approved' => false,
                     'provider_mappings' => [$provider => $item['mapping'] ?? []],
                     'provider_category' => $category,
+                    'catalog_only' => ! in_array($item['service_type'] ?? $this->serviceType($category), ['airtime', 'data'], true),
+                    'purchase_supported' => in_array($item['service_type'] ?? $this->serviceType($category), ['airtime', 'data'], true),
+                    'amount_based' => (bool) ($item['mapping']['amount_based'] ?? false),
                     'imported_at' => now()->toIso8601String(),
                 ],
             ];
@@ -81,6 +85,9 @@ class ProviderCatalogueImportService
                         'catalog_source' => $provider,
                         'provider_mappings' => array_merge($existing->metadata['provider_mappings'] ?? [], $values['metadata']['provider_mappings']),
                         'provider_category' => $category,
+                        'catalog_only' => ! in_array($item['service_type'] ?? $this->serviceType($category), ['airtime', 'data'], true),
+                        'purchase_supported' => in_array($item['service_type'] ?? $this->serviceType($category), ['airtime', 'data'], true),
+                        'amount_based' => (bool) ($item['mapping']['amount_based'] ?? false),
                         'last_imported_at' => now()->toIso8601String(),
                     ]),
                 ])->save();
@@ -226,6 +233,54 @@ class ProviderCatalogueImportService
             }
         }
         return $items;
+    }
+
+    /**
+     * Discover and import each provider's documented bill catalogue category.
+     * Category failures are reported individually; imports never activate sales.
+     *
+     * @return array{provider:string,created:int,updated:int,skipped:int,categories:array<string,array<string,mixed>>,errors:array<string,string>}
+     */
+    public function importAll(string $provider): array
+    {
+        $categories = match ($provider) {
+            'sogo' => ['airtime', 'data', 'electricity', 'cable_tv', 'education', 'betting', 'epin', 'esim'],
+            'gsubz' => ['airtime', 'data', 'electricity', 'cable_tv', 'education', 'social-media', 'recharge-pin'],
+            'dataway' => ['airtime', 'data', 'electricity', 'cable_tv', 'betting', 'education', 'exam', 'internet', 'recharge-pin', 'airtime_cash'],
+            default => throw new LogicException('Choose Sogo Africa, GSUBZ, or Dataway for provider catalogue import.'),
+        };
+
+        $created = $updated = $skipped = 0;
+        $results = $errors = [];
+        foreach ($categories as $category) {
+            try {
+                $result = $this->import($provider, $category);
+                $results[$category] = $result;
+                $created += $result['created'];
+                $updated += $result['updated'];
+                $skipped += $result['skipped'];
+            } catch (\\Throwable $exception) {
+                report($exception);
+                $errors[$category] = 'Catalogue request failed or returned an unsupported response.';
+            }
+        }
+
+        return compact('provider', 'created', 'updated', 'skipped') + ['categories' => $results, 'errors' => $errors];
+    }
+
+    private function serviceType(string $category): string
+    {
+        return match ($category) {
+            'electricity' => 'electricity-bill',
+            'cable_tv' => 'tv-subscription',
+            'education', 'exam' => 'education',
+            'betting' => 'betting',
+            'epin', 'recharge-pin' => 'recharge-pin',
+            'esim', 'internet' => 'internet',
+            'social-media' => 'social-media',
+            'airtime_cash' => 'airtime-cash',
+            default => $category,
+        };
     }
 
     private function assertCredentials(string $base, string $key, string $provider): void
