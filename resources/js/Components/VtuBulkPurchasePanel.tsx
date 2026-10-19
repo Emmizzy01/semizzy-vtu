@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { AlertCircle, LoaderCircle, RefreshCw } from 'lucide-react';
 
 type Product = {
-  code: string; service_type: 'airtime' | 'data'; network: string; name: string;
+  code: string; service_type: 'airtime' | 'data' | 'electricity-bill' | 'tv-subscription'; network: string; name: string;
   price_minor: number; currency: string; is_active: boolean; metadata?: Record<string, unknown>;
 };
 type Batch = {
@@ -12,19 +12,6 @@ type Batch = {
 
 function money(minor: number) {
   return new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN', maximumFractionDigits: 2 }).format(minor / 100);
-}
-const BULK_STORAGE_KEY = 'semizzy-vtu-bulk-pending';
-type StoredBulkRequest = { batchKey: string; serviceType: 'airtime' | 'data'; productCode: string; recipientsText: string; amount: string };
-function readStoredBulkRequest(): StoredBulkRequest | null {
-  try {
-    if (typeof window === 'undefined') return null;
-    const raw = window.sessionStorage.getItem(BULK_STORAGE_KEY);
-    if (!raw) return null;
-    const value = JSON.parse(raw) as Partial<StoredBulkRequest>;
-    if (!value || typeof value.batchKey !== 'string' || !['airtime', 'data'].includes(value.serviceType ?? '')
-      || typeof value.productCode !== 'string' || typeof value.recipientsText !== 'string' || typeof value.amount !== 'string') return null;
-    return value as StoredBulkRequest;
-  } catch { return null; }
 }
 function requestKey() {
   return typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `bulk-${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -67,31 +54,17 @@ export default function VtuBulkPurchasePanel({
   const product = products.find((item) => item.code === productCode && item.is_active);
   const perItemMinor = serviceType === 'airtime' ? Math.round(Number(amount || 0) * 100) : (product?.price_minor ?? 0);
 
-  useEffect(() => {
-    if (!restoredRequest || restoredRequest.serviceType !== serviceType) return;
-    onProductCodeChange(restoredRequest.productCode);
-    let cancelled = false;
-    fetch(`/wallet/vtu/orders/bulk-recover?batch_key=${encodeURIComponent(restoredRequest.batchKey)}`, {
-      credentials: 'same-origin',
-      headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
-    }).then(async (response) => {
-      const body = await response.json().catch(() => ({}));
-      if (response.ok && body.data && !cancelled) setBatch(body.data as Batch);
-      else if (response.status !== 404 && !cancelled) setError(typeof body.message === 'string' ? body.message : 'Saved batch recovery is temporarily unavailable.');
-    }).catch(() => { if (!cancelled) setError('Could not recover the previous batch yet. Keep the same batch key and original items.'); });
-    return () => { cancelled = true; };
-  }, [restoredRequest, serviceType]);
-
   const csrf = () => document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ?? '';
 
   useEffect(() => {
     if (!savedDraft) return;
-    if (savedDraft.productCode) onProductCodeChange(savedDraft.productCode);
+    const draft = savedDraft;
+    if (draft.productCode) onProductCodeChange(draft.productCode);
     let cancelled = false;
     async function recoverSavedBatch() {
-      const url = savedDraft.publicId
-        ? `/wallet/vtu/orders/bulk/${encodeURIComponent(savedDraft.publicId)}`
-        : `/wallet/vtu/orders/bulk-recover?batch_key=${encodeURIComponent(savedDraft.batchKey)}`;
+      const url = draft.publicId
+        ? `/wallet/vtu/orders/bulk/${encodeURIComponent(draft.publicId)}`
+        : `/wallet/vtu/orders/bulk-recover?batch_key=${encodeURIComponent(draft.batchKey)}`;
       try {
         const response = await fetch(url, {
           credentials: 'same-origin',
@@ -100,14 +73,15 @@ export default function VtuBulkPurchasePanel({
         if (!response.ok) return;
         const body = await response.json().catch(() => ({}));
         if (!cancelled && body.data) {
-          setBatch(body.data as Batch);
-          saveDraft({ ...savedDraft, publicId: (body.data as Batch).id });
+          const recovered = body.data as Batch;
+          setBatch(recovered);
+          saveDraft({ ...draft, publicId: recovered.id });
         }
       } catch { /* Keep the saved key and form so the user can safely check again. */ }
     }
     void recoverSavedBatch();
     return () => { cancelled = true; };
-  }, [savedDraft, onProductCodeChange]);
+  }, [savedDraft]);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -139,9 +113,6 @@ export default function VtuBulkPurchasePanel({
 
   async function refresh() {
     if (!batch) return;
-    try {
-      window.sessionStorage.setItem(BULK_STORAGE_KEY, JSON.stringify({ batchKey, serviceType, productCode: product.code, recipientsText, amount }));
-    } catch { /* recovery storage is best-effort; server idempotency remains authoritative */ }
     setBusy(true); setError('');
     try {
       const response = await fetch(`/wallet/vtu/orders/bulk/${encodeURIComponent(batch.id)}`, {
