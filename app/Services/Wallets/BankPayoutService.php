@@ -85,7 +85,8 @@ class BankPayoutService
             'currency' => 'NGN',
         ], JSON_THROW_ON_ERROR));
 
-        $payout = DB::transaction(function () use ($user, $beneficiary, $amountMinor, $idempotencyKey, $requestHash): BankPayout {
+        $isNewRequest = false;
+        $payout = DB::transaction(function () use ($user, $beneficiary, $amountMinor, $idempotencyKey, $requestHash, &$isNewRequest): BankPayout {
             $existing = BankPayout::query()->where('user_id', $user->id)->where('idempotency_key', $idempotencyKey)->first();
             if ($existing) {
                 if (! hash_equals($existing->request_hash, $requestHash)) {
@@ -110,6 +111,7 @@ class BankPayoutService
                 metadata: ['payout_id' => $publicId, 'beneficiary_id' => $beneficiary->id],
             );
 
+            $isNewRequest = true;
             return BankPayout::query()->create([
                 'public_id' => $publicId,
                 'user_id' => $user->id,
@@ -127,7 +129,7 @@ class BankPayoutService
         }, attempts: 3);
 
         // An existing request is never submitted to the provider again.
-        if ($payout->status !== 'queued') {
+        if (! $isNewRequest) {
             return $payout;
         }
 
@@ -140,7 +142,7 @@ class BankPayoutService
             );
             $providerStatus = strtolower((string) ($response['status'] ?? 'pending'));
             $payout->forceFill([
-                'status' => $providerStatus === 'success' ? 'succeeded' : ($providerStatus === 'failed' ? 'reconciliation_required' : 'provider_pending'),
+                'status' => $providerStatus === 'failed' ? 'reconciliation_required' : 'provider_pending',
                 'provider_transfer_code' => is_string($response['transfer_code'] ?? null) ? $response['transfer_code'] : null,
                 'metadata' => array_merge($payout->metadata ?? [], ['provider_status' => $providerStatus]),
             ])->save();
