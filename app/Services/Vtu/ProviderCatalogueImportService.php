@@ -11,8 +11,11 @@ use RuntimeException;
 class ProviderCatalogueImportService
 {
     /**
-     * Import only catalogue data supported by the current airtime/data purchase domain.
+     * Import verified provider mappings and fixed-price data plans.
+     * Airtime imports represent networks only because customers enter the amount at checkout.
      * Imported rows are always inactive and unapproved; import never enables purchases.
+     * Other bill categories remain outside this product importer until their price, recipient,
+     * validation, submit, lookup, and recovery contracts are implemented and tested.
      *
      * @return array{provider:string,category:string,created:int,updated:int,skipped:int}
      */
@@ -110,11 +113,10 @@ class ProviderCatalogueImportService
         foreach ($providers as $network) {
             if (! is_array($network) || ! is_string($network['slug'] ?? null)) continue;
             if ($category === 'airtime') {
-                foreach (config('services.vtu.airtime_denominations', [100, 200, 500, 1000]) as $amount) {
-                    $items[] = ['code' => $network['slug'].'-'.$amount, 'name' => ($network['name'] ?? strtoupper($network['slug'])).' Airtime ₦'.$amount,
-                        'network' => $network['slug'], 'cost_minor' => null, 'selling_minor' => (int) $amount * 100,
-                        'mapping' => ['network' => $network['slug']]];
-                }
+                // Airtime is amount-based at checkout, not a fixed-denomination product list.
+                $items[] = ['code' => $network['slug'], 'name' => ($network['name'] ?? strtoupper($network['slug'])).' Airtime',
+                    'network' => $network['slug'], 'cost_minor' => null, 'selling_minor' => 1,
+                    'mapping' => ['network' => $network['slug'], 'amount_based' => true]];
                 continue;
             }
             $plansResponse = $http->get('bills/data-plans', ['network' => $network['slug']]);
@@ -159,10 +161,9 @@ class ProviderCatalogueImportService
             $isData = str_contains(strtolower($label.' '.$id), 'data') || preg_match('/mtn|airtel|glo|9mobile/i', $id);
             if (($category === 'airtime' && ! $isAirtime) || ($category === 'data' && ! $isData)) continue;
             if ($category === 'airtime') {
-                foreach (config('services.vtu.airtime_denominations', [100, 200, 500, 1000]) as $amount) {
-                    $items[] = ['code' => $id.'-'.$amount, 'name' => $label.' ₦'.$amount, 'network' => $this->network($label.' '.$id),
-                        'cost_minor' => null, 'selling_minor' => (int) $amount * 100, 'mapping' => ['network' => $id]];
-                }
+                // Keep a single network mapping; the customer enters the airtime amount.
+                $items[] = ['code' => $id, 'name' => $label.' Airtime', 'network' => $this->network($label.' '.$id),
+                    'cost_minor' => null, 'selling_minor' => 1, 'mapping' => ['network' => $id, 'amount_based' => true]];
                 continue;
             }
             $plansResponse = $http->get('api/plans/', ['service' => $id]);
@@ -200,10 +201,10 @@ class ProviderCatalogueImportService
             if (! is_array($biller) || ! is_string($biller['slug'] ?? null)) continue;
             $slug = $biller['slug'];
             if ($category === 'airtime') {
-                foreach (config('services.vtu.airtime_denominations', [100, 200, 500, 1000]) as $amount) {
-                    $items[] = ['code' => $slug.'-'.$amount, 'name' => ($biller['name'] ?? strtoupper($slug)).' ₦'.$amount,
-                        'network' => $slug, 'cost_minor' => null, 'selling_minor' => (int) $amount * 100, 'mapping' => ['network' => $slug]];
-                }
+                // Airtime is variable-amount; import the network mapping, not fake denominations.
+                $items[] = ['code' => $slug, 'name' => ($biller['name'] ?? strtoupper($slug)).' Airtime',
+                    'network' => $slug, 'cost_minor' => null, 'selling_minor' => 1,
+                    'mapping' => ['network' => $slug, 'amount_based' => true]];
                 continue;
             }
             $plans = $biller['plans'] ?? null;
