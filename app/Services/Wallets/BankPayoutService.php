@@ -4,6 +4,7 @@ namespace App\Services\Wallets;
 
 use App\Exceptions\Wallet\IdempotencyConflict;
 use App\Models\BankBeneficiary;
+use App\Models\BankDirectoryEntry;
 use App\Models\BankPayout;
 use App\Models\User;
 use App\Models\Wallet;
@@ -25,7 +26,62 @@ class BankPayoutService
 
     public function banks(): array
     {
-        return $this->paystack->listNigerianBanks();
+        try {
+            $providerBanks = $this->paystack->listNigerianBanks();
+            $normalized = [];
+
+            foreach ($providerBanks as $bank) {
+                $name = trim((string) ($bank['name'] ?? ''));
+                $code = trim((string) ($bank['code'] ?? ''));
+
+                if ($name === '' || strlen($name) > 120
+                    || ! preg_match('/^[A-Za-z0-9_-]{2,20}$/', $code)) {
+                    continue;
+                }
+
+                $normalized[$code] = ['name' => $name, 'code' => $code];
+            }
+
+            if ($normalized === []) {
+                throw new LogicException('Bank provider returned no usable Nigerian banks.');
+            }
+
+            DB::transaction(function () use ($normalized): void {
+                foreach ($normalized as $bank) {
+                    BankDirectoryEntry::query()->updateOrCreate(
+                        ['provider' => 'paystack', 'bank_code' => $bank['code']],
+                        [
+                            'bank_name' => $bank['name'],
+                            'enabled' => true,
+                            'provider_updated_at' => now(),
+                        ],
+                    );
+                }
+            }, attempts: 3);
+        } catch (LogicException $exception) {
+            // Cached banks are display-only during provider outages; account verification
+            // is still performed live before any beneficiary can be saved.
+            $cached = BankDirectoryEntry::query()
+                ->where('provider', 'paystack')
+                ->where('enabled', true)
+                ->orderBy('bank_name')
+                ->get(['bank_name', 'bank_code']);
+
+            if ($cached->isEmpty()) {
+                throw $exception;
+            }
+        }
+
+        return BankDirectoryEntry::query()
+            ->where('provider', 'paystack')
+            ->where('enabled', true)
+            ->orderBy('bank_name')
+            ->get(['bank_name', 'bank_code'])
+            ->map(static fn (BankDirectoryEntry $bank): array => [
+                'name' => $bank->bank_name,
+                'code' => $bank->bank_code,
+            ])
+            ->all();
     }
 
     public function beneficiaries(User $user)
