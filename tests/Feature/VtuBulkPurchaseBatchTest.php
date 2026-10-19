@@ -334,6 +334,49 @@ class VtuBulkPurchaseBatchTest extends TestCase
         Queue::assertPushed(ProcessVtuBulkPurchaseBatch::class, 1);
     }
 
+    public function test_failed_worker_does_not_mark_a_fresh_item_owned_by_another_worker_unknown(): void
+    {
+        Queue::fake();
+        $user = User::factory()->create();
+        $batch = VtuBulkPurchaseBatch::query()->create([
+            'public_id' => (string) \\Illuminate\\Support\\Str::uuid(),
+            'user_id' => $user->id,
+            'batch_key' => 'bulk-worker-concurrent-key',
+            'request_hash' => hash('sha256', 'worker-concurrent'),
+            'status' => 'processing',
+            'item_count' => 2,
+            'total_amount_minor' => 2000,
+            'currency' => 'NGN',
+            'started_at' => now(),
+        ]);
+        $active = $batch->items()->create([
+            'item_index' => 0,
+            'idempotency_key' => hash('sha256', 'worker-concurrent-active'),
+            'product_code' => 'private-provider-code-active',
+            'service_type' => 'airtime',
+            'recipient' => '08012345678',
+            'amount_minor' => 1000,
+            'status' => 'processing',
+            'started_at' => now(),
+        ]);
+        $pending = $batch->items()->create([
+            'item_index' => 1,
+            'idempotency_key' => hash('sha256', 'worker-concurrent-pending'),
+            'product_code' => 'private-provider-code-pending',
+            'service_type' => 'airtime',
+            'recipient' => '08087654321',
+            'amount_minor' => 1000,
+            'status' => 'pending',
+        ]);
+
+        (new ProcessVtuBulkPurchaseBatch((int) $batch->id))->failed(new \\RuntimeException('Duplicate worker terminated'));
+
+        $this->assertSame('processing', $active->fresh()->status);
+        $this->assertSame('pending', $pending->fresh()->status);
+        $this->assertSame('processing', $batch->fresh()->status);
+        Queue::assertPushed(ProcessVtuBulkPurchaseBatch::class, 1);
+    }
+
     private function preparedRequest(): array
     {
         $user = User::factory()->create();
