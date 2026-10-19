@@ -4,7 +4,7 @@ import ThemeToggle from './ThemeToggle';
 import { applyThemePreference } from './theme';
 import {
   Activity, ArrowLeftRight, CreditCard, GraduationCap, Landmark, LayoutDashboard, LifeBuoy,
-  Eye, EyeOff, LogOut, Menu, Package, PlugZap, Search, ShieldCheck, Smartphone, SlidersHorizontal,
+  Eye, EyeOff, Globe, LogOut, Menu, Package, PlugZap, Search, ShieldCheck, Smartphone, SlidersHorizontal,
   Tv, UserRound, Users, WalletCards, Wifi, X, Zap,
 } from 'lucide-react';
 
@@ -86,6 +86,7 @@ export default function DashboardLayout({ title, description, admin = false, chi
     ] },
     { title: 'Platform control', items: [
       { label: 'API providers', href: '/admin/api-providers', icon: PlugZap },
+      { label: 'Homepage editor', href: '/admin/platform-settings#homepage', icon: Globe },
       { label: 'Site control & settings', href: '/admin/platform-settings', icon: SlidersHorizontal },
       { label: 'Feature controls', href: '/admin/feature-controls', icon: SlidersHorizontal },
       { label: 'Security activity', href: '/admin/security-events', icon: ShieldCheck },
