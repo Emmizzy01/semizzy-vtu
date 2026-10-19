@@ -257,6 +257,40 @@ class VtuBulkPurchaseBatchTest extends TestCase
         $this->assertSame('partial', $batch->fresh()->status);
     }
 
+    public function test_failed_worker_marks_in_flight_item_unknown_without_automatic_resubmission(): void
+    {
+        Queue::fake();
+        $user = User::factory()->create();
+        $batch = VtuBulkPurchaseBatch::query()->create([
+            'public_id' => (string) \\Illuminate\\Support\\Str::uuid(),
+            'user_id' => $user->id,
+            'batch_key' => 'bulk-worker-interrupted-key',
+            'request_hash' => hash('sha256', 'worker-interrupted'),
+            'status' => 'processing',
+            'item_count' => 1,
+            'total_amount_minor' => 1000,
+            'currency' => 'NGN',
+            'started_at' => now(),
+        ]);
+        $item = $batch->items()->create([
+            'item_index' => 0,
+            'idempotency_key' => hash('sha256', 'interrupted-item-key'),
+            'product_code' => 'private-provider-code',
+            'service_type' => 'airtime',
+            'recipient' => '08012345678',
+            'amount_minor' => 1000,
+            'status' => 'processing',
+            'started_at' => now(),
+        ]);
+
+        (new ProcessVtuBulkPurchaseBatch((int) $batch->id))->failed(new \\RuntimeException('Worker terminated'));
+
+        $this->assertSame('unknown', $item->fresh()->status);
+        $this->assertStringContainsString('Reconcile', $item->fresh()->result_message);
+        $this->assertSame('partial', $batch->fresh()->status);
+        Queue::assertNothingPushed();
+    }
+
     private function preparedRequest(): array
     {
         $user = User::factory()->create();
