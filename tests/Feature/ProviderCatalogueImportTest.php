@@ -295,4 +295,70 @@ class ProviderCatalogueImportTest extends TestCase
         $this->assertFalse($product->metadata['purchase_approved']);
     }
 
+
+    public function test_airtime_catalogue_import_is_network_based_and_amount_entered_at_checkout(): void
+    {
+        config([
+            'services.vtu.dataway.base_url' => 'https://dataway.ng/api/v1/merchant',
+            'services.vtu.dataway.api_key' => 'test-key',
+        ]);
+        Http::fake([
+            'dataway.ng/*' => Http::response([
+                'count' => 1,
+                'data' => [['id' => 1, 'name' => 'MTN Airtime', 'slug' => 'mtn', 'category' => 'airtime']],
+            ]),
+        ]);
+
+        $result = app(ProviderCatalogueImportService::class)->import('dataway', 'airtime');
+        $product = VtuProduct::query()->where('provider_key', 'dataway')->firstOrFail();
+
+        $this->assertSame(1, $result['created']);
+        $this->assertSame('dataway-airtime-mtn', $product->code);
+        $this->assertSame('MTN Airtime', $product->name);
+        $this->assertSame(1, $product->price_minor);
+        $this->assertTrue($product->metadata['amount_based']);
+        $this->assertTrue($product->metadata['provider_mappings']['dataway']['amount_based']);
+        $this->assertFalse($product->is_active);
+    }
+
+    public function test_provider_api_failures_for_each_import_adapter_apply_no_catalogue_rows(): void
+    {
+        config([
+            'services.vtu.sogo.base_url' => 'https://sandbox.sogo.africa/v1',
+            'services.vtu.sogo.api_key' => 'sogo_test_key',
+            'services.vtu.gsubz.base_url' => 'https://api.gsubz.com',
+            'services.vtu.gsubz.api_key' => 'gsubz_test_key',
+            'services.vtu.dataway.base_url' => 'https://dataway.ng/api/v1/merchant',
+            'services.vtu.dataway.api_key' => 'dataway_test_key',
+        ]);
+        Http::fake(['*' => Http::response(['message' => 'provider unavailable'], 503)]);
+
+        foreach (['sogo', 'gsubz', 'dataway'] as $provider) {
+            try {
+                app(ProviderCatalogueImportService::class)->import($provider, 'data');
+                $this->fail($provider.' API failure must abort its import.');
+            } catch (\\RuntimeException $exception) {
+                $this->assertStringContainsString('catalogue', strtolower($exception->getMessage()));
+            }
+        }
+
+        $this->assertSame(0, VtuProduct::query()->count());
+    }
+
+    public function test_provider_wide_import_reports_category_failures_without_enabling_sales(): void
+    {
+        config([
+            'services.vtu.dataway.base_url' => 'https://dataway.ng/api/v1/merchant',
+            'services.vtu.dataway.api_key' => 'test-key',
+        ]);
+        Http::fake(['*' => Http::response(['message' => 'provider unavailable'], 503)]);
+
+        $result = app(ProviderCatalogueImportService::class)->importAll('dataway');
+
+        $this->assertSame(0, $result['created']);
+        $this->assertNotEmpty($result['errors']);
+        $this->assertSame(0, VtuProduct::query()->count());
+    }
+
+
 }
