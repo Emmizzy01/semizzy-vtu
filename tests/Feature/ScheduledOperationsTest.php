@@ -15,6 +15,7 @@ class ScheduledOperationsTest extends TestCase
         $this->assertScheduledCommand($events, 'payments:reconcile-refunds --limit=100', '*/5 * * * *');
         $this->assertScheduledCommand($events, 'vtu:reconcile-orders --limit=100', '*/5 * * * *');
         $this->assertScheduledCommand($events, 'vtu:monitor-orders', '*/15 * * * *');
+        $this->assertScheduledCommand($events, 'vtu:run-scheduled-purchases --limit=100', '* * * * *');
     }
 
     private function assertScheduledCommand(array $events, string $commandFragment, string $expression): void
