@@ -284,4 +284,36 @@ class WalletLedgerServiceTest extends TestCase
         $this->assertDatabaseCount('wallet_ledger_entries', 1);
     }
 
+
+    public function test_wallet_balance_caps_are_consistent_for_all_four_account_tiers(): void
+    {
+        foreach (['level_1', 'level_2', 'level_3', 'level_4'] as $index => $level) {
+            $user = User::query()->create([
+                'name' => 'Tier Cap Customer '.$index,
+                'email' => 'tier-cap-'.$index.'@example.test',
+                'password' => 'not-a-real-password',
+            ]);
+            $user->forceFill(['user_level' => $level])->save();
+            $wallet = app(WalletAccountService::class)->openForUser($user);
+            UserLevelPolicy::query()->where('level', $level)->update([
+                'wallet_balance_limit_minor' => 1000,
+                'is_active' => false,
+            ]);
+            app(WalletLedgerService::class)->post($wallet->id, 'credit', 900, 'tier-cap-seed-'.$level);
+
+            try {
+                app(WalletLedgerService::class)->post($wallet->id, 'credit', 101, 'tier-cap-overflow-'.$level);
+                $this->fail('Wallet cap must be enforced for '.$level.', even when disabled.');
+            } catch (DomainException $exception) {
+                $this->assertStringContainsString('account level would be exceeded', $exception->getMessage());
+            }
+
+            $this->assertSame(900, (int) $wallet->fresh()->balance_minor, 'Balance changed for '.$level);
+            $this->assertSame(900, (int) $wallet->fresh()->available_balance_minor, 'Available balance changed for '.$level);
+        }
+
+        $this->assertDatabaseCount('wallet_transactions', 4);
+        $this->assertDatabaseCount('wallet_ledger_entries', 4);
+    }
+
 }
