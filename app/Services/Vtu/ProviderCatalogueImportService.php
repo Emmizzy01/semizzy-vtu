@@ -180,30 +180,49 @@ class ProviderCatalogueImportService
             $id = (string) ($service['serviceID'] ?? $service['service_id'] ?? $service['id'] ?? '');
             $label = (string) ($service['name'] ?? $service['service'] ?? $service['label'] ?? $id);
             if ($id === '') continue;
-            $isAirtime = str_contains(strtolower($label.' '.$id), 'airtime')
-                || in_array(strtolower($id), ['mtn', 'airtel', 'glo', '9mobile', 'etisalat', 'lebara'], true);
-            $isData = str_contains(strtolower($label.' '.$id), 'data') || preg_match('/mtn|airtel|glo|9mobile/i', $id);
-            if (($category === 'airtime' && ! $isAirtime) || ($category === 'data' && ! $isData)) continue;
+            $search = strtolower($label.' '.$id);
+            $detected = match (true) {
+                str_contains($search, 'airtime') || in_array(strtolower($id), ['mtn', 'airtel', 'glo', 'etisalat', '9mobile', 'lebara'], true) => 'airtime',
+                str_contains($search, 'electric') => 'electricity',
+                str_contains($search, 'dstv') || str_contains($search, 'gotv') || str_contains($search, 'startimes') || str_contains($search, 'cable') => 'cable_tv',
+                str_contains($search, 'waec') || str_contains($search, 'neco') || str_contains($search, 'nabteb') || str_contains($search, 'jamb') || str_contains($search, 'exam') => 'education',
+                str_contains($search, 'social') => 'social-media',
+                str_contains($search, 'pin') || str_contains($search, 'epin') || str_contains($search, 'recharge') => 'recharge-pin',
+                str_contains($search, 'data') || preg_match('/_(sme|gifting|data)|(?:^|_)(mtn|airtel|glo|etisalat)_/', $search) => 'data',
+                default => null,
+            };
+            if ($detected !== $category) continue;
+
             if ($category === 'airtime') {
-                // Keep a single network mapping; the customer enters the airtime amount.
                 $items[] = ['code' => $id, 'name' => $label.' Airtime', 'network' => $this->network($label.' '.$id),
                     'cost_minor' => null, 'selling_minor' => 1, 'mapping' => ['network' => $id, 'amount_based' => true]];
                 continue;
             }
-            $plansResponse = $http->get('api/plans/', ['service' => $id]);
-            if (! $plansResponse->successful()) throw new RuntimeException('GSUBZ plan catalogue failed; no import was applied.');
-            $plans = data_get($plansResponse->json(), 'data', $plansResponse->json());
-            if (! is_array($plans)) continue;
-            foreach ($plans as $plan) {
-                if (! is_array($plan)) continue;
-                $code = (string) ($plan['plan'] ?? $plan['value'] ?? $plan['PlanName'] ?? '');
-                $amount = $plan['api_price'] ?? $plan['price'] ?? null;
-                if ($code === '' || ! is_numeric($amount)) continue;
-                $items[] = ['code' => $id.'-'.$code, 'name' => (string) ($plan['name'] ?? $plan['PlanName'] ?? $code),
-                    'network' => $this->network($label.' '.$id), 'cost_minor' => (int) round((float) $amount * 100),
-                    'data_type' => $id, 'validity' => (string) ($plan['validity'] ?? ''),
-                    'mapping' => ['network' => $id, 'plan_code' => $code]];
+
+            if (in_array($category, ['data', 'cable_tv', 'social-media'], true)) {
+                $plansResponse = $http->get('api/plans/', ['service' => $id]);
+                if (! $plansResponse->successful()) throw new RuntimeException('GSUBZ '.$category.' plan catalogue failed; no import was applied.');
+                $plans = data_get($plansResponse->json(), 'data', $plansResponse->json());
+                if (! is_array($plans)) throw new RuntimeException('GSUBZ returned an invalid plan catalogue.');
+                foreach ($plans as $plan) {
+                    if (! is_array($plan)) continue;
+                    $code = (string) ($plan['plan'] ?? $plan['variation_code'] ?? $plan['value'] ?? $plan['PlanName'] ?? '');
+                    $amount = $plan['api_price'] ?? $plan['price'] ?? null;
+                    if ($code === '' || ! is_numeric($amount)) continue;
+                    $items[] = ['code' => $id.'-'.$code, 'name' => (string) ($plan['name'] ?? $plan['PlanName'] ?? $code),
+                        'network' => $this->network($label.' '.$id), 'cost_minor' => (int) round((float) $amount * 100),
+                        'data_type' => $id, 'validity' => (string) ($plan['validity'] ?? ''),
+                        'service_type' => $this->serviceType($category),
+                        'mapping' => ['network' => $id, 'plan_code' => $code, 'catalog_only' => $category !== 'data']];
+                }
+                continue;
             }
+
+            // Electricity, education pins and recharge PINs are visible for catalogue review only.
+            // Their distinct verification/recipient/fulfilment flows must be implemented before sales.
+            $items[] = ['code' => $id, 'name' => $label, 'network' => $this->network($label.' '.$id),
+                'cost_minor' => null, 'selling_minor' => 1, 'service_type' => $this->serviceType($category),
+                'mapping' => ['network' => $id, 'service_id' => $id, 'catalog_only' => true]];
         }
         return $items;
     }
