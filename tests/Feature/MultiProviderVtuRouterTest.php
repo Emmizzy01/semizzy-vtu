@@ -129,4 +129,77 @@ class MultiProviderVtuRouterTest extends TestCase
         }
     }
 
+
+    public function test_sogo_order_dispatches_with_its_own_variation_mapping(): void
+    {
+        Http::fake([
+            'api.sogo.africa/v1/bills/data' => Http::response([
+                'data' => ['status' => 'completed', 'reference' => 'SOGO-REF-1'],
+            ], 200),
+        ]);
+
+        $product = new VtuProduct([
+            'service_type' => 'data',
+            'provider_key' => 'sogo',
+            'metadata' => ['provider_mappings' => [
+                'sogo' => ['network' => 'mtn', 'variation_code' => 'sogo-1gb-7d'],
+                'gsubz' => ['network' => 'mtn', 'plan_code' => 'gsubz-different-plan'],
+            ]],
+        ]);
+        $order = new VtuOrder([
+            'public_id' => 'sogo-order-dispatch-1',
+            'provider' => 'sogo',
+            'service_type' => 'data',
+            'recipient' => '08012345678',
+            'amount_minor' => 50000,
+        ]);
+        $order->setRelation('product', $product);
+
+        $result = app(MultiProviderVtuRouter::class)->submit($order);
+
+        $this->assertSame('success', $result['status']);
+        $this->assertSame('SOGO-REF-1', $result['provider_reference']);
+        Http::assertSent(fn ($request) => str_contains($request->url(), 'api.sogo.africa/v1/bills/data')
+            && data_get($request->data(), 'network') === 'mtn'
+            && data_get($request->data(), 'variation_code') === 'sogo-1gb-7d');
+        Http::assertNotSent(fn ($request) => str_contains($request->url(), 'api.gsubz.com'));
+    }
+
+    public function test_gsubz_order_dispatches_with_its_own_plan_mapping(): void
+    {
+        Http::fake([
+            'api.gsubz.com/api/pay/' => Http::response([
+                'status' => 'success',
+                'reference' => 'GSUBZ-REF-1',
+            ], 200),
+        ]);
+
+        $product = new VtuProduct([
+            'service_type' => 'data',
+            'provider_key' => 'gsubz',
+            'metadata' => ['provider_mappings' => [
+                'sogo' => ['network' => 'mtn', 'variation_code' => 'sogo-different-plan'],
+                'gsubz' => ['network' => 'mtn-data', 'plan_code' => 'gsubz-1gb-7d'],
+            ]],
+        ]);
+        $order = new VtuOrder([
+            'public_id' => 'gsubz-order-dispatch-1',
+            'provider' => 'gsubz',
+            'service_type' => 'data',
+            'recipient' => '08012345678',
+            'amount_minor' => 50000,
+        ]);
+        $order->setRelation('product', $product);
+
+        $result = app(MultiProviderVtuRouter::class)->submit($order);
+
+        $this->assertSame('success', $result['status']);
+        $this->assertSame('GSUBZ-REF-1', $result['provider_reference']);
+        Http::assertSent(fn ($request) => str_contains($request->url(), 'api.gsubz.com/api/pay/')
+            && $request['serviceID'] === 'mtn-data'
+            && $request['plan'] === 'gsubz-1gb-7d'
+            && $request['requestID'] === 'gsubz-order-dispatch-1');
+        Http::assertNotSent(fn ($request) => str_contains($request->url(), 'api.sogo.africa'));
+    }
+
 }
