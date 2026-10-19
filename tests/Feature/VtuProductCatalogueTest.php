@@ -198,7 +198,7 @@ class VtuProductCatalogueTest extends TestCase
             ],
         ]);
 
-        $this->actingAs($user)
+        $response = $this->actingAs($user)
             ->getJson('/wallet/vtu/products?service_type=data')
             ->assertOk()
             ->assertJsonCount(1, 'data')
