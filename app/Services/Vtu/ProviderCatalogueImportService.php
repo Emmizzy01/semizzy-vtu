@@ -124,7 +124,7 @@ class ProviderCatalogueImportService
             if (! is_array($network) || ! is_string($network['slug'] ?? null)) continue;
             if ($category === 'airtime') {
                 // Airtime is amount-based at checkout, not a fixed-denomination product list.
-                $items[] = ['code' => $network['slug'], 'name' => ($network['name'] ?? strtoupper($network['slug'])).' Airtime',
+                $items[] = ['code' => $network['slug'], 'name' => $this->airtimeName((string) ($network['name'] ?? strtoupper($network['slug']))),
                     'network' => $network['slug'], 'cost_minor' => null, 'selling_minor' => 1,
                     'mapping' => ['network' => $network['slug'], 'amount_based' => true]];
                 continue;
@@ -197,7 +197,7 @@ class ProviderCatalogueImportService
             if ($detected !== $category) continue;
 
             if ($category === 'airtime') {
-                $items[] = ['code' => $id, 'name' => $label.' Airtime', 'network' => $this->network($label.' '.$id),
+                $items[] = ['code' => $id, 'name' => $this->airtimeName($label), 'network' => $this->network($label.' '.$id),
                     'cost_minor' => null, 'selling_minor' => 1, 'mapping' => ['network' => $id, 'amount_based' => true]];
                 continue;
             }
@@ -248,7 +248,7 @@ class ProviderCatalogueImportService
             $slug = $biller['slug'];
             if ($category === 'airtime') {
                 // Airtime is variable-amount; import the network mapping, not fake denominations.
-                $items[] = ['code' => $slug, 'name' => ($biller['name'] ?? strtoupper($slug)).' Airtime',
+                $items[] = ['code' => $slug, 'name' => $this->airtimeName((string) ($biller['name'] ?? strtoupper($slug))),
                     'network' => $slug, 'cost_minor' => null, 'selling_minor' => 1,
                     'mapping' => ['network' => $slug, 'amount_based' => true]];
                 continue;
@@ -337,6 +337,11 @@ class ProviderCatalogueImportService
         if (parse_url($base, PHP_URL_SCHEME) !== 'https' || $key === '') {
             throw new LogicException($provider.' catalogue import requires its HTTPS endpoint and server-side API key.');
         }
+    }
+
+    private function airtimeName(string $label): string
+    {
+        return str_contains(strtolower($label), 'airtime') ? $label : $label.' Airtime';
     }
 
     private function network(string $value): string
