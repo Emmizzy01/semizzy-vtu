@@ -21,6 +21,7 @@ class HandleInertiaRequests extends Middleware
         return [
             ...parent::share($request),
             'appName' => (string) $settings->get('site.name', config('app.name')),
+            'branding' => ['logo_url' => (string) $settings->get('branding.logo', ''), 'favicon_url' => (string) $settings->get('branding.favicon', ''), 'social_image_url' => (string) $settings->get('branding.social_image', ''), 'banner_url' => (string) $settings->get('branding.banner', '')],
             'platform' => ['name' => (string) $settings->get('site.name', config('app.name', 'Semizzy')), 'theme_mode' => in_array((string) $settings->get('site.theme_mode', 'light'), ['light', 'dark'], true) ? (string) $settings->get('site.theme_mode', 'light') : 'light', 'skin' => match ((string) $settings->get('site.theme_skin', 'modern-green')) { 'emerald' => 'modern-green', 'teal' => 'navy-teal', 'blue' => 'minimal-blue', 'violet' => 'obsidian-luxe', 'amber' => 'arctic-light', default => (string) $settings->get('site.theme_skin', 'modern-green') }],
             'auth' => [
                 'user' => $request->user(),
