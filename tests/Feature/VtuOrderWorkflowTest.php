@@ -696,7 +696,8 @@ class VtuOrderWorkflowTest extends TestCase
             ->where('vtu_order_id', $order->getKey())->count());
         $this->assertSame(2, \App\Models\WalletTransaction::query()->count());
         $this->assertSame(500, (int) $wallet->fresh()->available_balance_minor);
-        $postRequests = Http::recorded(fn ($request) => $request->method() === 'POST');
+        $postRequests = Http::recorded(fn ($request) => $request->method() === 'POST'
+            && ! str_ends_with((string) parse_url($request->url(), PHP_URL_PATH), '/api/verify/'));
         $this->assertCount(2, $postRequests, 'Recovery must not submit a third purchase.');
         Http::assertNotSent(fn ($request) => str_contains($request->url(), 'dataway'));
     }
