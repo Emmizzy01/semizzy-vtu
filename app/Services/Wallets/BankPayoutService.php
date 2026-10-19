@@ -44,19 +44,25 @@ class BankPayoutService
         $recipient = $this->paystack->createTransferRecipient($resolved['account_name'], $accountNumber, $bankCode);
         $recipientCode = $recipient['recipient_code'];
 
-        return BankBeneficiary::query()->firstOrCreate(
-            ['provider_recipient_code' => $recipientCode],
-            [
-                'user_id' => $user->id,
-                'bank_code' => $bankCode,
-                'bank_name' => (string) $bank['name'],
-                'account_number' => $accountNumber,
-                'account_number_last4' => substr($accountNumber, -4),
-                'account_name' => $resolved['account_name'],
-                'verification_status' => 'verified',
-                'verified_at' => now(),
-            ],
-        );
+        $existing = BankBeneficiary::query()->where('provider_recipient_code', $recipientCode)->first();
+        if ($existing !== null) {
+            if ((int) $existing->user_id !== (int) $user->id) {
+                throw new LogicException('This provider recipient is already associated with another Semizzy account.');
+            }
+            return $existing;
+        }
+
+        return BankBeneficiary::query()->create([
+            'user_id' => $user->id,
+            'bank_code' => $bankCode,
+            'bank_name' => (string) $bank['name'],
+            'account_number' => $accountNumber,
+            'account_number_last4' => substr($accountNumber, -4),
+            'account_name' => $resolved['account_name'],
+            'provider_recipient_code' => $recipientCode,
+            'verification_status' => 'verified',
+            'verified_at' => now(),
+        ]);
     }
 
     public function requestPayout(User $user, int $beneficiaryId, int $amountMinor, string $idempotencyKey): BankPayout
@@ -141,6 +147,10 @@ class BankPayoutService
                 'Semizzy user bank payout '.$payout->public_id,
             );
             $providerStatus = strtolower((string) ($response['status'] ?? 'pending'));
+            if (! is_string($response['transfer_code'] ?? null) || $response['transfer_code'] === '') {
+                $payout->forceFill(['status' => 'reconciliation_required', 'failure_reason' => 'Provider accepted no usable transfer identifier; manual reconciliation is required.'])->save();
+                return $payout->fresh(['beneficiary']);
+            }
             $payout->forceFill([
                 'status' => $providerStatus === 'failed' ? 'reconciliation_required' : 'provider_pending',
                 'provider_transfer_code' => is_string($response['transfer_code'] ?? null) ? $response['transfer_code'] : null,
