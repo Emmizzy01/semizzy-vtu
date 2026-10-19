@@ -308,7 +308,7 @@ class ProviderCatalogueImportService
                 $created += $result['created'];
                 $updated += $result['updated'];
                 $skipped += $result['skipped'];
-            } catch (\\Throwable $exception) {
+            } catch (\Throwable $exception) {
                 report($exception);
                 $errors[$category] = 'Catalogue request failed or returned an unsupported response.';
             }
