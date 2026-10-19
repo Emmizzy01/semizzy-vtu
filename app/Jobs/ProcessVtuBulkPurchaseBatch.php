@@ -77,7 +77,7 @@ class ProcessVtuBulkPurchaseBatch implements ShouldQueue
                     'status' => $final ? $orderStatus : 'unknown',
                     'order_public_id' => $order->public_id,
                     'result_message' => $final ? null : 'Provider order status is '.$orderStatus.'. Reconcile the existing order before any retry.',
-                    'completed_at' => $final ? now() : now(),
+                    'completed_at' => now(),
                 ]);
             } catch (InvalidArgumentException|InsufficientWalletFunds|ConflictHttpException $exception) {
                 $item->update([
@@ -136,8 +136,9 @@ class ProcessVtuBulkPurchaseBatch implements ShouldQueue
             ->pluck('status');
         $unfinished = $statuses->contains(fn (string $status): bool => in_array($status, ['pending', 'processing'], true));
         $hasSuccess = $statuses->contains(fn (string $status): bool => $status === 'successful');
-        $hasIssue = $statuses->contains(fn (string $status): bool => in_array($status, ['failed', 'cancelled', 'rejected', 'unavailable', 'unknown', 'processing', 'pending'], true));
-        $status = $unfinished ? 'processing' : ($hasSuccess && $hasIssue ? 'partial' : ($hasSuccess ? 'completed' : 'failed'));
+        $hasIssue = $statuses->contains(fn (string $status): bool => in_array($status, ['failed', 'cancelled', 'rejected', 'unavailable'], true));
+        $hasUnknown = $statuses->contains(fn (string $status): bool => $status === 'unknown');
+        $status = $unfinished ? 'processing' : (($hasUnknown || ($hasSuccess && $hasIssue)) ? 'partial' : ($hasSuccess ? 'completed' : 'failed'));
 
         $batch->update([
             'status' => $status,
