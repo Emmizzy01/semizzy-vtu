@@ -107,7 +107,7 @@ class ScheduledPurchaseRunnerTest extends TestCase
             'next_run_at' => now()->subMinutes(45),
             'status' => 'processing',
         ]);
-        \\Illuminate\\Support\\Facades\\DB::table('scheduled_service_purchases')
+        \Illuminate\Support\Facades\DB::table('scheduled_service_purchases')
             ->where('id', $schedule->id)
             ->update(['updated_at' => now()->subMinutes(31)]);
 
