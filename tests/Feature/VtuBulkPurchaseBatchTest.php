@@ -280,7 +280,7 @@ class VtuBulkPurchaseBatchTest extends TestCase
             'recipient' => '08012345678',
             'amount_minor' => 1000,
             'status' => 'processing',
-            'started_at' => now(),
+            'started_at' => now()->subMinutes(31),
         ]);
 
         (new ProcessVtuBulkPurchaseBatch((int) $batch->id))->failed(new \RuntimeException('Worker terminated'));
@@ -314,7 +314,7 @@ class VtuBulkPurchaseBatchTest extends TestCase
             'recipient' => '08012345678',
             'amount_minor' => 1000,
             'status' => 'processing',
-            'started_at' => now(),
+            'started_at' => now()->subMinutes(31),
         ]);
         $pending = $batch->items()->create([
             'item_index' => 1,
