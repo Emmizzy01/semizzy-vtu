@@ -64,7 +64,7 @@ class BankPayoutSafetyTest extends TestCase
             'password' => 'not-a-real-password',
         ]);
 
-        $beneficiary = \\App\\Models\\BankBeneficiary::query()->create([
+        $beneficiary = \App\Models\BankBeneficiary::query()->create([
             'user_id' => $user->id,
             'bank_code' => '999',
             'bank_name' => 'Example Test Bank',
@@ -89,7 +89,7 @@ class BankPayoutSafetyTest extends TestCase
             'password' => 'not-a-real-password',
         ]);
 
-        $beneficiary = \\App\\Models\\BankBeneficiary::query()->create([
+        $beneficiary = \App\Models\BankBeneficiary::query()->create([
             'user_id' => $user->id,
             'bank_code' => '998',
             'bank_name' => 'History Test Bank',
@@ -101,8 +101,8 @@ class BankPayoutSafetyTest extends TestCase
             'verified_at' => now(),
         ]);
 
-        \\App\\Models\\BankPayout::query()->create([
-            'public_id' => (string) \\Illuminate\\Support\\Str::uuid(),
+        \App\Models\BankPayout::query()->create([
+            'public_id' => (string) \Illuminate\Support\Str::uuid(),
             'user_id' => $user->id,
             'bank_beneficiary_id' => $beneficiary->id,
             'currency' => 'NGN',
