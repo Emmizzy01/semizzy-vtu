@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Services\Security\TransactionPinService;
 use App\Services\Security\LoginChallengeService;
+use App\Services\Referrals\ReferralProgramService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -84,7 +85,7 @@ class AuthController extends Controller
         return Inertia::render('Auth/Register');
     }
 
-    public function register(Request $request, TransactionPinService $pins): RedirectResponse
+    public function register(Request $request, TransactionPinService $pins, ReferralProgramService $referrals): RedirectResponse
     {
         $request->merge(['email' => strtolower(trim((string) $request->input('email')))]);
 
@@ -94,6 +95,7 @@ class AuthController extends Controller
             'password' => ['required', 'confirmed', Password::min(12)->letters()->mixedCase()->numbers()],
             'transaction_pin' => ['nullable', 'string', 'digits:4', 'regex:/^(?!([0-9])\1{3})\d{4}$/'],
             'transaction_pin_confirmation' => ['required_with:transaction_pin', 'nullable', 'string', 'same:transaction_pin'],
+            'referral_code' => ['nullable', 'string', 'max:20', 'regex:/^[A-Za-z0-9]+$/'],
         ]);
 
         $pin = $validated['transaction_pin'] ?? null;
@@ -105,12 +107,14 @@ class AuthController extends Controller
             return back()->withErrors(['transaction_pin' => 'Choose a less predictable four-digit transaction PIN.'])->withInput($request->except(['password', 'password_confirmation', 'transaction_pin', 'transaction_pin_confirmation']));
         }
 
-        $user = DB::transaction(function () use ($validated, $pin, $pins): User {
+        $user = DB::transaction(function () use ($validated, $pin, $pins, $referrals): User {
             $user = User::query()->create([
                 'name' => $validated['name'],
                 'email' => strtolower($validated['email']),
                 'password' => $validated['password'],
             ]);
+
+            $referrals->attributeNewUser($user, isset($validated['referral_code']) ? (string) $validated['referral_code'] : null);
 
             if ($pin !== null) {
                 $user->forceFill([
