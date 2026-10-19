@@ -316,4 +316,35 @@ class WalletLedgerServiceTest extends TestCase
         $this->assertDatabaseCount('wallet_ledger_entries', 4);
     }
 
+
+    public function test_explicit_financial_recovery_can_restore_funds_above_cap_for_disabled_tier(): void
+    {
+        $user = User::query()->create([
+            'name' => 'Recovery Cap Customer',
+            'email' => 'recovery-cap@example.test',
+            'password' => 'not-a-real-password',
+        ]);
+        $user->forceFill(['user_level' => 'level_2'])->save();
+        $wallet = app(WalletAccountService::class)->openForUser($user);
+        UserLevelPolicy::query()->where('level', 'level_2')->update([
+            'wallet_balance_limit_minor' => 1000,
+            'is_active' => false,
+        ]);
+        app(WalletLedgerService::class)->post($wallet->id, 'credit', 900, 'recovery-cap-seed');
+
+        app(WalletLedgerService::class)->post(
+            walletId: $wallet->id,
+            type: 'credit',
+            amountMinor: 101,
+            idempotencyKey: 'recovery-cap-compensation',
+            description: 'Verified financial recovery',
+            isFinancialRecovery: true,
+        );
+
+        $this->assertSame(1001, (int) $wallet->fresh()->balance_minor);
+        $this->assertSame(1001, (int) $wallet->fresh()->available_balance_minor);
+        $this->assertDatabaseCount('wallet_transactions', 2);
+        $this->assertDatabaseCount('wallet_ledger_entries', 2);
+    }
+
 }
