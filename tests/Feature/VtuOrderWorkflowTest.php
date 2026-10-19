@@ -696,9 +696,9 @@ class VtuOrderWorkflowTest extends TestCase
             ->where('vtu_order_id', $order->getKey())->count());
         $this->assertSame(2, \\App\\Models\\WalletTransaction::query()->count());
         $this->assertSame(500, (int) $wallet->fresh()->available_balance_minor);
-        Http::assertNotSent(fn ($request) => $request->method() === 'POST'
-            && str_contains($request->url(), 'api.gsubz.com')
-            && str_contains($request->url(), 'dataway'));
+        $postRequests = Http::recorded(fn ($request) => $request->method() === 'POST');
+        $this->assertCount(2, $postRequests, 'Recovery must not submit a third purchase.');
+        Http::assertNotSent(fn ($request) => str_contains($request->url(), 'dataway'));
     }
 
     public function test_definitive_sogo_failure_reserves_second_attempt_before_alternate_submission_without_second_debit(): void
