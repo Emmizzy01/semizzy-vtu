@@ -71,13 +71,13 @@ class ProcessVtuBulkPurchaseBatch implements ShouldQueue
                     $item->service_details ?? [],
                     $item->amount_minor,
                 );
-                $status = (string) $order->status;
-                $final = in_array($status, ['successful', 'failed', 'cancelled'], true);
+                $orderStatus = (string) $order->status;
+                $final = in_array($orderStatus, ['successful', 'failed', 'cancelled'], true);
                 $item->update([
-                    'status' => $status,
+                    'status' => $final ? $orderStatus : 'unknown',
                     'order_public_id' => $order->public_id,
-                    'result_message' => $final ? null : 'The order is not final yet; use order reconciliation before taking further action.',
-                    'completed_at' => $final ? now() : null,
+                    'result_message' => $final ? null : 'Provider order status is '.$orderStatus.'. Reconcile the existing order before any retry.',
+                    'completed_at' => $final ? now() : now(),
                 ]);
             } catch (InvalidArgumentException|InsufficientWalletFunds|ConflictHttpException $exception) {
                 $item->update([
