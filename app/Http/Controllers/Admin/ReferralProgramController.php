@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Services\Referrals\ReferralProgramService;
+use DomainException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -58,7 +59,7 @@ class ReferralProgramController extends Controller
                 trim($data['review_note']),
                 $request->user(),
             );
-        } catch (InvalidArgumentException|LogicException $exception) {
+        } catch (InvalidArgumentException|LogicException|DomainException $exception) {
             return back()->withErrors(['review_note' => $exception->getMessage()]);
         }
 
