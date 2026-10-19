@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Semizzy VTU - Single File Dashboard</title>
+<title>{{ $homepage['browser_title'] ?? 'Semizzy VTU - Single File Dashboard' }}</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
@@ -61,7 +61,7 @@ body{font-family:'Inter',sans-serif}
 
 <!-- 2. Banner Enjoy 10% cashback - ABOVE Buy Data -->
 <div class="mt-6 bg-gradient-to-r from-[#0a5c32] to-[#12a15a] rounded-[16px] p-4 flex justify-between items-center text-white h-[96px] relative overflow-hidden">
-<div><p class="font-bold text-[14px] leading-5">Enjoy 10% cashback<br>on data purchases</p><p class="text-[11px] opacity-80 mt-1">Limited time offer</p></div>
+<div><p class="font-bold text-[14px] leading-5">{{ $homepage['cashback_line_one'] ?? 'Enjoy 10% cashback' }}<br>{{ $homepage['cashback_line_two'] ?? 'on data purchases' }}</p><p class="text-[11px] opacity-80 mt-1">{{ $homepage['cashback_subtitle'] ?? 'Limited time offer' }}</p></div>
 <div class="w-20 h-20 bg-white/20 rounded-full grid place-items-center text-3xl">👩‍💼</div>
 </div>
 
@@ -93,7 +93,7 @@ body{font-family:'Inter',sans-serif}
 
 <!-- ADS BANNER 1 BEFORE Shop Gadget -->
 <div class="mt-6 bg-gradient-to-r from-[#0f8a4f] to-[#0a5c32] rounded-[16px] p-4 flex justify-between items-center text-white">
-<div><p class="font-bold text-[13px]">🔥 Big Gadget Sale! Up to 50% OFF</p><p class="text-[11px] opacity-80">iPhones, Samsung, Laptops</p></div>
+<div><p class="font-bold text-[13px]">{{ $homepage['gadget_sale_title'] ?? '🔥 Big Gadget Sale! Up to 50% OFF' }}</p><p class="text-[11px] opacity-80">{{ $homepage['gadget_sale_subtitle'] ?? 'iPhones, Samsung, Laptops' }}</p></div>
 <button class="bg-white text-[#0a5c32] px-4 py-2 rounded-full text-xs font-bold">Shop Now</button>
 </div>
 
@@ -114,7 +114,7 @@ body{font-family:'Inter',sans-serif}
 
 <!-- ADS BANNER 2 AFTER Shop Gadget -->
 <div class="mt-6 bg-[#fef3c7] border border-[#fde68a] rounded-[16px] p-4 flex justify-between items-center">
-<div><p class="font-bold text-[13px] text-[#92400e]">💰 Refer & Earn ₦500 per friend!</p><p class="text-[11px] text-[#a16207]">Invite friends to Semizzy</p></div>
+<div><p class="font-bold text-[13px] text-[#92400e]">{{ $homepage['referral_title'] ?? '💰 Refer & Earn ₦500 per friend!' }}</p><p class="text-[11px] text-[#a16207]">{{ $homepage['referral_subtitle'] ?? 'Invite friends to Semizzy' }}</p></div>
 <button class="bg-[#111827] text-white px-4 py-2 rounded-full text-xs font-bold">Refer Now</button>
 </div>
 </main>
