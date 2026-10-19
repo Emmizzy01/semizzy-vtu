@@ -111,7 +111,7 @@ class PaymentFundingController extends Controller
                 return response()->json(['message' => 'Paystack event schema is invalid.'], 400);
             }
 
-            if (in_array($eventType, ['transfer.success', 'transfer.failed'], true)) {
+            if (in_array($eventType, ['transfer.success', 'transfer.failed', 'transfer.reversed'], true)) {
                 $result = $bankPayouts->applyPaystackEvent($eventType, $payload);
 
                 return response()->json([
