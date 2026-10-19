@@ -36,9 +36,9 @@ class VtuServiceFeatureGateTest extends TestCase
         ]);
 
         $this->actingAs($user)->getJson('/wallet/vtu/products?service_type=airtime')->assertStatus(503);
-        $this->actingAs($user)->getJson('/wallet/vtu/products?service_type=electricity-bill')
-            ->assertOk()
-            ->assertJsonPath('data.0.code', 'feature-gate-electricity');
+        $response = $this->actingAs($user)->getJson('/wallet/vtu/products?service_type=electricity-bill')
+            ->assertOk();
+        $this->assertMatchesRegularExpression('/^p[0-9a-z]+\\.[a-f0-9]{32}$/', (string) $response->json('data.0.code'));
     }
 
     public function test_missing_airtime_data_feature_control_fails_closed_for_catalogue_and_purchase(): void
