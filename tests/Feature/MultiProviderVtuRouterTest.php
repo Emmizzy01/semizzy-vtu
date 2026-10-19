@@ -76,4 +76,57 @@ class MultiProviderVtuRouterTest extends TestCase
             Http::assertNothingSent();
         }
     }
+
+    public function test_sogo_catalogue_product_routes_to_sogo_even_when_gsubz_has_higher_priority(): void
+    {
+        $product = new VtuProduct([
+            'service_type' => 'data',
+            'provider_key' => 'sogo',
+            'metadata' => ['provider_mappings' => [
+                'sogo' => ['network' => 'mtn', 'variation_code' => 'sogo-1gb-7d'],
+                'gsubz' => ['network' => 'mtn', 'plan_code' => 'gsubz-1gb-7d'],
+            ]],
+        ]);
+
+        $this->assertSame('sogo', app(MultiProviderVtuRouter::class)->providerNameForProduct($product));
+    }
+
+    public function test_gsubz_catalogue_product_routes_to_gsubz_even_when_sogo_has_higher_priority(): void
+    {
+        config(['services.vtu.multi_provider.priority' => ['sogo', 'gsubz', 'dataway']]);
+        $product = new VtuProduct([
+            'service_type' => 'data',
+            'provider_key' => 'gsubz',
+            'metadata' => ['provider_mappings' => [
+                'sogo' => ['network' => 'mtn', 'variation_code' => 'sogo-1gb-7d'],
+                'gsubz' => ['network' => 'mtn', 'plan_code' => 'gsubz-1gb-7d'],
+            ]],
+        ]);
+
+        $this->assertSame('gsubz', app(MultiProviderVtuRouter::class)->providerNameForProduct($product));
+    }
+
+    public function test_dataway_catalogue_product_fails_closed_instead_of_falling_back_to_another_provider(): void
+    {
+        config(['services.vtu.multi_provider.priority' => ['sogo', 'gsubz', 'dataway']]);
+        Http::fake();
+        $product = new VtuProduct([
+            'service_type' => 'data',
+            'provider_key' => 'dataway',
+            'metadata' => ['provider_mappings' => [
+                'dataway' => ['network' => 'mtn', 'product_id' => 123],
+                'sogo' => ['network' => 'mtn', 'variation_code' => 'sogo-1gb-7d'],
+                'gsubz' => ['network' => 'mtn', 'plan_code' => 'gsubz-1gb-7d'],
+            ]],
+        ]);
+
+        try {
+            app(MultiProviderVtuRouter::class)->providerNameForProduct($product);
+            $this->fail('Dataway must remain blocked until its lookup and recovery contract is verified.');
+        } catch (LogicException $exception) {
+            $this->assertStringContainsString('Dataway purchases remain disabled', $exception->getMessage());
+            Http::assertNothingSent();
+        }
+    }
+
 }
