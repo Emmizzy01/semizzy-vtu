@@ -40,6 +40,36 @@ class VtuBulkPurchaseBatchTest extends TestCase
         Queue::assertPushed(ProcessVtuBulkPurchaseBatch::class, 1);
     }
 
+    public function test_bulk_request_accepts_the_blueprint_maximum_of_100_items(): void
+    {
+        Queue::fake();
+        [$user, , $payload] = $this->preparedRequest();
+        $payload['batch_key'] = 'bulk-max-items-key-001';
+        $payload['items'] = array_merge($payload['items'], array_fill(0, 90, $payload['items'][0]));
+
+        $response = $this->actingAs($user)->postJson(route('wallet.vtu.orders.bulk'), $payload);
+
+        $response->assertAccepted()
+            ->assertJsonPath('data.item_count', 100)
+            ->assertJsonPath('data.total_amount_minor', 100000);
+        $this->assertDatabaseCount('vtu_bulk_purchase_items', 100);
+        Queue::assertPushed(ProcessVtuBulkPurchaseBatch::class, 1);
+    }
+
+    public function test_bulk_request_rejects_more_than_100_items_before_persisting_any_batch(): void
+    {
+        Queue::fake();
+        [$user, , $payload] = $this->preparedRequest();
+        $payload['batch_key'] = 'bulk-over-limit-key-001';
+        $payload['items'] = array_merge($payload['items'], array_fill(0, 91, $payload['items'][0]));
+
+        $this->actingAs($user)->postJson(route('wallet.vtu.orders.bulk'), $payload)->assertUnprocessable();
+
+        $this->assertDatabaseCount('vtu_bulk_purchase_batches', 0);
+        $this->assertDatabaseCount('vtu_bulk_purchase_items', 0);
+        Queue::assertNothingPushed();
+    }
+
     public function test_same_batch_key_and_payload_returns_existing_batch_without_dispatching_again(): void
     {
         Queue::fake();
