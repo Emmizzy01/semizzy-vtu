@@ -3,11 +3,14 @@
 namespace Tests\Feature;
 
 use App\Http\Controllers\Support\HelpPageController;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
 class SupportHelpPagesTest extends TestCase
 {
+    use RefreshDatabase;
+
     public function test_each_support_footer_destination_has_a_public_content_page(): void
     {
         foreach (HelpPageController::definitions() as $slug => $definition) {
