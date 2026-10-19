@@ -147,6 +147,10 @@ export default function VtuPurchase({ serviceType }: { serviceType: ServiceType 
   const [recipient, setRecipient] = useState(restoredPending?.recipient ?? '');
   const [beneficiaries, setBeneficiaries] = useState<SavedBeneficiary[]>([]);
   const [savingBeneficiary, setSavingBeneficiary] = useState(false);
+  const [scheduleMode, setScheduleMode] = useState(false);
+  const [scheduleFrequency, setScheduleFrequency] = useState<'daily' | 'weekly' | 'monthly'>('monthly');
+  const [scheduleNextRun, setScheduleNextRun] = useState(() => { const d = new Date(Date.now() + 5 * 60_000); d.setSeconds(0, 0); return new Date(d.getTime() - d.getTimezoneOffset() * 60_000).toISOString().slice(0, 16); });
+  const [scheduleMessage, setScheduleMessage] = useState('');
   const [transactionPin, setTransactionPin] = useState('');
   const [meterType, setMeterType] = useState<'prepaid' | 'postpaid'>('prepaid');
   const [contactPhone, setContactPhone] = useState('');
@@ -268,6 +272,31 @@ export default function VtuPurchase({ serviceType }: { serviceType: ServiceType 
 
     setSubmitting(true);
     setError('');
+    setScheduleMessage('');
+
+    if (scheduleMode) {
+      try {
+        const csrf = document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ?? '';
+        const response = await fetch('/wallet/scheduled-purchases', {
+          method: 'POST', credentials: 'same-origin',
+          headers: { Accept: 'application/json', 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'X-CSRF-TOKEN': csrf },
+          body: JSON.stringify({
+            service_type: serviceType, product_code: selectedProduct.code, recipient,
+            ...(isAirtime || isElectricity ? { amount: purchaseAmount } : {}),
+            frequency: scheduleFrequency, next_run_at: new Date(scheduleNextRun).toISOString(), transaction_pin: transactionPin,
+            ...(needsVerification ? { contact_phone: contactPhone, ...(isElectricity ? { meter_type: meterType } : {}), ...(isTv ? { subscription_type: 'change' } : {}) } : {}),
+          }),
+        });
+        const body = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(typeof body.message === 'string' ? body.message : 'Schedule could not be saved.');
+        setScheduleMessage('Recurring purchase schedule saved. Semizzy will re-check product availability, account verification where required, wallet funds and provider status at run time.');
+        setTransactionPin('');
+        setScheduleMode(false);
+      } catch (cause: unknown) {
+        setError(cause instanceof Error ? cause.message : 'Schedule could not be saved.');
+      } finally { setSubmitting(false); }
+      return;
+    }
 
     let receivedResponse = false;
     const storefrontSlug = new URLSearchParams(window.location.search).get('storefront')?.trim() || undefined;
@@ -416,6 +445,8 @@ export default function VtuPurchase({ serviceType }: { serviceType: ServiceType 
                 <p className="mt-2 text-sm leading-6 text-[var(--muted)]">{serviceDescription[serviceType]}</p>
               </div>
             </div>
+
+            {scheduleMessage && <div role="status" className="mb-5 rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-4 text-sm leading-6">{scheduleMessage}</div>}
 
             {error && (
               <div role="alert" className="mb-5 flex items-start gap-3 rounded-2xl border border-rose-500/30 bg-rose-500/5 p-4 text-sm">
@@ -657,6 +688,27 @@ export default function VtuPurchase({ serviceType }: { serviceType: ServiceType 
                     )}
                   </div>
                 )}
+
+                <div className="rounded-2xl border border-[var(--line)] p-4">
+                  <label className="flex items-start gap-3 text-sm font-semibold">
+                    <input type="checkbox" checked={scheduleMode} onChange={(event) => setScheduleMode(event.target.checked)} disabled={submissionUncertain} className="mt-1" />
+                    <span>Schedule this purchase to repeat automatically
+                      <span className="mt-1 block text-xs font-normal leading-5 text-[var(--muted)]">Each run uses the existing wallet ledger and provider safety checks. Uncertain results pause the schedule for review.</span>
+                    </span>
+                  </label>
+                  {scheduleMode && (
+                    <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                      <label className="block text-sm font-semibold">Repeat
+                        <select value={scheduleFrequency} onChange={(event) => setScheduleFrequency(event.target.value as 'daily' | 'weekly' | 'monthly')} className="mt-2 w-full rounded-xl border border-[var(--line)] bg-[var(--page)] px-3 py-3 font-normal">
+                          <option value="daily">Every day</option><option value="weekly">Every week</option><option value="monthly">Every month</option>
+                        </select>
+                      </label>
+                      <label className="block text-sm font-semibold">First run
+                        <input type="datetime-local" required min={new Date(Date.now() + 60_000).toISOString().slice(0, 16)} value={scheduleNextRun} onChange={(event) => setScheduleNextRun(event.target.value)} className="mt-2 w-full rounded-xl border border-[var(--line)] bg-[var(--page)] px-3 py-3 font-normal" />
+                      </label>
+                    </div>
+                  )}
+                </div>
 
                 <label className="block text-sm font-semibold">
                   Transaction PIN
