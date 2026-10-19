@@ -169,6 +169,32 @@ Artisan::command('vtu:run-scheduled-purchases {--limit=100}', function (VtuOrder
         return 1;
     }
 
+    // Recover abandoned claims conservatively. A process may have died after
+    // submitting to the provider, so stale processing rows are paused for review,
+    // never returned to the active queue automatically.
+    $staleIds = ScheduledServicePurchase::query()
+        ->where('status', 'processing')
+        ->where('updated_at', '<=', now()->subMinutes(30))
+        ->orderBy('updated_at')
+        ->limit($limit)
+        ->pluck('id');
+
+    foreach ($staleIds as $staleId) {
+        DB::transaction(function () use ($staleId): void {
+            $stale = ScheduledServicePurchase::query()->whereKey($staleId)->lockForUpdate()->first();
+            if (!$stale || $stale->status !== 'processing' || $stale->updated_at->greaterThan(now()->subMinutes(30))) {
+                return;
+            }
+
+            $stale->update([
+                'status' => 'paused',
+                'last_run_at' => $stale->last_run_at ?? now(),
+                'last_result' => 'unknown',
+                'last_error' => 'A scheduled run was interrupted and paused after 30 minutes. Check the stable scheduled idempotency reference and reconcile the existing order before any manual resume.',
+            ]);
+        });
+    }
+
     $ids = ScheduledServicePurchase::query()
         ->where('status', 'active')
         ->where('next_run_at', '<=', now())
