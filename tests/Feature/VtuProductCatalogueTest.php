@@ -214,6 +214,10 @@ class VtuProductCatalogueTest extends TestCase
             'password' => 'not-a-real-password',
         ]);
 
+        PlatformFeatureControl::query()->where('feature_key', 'service.airtime_data')
+            ->update(['is_enabled' => true, 'is_implemented' => true]);
+        app(IntegrationSettings::class)->set('service.airtime_data.enabled', '1', null);
+
         foreach ([
             [
                 'provider_key' => 'sogo',
