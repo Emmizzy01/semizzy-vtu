@@ -86,7 +86,8 @@ export default function DashboardLayout({ title, description, admin = false, chi
     ] },
     { title: 'Platform control', items: [
       { label: 'API providers', href: '/admin/api-providers', icon: PlugZap },
-      { label: 'Homepage editor', href: '/admin/platform-settings#homepage', icon: Globe },\n      { label: 'Support page editor', href: '/admin/support-pages', icon: LifeBuoy },
+      { label: 'Homepage editor', href: '/admin/platform-settings#homepage', icon: Globe },
+      { label: 'Support page editor', href: '/admin/support-pages', icon: LifeBuoy },
       { label: 'Site control & settings', href: '/admin/platform-settings', icon: SlidersHorizontal },
       { label: 'Feature controls', href: '/admin/feature-controls', icon: SlidersHorizontal },
       { label: 'Security activity', href: '/admin/security-events', icon: ShieldCheck },
