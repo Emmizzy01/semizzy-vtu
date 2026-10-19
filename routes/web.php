@@ -239,6 +239,12 @@ Route::middleware(['auth', 'can:staff.permissions.manage'])->prefix('admin/staff
     Route::delete('/users/{user}/permissions', [StaffAccessController::class, 'revoke'])->middleware('throttle:20,1')->name('permissions.revoke');
 });
 
+Route::middleware(['auth', 'throttle:60,1'])->prefix('wallet/service-beneficiaries')->name('wallet.service-beneficiaries.')->group(function (): void {
+    Route::get('/', [ServiceBeneficiaryController::class, 'index'])->name('index');
+    Route::post('/', [ServiceBeneficiaryController::class, 'store'])->middleware('throttle:20,1')->name('store');
+    Route::delete('/{beneficiary}', [ServiceBeneficiaryController::class, 'destroy'])->middleware('throttle:10,1')->name('destroy');
+});
+
 Route::middleware(['auth', 'throttle:60,1'])->prefix('wallet/vtu')->name('wallet.vtu.')->group(function (): void {
     Route::post('/verify-biller', [VtuBillerVerificationController::class, 'verify'])->middleware('throttle:10,1')->name('verify-biller');
     // Each service has its own purchase screen; the legacy entry opens airtime.
