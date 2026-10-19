@@ -65,6 +65,27 @@ class BankPayoutService
         ]);
     }
 
+    public function removeBeneficiary(User $user, int $beneficiaryId): void
+    {
+        $beneficiary = BankBeneficiary::query()
+            ->where('user_id', $user->id)
+            ->whereKey($beneficiaryId)
+            ->lockForUpdate()
+            ->firstOrFail();
+
+        DB::transaction(function () use ($beneficiary): void {
+            $hasPayoutHistory = BankPayout::query()
+                ->where('bank_beneficiary_id', $beneficiary->id)
+                ->exists();
+
+            if ($hasPayoutHistory) {
+                throw new LogicException('This saved bank account has transfer history and cannot be removed. Keep it for your records.');
+            }
+
+            $beneficiary->delete();
+        }, attempts: 3);
+    }
+
     public function requestPayout(User $user, int $beneficiaryId, int $amountMinor, string $idempotencyKey): BankPayout
     {
         if ($amountMinor < 100 || $amountMinor > 500000000) {
