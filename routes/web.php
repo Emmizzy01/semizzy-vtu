@@ -13,6 +13,7 @@ use App\Http\Controllers\Payments\PaymentFundingController;
 use App\Http\Controllers\Payments\ManualDepositController;
 use App\Http\Controllers\Admin\ManualDepositSettingsController;
 use App\Http\Controllers\Admin\PlatformSettingsController;
+use App\Http\Controllers\Admin\BrandingAssetsController;
 use App\Http\Controllers\Admin\UserManagementController;
 use App\Http\Middleware\EnsureAccountIsActive;
 use App\Http\Controllers\Admin\GlobalSearchController;
@@ -187,6 +188,7 @@ Route::middleware(['auth', 'can:staff.permissions.manage'])->prefix('admin')->na
     Route::put('/support-pages', [HelpPageController::class, 'adminUpdate'])->middleware('throttle:10,1')->name('support-pages.update');
     Route::get('/platform-settings', [PlatformSettingsController::class, 'edit'])->name('platform-settings');
     Route::put('/platform-settings', [PlatformSettingsController::class, 'update'])->middleware('throttle:10,1')->name('platform-settings.update');
+    Route::post('/branding-assets', [BrandingAssetsController::class, 'update'])->middleware('throttle:10,1')->name('branding-assets.update');
     Route::get('/manual-deposits', [ManualDepositController::class, 'adminIndex'])->middleware('throttle:30,1')->name('manual-deposits.index');
     Route::get('/manual-deposits/settings', [ManualDepositSettingsController::class, 'edit'])->name('manual-deposits.settings');
     Route::put('/manual-deposits/settings', [ManualDepositSettingsController::class, 'update'])->middleware('throttle:10,1')->name('manual-deposits.settings.update');
