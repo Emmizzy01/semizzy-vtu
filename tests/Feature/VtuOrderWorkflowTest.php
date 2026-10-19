@@ -687,6 +687,18 @@ class VtuOrderWorkflowTest extends TestCase
         Http::assertSent(fn ($request) => str_contains($request->url(), 'api.gsubz.com')
             && $request->method() === 'POST');
         Http::assertNotSent(fn ($request) => str_contains($request->url(), 'dataway'));
+
+        // Repeated recovery must only query the uncertain second attempt. It
+        // must not create attempt #3, submit another purchase, or refund.
+        $reconciled = app(VtuOrderService::class)->reconcile($order->fresh());
+        $this->assertSame('awaiting_reconciliation', $reconciled->status);
+        $this->assertSame(2, \\App\\Models\\VtuProviderAttempt::query()
+            ->where('vtu_order_id', $order->getKey())->count());
+        $this->assertSame(2, \\App\\Models\\WalletTransaction::query()->count());
+        $this->assertSame(500, (int) $wallet->fresh()->available_balance_minor);
+        Http::assertNotSent(fn ($request) => $request->method() === 'POST'
+            && str_contains($request->url(), 'api.gsubz.com')
+            && str_contains($request->url(), 'dataway'));
     }
 
     public function test_definitive_sogo_failure_reserves_second_attempt_before_alternate_submission_without_second_debit(): void
