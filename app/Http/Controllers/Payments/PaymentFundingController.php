@@ -12,6 +12,7 @@ use App\Services\Payments\PaymentIntentService;
 use App\Services\Payments\PaystackClient;
 use App\Services\Payments\WebhookSignatureVerifier;
 use App\Services\Wallets\WalletAccountService;
+use App\Services\Wallets\BankPayoutReconciliationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -86,6 +87,7 @@ class PaymentFundingController extends Controller
         PaymentFundingService $funding,
         PaymentProviderExceptionService $providerExceptions,
         PaymentRefundService $refunds,
+        BankPayoutReconciliationService $bankPayouts,
     ): JsonResponse {
         abort_unless(in_array($provider, ['paystack', 'semizzy'], true), 404);
 
@@ -107,6 +109,16 @@ class PaymentFundingController extends Controller
             $eventType = $payload['event'] ?? null;
             if (! is_string($eventType) || ! is_array($payload['data'] ?? null)) {
                 return response()->json(['message' => 'Paystack event schema is invalid.'], 400);
+            }
+
+            if (in_array($eventType, ['transfer.success', 'transfer.failed'], true)) {
+                $result = $bankPayouts->applyPaystackEvent($eventType, $payload);
+
+                return response()->json([
+                    'received' => true,
+                    'outcome' => $result['outcome'],
+                    'duplicate' => $result['duplicate'],
+                ], $result['outcome'] === 'invalid_event' ? 400 : 200);
             }
 
             if (str_starts_with($eventType, 'refund.') || str_starts_with($eventType, 'charge.dispute.')) {
