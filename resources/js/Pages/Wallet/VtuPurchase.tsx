@@ -5,6 +5,7 @@ import { AlertCircle, CheckCircle2, Clock3, LoaderCircle, RefreshCw, Smartphone,
 type ServiceType = 'airtime' | 'data' | 'electricity-bill' | 'tv-subscription';
 
 type SavedBeneficiary = { id: number; service_type: string; label: string; recipient: string; network: string | null; product_code: string | null; service_details: Record<string, unknown> | null };
+type ScheduledPurchase = { id: number; service_type: string; recipient: string; frequency: string; next_run_at: string; status: string; last_result: string | null; last_error: string | null };
 
 type Product = {
   code: string;
@@ -151,6 +152,7 @@ export default function VtuPurchase({ serviceType }: { serviceType: ServiceType 
   const [scheduleFrequency, setScheduleFrequency] = useState<'daily' | 'weekly' | 'monthly'>('monthly');
   const [scheduleNextRun, setScheduleNextRun] = useState(() => { const d = new Date(Date.now() + 5 * 60_000); d.setSeconds(0, 0); return new Date(d.getTime() - d.getTimezoneOffset() * 60_000).toISOString().slice(0, 16); });
   const [scheduleMessage, setScheduleMessage] = useState('');
+  const [scheduledPurchases, setScheduledPurchases] = useState<ScheduledPurchase[]>([]);
   const [transactionPin, setTransactionPin] = useState('');
   const [meterType, setMeterType] = useState<'prepaid' | 'postpaid'>('prepaid');
   const [contactPhone, setContactPhone] = useState('');
@@ -164,6 +166,15 @@ export default function VtuPurchase({ serviceType }: { serviceType: ServiceType 
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
   const [submissionUncertain, setSubmissionUncertain] = useState(restoredPending?.uncertain ?? false);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/wallet/scheduled-purchases', { headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' }, credentials: 'same-origin' })
+      .then(async (response) => { if (!response.ok) throw new Error('Schedules unavailable'); return response.json(); })
+      .then((body) => { if (!cancelled) setScheduledPurchases(Array.isArray(body.data) ? body.data as ScheduledPurchase[] : []); })
+      .catch(() => { if (!cancelled) setScheduledPurchases([]); });
+    return () => { cancelled = true; };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -290,6 +301,9 @@ export default function VtuPurchase({ serviceType }: { serviceType: ServiceType 
         const body = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(typeof body.message === 'string' ? body.message : 'Schedule could not be saved.');
         setScheduleMessage('Recurring purchase schedule saved. Semizzy will re-check product availability, account verification where required, wallet funds and provider status at run time.');
+        const listResponse = await fetch('/wallet/scheduled-purchases', { headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' }, credentials: 'same-origin' });
+        const listBody = await listResponse.json().catch(() => ({}));
+        if (listResponse.ok && Array.isArray(listBody.data)) setScheduledPurchases(listBody.data as ScheduledPurchase[]);
         setTransactionPin('');
         setScheduleMode(false);
       } catch (cause: unknown) {
@@ -742,6 +756,30 @@ export default function VtuPurchase({ serviceType }: { serviceType: ServiceType 
                     <p className="mt-2 text-xs leading-5 text-[var(--muted)]">Check the account number and customer details carefully. Once provider dispatch begins, cancellation may not be possible.</p>
                   </div>
                 ) : null}
+
+                {scheduledPurchases.length > 0 && (
+                  <div className="space-y-3 rounded-2xl border border-[var(--line)] p-4">
+                    <h2 className="font-bold">Your scheduled purchases</h2>
+                    {scheduledPurchases.map((item) => (
+                      <div key={item.id} className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--line)] pt-3 text-sm">
+                        <div>
+                          <p className="font-semibold">{item.service_type.replaceAll('-', ' ')} · {item.recipient}</p>
+                          <p className="mt-1 text-xs text-[var(--muted)]">{item.frequency} · next {new Date(item.next_run_at).toLocaleString()} · {item.status}</p>
+                          {item.last_error && <p className="mt-1 text-xs text-amber-700">{item.last_error}</p>}
+                        </div>
+                        {item.status !== 'processing' && item.status !== 'cancelled' && (
+                          <button type="button" onClick={async () => {
+                            if (!window.confirm('Cancel this scheduled purchase?')) return;
+                            const csrf = document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ?? '';
+                            const response = await fetch(`/wallet/scheduled-purchases/${item.id}`, { method: 'DELETE', credentials: 'same-origin', headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'X-CSRF-TOKEN': csrf } });
+                            if (response.ok) setScheduledPurchases((current) => current.map((row) => row.id === item.id ? { ...row, status: 'cancelled' } : row));
+                            else setError('This schedule could not be cancelled. Refresh and check its status.');
+                          }} className="rounded-lg border border-[var(--line)] px-3 py-2 text-xs font-semibold">Cancel</button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
 
                 {submissionUncertain && (
                   <div className="space-y-3 rounded-2xl border border-amber-500/30 bg-amber-500/5 p-4">
