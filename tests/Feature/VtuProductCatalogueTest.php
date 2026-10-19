@@ -206,6 +206,66 @@ class VtuProductCatalogueTest extends TestCase
         $this->assertMatchesRegularExpression('/^p[0-9a-z]+\\.[a-f0-9]{32}$/', (string) $response->json('data.0.code'));
     }
 
+    public function test_customer_sees_approved_same_plan_from_multiple_providers_without_provider_details(): void
+    {
+        $user = User::query()->create([
+            'name' => 'Multi Provider Catalogue Viewer',
+            'email' => 'multi-provider-catalogue@example.test',
+            'password' => 'not-a-real-password',
+        ]);
+
+        foreach ([
+            [
+                'provider_key' => 'sogo',
+                'code' => 'sogo-internal-mtn-1gb',
+                'mapping' => ['network' => 'mtn', 'variation_code' => 'sogo-plan-1gb'],
+            ],
+            [
+                'provider_key' => 'gsubz',
+                'code' => 'gsubz-internal-mtn-1gb',
+                'mapping' => ['network' => 'mtn-data', 'plan_code' => 'gsubz-plan-1gb'],
+            ],
+        ] as $entry) {
+            VtuProduct::query()->create([
+                'service_type' => 'data',
+                'network' => 'mtn',
+                'code' => $entry['code'],
+                'provider_key' => $entry['provider_key'],
+                'provider_product_code' => $entry['mapping']['variation_code'] ?? $entry['mapping']['plan_code'],
+                'name' => 'MTN 1GB 7 Days',
+                'price_minor' => 50000,
+                'currency' => 'NGN',
+                'is_active' => true,
+                'metadata' => [
+                    'catalog_source' => $entry['provider_key'],
+                    'purchase_approved' => true,
+                    'validity' => '7 days',
+                    'data_type' => 'SME',
+                    'provider_mappings' => [$entry['provider_key'] => $entry['mapping']],
+                    'provider_service_id' => 'internal-service-id',
+                    'provider_variation_code' => 'internal-variation-code',
+                ],
+            ]);
+        }
+
+        $response = $this->actingAs($user)
+            ->getJson('/wallet/vtu/products?service_type=data')
+            ->assertOk()
+            ->assertJsonCount(2, 'data')
+            ->assertJsonPath('data.0.name', 'MTN 1GB 7 Days')
+            ->assertJsonPath('data.1.name', 'MTN 1GB 7 Days');
+
+        foreach ($response->json('data') as $product) {
+            $this->assertTrue($product['is_active']);
+            $this->assertMatchesRegularExpression('/^p[0-9a-z]+\\.[a-f0-9]{32}$/', $product['code']);
+            $this->assertSame(['validity' => '7 days', 'data_type' => 'SME'], $product['metadata']);
+            $this->assertArrayNotHasKey('provider_key', $product);
+            $this->assertArrayNotHasKey('provider_product_code', $product);
+            $this->assertStringNotContainsString('sogo', $product['code']);
+            $this->assertStringNotContainsString('gsubz', $product['code']);
+        }
+    }
+
     public function test_sogo_sandbox_catalogue_products_cannot_be_activated_for_customer_sales(): void
     {
         config([
