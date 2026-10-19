@@ -8,7 +8,6 @@ import {
   Gift,
   Globe,
   GraduationCap,
-  Headphones,
   Lightbulb,
   MessageCircle,
   Plane,
