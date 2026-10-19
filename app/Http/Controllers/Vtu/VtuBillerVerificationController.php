@@ -12,7 +12,7 @@ use LogicException;
 
 class VtuBillerVerificationController extends Controller
 {
-    public function verify(Request $request, VtpassProviderClient $provider): JsonResponse
+    public function verify(Request $request, VtpassProviderClient $vtpass): JsonResponse
     {
         $validated = $request->validate([
             'product_code' => ['required', 'string', 'max:80'],
@@ -35,10 +35,33 @@ class VtuBillerVerificationController extends Controller
             return response()->json(['message' => 'Select prepaid or postpaid for this electricity meter.'], 422);
         }
 
+        // Verification must use the same provider that owns this product mapping.
+        // Never send a product from another provider to VTpass just because its
+        // verifier happens to be injectable here.
+        $metadata = is_array($product->metadata) ? $product->metadata : [];
+        $providerKey = strtolower(trim((string) ($metadata['catalog_source'] ?? '')));
+        if ($providerKey === '') {
+            $mappings = is_array($metadata['provider_mappings'] ?? null) ? $metadata['provider_mappings'] : [];
+            $providerKey = count($mappings) === 1 ? (string) array_key_first($mappings) : '';
+        }
+
+        if ($providerKey !== 'vtpass') {
+            return response()->json([
+                'data' => [
+                    'status' => 'unknown',
+                    'message_code' => 'verification_not_supported_for_active_provider',
+                    'customer_name' => null,
+                    'customer_address' => null,
+                ],
+                'message' => 'The selected service provider does not have a supported account-verification adapter. No alternate provider was contacted; do not purchase until verification is supported.',
+            ], 503);
+        }
+
         try {
+            $vtpass->assertConfigured();
             $result = $product->service_type === 'electricity-bill'
-                ? $provider->verifyElectricityMeter($product, $validated['biller_code'], $validated['meter_type'])
-                : $provider->verifyTvSmartcard($product, $validated['biller_code']);
+                ? $vtpass->verifyElectricityMeter($product, $validated['biller_code'], $validated['meter_type'])
+                : $vtpass->verifyTvSmartcard($product, $validated['biller_code']);
         } catch (ConnectionException $exception) {
             report($exception);
 
