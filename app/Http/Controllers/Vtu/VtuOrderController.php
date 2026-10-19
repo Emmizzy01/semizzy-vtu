@@ -231,9 +231,9 @@ class VtuOrderController extends Controller
         $totalMinor = 0;
         foreach ($validated['items'] as $index => $item) {
             $product = $this->resolveCustomerSelectionCode($item['product_code']);
-            if (!$product || !$product->is_active || !in_array($product->service_type, ['airtime', 'data', 'electricity-bill', 'tv-subscription'], true)
+            if (!$product || !$product->is_active || !in_array($product->service_type, ['airtime', 'data'], true)
                 || $product->currency !== 'NGN') {
-                return response()->json(['message' => 'Item '.($index + 1).' is not an active supported purchase selection. No batch was accepted.'], 422);
+                return response()->json(['message' => 'Item '.($index + 1).' is not an active airtime/data bulk selection. Other services remain unavailable for bulk purchase until their batch verification and recovery paths are enabled. No batch was accepted.'], 422);
             }
             if (!in_array($product->service_type, ['airtime', 'data'], true)
                 && (($product->metadata['purchase_supported'] ?? false) !== true)) {
