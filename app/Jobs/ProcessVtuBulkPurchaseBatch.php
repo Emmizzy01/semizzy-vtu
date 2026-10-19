@@ -27,7 +27,6 @@ class ProcessVtuBulkPurchaseBatch implements ShouldQueue
 
     public function __construct(public readonly int $batchId)
     {
-        $this->afterCommit();
     }
 
     public function handle(VtuOrderService $orders): void
