@@ -111,7 +111,7 @@ class ReferralProgramService
     public function updateSettings(bool $enabled, int $rewardMinor, string $qualifyingEvent, User $actor, string $reason): void
     {
         if ($rewardMinor < 0 || $rewardMinor > 100000000) throw new InvalidArgumentException('Referral reward must be between ₦0 and ₦1,000,000.');
-        if (! in_array($qualifyingEvent, ['admin_verified', 'first_verified_funding', 'first_successful_purchase'], true)) {
+        if (! in_array($qualifyingEvent, ['admin_verified'], true)) {
             throw new InvalidArgumentException('Choose a supported referral qualifying event.');
         }
 
