@@ -19,6 +19,20 @@ Semizzy is a modular Nigerian VTU and fintech platform for customers, resellers,
 - Keep integrations modular and compatible with shared hosting; do not require an always-running worker unless documented as optional.
 - No loans, forex, investment products, or unapproved escrow. Do not build unlawful OTP/account-access services.
 
+## 1A. Active core build scope — explicitly not deferred to Phase 4
+
+The following user-facing money and service workflows are part of the active core build. They must not be classified as Phase 4 marketplace-only work or left as “Coming Soon” merely because marketplace expansion is later:
+
+- **Bulk purchase across supported services:** allow customers to prepare multiple recipients/items and review the total before confirmation. Each item must be independently validated and tracked with stable idempotency; show partial outcomes honestly. Never debit a batch total without per-item ledger/order records, and never blindly retry an uncertain provider outcome. Only expose bulk purchase for service types whose individual purchase, verification, fulfilment and recovery paths are already enabled.
+- **P2P wallet transfer:** authenticated wallet-to-wallet transfers with recipient confirmation, transaction PIN, server-side limits, idempotency, a balanced ledger transfer, and clear sender/recipient history. No transfer to self, no direct balance writes, and no duplicate credit/debit.
+- **Transfer to bank / withdrawals:** user-selected verified bank beneficiary, server-side bank/account validation, explicit fee/limit disclosure, PIN and risk checks, payout state tracking, reconciliation, and safe handling of pending/unknown provider outcomes. Do not report success until the payout provider confirms it.
+- **Saved bank accounts:** users can add, verify, select and remove their own withdrawal beneficiaries. Ownership and verification status must be enforced server-side; mask sensitive account details in lists and logs.
+- **Bank directory and account-name verification:** maintain a refreshable bank-code directory from an approved source and use a configured verification provider to resolve account name before withdrawal. Never invent account names or treat a client-submitted name as verified. Fail closed when verification is unavailable.
+- **Referrals:** user-specific referral code/link, attribution and anti-self-referral/duplicate-account checks, transparent reward rules, and ledger-backed reward settlement only after the configured qualifying event. Reward amounts and qualifying conditions must be admin-configurable; do not hardcode or pay an unverified referral.
+- **Automatic network and biller/account verification:** suggest a mobile network from Nigerian number prefixes where possible, but allow correction because number portability means prefix detection is not authoritative. Use provider-backed verification for electricity meter/IUC/smartcard and other supported biller identifiers; distinguish verified, unverified and unknown, and block purchase when verification is required but inconclusive.
+
+These are core wallet, account and service capabilities, not a reason to delay the Unified Marketplace phase. Implementation must proceed in coherent batches with migrations, backend authorization, customer UI, tests, and operator/deployment notes. Provider-backed money movement remains disabled until the relevant provider contract, credentials, reconciliation and tests are verified. Never run live transactions as a substitute for automated tests.
+
 ## 2. Accounts, user types, and levels
 
 Separate **account type** (what the user does) from **verification/transaction level** (what limits and checks apply). Never use a user-selectable type as proof of authority.
