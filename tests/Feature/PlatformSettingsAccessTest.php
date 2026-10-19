@@ -70,6 +70,33 @@ class PlatformSettingsAccessTest extends TestCase
         $this->assertSame('0', (string) app(IntegrationSettings::class)->get('manual_deposit.enabled', '0'));
     }
 
+
+    public function test_brand_assets_are_admin_only_and_uploaded_assets_are_audited(): void
+    {
+        $customer = User::query()->create(['name' => 'Brand Customer', 'email' => 'brand-customer@example.test', 'password' => 'not-a-real-password']);
+        $this->actingAs($customer)->post('/admin/branding-assets', [
+            'logo' => \Illuminate\Http\UploadedFile::fake()->image('logo.png'),
+            'reason' => 'Update the site logo',
+        ])->assertForbidden();
+
+        $admin = User::query()->create(['name' => 'Brand Admin', 'email' => 'brand-admin@example.test', 'password' => 'not-a-real-password']);
+        UserPermission::query()->create(['user_id' => $admin->id, 'permission' => 'staff.permissions.manage']);
+        $this->actingAs($admin)->post('/admin/branding-assets', [
+            'logo' => \Illuminate\Http\UploadedFile::fake()->image('logo.png', 300, 100),
+            'favicon' => \Illuminate\Http\UploadedFile::fake()->image('favicon.png', 64, 64),
+            'social_image' => \Illuminate\Http\UploadedFile::fake()->image('social.png', 1200, 630),
+            'banner' => \Illuminate\Http\UploadedFile::fake()->image('banner.png', 1600, 500),
+            'reason' => 'Apply approved brand assets',
+        ])->assertRedirect();
+
+        $settings = app(IntegrationSettings::class);
+        $this->assertStringStartsWith('/uploads/branding/logo-', (string) $settings->get('branding.logo'));
+        $this->assertStringStartsWith('/uploads/branding/favicon-', (string) $settings->get('branding.favicon'));
+        $this->assertStringStartsWith('/uploads/branding/social_image-', (string) $settings->get('branding.social_image'));
+        $this->assertStringStartsWith('/uploads/branding/banner-', (string) $settings->get('branding.banner'));
+        $this->assertDatabaseHas('platform_setting_audits', ['setting_key' => 'branding.logo', 'actor_user_id' => $admin->id]);
+    }
+
     public function test_maintenance_mode_blocks_customers_but_allows_platform_admins(): void
     {
         $customer = User::query()->create(['name' => 'Maintenance Customer', 'email' => 'maintenance-customer@example.test', 'password' => 'not-a-real-password']);
