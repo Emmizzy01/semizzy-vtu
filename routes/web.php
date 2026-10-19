@@ -115,6 +115,7 @@ Route::middleware('auth')->group(function (): void {
     Route::get('/wallet/bank-transfer/banks', [BankPayoutController::class, 'banks'])->middleware('throttle:30,1')->name('wallet.bank-transfer.banks');
     Route::get('/wallet/bank-transfer/beneficiaries', [BankPayoutController::class, 'beneficiaries'])->middleware('throttle:30,1')->name('wallet.bank-transfer.beneficiaries');
     Route::post('/wallet/bank-transfer/beneficiaries', [BankPayoutController::class, 'storeBeneficiary'])->middleware('throttle:5,1')->name('wallet.bank-transfer.beneficiaries.store');
+    Route::delete('/wallet/bank-transfer/beneficiaries/{beneficiary}', [BankPayoutController::class, 'destroyBeneficiary'])->whereNumber('beneficiary')->middleware('throttle:10,1')->name('wallet.bank-transfer.beneficiaries.destroy');
     Route::get('/wallet/bank-transfer/history', [BankPayoutController::class, 'payouts'])->middleware('throttle:30,1')->name('wallet.bank-transfer.history');
     Route::post('/wallet/bank-transfer', [BankPayoutController::class, 'storePayout'])->middleware('throttle:5,1')->name('wallet.bank-transfer.store');
     Route::get('/account/referrals', [ReferralController::class, 'index'])->middleware('throttle:30,1')->name('account.referrals');
