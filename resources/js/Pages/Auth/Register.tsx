@@ -10,6 +10,7 @@ export default function Register() {
     password_confirmation: '',
     transaction_pin: '',
     transaction_pin_confirmation: '',
+    referral_code: '',
   });
 
   function submit(event: FormEvent<HTMLFormElement>) {
