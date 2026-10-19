@@ -339,6 +339,29 @@ class VtuOrderController extends Controller
         ], 202);
     }
 
+    public function recoverBulkBatch(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'batch_key' => ['required', 'string', 'min:8', 'max:128'],
+        ]);
+        $user = $request->user();
+        abort_unless($user, 401);
+
+        $batch = VtuBulkPurchaseBatch::query()
+            ->where('user_id', $user->getKey())
+            ->where('batch_key', $validated['batch_key'])
+            ->first();
+
+        if (!$batch) {
+            return response()->json([
+                'data' => null,
+                'message' => 'No saved batch was found for this key yet. Keep the same key and original items when checking again.',
+            ], 404);
+        }
+
+        return response()->json(['data' => $this->serializeBulkBatch($batch)]);
+    }
+
     public function bulkBatchStatus(Request $request, string $publicId): JsonResponse
     {
         $user = $request->user();
