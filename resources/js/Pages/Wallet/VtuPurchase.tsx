@@ -758,7 +758,7 @@ export default function VtuPurchase({ serviceType }: { serviceType: ServiceType 
                   className="flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--brand)] px-4 py-3.5 font-bold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {submitting && <LoaderCircle className="animate-spin" size={18} />}
-                  {submitting ? 'Submitting securely…' : submissionUncertain ? 'Check existing order status above' : selectedProduct && !selectedProduct.is_active ? 'Purchases not enabled yet' : selectedProduct ? `Continue for ${naira(displayedAmountMinor)}` : 'Choose a network'}
+                  {submitting ? 'Submitting securely…' : submissionUncertain ? 'Check existing order status above' : selectedProduct && !selectedProduct.is_active ? 'Purchases not enabled yet' : scheduleMode ? 'Save scheduled purchase' : selectedProduct ? `Continue for ${naira(displayedAmountMinor)}` : 'Choose a network'}
                 </button>
                 <p className="text-center text-xs leading-5 text-[var(--muted)]">Duplicate requests use the same idempotency key. If the result is uncertain, Semizzy will reconcile the existing order rather than submit another one.</p>
               </form>
