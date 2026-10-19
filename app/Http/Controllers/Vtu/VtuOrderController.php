@@ -5,6 +5,9 @@ namespace App\Http\Controllers\Vtu;
 use App\Http\Controllers\Controller;
 use App\Exceptions\Wallet\InsufficientWalletFunds;
 use App\Models\VtuOrder;
+use App\Models\VtuBulkPurchaseBatch;
+use App\Models\VtuBulkPurchaseItem;
+use App\Jobs\ProcessVtuBulkPurchaseBatch;
 use App\Models\VtuProduct;
 use App\Models\PlatformFeatureControl;
 use App\Services\Vtu\VtuOrderService;
@@ -12,6 +15,9 @@ use App\Services\IntegrationSettings;
 use App\Services\Security\TransactionPinService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
+use Illuminate\Database\QueryException;
 use InvalidArgumentException;
 use LogicException;
 use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
@@ -196,7 +202,7 @@ class VtuOrderController extends Controller
         $validated = $request->validate([
             'batch_key' => ['required', 'string', 'min:8', 'max:128'],
             'transaction_pin' => ['required', 'string', 'digits:4'],
-            'items' => ['required', 'array', 'min:1', 'max:10'],
+            'items' => ['required', 'array', 'min:10', 'max:100'],
             'items.*.product_code' => ['required', 'string', 'max:80'],
             'items.*.recipient' => ['required', 'string', 'max:40', 'regex:/^[a-zA-Z0-9+\\s-]+$/'],
             'items.*.amount' => ['nullable', 'numeric', 'min:1', 'max:1000000'],
@@ -207,62 +213,165 @@ class VtuOrderController extends Controller
 
         $user = $request->user();
         abort_unless($user, 401);
-        if (! $user->transaction_pin_hash) {
+        if (!$user->transaction_pin_hash) {
             return response()->json(['message' => 'Set up a transaction PIN before making wallet-funded purchases.', 'setup_url' => '/security/transaction-pin'], 428);
         }
         $pinStatus = app(TransactionPinService::class)->verify($user, (string) $validated['transaction_pin']);
         if ($pinStatus === 'locked') {
-            return response()->json(['message' => 'Transaction PIN is locked for 15 minutes after repeated failures.'], 423);
+            return response()->json(['message' => 'Transaction PIN is locked for 15 minutes.'], 423);
         }
         if ($pinStatus !== 'verified') {
             return response()->json(['message' => 'Transaction PIN is incorrect.'], 422);
         }
 
-        $results = [];
+        // Resolve and validate every item before accepting the batch. The persisted
+        // records use internal product codes; API responses never return those codes.
+        $prepared = [];
+        $requestItems = [];
+        $totalMinor = 0;
         foreach ($validated['items'] as $index => $item) {
-            $selection = $this->resolveCustomerSelectionCode($item['product_code']);
-            if ($selection === null) {
-                $results[] = ['item' => $index, 'status' => 'rejected', 'message' => 'This product selection is invalid.'];
-                continue;
+            $product = $this->resolveCustomerSelectionCode($item['product_code']);
+            if (!$product || !$product->is_active || !in_array($product->service_type, ['airtime', 'data', 'electricity-bill', 'tv-subscription'], true)
+                || $product->currency !== 'NGN') {
+                return response()->json(['message' => 'Item '.($index + 1).' is not an active supported purchase selection. No batch was accepted.'], 422);
             }
-            if ($selection->service_type === 'airtime' && ! isset($item['amount'])) {
-                $results[] = ['item' => $index, 'status' => 'rejected', 'message' => 'Enter the airtime amount you want to purchase.'];
-                continue;
+            if (!in_array($product->service_type, ['airtime', 'data'], true)
+                && (($product->metadata['purchase_supported'] ?? false) !== true)) {
+                return response()->json(['message' => 'Item '.($index + 1).' does not have an enabled purchase handler. No batch was accepted.'], 422);
             }
 
-            try {
-                $order = $orders->purchase(
-                    $user,
-                    $selection->code,
-                    $item['recipient'],
-                    hash('sha256', $validated['batch_key'].'|item:'.$index),
-                    array_filter([
-                        'meter_type' => $item['meter_type'] ?? null,
-                        'subscription_type' => $item['subscription_type'] ?? null,
-                        'contact_phone' => $item['contact_phone'] ?? null,
-                    ], fn ($value) => $value !== null),
-                    isset($item['amount']) ? (int) round((float) $item['amount'] * 100) : null,
-                );
-                $results[] = [
-                    'item' => $index,
-                    'status' => $order->status,
-                    'order' => $this->serializeOrder($order),
-                ];
-            } catch (InvalidArgumentException|InsufficientWalletFunds|ConflictHttpException $exception) {
-                $results[] = ['item' => $index, 'status' => 'rejected', 'message' => $exception->getMessage()];
-            } catch (LogicException $exception) {
-                report($exception);
-                $results[] = ['item' => $index, 'status' => 'unavailable', 'message' => 'This item could not be submitted because its service is not configured.'];
+            $recipient = preg_replace('/[\\s-]+/', '', trim((string) $item['recipient'])) ?? '';
+            $amountMinor = isset($item['amount']) ? (int) round((float) $item['amount'] * 100) : null;
+            $details = array_filter([
+                'meter_type' => $item['meter_type'] ?? null,
+                'subscription_type' => $item['subscription_type'] ?? null,
+                'contact_phone' => isset($item['contact_phone'])
+                    ? (preg_replace('/[\\s-]+/', '', (string) $item['contact_phone']) ?? '')
+                    : null,
+            ], fn ($value) => $value !== null);
+
+            if ($product->service_type === 'airtime' && ($amountMinor === null || $amountMinor < 100 || $amountMinor % 100 !== 0)) {
+                return response()->json(['message' => 'Item '.($index + 1).' requires a whole-naira airtime amount. No batch was accepted.'], 422);
             }
+            if ($product->service_type === 'electricity-bill') {
+                if (!in_array($details['meter_type'] ?? null, ['prepaid', 'postpaid'], true) || $amountMinor === null
+                    || !preg_match('/^\\+?[0-9]{10,15}$/', (string) ($details['contact_phone'] ?? ''))) {
+                    return response()->json(['message' => 'Item '.($index + 1).' requires meter type, amount and a valid contact phone. No batch was accepted.'], 422);
+                }
+            }
+            if ($product->service_type === 'tv-subscription'
+                && (!preg_match('/^\\+?[0-9]{10,15}$/', (string) ($details['contact_phone'] ?? ''))
+                    || ($details['subscription_type'] ?? 'change') !== 'change')) {
+                return response()->json(['message' => 'Item '.($index + 1).' requires a valid contact phone and supported bouquet-change selection. No batch was accepted.'], 422);
+            }
+
+            $itemAmount = in_array($product->service_type, ['airtime', 'electricity-bill'], true)
+                ? (int) $amountMinor
+                : (int) $product->price_minor;
+            if ($itemAmount < 1) {
+                return response()->json(['message' => 'Item '.($index + 1).' has no valid server-calculated price. No batch was accepted.'], 422);
+            }
+            $totalMinor += $itemAmount;
+            $prepared[] = [
+                'item_index' => (int) $index,
+                'product_code' => $product->code,
+                'service_type' => $product->service_type,
+                'recipient' => $recipient,
+                'amount_minor' => $amountMinor,
+                'service_details' => $details ?: null,
+                'idempotency_key' => hash('sha256', $user->getKey().'|bulk:'.$validated['batch_key'].'|item:'.$index),
+            ];
+            $requestItems[] = [
+                'product_code' => $product->code,
+                'recipient' => $recipient,
+                'amount_minor' => $amountMinor,
+                'service_details' => $details,
+            ];
         }
 
-        $hasRejected = collect($results)->contains(fn (array $result) => in_array($result['status'], ['rejected', 'unavailable'], true));
+        $requestHash = hash('sha256', json_encode($requestItems, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES));
+        $existing = VtuBulkPurchaseBatch::query()
+            ->where('user_id', $user->getKey())
+            ->where('batch_key', $validated['batch_key'])
+            ->first();
+        if ($existing) {
+            if (!hash_equals($existing->request_hash, $requestHash)) {
+                return response()->json(['message' => 'This batch key was already used for a different request. Use the original request to recover its status.'], 409);
+            }
+            return response()->json(['data' => $this->serializeBulkBatch($existing)], 200);
+        }
+
+        try {
+            $batch = DB::transaction(function () use ($user, $validated, $requestHash, $prepared, $totalMinor): VtuBulkPurchaseBatch {
+                $batch = VtuBulkPurchaseBatch::query()->create([
+                    'public_id' => (string) Str::uuid(),
+                    'user_id' => $user->getKey(),
+                    'batch_key' => $validated['batch_key'],
+                    'request_hash' => $requestHash,
+                    'status' => 'queued',
+                    'item_count' => count($prepared),
+                    'total_amount_minor' => $totalMinor,
+                    'currency' => 'NGN',
+                ]);
+                foreach ($prepared as $item) {
+                    $batch->items()->create($item + ['status' => 'pending']);
+                }
+                return $batch;
+            });
+        } catch (QueryException $exception) {
+            // Concurrent retries may race on the user+batch-key unique constraint.
+            $existing = VtuBulkPurchaseBatch::query()
+                ->where('user_id', $user->getKey())
+                ->where('batch_key', $validated['batch_key'])
+                ->first();
+            if (!$existing) throw $exception;
+            if (!hash_equals($existing->request_hash, $requestHash)) {
+                return response()->json(['message' => 'This batch key was already used for a different request.'], 409);
+            }
+            return response()->json(['data' => $this->serializeBulkBatch($existing)], 200);
+        }
+
+        ProcessVtuBulkPurchaseBatch::dispatch((int) $batch->getKey());
+
         return response()->json([
-            'batch_key' => $validated['batch_key'],
-            'results' => $results,
-            'partial' => $hasRejected,
-            'message' => 'Items are processed independently. Check each item status before attempting any further action.',
-        ], 200);
+            'data' => $this->serializeBulkBatch($batch->fresh()),
+            'message' => 'Batch accepted. Track each item using the batch status endpoint; do not submit a new batch while this one is processing.',
+        ], 202);
+    }
+
+    public function bulkBatchStatus(Request $request, string $publicId): JsonResponse
+    {
+        $user = $request->user();
+        abort_unless($user, 401);
+        $batch = VtuBulkPurchaseBatch::query()
+            ->where('user_id', $user->getKey())
+            ->where('public_id', $publicId)
+            ->firstOrFail();
+
+        return response()->json(['data' => $this->serializeBulkBatch($batch)]);
+    }
+
+    /** @return array<string, mixed> */
+    private function serializeBulkBatch(VtuBulkPurchaseBatch $batch): array
+    {
+        $batch->loadMissing('items');
+        return [
+            'id' => $batch->public_id,
+            'status' => $batch->status,
+            'item_count' => (int) $batch->item_count,
+            'total_amount_minor' => (int) $batch->total_amount_minor,
+            'currency' => $batch->currency,
+            'started_at' => $batch->started_at?->toISOString(),
+            'completed_at' => $batch->completed_at?->toISOString(),
+            'items' => $batch->items->map(fn (VtuBulkPurchaseItem $item): array => [
+                'item' => (int) $item->item_index,
+                'service_type' => $item->service_type,
+                'recipient' => $item->recipient,
+                'status' => $item->status,
+                'order_public_id' => $item->order_public_id,
+                'message' => $item->result_message,
+            ])->values()->all(),
+        ];
     }
 
     public function recover(Request $request): JsonResponse
