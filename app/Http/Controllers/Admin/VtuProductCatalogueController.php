@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\PlatformSettingAudit;
 use App\Models\VtuProduct;
+use App\Services\IntegrationSettings;
 use App\Services\Vtu\VtpassCatalogService;
 use Throwable;
 use Illuminate\Http\RedirectResponse;
@@ -201,6 +202,16 @@ class VtuProductCatalogueController extends Controller
         }
 
         if (in_array($providerKey, ['sogo', 'gsubz'], true)) {
+            $settings = app(IntegrationSettings::class);
+            $baseUrl = trim((string) $settings->get("vtu.{$providerKey}.base_url", config("services.vtu.{$providerKey}.base_url", '')));
+            $apiKey = trim((string) $settings->get("vtu.{$providerKey}.api_key", config("services.vtu.{$providerKey}.api_key", '')));
+
+            if ($apiKey === '' || parse_url($baseUrl, PHP_URL_SCHEME) !== 'https') {
+                abort(422, strtoupper($providerKey).' needs a configured server-side API key and HTTPS endpoint before customer sales can be enabled.');
+            }
+            if (str_contains(strtolower($baseUrl), 'sandbox')) {
+                abort(422, strtoupper($providerKey).' is configured for sandbox. Sandbox catalogue products cannot be activated for production customer purchases; configure the verified live endpoint and live credentials first.');
+            }
             if (($metadata['purchase_approved'] ?? false) !== true) {
                 abort(422, 'Verify the provider mapping and explicitly approve this product before enabling customer sales.');
             }
