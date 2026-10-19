@@ -291,6 +291,49 @@ class VtuBulkPurchaseBatchTest extends TestCase
         Queue::assertNothingPushed();
     }
 
+    public function test_failed_worker_marks_in_flight_unknown_and_queues_only_remaining_pending_items(): void
+    {
+        Queue::fake();
+        $user = User::factory()->create();
+        $batch = VtuBulkPurchaseBatch::query()->create([
+            'public_id' => (string) \\Illuminate\\Support\\Str::uuid(),
+            'user_id' => $user->id,
+            'batch_key' => 'bulk-worker-remainder-key',
+            'request_hash' => hash('sha256', 'worker-remainder'),
+            'status' => 'processing',
+            'item_count' => 2,
+            'total_amount_minor' => 2000,
+            'currency' => 'NGN',
+            'started_at' => now(),
+        ]);
+        $inFlight = $batch->items()->create([
+            'item_index' => 0,
+            'idempotency_key' => hash('sha256', 'worker-remainder-in-flight'),
+            'product_code' => 'private-provider-code-a',
+            'service_type' => 'airtime',
+            'recipient' => '08012345678',
+            'amount_minor' => 1000,
+            'status' => 'processing',
+            'started_at' => now(),
+        ]);
+        $pending = $batch->items()->create([
+            'item_index' => 1,
+            'idempotency_key' => hash('sha256', 'worker-remainder-pending'),
+            'product_code' => 'private-provider-code-b',
+            'service_type' => 'airtime',
+            'recipient' => '08087654321',
+            'amount_minor' => 1000,
+            'status' => 'pending',
+        ]);
+
+        (new ProcessVtuBulkPurchaseBatch((int) $batch->id))->failed(new \\RuntimeException('Worker terminated'));
+
+        $this->assertSame('unknown', $inFlight->fresh()->status);
+        $this->assertSame('pending', $pending->fresh()->status);
+        $this->assertSame('processing', $batch->fresh()->status);
+        Queue::assertPushed(ProcessVtuBulkPurchaseBatch::class, 1);
+    }
+
     private function preparedRequest(): array
     {
         $user = User::factory()->create();
