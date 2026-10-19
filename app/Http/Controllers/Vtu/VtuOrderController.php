@@ -42,7 +42,7 @@ class VtuOrderController extends Controller
             ->orderBy('service_type')
             ->orderBy('network')
             ->orderBy('price_minor')
-            ->get(['code', 'service_type', 'network', 'name', 'price_minor', 'face_value_minor', 'currency', 'metadata', 'is_active'])
+            ->get(['id', 'code', 'service_type', 'network', 'name', 'price_minor', 'face_value_minor', 'currency', 'metadata', 'is_active'])
             ->filter(function (VtuProduct $product): bool {
                 if ($product->is_active) {
                     return in_array($product->service_type, ['airtime', 'data'], true)
