@@ -4,6 +4,9 @@ use App\Models\User;
 use App\Models\UserPermission;
 use App\Models\StaffPermissionAudit;
 use App\Models\EducationOrder;
+use App\Models\ScheduledServicePurchase;
+use App\Services\Vtu\VtuOrderService;
+use Illuminate\Support\Facades\DB;
 use App\Services\Education\EducationOrderCoordinator;
 use App\Services\Payments\PaymentReconciliationService;
 use App\Services\Payments\PaymentRefundMonitoringService;
@@ -158,6 +161,78 @@ Artisan::command('semizzy:permission:revoke {email} {permission} {--force}', fun
 
     return 0;
 })->purpose('Revoke an allowlisted staff permission from the server CLI');
+
+Artisan::command('vtu:run-scheduled-purchases {--limit=100}', function (VtuOrderService $orders) {
+    $limit = (int) $this->option('limit');
+    if ($limit < 1 || $limit > 500) {
+        $this->error('The limit must be between 1 and 500.');
+        return 1;
+    }
+
+    $ids = ScheduledServicePurchase::query()
+        ->where('status', 'active')
+        ->where('next_run_at', '<=', now())
+        ->orderBy('next_run_at')
+        ->limit($limit)
+        ->pluck('id');
+
+    $processed = 0;
+    $paused = 0;
+    foreach ($ids as $id) {
+        $schedule = DB::transaction(function () use ($id) {
+            $row = ScheduledServicePurchase::query()->whereKey($id)->lockForUpdate()->first();
+            if (!$row || $row->status !== 'active' || $row->next_run_at->isFuture()) return null;
+            $row->update(['status' => 'processing', 'last_error' => null]);
+            return $row;
+        });
+        if (!$schedule) continue;
+
+        $dueAt = $schedule->next_run_at->copy();
+        try {
+            $order = $orders->purchase(
+                $schedule->user,
+                $schedule->product_code,
+                $schedule->recipient,
+                'scheduled:'.$schedule->id.':'.$dueAt->timestamp,
+                $schedule->service_details ?? [],
+                $schedule->amount_minor,
+            );
+            $next = match ($schedule->frequency) {
+                'daily' => $dueAt->copy()->addDay(),
+                'weekly' => $dueAt->copy()->addWeek(),
+                'monthly' => $dueAt->copy()->addMonthNoOverflow(),
+                default => null,
+            };
+            $schedule->update([
+                'status' => $next ? 'active' : 'paused',
+                'last_run_at' => now(),
+                'next_run_at' => $next ?? $dueAt,
+                'last_order_public_id' => $order->public_id,
+                'last_result' => (string) $order->status,
+                'last_error' => null,
+            ]);
+            $processed++;
+        } catch (\\Throwable $exception) {
+            report($exception);
+            // Fail closed. Do not auto-retry a run whose provider outcome could be
+            // uncertain; operations/user must inspect the stable order reference.
+            $schedule->update([
+                'status' => 'paused',
+                'last_run_at' => now(),
+                'last_result' => 'unknown',
+                'last_error' => 'Scheduled run paused after an uncertain or rejected result. Review the order before resuming.',
+            ]);
+            $paused++;
+        }
+    }
+
+    $this->table(['Processed', 'Paused for review'], [[$processed, $paused]]);
+    return 0;
+})->purpose('Run due recurring purchases through the existing VTU order and wallet-ledger safeguards');
+
+Schedule::command('vtu:run-scheduled-purchases --limit=100')
+    ->everyMinute()
+    ->withoutOverlapping();
 
 Artisan::command('payments:reconcile-paystack {--limit=100}', function (PaymentReconciliationService $reconciliation) {
     $limit = (int) $this->option('limit');
