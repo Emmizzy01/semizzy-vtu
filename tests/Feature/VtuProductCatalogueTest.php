@@ -4,6 +4,8 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use App\Models\VtuProduct;
+use App\Models\PlatformFeatureControl;
+use App\Services\IntegrationSettings;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -390,6 +392,56 @@ class VtuProductCatalogueTest extends TestCase
             [25000, 27000, 28000],
             collect($response->json('data'))->pluck('price_minor')->sort()->values()->all()
         );
+    }
+
+    public function test_customer_catalogue_uses_opaque_selection_codes_and_hides_provider_details_and_costs(): void
+    {
+        $customer = User::query()->create([
+            'name' => 'Catalogue Privacy Customer',
+            'email' => 'catalogue-privacy@example.test',
+            'password' => 'not-a-real-password',
+        ]);
+        PlatformFeatureControl::query()->where('feature_key', 'service.airtime_data')
+            ->update(['is_enabled' => true, 'is_implemented' => true]);
+        app(IntegrationSettings::class)->set('service.airtime_data.enabled', '1', null);
+
+        VtuProduct::query()->create([
+            'service_type' => 'data',
+            'provider_key' => 'sogo',
+            'provider_product_code' => 'sogo-internal-product-1gb',
+            'provider_cost_minor' => 27500,
+            'network' => 'mtn',
+            'code' => 'sogo-data-mtn-1gb-7d',
+            'name' => 'MTN 1GB 7 Days',
+            'price_minor' => 35000,
+            'currency' => 'NGN',
+            'is_active' => true,
+            'metadata' => [
+                'catalog_source' => 'sogo',
+                'provider_mappings' => ['sogo' => ['variation_code' => 'internal-sogo-variation']],
+                'provider_variation_code' => 'internal-sogo-variation',
+                'provider_service_id' => 'sogo-mtn-data',
+                'validity' => '7 days',
+                'data_type' => 'SME',
+                'purchase_supported' => true,
+                'purchase_approved' => true,
+                'provider_cost_minor' => 27500,
+                'internal_margin_minor' => 7500,
+            ],
+        ]);
+
+        $response = $this->actingAs($customer)->getJson('/wallet/vtu/products?service_type=data')->assertOk();
+        $item = collect($response->json('data'))->sole();
+
+        $this->assertMatchesRegularExpression('/^p[0-9a-z]+\.[a-f0-9]{32}$/', $item['code']);
+        $this->assertStringNotContainsString('sogo', strtolower($item['code']));
+        $this->assertSame('MTN 1GB 7 Days', $item['name']);
+        $this->assertSame(35000, $item['price_minor']);
+        $this->assertSame(['validity' => '7 days', 'data_type' => 'SME'], $item['metadata']);
+        $encoded = json_encode($item, JSON_THROW_ON_ERROR);
+        foreach (['provider_key', 'provider_product_code', 'provider_mappings', 'provider_variation_code', 'provider_service_id', 'provider_cost_minor', 'internal_margin_minor', 'catalog_source', 'sogo'] as $secret) {
+            $this->assertStringNotContainsString($secret, $encoded);
+        }
     }
 
 }
