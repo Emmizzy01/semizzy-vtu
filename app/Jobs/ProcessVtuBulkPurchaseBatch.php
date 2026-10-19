@@ -42,11 +42,24 @@ class ProcessVtuBulkPurchaseBatch implements ShouldQueue
             'last_error' => null,
         ]);
 
-        // Processing items are included intentionally: the order service's stable
-        // idempotency key returns the existing order after a worker interruption.
+        // Quarantine stale in-flight items separately; never resubmit them.
+        // Fresh processing items may belong to another worker and must not occupy
+        // the limited pending-item window, otherwise later items can starve.
+        VtuBulkPurchaseItem::query()->where('batch_id', $batch->id)
+            ->where('status', 'processing')
+            ->whereNotNull('started_at')
+            ->where('started_at', '<=', now()->subMinutes(30))
+            ->update([
+                'status' => 'unknown',
+                'result_message' => 'Worker interruption exceeded 30 minutes. Reconcile the existing order reference before any retry.',
+                'completed_at' => now(),
+            ]);
+
+        // Claim only pending items. Row locks below arbitrate duplicate deliveries;
+        // in-flight items are never selected for provider submission.
         $items = VtuBulkPurchaseItem::query()
             ->where('batch_id', $batch->id)
-            ->whereIn('status', ['pending', 'processing'])
+            ->where('status', 'pending')
             ->orderBy('item_index')
             ->limit(10)
             ->get();
