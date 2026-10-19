@@ -211,7 +211,7 @@ class ProviderCatalogueImportService
                 if (! is_array($plans)) throw new RuntimeException('GSUBZ returned an invalid plan catalogue.');
                 foreach ($plans as $plan) {
                     if (! is_array($plan)) continue;
-                    $code = (string) ($plan['plan'] ?? $plan['variation_code'] ?? $plan['value'] ?? $plan['PlanName'] ?? '');
+                    $code = (string) ($plan['value'] ?? $plan['plan'] ?? $plan['variation_code'] ?? $plan['PlanName'] ?? '');
                     $amount = $plan['api_price'] ?? $plan['price'] ?? null;
                     if ($code === '' || ! is_numeric($amount)) continue;
                     $items[] = ['code' => $id.'-'.$code, 'name' => (string) ($plan['name'] ?? $plan['PlanName'] ?? $code),
