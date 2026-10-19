@@ -344,4 +344,52 @@ class VtuProductCatalogueTest extends TestCase
         $this->assertDatabaseMissing('vtu_products', ['code' => 'invalid-tier-key-plan']);
     }
 
+
+    public function test_customer_catalogue_keeps_duplicate_provider_options_separate_without_exposing_provider_details(): void
+    {
+        $user = User::query()->create([
+            'name' => 'Multi Provider Customer',
+            'email' => 'multi-provider-customer@example.test',
+            'password' => 'not-a-real-password',
+        ]);
+
+        foreach ([
+            ['code' => 'sogo-mtn-sme-1gb', 'provider' => 'sogo', 'variation' => 'sogo-plan-1', 'price' => 25000],
+            ['code' => 'gsubz-mtn-sme-1gb', 'provider' => 'gsubz', 'variation' => 'gsubz-plan-1', 'price' => 27000],
+            ['code' => 'dataway-mtn-sme-1gb', 'provider' => 'dataway', 'variation' => 'dataway-plan-1', 'price' => 28000],
+        ] as $row) {
+            VtuProduct::query()->create([
+                'service_type' => 'data',
+                'network' => 'mtn',
+                'code' => $row['code'],
+                'name' => 'MTN SME 1GB',
+                'price_minor' => $row['price'],
+                'currency' => 'NGN',
+                'is_active' => true,
+                'metadata' => [
+                    'catalog_source' => $row['provider'],
+                    'provider_service_id' => 'internal-'.$row['provider'].'-service',
+                    'provider_variation_code' => $row['variation'],
+                    'provider_cost_minor' => 20000,
+                    'validity' => '30 days',
+                    'data_type' => 'SME',
+                    'purchase_approved' => true,
+                ],
+            ]);
+        }
+
+        $response = $this->actingAs($user)->getJson('/wallet/vtu/products?service_type=data&network=mtn')
+            ->assertOk()
+            ->assertJsonCount(3, 'data')
+            ->assertJsonMissingPath('data.0.metadata.catalog_source')
+            ->assertJsonMissingPath('data.0.metadata.provider_service_id')
+            ->assertJsonMissingPath('data.0.metadata.provider_variation_code')
+            ->assertJsonMissingPath('data.0.metadata.provider_cost_minor');
+
+        $this->assertSame(
+            [25000, 27000, 28000],
+            collect($response->json('data'))->pluck('price_minor')->sort()->values()->all()
+        );
+    }
+
 }
