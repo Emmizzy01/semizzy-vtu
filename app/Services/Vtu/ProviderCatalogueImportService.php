@@ -54,7 +54,9 @@ class ProviderCatalogueImportService
                 'validity' => isset($item['validity']) ? substr((string) $item['validity'], 0, 80) : null,
                 'name' => substr((string) $item['name'], 0, 160),
                 'provider_cost_minor' => $cost ?: null,
-                'price_minor' => max(1, (int) ($item['selling_minor'] ?? $cost ?: 1)),
+                'price_minor' => (bool) ($item['mapping']['amount_based'] ?? false)
+                    ? 0
+                    : max(1, (int) ($item['selling_minor'] ?? $cost ?: 1)),
                 'currency' => 'NGN',
                 'is_active' => false,
                 'pricing_by_user_category' => null,
