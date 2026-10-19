@@ -14,10 +14,11 @@ type Gateway = {
   callbackHost: string | null;
   callbackUrl: string;
   webhookUrl: string;
+  transfersEnabled: boolean;
 };
 
 export default function PaymentGateway({ gateway, manualDeposit }: { gateway: Gateway; manualDeposit: ManualDepositSettings }) {
-  const form = useForm({ mode: gateway.mode === 'Live' ? 'live' : 'test', secret_key: '', callback_url: gateway.callbackUrl || '', confirm_live: false, reason: '' });
+  const form = useForm({ mode: gateway.mode === 'Live' ? 'live' : 'test', secret_key: '', callback_url: gateway.callbackUrl || '', confirm_live: false, transfers_enabled: gateway.transfersEnabled, reason: '' });
   const depositForm = useForm({ ...manualDeposit, reason: '' });
 
   return (
@@ -69,6 +70,7 @@ export default function PaymentGateway({ gateway, manualDeposit }: { gateway: Ga
           <label className="block space-y-2"><span className="text-sm font-bold">Payment mode</span><select value={form.data.mode} onChange={e => { form.setData('mode', e.target.value); form.setData('confirm_live', false); }} className="min-h-11 w-full rounded-xl border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-sm"><option value="test">Test — no real wallet credits</option><option value="live">Live — real payments</option></select><span className="block text-xs leading-5 text-[var(--muted)]">Selected mode: {form.data.mode === 'test' ? 'Test' : 'Live'} · Key detected: {gateway.keyMode}</span></label>
           <Field label="Replace secret key (optional)" value={form.data.secret_key} onChange={v => form.setData('secret_key', v)} error={form.errors.secret_key} placeholder={gateway.configured ? 'Saved key is hidden — enter only to replace' : 'Enter Paystack test or live secret key'} type="password" />
           <Field label="HTTPS callback URL" value={form.data.callback_url} onChange={v => form.setData('callback_url', v)} error={form.errors.callback_url} placeholder="https://your-domain.example/wallet/funding/return" />
+          <label className="flex items-center justify-between gap-4 rounded-xl border border-[var(--line)] p-4"><span><span className="block text-sm font-bold">Enable bank payouts</span><span className="mt-1 block text-xs leading-5 text-[var(--muted)]">Off by default. Test the transfer provider first; enable live payouts only after verification and explicit live-mode confirmation.</span></span><input type="checkbox" checked={form.data.transfers_enabled} onChange={e => form.setData('transfers_enabled', e.target.checked)} className="h-5 w-5 accent-[var(--brand)]" /></label>
           {form.data.mode === 'live' ? <label className="flex items-start gap-3 rounded-xl border border-amber-500/40 p-4 text-sm"><input type="checkbox" checked={form.data.confirm_live} onChange={e => form.setData('confirm_live', e.target.checked)} className="mt-1" /><span><strong>Confirm live payment credentials.</strong><br />I understand this can enable real-money payment operations once the deployment is configured.</span></label> : null}
           {form.errors.confirm_live && <p className="text-sm text-red-600">{form.errors.confirm_live}</p>}
           <label className="block space-y-2"><span className="text-sm font-bold">Reason for change (required audit note)</span><textarea value={form.data.reason} onChange={e => form.setData('reason', e.target.value)} minLength={8} maxLength={500} required rows={3} className="w-full rounded-xl border border-[var(--line)] bg-[var(--surface)] px-3 py-3 text-sm" />{form.errors.reason && <span className="text-sm text-red-600">{form.errors.reason}</span>}</label>
