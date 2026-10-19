@@ -1,6 +1,7 @@
 import { Head } from '@inertiajs/react';
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { AlertCircle, CheckCircle2, Clock3, LoaderCircle, RefreshCw, Smartphone, ShieldCheck } from 'lucide-react';
+import VtuBulkPurchasePanel from '@/Components/VtuBulkPurchasePanel';
 
 type ServiceType = 'airtime' | 'data' | 'electricity-bill' | 'tv-subscription';
 
@@ -166,6 +167,7 @@ export default function VtuPurchase({ serviceType }: { serviceType: ServiceType 
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
   const [submissionUncertain, setSubmissionUncertain] = useState(restoredPending?.uncertain ?? false);
+  const [bulkMode, setBulkMode] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -469,7 +471,21 @@ export default function VtuPurchase({ serviceType }: { serviceType: ServiceType 
               </div>
             )}
 
-            {order ? (
+            {(serviceType === 'airtime' || serviceType === 'data') && !order && !bulkMode && (
+              <button type="button" onClick={() => setBulkMode(true)} disabled={submissionUncertain || submitting} className="mb-5 w-full rounded-xl border border-[var(--brand)] px-4 py-3 text-sm font-bold text-[var(--brand)] disabled:opacity-50">
+                Prepare bulk purchase · 10–100 recipients
+              </button>
+            )}
+
+            {bulkMode && (serviceType === 'airtime' || serviceType === 'data') && !order ? (
+              <VtuBulkPurchasePanel
+                serviceType={serviceType}
+                products={products}
+                productCode={productCode}
+                onProductCodeChange={(code) => { setProductCode(code); setRequestKey(newRequestKey()); }}
+                onClose={() => { setBulkMode(false); setError(''); }}
+              />
+            ) : order ? (
               <div className="space-y-5">
                 <div className="rounded-2xl border border-[var(--line)] p-5">
                   <div className="flex items-center gap-3">
