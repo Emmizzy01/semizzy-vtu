@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\PaymentIntent;
 use App\Models\User;
+use App\Models\UserLevelPolicy;
 use App\Models\UserPermission;
 use App\Services\Payments\PaymentIntentService;
 use App\Services\Wallets\WalletAccountService;
@@ -281,4 +282,65 @@ class PaymentRefundWorkflowTest extends TestCase
         $this->assertDatabaseCount('wallet_ledger_entries', 2);
         Http::assertSentCount(1);
     }
+
+    public function test_failed_refund_recovery_restores_funds_for_disabled_tier_above_wallet_cap(): void
+    {
+        Http::fake(['api.paystack.co/refund' => Http::response([
+            'status' => true,
+            'data' => ['id' => 223457, 'status' => 'pending'],
+        ], 200)]);
+
+        $customer = User::query()->create([
+            'name' => 'Disabled Tier Recovery Customer',
+            'email' => 'disabled-tier-recovery@example.test',
+            'password' => 'test-password',
+        ]);
+        $approver = User::query()->create([
+            'name' => 'Disabled Tier Recovery Approver',
+            'email' => 'disabled-tier-recovery-approver@example.test',
+            'password' => 'test-password',
+        ]);
+        UserPermission::query()->create(['user_id' => $approver->id, 'permission' => 'refunds.approve']);
+        $intent = $this->paidIntent($customer, 8000);
+        $customer->forceFill(['user_level' => 'level_3'])->save();
+        UserLevelPolicy::query()->where('level', 'level_3')->update([
+            'wallet_balance_limit_minor' => 1000,
+            'is_active' => false,
+        ]);
+
+        $request = $this->actingAs($customer)->postJson('/wallet/refund-requests', [
+            'payment_intent_id' => $intent->public_id,
+            'amount_minor' => 3000,
+            'reason' => 'Verify disabled-tier recovery',
+            'idempotency_key' => 'disabled-tier-recovery-refund',
+        ])->assertCreated();
+        $refundId = $request->json('data.id');
+
+        $this->actingAs($approver)->postJson('/admin/payment-refunds/'.$refundId.'/approve')
+            ->assertOk()->assertJsonPath('data.status', 'provider_pending');
+        $this->assertSame(5000, (int) $intent->wallet()->first()->fresh()->balance_minor);
+
+        $payload = [
+            'event' => 'refund.failed',
+            'data' => [
+                'status' => 'failed',
+                'transaction_reference' => $intent->reference,
+                'refund_reference' => '223457',
+                'amount' => 3000,
+                'currency' => 'NGN',
+            ],
+        ];
+        $raw = json_encode($payload, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES);
+        $signature = hash_hmac('sha512', $raw, 'sk_test_refund_workflow_secret');
+        $this->call('POST', '/api/payments/webhooks/paystack', [], [], [], [
+            'CONTENT_TYPE' => 'application/json',
+            'HTTP_X_PAYSTACK_SIGNATURE' => $signature,
+        ], $raw)->assertOk();
+
+        $this->assertSame(8000, (int) $intent->wallet()->first()->fresh()->balance_minor);
+        $this->assertDatabaseHas('payment_refunds', ['public_id' => $refundId, 'status' => 'failed']);
+        $this->assertDatabaseCount('wallet_transactions', 3);
+        $this->assertDatabaseCount('wallet_ledger_entries', 3);
+    }
+
 }
