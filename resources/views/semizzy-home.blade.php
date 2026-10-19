@@ -211,7 +211,7 @@ body{font-family:'Inter',sans-serif}
           <li><a class="hover:text-[#0f8a4f]" href="/wallet/vtu/tv">TV Subscription</a></li>
           <li><a class="hover:text-[#0f8a4f]" href="/wallet/vtu/electricity">Electricity Bill</a></li>
           <li><a class="hover:text-[#0f8a4f]" href="/wallet/vtu/tv">Cable TV</a></li>
-          <li><a class="hover:text-[#0f8a4f]" href="/services/coming-soon/internet">Internet Data</a></li>
+          <li><a class="hover:text-[#0f8a4f]" href="/wallet/vtu/data">Internet Data</a></li>
           <li><a class="hover:text-[#0f8a4f]" href="/services/education">Education PIN</a></li>
         </ul>
       </section>
