@@ -19,7 +19,7 @@ class BankPayoutReconciliationService
      */
     public function applyPaystackEvent(string $eventType, array $payload): array
     {
-        if (! in_array($eventType, ['transfer.success', 'transfer.failed'], true)) {
+        if (! in_array($eventType, ['transfer.success', 'transfer.failed', 'transfer.reversed'], true)) {
             return ['outcome' => 'ignored', 'duplicate' => false];
         }
 
@@ -73,7 +73,7 @@ class BankPayoutReconciliationService
             $payout->forceFill(['status' => 'reconciliation_required', 'failure_reason' => 'Transfer-success webhook did not match verified provider status.'])->save();
             return ['outcome' => 'reconciliation_required', 'duplicate' => false];
         }
-        if ($eventType === 'transfer.failed' && ! in_array($providerStatus, ['failed', 'reversed'], true)) {
+        if (in_array($eventType, ['transfer.failed', 'transfer.reversed'], true) && ! in_array($providerStatus, ['failed', 'reversed'], true)) {
             $payout->forceFill(['status' => 'reconciliation_required', 'failure_reason' => 'Transfer-failure webhook did not match a verified failed provider status.'])->save();
             return ['outcome' => 'reconciliation_required', 'duplicate' => false];
         }
