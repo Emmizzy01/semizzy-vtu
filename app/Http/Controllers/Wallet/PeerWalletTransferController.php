@@ -3,13 +3,12 @@
 namespace App\Http\Controllers\Wallet;
 
 use App\Http\Controllers\Controller;
+use App\Exceptions\Wallet\IdempotencyConflict;
 use App\Models\WalletTransfer;
 use App\Services\Security\TransactionPinService;
 use App\Services\Wallets\PeerWalletTransferService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 use InvalidArgumentException;
 
 class PeerWalletTransferController extends Controller
