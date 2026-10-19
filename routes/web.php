@@ -35,6 +35,7 @@ use App\Services\IntegrationSettings;
 use App\Http\Controllers\Payments\PaymentRefundController;
 use App\Http\Controllers\Wallet\PeerWalletTransferController;
 use App\Http\Controllers\Wallet\BankPayoutController;
+use App\Http\Controllers\Wallet\ServiceBeneficiaryController;
 use App\Http\Controllers\Account\ReferralController;
 use App\Http\Controllers\Admin\ReferralProgramController;
 use App\Http\Controllers\Vtu\VtuOrderController;
