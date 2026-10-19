@@ -24,7 +24,7 @@ class ProviderCatalogueImportService
         if (! in_array($provider, ['sogo', 'gsubz', 'dataway'], true)) {
             throw new LogicException('Choose Sogo Africa, GSUBZ, or Dataway for provider catalogue import.');
         }
-        $allowed = ['airtime', 'data', 'electricity', 'cable_tv', 'education', 'betting', 'epin', 'esim', 'social-media', 'recharge-pin', 'internet', 'exam', 'airtime_cash'];
+        $allowed = ['airtime', 'data', 'electricity', 'cable', 'cable_tv', 'education', 'betting', 'epin', 'esim', 'social-media', 'recharge-pin', 'rechargepin', 'internet', 'exam', 'airtime_cash'];
         if (! in_array($category, $allowed, true)) {
             throw new LogicException('Choose a service category supported by this provider catalogue.');
         }
