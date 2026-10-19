@@ -382,7 +382,7 @@ class VtuBulkPurchaseBatchTest extends TestCase
         Queue::fake();
         $user = User::factory()->create();
         $batch = VtuBulkPurchaseBatch::query()->create([
-            'public_id' => (string) \\Illuminate\\Support\\Str::uuid(),
+            'public_id' => (string) \Illuminate\Support\Str::uuid(),
             'user_id' => $user->id,
             'batch_key' => 'bulk-duplicate-delivery-key',
             'request_hash' => hash('sha256', 'duplicate-delivery'),
@@ -404,7 +404,7 @@ class VtuBulkPurchaseBatchTest extends TestCase
             'result_message' => 'Reconcile before retrying.',
             'completed_at' => now(),
         ]);
-        $orders = \\Mockery::mock(VtuOrderService::class);
+        $orders = \Mockery::mock(VtuOrderService::class);
         $orders->shouldNotReceive('purchase');
 
         (new ProcessVtuBulkPurchaseBatch((int) $batch->id))->handle($orders);
