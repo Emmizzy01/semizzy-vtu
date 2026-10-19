@@ -19,7 +19,7 @@ class SogoProviderClient extends AbstractMappedVtuProvider
         $this->assertConfigured();
         $product = $this->orderProduct($order);
         $mapping = $this->mapping($product);
-        $endpoint = $product->service_type === 'airtime' ? '/bills/airtime' : '/bills/data';
+        $endpoint = $product->service_type === 'airtime' ? 'bills/airtime' : 'bills/data';
         $payload = ['network' => $mapping['network'], 'phone' => $order->recipient];
 
         if ($product->service_type === 'airtime') {
