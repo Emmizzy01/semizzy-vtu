@@ -39,6 +39,10 @@ export default function Register() {
               <input id="register-name" name="name" autoComplete="name" required maxLength={120} value={form.data.name} onChange={(event) => form.setData('name', event.target.value)} aria-invalid={Boolean(form.errors.name)} aria-describedby={form.errors.name ? 'register-name-error' : undefined} className={inputClass} />
               {form.errors.name && <span id="register-name-error" role="alert" className="mt-1 block text-xs text-rose-500">{form.errors.name}</span>}
             </label>
+            <label className="block text-sm font-semibold">Referral code (optional)
+              <input id="register-referral-code" name="referral_code" maxLength={20} value={form.data.referral_code} onChange={(event) => form.setData('referral_code', event.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 20))} aria-invalid={Boolean(form.errors.referral_code)} className={inputClass} />
+              {form.errors.referral_code && <span role="alert" className="mt-1 block text-xs text-rose-500">{form.errors.referral_code}</span>}
+            </label>
             <label className="block text-sm font-semibold">Email address
               <input id="register-email" name="email" type="email" autoComplete="email" autoCapitalize="none" spellCheck={false} required value={form.data.email} onChange={(event) => form.setData('email', event.target.value)} aria-invalid={Boolean(form.errors.email)} aria-describedby={form.errors.email ? 'register-email-error' : undefined} className={inputClass} />
               {form.errors.email && <span id="register-email-error" role="alert" className="mt-1 block text-xs text-rose-500">{form.errors.email}</span>}
