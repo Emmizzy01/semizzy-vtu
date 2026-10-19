@@ -10,7 +10,7 @@ use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
 use LogicException;
 
-class VtpassProviderClient implements VtuProvider
+class VtpassProviderClient implements VtuProvider, BillerVerificationProvider
 {
     public function assertConfigured(): void
     {
