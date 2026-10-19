@@ -74,6 +74,8 @@ class ProviderCatalogueImportService
             if ($existing) {
                 // Refresh provider facts only. Preserve admin price decisions and active/approval flags.
                 $existing->forceFill([
+                    // Never leave an unsupported service active merely because an older row was approved.
+                    ...(! in_array($values['service_type'], ['airtime', 'data'], true) ? ['is_active' => false] : []),
                     'provider_product_code' => $values['provider_product_code'],
                     // A catalogue may omit provider cost (for example, fixed-value airtime).
                     // Never erase a previously verified cost with an unknown/null value.
@@ -87,6 +89,7 @@ class ProviderCatalogueImportService
                         'provider_category' => $category,
                         'catalog_only' => ! in_array($item['service_type'] ?? $this->serviceType($category), ['airtime', 'data'], true),
                         'purchase_supported' => in_array($item['service_type'] ?? $this->serviceType($category), ['airtime', 'data'], true),
+                        ...(! in_array($values['service_type'], ['airtime', 'data'], true) ? ['purchase_approved' => false] : []),
                         'amount_based' => (bool) ($item['mapping']['amount_based'] ?? false),
                         'last_imported_at' => now()->toIso8601String(),
                     ]),
