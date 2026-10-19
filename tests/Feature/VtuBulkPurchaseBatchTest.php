@@ -283,7 +283,7 @@ class VtuBulkPurchaseBatchTest extends TestCase
             'started_at' => now(),
         ]);
 
-        (new ProcessVtuBulkPurchaseBatch((int) $batch->id))->failed(new \\RuntimeException('Worker terminated'));
+        (new ProcessVtuBulkPurchaseBatch((int) $batch->id))->failed(new \RuntimeException('Worker terminated'));
 
         $this->assertSame('unknown', $item->fresh()->status);
         $this->assertStringContainsString('Reconcile', $item->fresh()->result_message);
