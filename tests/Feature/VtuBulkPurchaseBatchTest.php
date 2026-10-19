@@ -270,7 +270,7 @@ class VtuBulkPurchaseBatchTest extends TestCase
             'item_count' => 1,
             'total_amount_minor' => 1000,
             'currency' => 'NGN',
-            'started_at' => now(),
+            'started_at' => now()->subMinutes(31),
         ]);
         $item = $batch->items()->create([
             'item_index' => 0,
@@ -304,7 +304,7 @@ class VtuBulkPurchaseBatchTest extends TestCase
             'item_count' => 2,
             'total_amount_minor' => 2000,
             'currency' => 'NGN',
-            'started_at' => now(),
+            'started_at' => now()->subMinutes(31),
         ]);
         $inFlight = $batch->items()->create([
             'item_index' => 0,
