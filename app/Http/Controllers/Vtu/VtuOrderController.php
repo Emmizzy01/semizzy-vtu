@@ -470,10 +470,12 @@ class VtuOrderController extends Controller
 
     private function isBatchKeyUniqueConstraintViolation(QueryException $exception): bool
     {
-        $errorInfo = $exception->errorInfo;
-        $sqlState = (string) ($errorInfo[0] ?? $exception->getCode());
-        $driverCode = (string) ($errorInfo[1] ?? '');
-        $message = strtolower($exception->getMessage());
+        $errorInfo = $exception->errorInfo ?? $exception->getPrevious()?->errorInfo ?? [];
+        $message = strtolower($exception->getMessage().' '.($exception->getPrevious()?->getMessage() ?? ''));
+        preg_match('/SQLSTATE\\[([0-9A-Z]{5})\\]/i', $message, $stateMatch);
+        preg_match('/(?:error:|code )\\s*(\\d+)/i', $message, $driverMatch);
+        $sqlState = strtoupper((string) ($errorInfo[0] ?? $stateMatch[1] ?? $exception->getCode()));
+        $driverCode = (string) ($errorInfo[1] ?? $driverMatch[1] ?? '');
 
         $isUniqueViolation = $sqlState === '23505'
             || $driverCode === '1062'
