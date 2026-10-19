@@ -51,7 +51,7 @@ class VtuBillerVerificationController extends Controller
         }
 
         try {
-            if (method_exists($provider, 'assertConfigured')) $provider->assertConfigured();
+            $provider->assertConfigured();
             $result = $product->service_type === 'electricity-bill'
                 ? $provider->verifyElectricityMeter($product, $validated['biller_code'], $validated['meter_type'])
                 : $provider->verifyTvSmartcard($product, $validated['biller_code']);
