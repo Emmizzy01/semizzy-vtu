@@ -190,7 +190,7 @@ class PaystackClient
     public function resolveNigerianAccount(string $accountNumber, string $bankCode): array
     {
         if (! preg_match('/^\\d{10}$/', $accountNumber) || ! preg_match('/^[A-Za-z0-9_-]{2,20}$/', $bankCode)) {
-            throw new \\InvalidArgumentException('Bank code or 10-digit account number is invalid.');
+            throw new \InvalidArgumentException('Bank code or 10-digit account number is invalid.');
         }
 
         try {
@@ -239,7 +239,7 @@ class PaystackClient
     public function initiateBankTransfer(int $amountMinor, string $recipientCode, string $reference, string $reason): array
     {
         if ($amountMinor < 100 || $recipientCode === '' || $reference === '') {
-            throw new \\InvalidArgumentException('Payout amount, recipient and reference are required.');
+            throw new \InvalidArgumentException('Payout amount, recipient and reference are required.');
         }
 
         try {
@@ -266,7 +266,7 @@ class PaystackClient
     public function fetchBankTransfer(string $transferCode): array
     {
         if ($transferCode === '' || strlen($transferCode) > 120) {
-            throw new \\InvalidArgumentException('Provider transfer code is invalid.');
+            throw new \InvalidArgumentException('Provider transfer code is invalid.');
         }
 
         try {
