@@ -34,6 +34,7 @@ use App\Http\Controllers\Admin\SupportTicketOperationsController;
 use App\Services\IntegrationSettings;
 use App\Http\Controllers\Payments\PaymentRefundController;
 use App\Http\Controllers\Wallet\PeerWalletTransferController;
+use App\Http\Controllers\Wallet\BankPayoutController;
 use App\Http\Controllers\Vtu\VtuOrderController;
 use App\Http\Controllers\Vtu\VtuBillerVerificationController;
 use App\Http\Controllers\Kyc\KycSubmissionController;
@@ -108,6 +109,12 @@ Route::middleware('auth')->group(function (): void {
     Route::get('/wallet/transfer', fn () => Inertia::render('Wallet/Transfer'))->name('wallet.transfer');
     Route::get('/wallet/transfers/history', [PeerWalletTransferController::class, 'index'])->middleware('throttle:30,1')->name('wallet.transfers.history');
     Route::post('/wallet/transfers', [PeerWalletTransferController::class, 'store'])->middleware('throttle:5,1')->name('wallet.transfers.store');
+    Route::get('/wallet/bank-transfer', [BankPayoutController::class, 'page'])->name('wallet.bank-transfer');
+    Route::get('/wallet/bank-transfer/banks', [BankPayoutController::class, 'banks'])->middleware('throttle:30,1')->name('wallet.bank-transfer.banks');
+    Route::get('/wallet/bank-transfer/beneficiaries', [BankPayoutController::class, 'beneficiaries'])->middleware('throttle:30,1')->name('wallet.bank-transfer.beneficiaries');
+    Route::post('/wallet/bank-transfer/beneficiaries', [BankPayoutController::class, 'storeBeneficiary'])->middleware('throttle:5,1')->name('wallet.bank-transfer.beneficiaries.store');
+    Route::get('/wallet/bank-transfer/history', [BankPayoutController::class, 'payouts'])->middleware('throttle:30,1')->name('wallet.bank-transfer.history');
+    Route::post('/wallet/bank-transfer', [BankPayoutController::class, 'storePayout'])->middleware('throttle:5,1')->name('wallet.bank-transfer.store');
     Route::get('/account/referrals', fn () => Inertia::render('Services/ComingSoon', ['serviceName' => 'Refer & Earn']))->name('account.referrals');
     Route::get('/services/coming-soon/{feature}', function (string $feature) {
         $features = [
