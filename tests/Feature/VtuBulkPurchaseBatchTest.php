@@ -98,6 +98,23 @@ class VtuBulkPurchaseBatchTest extends TestCase
         Queue::assertPushed(ProcessVtuBulkPurchaseBatch::class, 1);
     }
 
+    public function test_batch_can_be_recovered_by_its_stable_key_only_by_its_owner(): void
+    {
+        Queue::fake();
+        [$user, , $payload] = $this->preparedRequest();
+        $created = $this->actingAs($user)->postJson(route('wallet.vtu.orders.bulk'), $payload)->assertAccepted();
+        $publicId = $created->json('data.id');
+
+        $this->actingAs($user)->getJson(route('wallet.vtu.orders.bulk.recover', [
+            'batch_key' => $payload['batch_key'],
+        ]))->assertOk()->assertJsonPath('data.id', $publicId);
+
+        $other = User::factory()->create();
+        $this->actingAs($other)->getJson(route('wallet.vtu.orders.bulk.recover', [
+            'batch_key' => $payload['batch_key'],
+        ]))->assertNotFound();
+    }
+
     public function test_batch_progress_is_only_visible_to_its_owner(): void
     {
         Queue::fake();
