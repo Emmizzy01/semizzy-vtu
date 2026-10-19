@@ -202,8 +202,8 @@ class VtuProductCatalogueTest extends TestCase
             ->getJson('/wallet/vtu/products?service_type=data')
             ->assertOk()
             ->assertJsonCount(1, 'data')
-            ->assertJsonPath('data.0.code', 'vtpass-mapped-inactive')
             ->assertJsonPath('data.0.is_active', false);
+        $this->assertMatchesRegularExpression('/^p[0-9a-z]+\\.[a-f0-9]{32}$/', (string) $response->json('data.0.code'));
     }
 
     public function test_sogo_sandbox_catalogue_products_cannot_be_activated_for_customer_sales(): void
