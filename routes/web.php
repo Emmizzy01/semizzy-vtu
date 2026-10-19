@@ -53,7 +53,9 @@ Route::get('/', function (IntegrationSettings $settings) {
     ]]);
 })->name('home');
 
-Route::get('/help/{slug}', [HelpPageController::class, 'show'])->whereIn('slug', array_keys(HelpPageController::definitions()))->name('help.pages.show');\n\nRoute::get('/store/{storefront:slug}', [BusinessWorkspaceStorefrontController::class, 'show'])->middleware('throttle:60,1')->name('storefronts.show');
+Route::get('/help/{slug}', [HelpPageController::class, 'show'])->whereIn('slug', array_keys(HelpPageController::definitions()))->name('help.pages.show');
+
+Route::get('/store/{storefront:slug}', [BusinessWorkspaceStorefrontController::class, 'show'])->middleware('throttle:60,1')->name('storefronts.show');
 
 Route::middleware('guest')->group(function (): void {
     Route::get('/login', [AuthController::class, 'loginForm'])->name('login');
