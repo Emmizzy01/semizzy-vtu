@@ -266,4 +266,65 @@ class ManualDepositWorkflowTest extends TestCase
         $this->assertDatabaseCount('wallet_transactions', 0);
         $this->assertDatabaseCount('wallet_ledger_entries', 0);
     }
+
+    public function test_manual_deposit_caps_are_enforced_for_all_four_tiers_even_when_disabled(): void
+    {
+        Storage::fake('local');
+
+        foreach (['level_1', 'level_2', 'level_3', 'level_4'] as $index => $level) {
+            $customer = User::query()->create([
+                'name' => 'Manual Tier Cap Customer '.$index,
+                'email' => 'manual-tier-cap-'.$index.'@example.test',
+                'password' => 'not-a-real-password',
+            ]);
+            $customer->forceFill(['user_level' => $level])->save();
+            $admin = User::query()->create([
+                'name' => 'Manual Tier Cap Admin '.$index,
+                'email' => 'manual-tier-cap-admin-'.$index.'@example.test',
+                'password' => 'not-a-real-password',
+            ]);
+            UserPermission::query()->create(['user_id' => $admin->id, 'permission' => 'staff.permissions.manage']);
+            $wallet = app(WalletAccountService::class)->openForUser($customer);
+            app(\App\Services\Wallets\WalletLedgerService::class)->post(
+                $wallet->id, 'credit', 9500, 'manual-tier-cap-seed-'.$level
+            );
+            UserLevelPolicy::query()->where('level', $level)->update([
+                'wallet_balance_limit_minor' => 10000,
+                'is_active' => false,
+            ]);
+            $path = UploadedFile::fake()->image('proof-'.$index.'.png')->store('manual-deposits', 'local');
+            $deposit = ManualDeposit::query()->create([
+                'public_id' => 'c6b56f32-3cc5-42bd-9c28-4b4f94c6ad'.sprintf('%02d', $index),
+                'user_id' => $customer->id,
+                'wallet_id' => $wallet->id,
+                'amount_minor' => 1000,
+                'transfer_reference' => 'TIER-CAP-TRANSFER-'.$level,
+                'evidence_path' => $path,
+                'evidence_sha256' => hash_file('sha256', Storage::disk('local')->path($path)),
+                'status' => 'pending',
+                'idempotency_key' => 'manual-deposit:tier-cap-'.$level,
+                'evidence_viewed_at' => now(),
+                'evidence_viewed_by_user_id' => $admin->id,
+            ]);
+
+            $this->actingAs($admin)->post('/admin/manual-deposits/'.$deposit->public_id.'/review', [
+                'decision' => 'approve',
+                'reason' => 'Verified transfer evidence for '.$level,
+            ])->assertSessionHasErrors('amount');
+
+            $this->assertSame(9500, (int) $wallet->fresh()->balance_minor, 'Manual deposit bypassed cap for '.$level);
+            $this->assertDatabaseHas('manual_deposits', [
+                'id' => $deposit->id,
+                'status' => 'review_required',
+            ]);
+            $this->assertDatabaseHas('manual_deposit_audits', [
+                'manual_deposit_id' => $deposit->id,
+                'event_type' => 'wallet_limit_review',
+                'outcome' => 'review_required',
+            ]);
+        }
+
+        $this->assertDatabaseCount('wallet_ledger_entries', 4);
+    }
+
 }
