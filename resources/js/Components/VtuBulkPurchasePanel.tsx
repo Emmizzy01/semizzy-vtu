@@ -13,6 +13,19 @@ type Batch = {
 function money(minor: number) {
   return new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN', maximumFractionDigits: 2 }).format(minor / 100);
 }
+const BULK_STORAGE_KEY = 'semizzy-vtu-bulk-pending';
+type StoredBulkRequest = { batchKey: string; serviceType: 'airtime' | 'data'; productCode: string; recipientsText: string; amount: string };
+function readStoredBulkRequest(): StoredBulkRequest | null {
+  try {
+    if (typeof window === 'undefined') return null;
+    const raw = window.sessionStorage.getItem(BULK_STORAGE_KEY);
+    if (!raw) return null;
+    const value = JSON.parse(raw) as Partial<StoredBulkRequest>;
+    if (!value || typeof value.batchKey !== 'string' || !['airtime', 'data'].includes(value.serviceType ?? '')
+      || typeof value.productCode !== 'string' || typeof value.recipientsText !== 'string' || typeof value.amount !== 'string') return null;
+    return value as StoredBulkRequest;
+  } catch { return null; }
+}
 function requestKey() {
   return typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `bulk-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
@@ -53,6 +66,22 @@ export default function VtuBulkPurchasePanel({
   const recipients = useMemo(() => recipientsText.split(/\r?\n/).map((v) => v.trim()).filter(Boolean), [recipientsText]);
   const product = products.find((item) => item.code === productCode && item.is_active);
   const perItemMinor = serviceType === 'airtime' ? Math.round(Number(amount || 0) * 100) : (product?.price_minor ?? 0);
+
+  useEffect(() => {
+    if (!restoredRequest || restoredRequest.serviceType !== serviceType) return;
+    onProductCodeChange(restoredRequest.productCode);
+    let cancelled = false;
+    fetch(`/wallet/vtu/orders/bulk-recover?batch_key=${encodeURIComponent(restoredRequest.batchKey)}`, {
+      credentials: 'same-origin',
+      headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+    }).then(async (response) => {
+      const body = await response.json().catch(() => ({}));
+      if (response.ok && body.data && !cancelled) setBatch(body.data as Batch);
+      else if (response.status !== 404 && !cancelled) setError(typeof body.message === 'string' ? body.message : 'Saved batch recovery is temporarily unavailable.');
+    }).catch(() => { if (!cancelled) setError('Could not recover the previous batch yet. Keep the same batch key and original items.'); });
+    return () => { cancelled = true; };
+  }, [restoredRequest, serviceType, onProductCodeChange]);
+
   const csrf = () => document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ?? '';
 
   useEffect(() => {
@@ -110,6 +139,9 @@ export default function VtuBulkPurchasePanel({
 
   async function refresh() {
     if (!batch) return;
+    try {
+      window.sessionStorage.setItem(BULK_STORAGE_KEY, JSON.stringify({ batchKey, serviceType, productCode: product.code, recipientsText, amount }));
+    } catch { /* recovery storage is best-effort; server idempotency remains authoritative */ }
     setBusy(true); setError('');
     try {
       const response = await fetch(`/wallet/vtu/orders/bulk/${encodeURIComponent(batch.id)}`, {
@@ -140,7 +172,7 @@ export default function VtuBulkPurchasePanel({
           <div className="max-h-80 space-y-2 overflow-auto rounded-xl border border-[var(--line)] p-3">
             {batch.items.map((item) => <div key={item.item} className="flex items-start justify-between gap-3 border-b border-[var(--line)] py-2 last:border-0"><div className="min-w-0"><p className="text-sm font-semibold">Item {item.item + 1} · {item.recipient}</p>{item.order_public_id && <p className="mt-1 break-all text-xs text-[var(--muted)]">Order: {item.order_public_id}</p>}{item.message && <p className="mt-1 text-xs text-amber-700">{item.message}</p>}</div><span className="shrink-0 text-xs font-bold capitalize">{item.status.replaceAll('_', ' ')}</span></div>)}
           </div>
-          <button type="button" onClick={() => { try { window.sessionStorage.removeItem(BULK_DRAFT_KEY); } catch { /* optional browser storage */ } setBatch(null); setRecipientsText(''); setAmount(''); setBatchKey(requestKey()); setError(''); }} className="w-full rounded-xl border border-[var(--line)] px-4 py-3 font-semibold">Prepare another batch</button>
+          <button type="button" onClick={() => { try { window.sessionStorage.removeItem(BULK_DRAFT_KEY); } catch { /* optional browser storage */ } setBatch(null); setRecipientsText(''); setAmount(''); setBatchKey(requestKey()); setError(''); try { window.sessionStorage.removeItem(BULK_STORAGE_KEY); } catch { /* optional browser storage */ } }} className="w-full rounded-xl border border-[var(--line)] px-4 py-3 font-semibold">Prepare another batch</button>
         </>
       ) : (
         <form onSubmit={submit} className="space-y-4">
