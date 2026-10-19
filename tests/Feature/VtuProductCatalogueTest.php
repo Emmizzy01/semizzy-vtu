@@ -204,6 +204,50 @@ class VtuProductCatalogueTest extends TestCase
             ->assertJsonPath('data.0.is_active', false);
     }
 
+    public function test_sogo_sandbox_catalogue_products_cannot_be_activated_for_customer_sales(): void
+    {
+        config([
+            'services.vtu.sogo.base_url' => 'https://sandbox.sogo.africa/v1',
+            'services.vtu.sogo.api_key' => 'sogo-sandbox-test-key',
+        ]);
+
+        $staff = User::query()->create([
+            'name' => 'Sogo Sandbox Approval Staff',
+            'email' => 'sogo-sandbox-approval@example.test',
+            'password' => 'not-a-real-password',
+        ]);
+        $staff->permissions()->create(['permission' => 'staff.permissions.manage']);
+
+        $product = VtuProduct::query()->create([
+            'service_type' => 'data',
+            'network' => 'mtn',
+            'code' => 'sogo-sandbox-mtn-plan',
+            'provider_key' => 'sogo',
+            'provider_product_code' => 'mtn-plan-1',
+            'name' => 'MTN 1GB Sandbox Plan',
+            'price_minor' => 50000,
+            'currency' => 'NGN',
+            'is_active' => false,
+            'metadata' => [
+                'purchase_approved' => true,
+                'provider_mappings' => ['sogo' => ['network' => 'mtn', 'variation_code' => 'mtn-plan-1']],
+            ],
+        ]);
+
+        $this->actingAs($staff)->put('/admin/vtu-products/'.$product->id, [
+            'name' => $product->name,
+            'price_minor' => 50000,
+            'face_value_minor' => null,
+            'is_active' => true,
+            'purchase_approved' => true,
+            'provider_key' => 'sogo',
+            'provider_product_code' => 'mtn-plan-1',
+            'reason' => 'Attempt sandbox activation for sales',
+        ])->assertUnprocessable();
+
+        $this->assertFalse($product->fresh()->is_active);
+    }
+
     public function test_vtpass_product_requires_sandbox_approval_before_activation(): void
     {
         $staff = User::query()->create([
