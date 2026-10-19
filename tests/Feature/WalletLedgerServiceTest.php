@@ -259,4 +259,28 @@ class WalletLedgerServiceTest extends TestCase
         $this->assertSame($runningBalance, (int) $freshWallet->available_balance_minor);
         $this->assertSame(4, WalletTransaction::query()->where('wallet_id', $wallet->id)->where('status', 'posted')->count());
     }
+
+    public function test_wallet_balance_cap_remains_enforced_when_account_tier_is_disabled(): void
+    {
+        $user = User::query()->create(['name' => 'Disabled Cap Customer', 'email' => 'disabled-cap@example.test', 'password' => 'not-a-real-password']);
+        $wallet = app(WalletAccountService::class)->openForUser($user);
+        app(WalletLedgerService::class)->post($wallet->id, 'credit', 900, 'disabled-cap-seed');
+        UserLevelPolicy::query()->where('level', 'level_1')->update([
+            'wallet_balance_limit_minor' => 1000,
+            'is_active' => false,
+        ]);
+
+        try {
+            app(WalletLedgerService::class)->post($wallet->id, 'credit', 101, 'disabled-cap-overflow');
+            $this->fail('Disabling a tier must not disable its wallet balance cap.');
+        } catch (\\DomainException $exception) {
+            $this->assertStringContainsString('account level would be exceeded', $exception->getMessage());
+        }
+
+        $this->assertSame(900, (int) $wallet->fresh()->balance_minor);
+        $this->assertSame(900, (int) $wallet->fresh()->available_balance_minor);
+        $this->assertDatabaseCount('wallet_transactions', 1);
+        $this->assertDatabaseCount('wallet_ledger_entries', 1);
+    }
+
 }
