@@ -54,11 +54,31 @@ class ProcessVtuBulkPurchaseBatch implements ShouldQueue
         foreach ($items as $item) {
             $claimed = DB::transaction(function () use ($item): bool {
                 $locked = VtuBulkPurchaseItem::query()->whereKey($item->id)->lockForUpdate()->first();
-                if (!$locked || !in_array($locked->status, ['pending', 'processing'], true)) {
+                if (!$locked) {
                     return false;
                 }
-                $locked->update(['status' => 'processing', 'started_at' => $locked->started_at ?? now()]);
-                return true;
+
+                // Only pending items may be claimed by a worker. Allowing a
+                // second worker to claim a fresh processing item creates a
+                // concurrent dispatch window even when order idempotency exists.
+                if ($locked->status === 'pending') {
+                    $locked->update(['status' => 'processing', 'started_at' => now()]);
+                    return true;
+                }
+
+                // A process may disappear without Laravel invoking failed().
+                // After 30 minutes, mark the outcome unknown; never resubmit it.
+                if ($locked->status === 'processing'
+                    && $locked->started_at !== null
+                    && $locked->started_at->lte(now()->subMinutes(30))) {
+                    $locked->update([
+                        'status' => 'unknown',
+                        'result_message' => 'Worker interruption exceeded 30 minutes. Reconcile the existing order reference before any retry.',
+                        'completed_at' => now(),
+                    ]);
+                }
+
+                return false;
             });
             if (!$claimed) continue;
 
