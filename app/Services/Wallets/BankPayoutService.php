@@ -1,0 +1,162 @@
+<?php
+
+namespace App\Services\Wallets;
+
+use App\Exceptions\Wallet\IdempotencyConflict;
+use App\Models\BankBeneficiary;
+use App\Models\BankPayout;
+use App\Models\User;
+use App\Models\Wallet;
+use App\Services\IntegrationSettings;
+use App\Services\Payments\PaystackClient;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
+use InvalidArgumentException;
+use LogicException;
+
+class BankPayoutService
+{
+    public function __construct(
+        private readonly PaystackClient $paystack,
+        private readonly IntegrationSettings $settings,
+        private readonly WalletAccountService $wallets,
+        private readonly WalletLedgerService $ledger,
+    ) {}
+
+    public function banks(): array
+    {
+        return $this->paystack->listNigerianBanks();
+    }
+
+    public function beneficiaries(User $user)
+    {
+        return BankBeneficiary::query()->where('user_id', $user->id)->latest('id')->get();
+    }
+
+    public function addBeneficiary(User $user, string $bankCode, string $accountNumber): BankBeneficiary
+    {
+        $bank = collect($this->banks())->first(fn (array $item) => (string) $item['code'] === $bankCode);
+        if (! is_array($bank)) {
+            throw new InvalidArgumentException('Select a bank from the current bank directory.');
+        }
+
+        $resolved = $this->paystack->resolveNigerianAccount($accountNumber, $bankCode);
+        $recipient = $this->paystack->createTransferRecipient($resolved['account_name'], $accountNumber, $bankCode);
+        $recipientCode = $recipient['recipient_code'];
+
+        return BankBeneficiary::query()->firstOrCreate(
+            ['provider_recipient_code' => $recipientCode],
+            [
+                'user_id' => $user->id,
+                'bank_code' => $bankCode,
+                'bank_name' => (string) $bank['name'],
+                'account_number' => $accountNumber,
+                'account_number_last4' => substr($accountNumber, -4),
+                'account_name' => $resolved['account_name'],
+                'verification_status' => 'verified',
+                'verified_at' => now(),
+            ],
+        );
+    }
+
+    public function requestPayout(User $user, int $beneficiaryId, int $amountMinor, string $idempotencyKey): BankPayout
+    {
+        if ($amountMinor < 100 || $amountMinor > 500000000) {
+            throw new InvalidArgumentException('Bank transfer amount must be between ₦1 and ₦5,000,000.');
+        }
+        if (trim($idempotencyKey) === '' || strlen($idempotencyKey) > 128) {
+            throw new InvalidArgumentException('A valid idempotency key is required.');
+        }
+        if (! filter_var($this->settings->get('paystack.transfers_enabled', '0'), FILTER_VALIDATE_BOOLEAN)) {
+            throw new LogicException('Bank payouts are disabled by the administrator until the payout provider is configured and verified.');
+        }
+
+        $beneficiary = BankBeneficiary::query()
+            ->where('user_id', $user->id)
+            ->whereKey($beneficiaryId)
+            ->where('verification_status', 'verified')
+            ->whereNotNull('verified_at')
+            ->firstOrFail();
+
+        $requestHash = hash('sha256', json_encode([
+            'user_id' => $user->id,
+            'beneficiary_id' => $beneficiary->id,
+            'amount_minor' => $amountMinor,
+            'currency' => 'NGN',
+        ], JSON_THROW_ON_ERROR));
+
+        $payout = DB::transaction(function () use ($user, $beneficiary, $amountMinor, $idempotencyKey, $requestHash): BankPayout {
+            $existing = BankPayout::query()->where('user_id', $user->id)->where('idempotency_key', $idempotencyKey)->first();
+            if ($existing) {
+                if (! hash_equals($existing->request_hash, $requestHash)) {
+                    throw new IdempotencyConflict('This payout key was already used for a different request.');
+                }
+                return $existing;
+            }
+
+            $wallet = $this->wallets->openForUser($user, 'NGN');
+            $wallet = Wallet::query()->whereKey($wallet->id)->lockForUpdate()->firstOrFail();
+            $publicId = (string) Str::uuid();
+            $reference = 'semizzy_'.str_replace('-', '', $publicId);
+
+            $transaction = $this->ledger->post(
+                walletId: $wallet->id,
+                type: 'debit',
+                amountMinor: $amountMinor,
+                idempotencyKey: 'bank-payout:'.$publicId.':debit',
+                reference: $publicId,
+                description: 'Bank payout to '.$beneficiary->bank_name.' account ending '.$beneficiary->account_number_last4,
+                actorUserId: $user->id,
+                metadata: ['payout_id' => $publicId, 'beneficiary_id' => $beneficiary->id],
+            );
+
+            return BankPayout::query()->create([
+                'public_id' => $publicId,
+                'user_id' => $user->id,
+                'bank_beneficiary_id' => $beneficiary->id,
+                'currency' => 'NGN',
+                'amount_minor' => $amountMinor,
+                'fee_minor' => 0,
+                'status' => 'queued',
+                'idempotency_key' => $idempotencyKey,
+                'request_hash' => $requestHash,
+                'provider_reference' => $reference,
+                'wallet_transaction_id' => $transaction->id,
+                'metadata' => ['provider' => 'paystack', 'mode' => $this->paystack->mode()],
+            ]);
+        }, attempts: 3);
+
+        // An existing request is never submitted to the provider again.
+        if ($payout->status !== 'queued') {
+            return $payout;
+        }
+
+        try {
+            $response = $this->paystack->initiateBankTransfer(
+                (int) $payout->amount_minor,
+                (string) $beneficiary->provider_recipient_code,
+                (string) $payout->provider_reference,
+                'Semizzy user bank payout '.$payout->public_id,
+            );
+            $providerStatus = strtolower((string) ($response['status'] ?? 'pending'));
+            $payout->forceFill([
+                'status' => $providerStatus === 'success' ? 'succeeded' : ($providerStatus === 'failed' ? 'reconciliation_required' : 'provider_pending'),
+                'provider_transfer_code' => is_string($response['transfer_code'] ?? null) ? $response['transfer_code'] : null,
+                'metadata' => array_merge($payout->metadata ?? [], ['provider_status' => $providerStatus]),
+            ])->save();
+        } catch (LogicException $exception) {
+            report($exception);
+            $payout->forceFill([
+                'status' => 'reconciliation_required',
+                'failure_reason' => 'Provider outcome is not confirmed. Do not retry automatically.',
+            ])->save();
+        }
+
+        return $payout->fresh(['beneficiary']);
+    }
+
+    public function history(User $user)
+    {
+        return BankPayout::query()->with('beneficiary')->where('user_id', $user->id)->latest('id')->paginate(20);
+    }
+}
