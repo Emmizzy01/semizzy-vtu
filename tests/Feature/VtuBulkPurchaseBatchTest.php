@@ -471,7 +471,8 @@ class VtuBulkPurchaseBatchTest extends TestCase
             $this->assertSame('processing', $activeItem->fresh()->status);
         }
         $this->assertSame('unknown', $pending->fresh()->status);
-        $this->assertSame('partial', $batch->fresh()->status);
+        // Other fresh in-flight items keep the overall batch processing until they resolve.
+        $this->assertSame('processing', $batch->fresh()->status);
         $orders->shouldHaveReceived('purchase')->once();
         Queue::assertNothingPushed();
     }
