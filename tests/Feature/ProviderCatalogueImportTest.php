@@ -337,7 +337,7 @@ class ProviderCatalogueImportTest extends TestCase
             try {
                 app(ProviderCatalogueImportService::class)->import($provider, 'data');
                 $this->fail($provider.' API failure must abort its import.');
-            } catch (\\RuntimeException $exception) {
+            } catch (\RuntimeException $exception) {
                 $this->assertStringContainsString('catalogue', strtolower($exception->getMessage()));
             }
         }
