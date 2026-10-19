@@ -126,20 +126,37 @@ class ProviderCatalogueImportService
                     'mapping' => ['network' => $network['slug'], 'amount_based' => true]];
                 continue;
             }
-            $plansResponse = $http->get('bills/data-plans', ['network' => $network['slug']]);
-            if (! $plansResponse->successful()) throw new RuntimeException('Sogo data-plan catalogue failed; no import was applied.');
-            $plans = data_get($plansResponse->json(), 'data.plans', data_get($plansResponse->json(), 'data', []));
-            if (! is_array($plans)) continue;
+            $planEndpoint = match ($category) {
+                'data' => 'bills/data-plans',
+                'cable_tv' => 'bills/cable-packages',
+                'education' => 'bills/education-plans',
+                default => null,
+            };
+            if ($planEndpoint === null) {
+                $items[] = ['code' => $network['slug'], 'name' => (string) ($network['name'] ?? $network['slug']),
+                    'network' => $network['slug'], 'cost_minor' => null, 'selling_minor' => 1,
+                    'service_type' => $this->serviceType($category),
+                    'mapping' => ['network' => $network['slug'], 'catalog_only' => true]];
+                continue;
+            }
+            $queryKey = $category === 'data' ? 'network' : 'provider';
+            $plansResponse = $http->get($planEndpoint, [$queryKey => $network['slug']]);
+            if (! $plansResponse->successful()) throw new RuntimeException('Sogo '.$category.' catalogue failed; no import was applied.');
+            $body = $plansResponse->json();
+            $plans = data_get($body, 'data.plans', data_get($body, 'data.packages', data_get($body, 'data', [])));
+            if (! is_array($plans)) throw new RuntimeException('Sogo returned an invalid '.$category.' plan catalogue.');
             foreach ($plans as $plan) {
                 if (! is_array($plan)) continue;
-                $code = $plan['variation_code'] ?? $plan['code'] ?? null;
-                $amount = $plan['amount'] ?? $plan['price'] ?? null;
-                if (! is_string($code) || ! is_numeric($amount)) continue;
+                $code = $plan['variation_code'] ?? $plan['code'] ?? $plan['id'] ?? null;
+                $amount = $plan['amount'] ?? $plan['price'] ?? $plan['cost'] ?? null;
+                if (! is_string($code) && ! is_int($code)) continue;
+                if (! is_numeric($amount)) continue;
                 $items[] = ['code' => $network['slug'].'-'.$code, 'name' => (string) ($plan['name'] ?? $plan['label'] ?? $code),
                     'network' => $network['slug'], 'cost_minor' => (int) round((float) $amount * 100),
-                    'data_type' => (string) ($plan['type'] ?? 'provider-defined'),
+                    'data_type' => (string) ($plan['type'] ?? $category),
                     'validity' => (string) ($plan['validity'] ?? $plan['duration'] ?? ''),
-                    'mapping' => ['network' => $network['slug'], 'variation_code' => $code]];
+                    'service_type' => $this->serviceType($category),
+                    'mapping' => ['network' => $network['slug'], 'variation_code' => (string) $code, 'catalog_only' => $category !== 'data']];
             }
         }
         return $items;
