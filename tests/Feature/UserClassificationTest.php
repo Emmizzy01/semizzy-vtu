@@ -73,14 +73,10 @@ class UserClassificationTest extends TestCase
     {
         $admin = User::query()->create(['name' => 'Filter Admin', 'email' => 'filter-admin@example.test', 'password' => 'not-a-real-password']);
         UserPermission::query()->create(['user_id' => $admin->id, 'permission' => 'staff.permissions.manage']);
-        $matching = User::query()->create([
-            'name' => 'Matching Merchant', 'email' => 'matching-merchant@example.test', 'password' => 'not-a-real-password',
-            'user_type' => 'vendor', 'user_level' => 'level_4', 'kyc_status' => 'pending',
-        ]);
-        User::query()->create([
-            'name' => 'Nonmatching Customer', 'email' => 'nonmatching-customer@example.test', 'password' => 'not-a-real-password',
-            'user_type' => 'customer', 'user_level' => 'level_1', 'kyc_status' => 'unverified',
-        ]);
+        $matching = User::query()->create(['name' => 'Matching Merchant', 'email' => 'matching-merchant@example.test', 'password' => 'not-a-real-password']);
+        $matching->forceFill(['user_type' => 'vendor', 'user_level' => 'level_4', 'kyc_status' => 'pending'])->save();
+        $nonmatching = User::query()->create(['name' => 'Nonmatching Customer', 'email' => 'nonmatching-customer@example.test', 'password' => 'not-a-real-password']);
+        $nonmatching->forceFill(['user_type' => 'customer', 'user_level' => 'level_1', 'kyc_status' => 'unverified'])->save();
 
         $this->actingAs($admin)->get('/admin/users?type=vendor&level=level_4&kyc=pending')
             ->assertOk()
