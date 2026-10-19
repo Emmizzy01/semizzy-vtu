@@ -442,6 +442,32 @@ class VtuProductCatalogueTest extends TestCase
         foreach (['provider_key', 'provider_product_code', 'provider_mappings', 'provider_variation_code', 'provider_service_id', 'provider_cost_minor', 'internal_margin_minor', 'catalog_source', 'sogo'] as $secret) {
             $this->assertStringNotContainsString($secret, $encoded);
         }
+
+        VtuProduct::query()->create([
+            'service_type' => 'airtime',
+            'provider_key' => 'gsubz',
+            'provider_product_code' => 'gsubz-internal-airtime',
+            'provider_cost_minor' => 9000,
+            'network' => 'mtn',
+            'code' => 'gsubz-airtime-mtn',
+            'name' => 'MTN Airtime',
+            'price_minor' => 0,
+            'currency' => 'NGN',
+            'is_active' => true,
+            'metadata' => [
+                'catalog_source' => 'gsubz',
+                'provider_mappings' => ['gsubz' => ['network' => 'mtn']],
+                'amount_based' => true,
+            ],
+        ]);
+        $airtimeResponse = $this->actingAs($customer)->getJson('/wallet/vtu/products?service_type=airtime')->assertOk();
+        $airtimeCode = $airtimeResponse->json('data.0.code');
+        $this->assertMatchesRegularExpression('/^p[0-9a-z]+\\.[a-f0-9]{32}$/', (string) $airtimeCode);
+        $this->actingAs($customer)->postJson('/wallet/vtu/orders', [
+            'product_code' => $airtimeCode,
+            'recipient' => '08012345678',
+            'idempotency_key' => 'opaque-catalogue-selection-resolution',
+        ])->assertStatus(422)->assertJsonPath('message', 'Enter the airtime amount you want to purchase.');
     }
 
 }
