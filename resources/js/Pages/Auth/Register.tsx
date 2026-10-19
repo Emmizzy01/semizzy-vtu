@@ -3,6 +3,7 @@ import type { FormEvent } from 'react';
 import { LoaderCircle, ShieldCheck } from 'lucide-react';
 
 export default function Register() {
+  const referralFromUrl = typeof window !== 'undefined' ? (new URLSearchParams(window.location.search).get('ref') || '').toUpperCase() : '';
   const form = useForm({
     name: '',
     email: '',
@@ -10,7 +11,7 @@ export default function Register() {
     password_confirmation: '',
     transaction_pin: '',
     transaction_pin_confirmation: '',
-    referral_code: '',
+    referral_code: referralFromUrl,
   });
 
   function submit(event: FormEvent<HTMLFormElement>) {
