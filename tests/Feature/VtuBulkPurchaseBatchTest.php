@@ -419,7 +419,7 @@ class VtuBulkPurchaseBatchTest extends TestCase
         Queue::fake();
         $user = User::factory()->create();
         $batch = VtuBulkPurchaseBatch::query()->create([
-            'public_id' => (string) \\Illuminate\\Support\\Str::uuid(),
+            'public_id' => (string) \Illuminate\Support\Str::uuid(),
             'user_id' => $user->id,
             'batch_key' => 'bulk-worker-starvation-key',
             'request_hash' => hash('sha256', 'worker-starvation'),
@@ -454,7 +454,7 @@ class VtuBulkPurchaseBatchTest extends TestCase
             'status' => 'pending',
         ]);
 
-        $orders = \\Mockery::mock(VtuOrderService::class);
+        $orders = \Mockery::mock(VtuOrderService::class);
         $orders->shouldReceive('purchase')
             ->once()
             ->withArgs(fn ($actualUser, $productCode, $recipient, $key) =>
@@ -463,7 +463,7 @@ class VtuBulkPurchaseBatchTest extends TestCase
                 && $recipient === '08087654321'
                 && $key === $pending->idempotency_key
             )
-            ->andThrow(new \\RuntimeException('Provider outcome unknown'));
+            ->andThrow(new \RuntimeException('Provider outcome unknown'));
 
         (new ProcessVtuBulkPurchaseBatch((int) $batch->id))->handle($orders);
 
