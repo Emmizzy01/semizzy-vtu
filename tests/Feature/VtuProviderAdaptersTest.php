@@ -239,7 +239,7 @@ class VtuProviderAdaptersTest extends TestCase
 
     public function test_gsubz_lookup_uses_admin_configured_integration_key(): void
     {
-        $settings = \\Mockery::mock(IntegrationSettings::class);
+        $settings = \Mockery::mock(IntegrationSettings::class);
         $settings->shouldReceive('get')->andReturnUsing(
             fn (string $key, mixed $fallback = null) => $key === 'vtu.gsubz.api_key'
                 ? 'admin-configured-gsubz-key'
