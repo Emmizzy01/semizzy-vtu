@@ -28,6 +28,7 @@ use App\Http\Controllers\Account\BusinessWorkspaceStorefrontController;
 use App\Http\Controllers\Account\UserSessionController;
 use App\Http\Controllers\Account\AccountTierController;
 use App\Http\Controllers\Support\SupportTicketController;
+use App\Http\Controllers\Support\HelpPageController;
 use App\Http\Controllers\Admin\SupportTicketOperationsController;
 use App\Services\IntegrationSettings;
 use App\Http\Controllers\Payments\PaymentRefundController;
