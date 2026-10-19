@@ -55,6 +55,7 @@ export default function DashboardLayout({ title, description, admin = false, chi
     { label: 'Cable TV', href: '/wallet/vtu/tv', icon: Tv },
     { label: 'Internet', href: '/services', icon: PlugZap },
     { label: 'Education', href: '/services/education', icon: GraduationCap },
+    { label: 'Refer & Earn', href: '/account/referrals', icon: Users },
     { label: 'Transactions', href: (customerPreview ? '/customer/dashboard' : '/dashboard') + '#activity', icon: Activity, match: '#activity' },
   ];
   const customerFooter: NavItem[] = [
@@ -71,6 +72,7 @@ export default function DashboardLayout({ title, description, admin = false, chi
       { label: 'Refund operations', href: '/admin/refunds', icon: CreditCard },
       { label: 'Payment gateway', href: '/admin/payment-gateway', icon: Landmark },
       { label: 'Storefront commissions', href: '/admin/storefront-commissions', icon: CreditCard },
+      { label: 'Referral programme', href: '/admin/referrals', icon: Users },
     ] },
     { title: 'Operations', items: [
       { label: 'VTU orders', href: '/admin/vtu-orders', icon: Smartphone },
