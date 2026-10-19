@@ -9,6 +9,7 @@ use App\Models\UserLevelPolicy;
 use App\Models\Wallet;
 use App\Models\WalletLedgerEntry;
 use App\Models\WalletTransaction;
+use DomainException;
 use App\Services\Wallets\WalletAccountService;
 use App\Services\Wallets\WalletLedgerService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -149,7 +150,7 @@ class WalletLedgerServiceTest extends TestCase
         try {
             app(WalletLedgerService::class)->post($wallet->id, 'credit', 200, 'competing-credit-b');
             $this->fail('The second credit must recheck the updated balance and be rejected.');
-        } catch (\DomainException $exception) {
+        } catch (DomainException $exception) {
             $this->assertStringContainsString('account level would be exceeded', $exception->getMessage());
         }
 
