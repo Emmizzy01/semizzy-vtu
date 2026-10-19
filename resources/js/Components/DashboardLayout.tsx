@@ -23,7 +23,7 @@ type DashboardLayoutProps = {
 type NavItem = { label: string; href: string; icon: typeof LayoutDashboard; match?: string; emoji?: string };
 
 export default function DashboardLayout({ title, description, admin = false, children, customerPreview = false, walletBalance = null, walletBalanceVisible = true, onToggleWalletBalance }: DashboardLayoutProps) {
-  const { platform, auth } = usePage<{ platform?: { name?: string; theme_mode?: 'light' | 'dark'; branding?: { logo_url?: string } }; auth?: { user?: { name?: string; email?: string; tier?: string; level?: string; user_level?: string; user_type?: string; avatar_url?: string | null; avatarUrl?: string | null } | null } }>().props;
+  const { platform, auth, branding } = usePage<{ branding?: { logo_url?: string }; platform?: { name?: string; theme_mode?: 'light' | 'dark' }; auth?: { user?: { name?: string; email?: string; tier?: string; level?: string; user_level?: string; user_type?: string; avatar_url?: string | null; avatarUrl?: string | null } | null } }>().props;
   const currentUser = auth?.user;
   const userName = currentUser?.name?.trim() || 'Semizzy user';
   const rawUserTier = currentUser?.tier || currentUser?.user_level || currentUser?.level || currentUser?.user_type || 'Customer';
@@ -120,7 +120,7 @@ export default function DashboardLayout({ title, description, admin = false, chi
       <header className="sticky top-0 z-40 border-b border-black/5 bg-white/95 backdrop-blur dark:border-white/10 dark:bg-slate-950/95">
         <div className={`mx-auto flex ${admin ? "max-w-[1400px]" : "max-w-[1200px]"} items-center justify-between gap-3 px-4 py-3 sm:px-6`}>
           <a href={admin ? '/admin/dashboard' : customerPreview ? '/customer/dashboard' : '/dashboard'} className={`flex min-w-0 items-center gap-2 font-bold text-xl ${admin ? 'md:hidden' : 'md:hidden'}`}>
-            <span className="grid h-8 w-8 shrink-0 place-items-center overflow-hidden rounded-full bg-[#0f8a4f] text-sm text-white">{platform?.branding?.logo_url ? <img src={platform.branding.logo_url} alt="" className="h-full w-full object-contain" /> : "S"}</span>
+            <span className="grid h-8 w-8 shrink-0 place-items-center overflow-hidden rounded-full bg-[#0f8a4f] text-sm text-white">{branding?.logo_url ? <img src={branding.logo_url} alt="" className="h-full w-full object-contain" /> : "S"}</span>
             <span className="truncate">{platformName}</span>
             {admin && <span className="hidden rounded-full bg-[#0f8a4f]/10 px-2 py-1 text-[10px] font-bold text-[#0f8a4f] sm:inline">ADMIN</span>}
           </a>
