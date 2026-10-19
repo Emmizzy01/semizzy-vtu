@@ -262,7 +262,7 @@ class VtuBulkPurchaseBatchTest extends TestCase
         Queue::fake();
         $user = User::factory()->create();
         $batch = VtuBulkPurchaseBatch::query()->create([
-            'public_id' => (string) \\Illuminate\\Support\\Str::uuid(),
+            'public_id' => (string) \Illuminate\Support\Str::uuid(),
             'user_id' => $user->id,
             'batch_key' => 'bulk-worker-interrupted-key',
             'request_hash' => hash('sha256', 'worker-interrupted'),
