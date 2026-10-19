@@ -85,6 +85,37 @@ class VtuBulkPurchaseBatchTest extends TestCase
         Queue::assertPushed(ProcessVtuBulkPurchaseBatch::class, 1);
     }
 
+    public function test_different_users_can_use_the_same_batch_key_without_cross_account_reuse(): void
+    {
+        Queue::fake();
+        [$firstUser, , $firstPayload] = $this->preparedRequest();
+        [$secondUser, , $secondPayload] = $this->preparedRequest();
+        $firstPayload['batch_key'] = 'shared-bulk-key-across-users';
+        $secondPayload['batch_key'] = 'shared-bulk-key-across-users';
+
+        $first = $this->actingAs($firstUser)
+            ->postJson(route('wallet.vtu.orders.bulk'), $firstPayload)
+            ->assertAccepted();
+        $second = $this->actingAs($secondUser)
+            ->postJson(route('wallet.vtu.orders.bulk'), $secondPayload)
+            ->assertAccepted();
+
+        $this->assertNotSame($first->json('data.id'), $second->json('data.id'));
+        $this->assertDatabaseCount('vtu_bulk_purchase_batches', 2);
+        $this->assertDatabaseCount('vtu_bulk_purchase_items', 20);
+        $this->assertDatabaseHas('vtu_bulk_purchase_batches', [
+            'public_id' => $first->json('data.id'),
+            'user_id' => $firstUser->id,
+            'batch_key' => 'shared-bulk-key-across-users',
+        ]);
+        $this->assertDatabaseHas('vtu_bulk_purchase_batches', [
+            'public_id' => $second->json('data.id'),
+            'user_id' => $secondUser->id,
+            'batch_key' => 'shared-bulk-key-across-users',
+        ]);
+        Queue::assertPushed(ProcessVtuBulkPurchaseBatch::class, 2);
+    }
+
     public function test_reusing_batch_key_with_changed_items_is_rejected(): void
     {
         Queue::fake();
