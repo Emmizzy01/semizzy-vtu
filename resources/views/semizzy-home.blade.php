@@ -6,6 +6,8 @@
 <title>{{ $homepage['browser_title'] ?? 'SEMIZZY ONE — Nigerian Digital Super Platform' }}</title>
 @php($brandingSettings = app(\App\Services\IntegrationSettings::class))
 @php($socialImage = (string) $brandingSettings->get('branding.social_image', ''))
+@php($brandingLogo = (string) $brandingSettings->get('branding.logo', ''))
+@php($brandingBanner = (string) $brandingSettings->get('branding.banner', ''))
 @if($brandingSettings->has('branding.favicon'))<link rel="icon" href="{{ asset(ltrim((string) $brandingSettings->get('branding.favicon'), '/')) }}">@endif
 <meta property="og:site_name" content="{{ $brandingSettings->get('site.name', 'SEMIZZY ONE') }}">
 <meta property="og:title" content="{{ $homepage['browser_title'] ?? 'SEMIZZY ONE' }}">
@@ -31,7 +33,7 @@ body{font-family:'Inter',sans-serif}
 <div id="view-user" class="max-w-[390px] md:max-w-[1200px] mx-auto md:flex pt-16">
 <!-- Desktop Sidebar -->
 <aside class="hidden md:block w-[260px] bg-white border-r min-h-screen p-6 sticky top-0">
-<div class="flex items-center gap-2 font-bold text-xl"><span class="w-8 h-8 bg-[#0f8a4f] rounded-full grid place-items-center text-white text-sm">S</span>Semizzy</div>
+<div class="flex items-center gap-2 font-bold text-xl"><span class="w-8 h-8 bg-[#0f8a4f] rounded-full grid place-items-center overflow-hidden text-white text-sm">@if($brandingLogo)<img src="{{ asset(ltrim($brandingLogo, '/')) }}" alt="SEMIZZY ONE" class="h-full w-full object-contain">@else S @endif</span>{{ $brandingSettings->get('site.name', 'SEMIZZY ONE') }}</div>
 <div class="mt-6 bg-gradient-to-br from-[#0e7a44] to-[#0a5c32] rounded-xl p-4 text-white">
 <p class="text-xs opacity-80">Wallet Balance</p><p class="text-xl font-bold mt-1">₦125,450.00</p>
 <div class="flex gap-2 mt-3"><button class="flex-1 bg-white text-[#0a5c32] rounded-lg py-2 text-xs font-bold">Fund Wallet</button><button class="flex-1 bg-[#12a15a] text-white rounded-lg py-2 text-xs font-bold">Transfer</button></div>
@@ -68,7 +70,7 @@ body{font-family:'Inter',sans-serif}
 </div>
 
 <!-- 2. Banner Enjoy 10% cashback - ABOVE Buy Data -->
-<div class="mt-6 bg-gradient-to-r from-[#0a5c32] to-[#12a15a] rounded-[16px] p-4 flex justify-between items-center text-white h-[96px] relative overflow-hidden">
+<div class="mt-6 bg-gradient-to-r from-[#0a5c32] to-[#12a15a] rounded-[16px] p-4 flex justify-between items-center text-white h-[96px] relative overflow-hidden" @if($brandingBanner) style="background-image: linear-gradient(90deg, rgba(10,92,50,.88), rgba(18,161,90,.65)), url('{{ url($brandingBanner) }}'); background-size: cover; background-position: center;" @endif>
 <div><p class="font-bold text-[14px] leading-5">{{ $homepage['cashback_line_one'] ?? 'Enjoy 10% cashback' }}<br>{{ $homepage['cashback_line_two'] ?? 'on data purchases' }}</p><p class="text-[11px] opacity-80 mt-1">{{ $homepage['cashback_subtitle'] ?? 'Limited time offer' }}</p></div>
 <div class="w-20 h-20 bg-white/20 rounded-full grid place-items-center text-3xl">👩‍💼</div>
 </div>
