@@ -60,6 +60,17 @@ class BankPayoutController extends Controller
         return response()->json(['data' => $this->beneficiaryData($beneficiary)], 201);
     }
 
+    public function destroyBeneficiary(Request $request, int $beneficiary, BankPayoutService $service): JsonResponse
+    {
+        try {
+            $service->removeBeneficiary($request->user(), $beneficiary);
+        } catch (LogicException $exception) {
+            return response()->json(['message' => $exception->getMessage()], 409);
+        }
+
+        return response()->json(['message' => 'Saved bank account removed.']);
+    }
+
     public function payouts(Request $request, BankPayoutService $service): JsonResponse
     {
         $page = $service->history($request->user());
