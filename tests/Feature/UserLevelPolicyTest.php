@@ -197,4 +197,39 @@ class UserLevelPolicyTest extends TestCase
             $this->assertDatabaseCount('wallet_ledger_entries', 1);
         }
     }
+
+    public function test_disabled_account_tier_blocks_purchase_without_creating_order_or_debit(): void
+    {
+        config(['services.vtu.name' => 'test_provider', 'services.vtu.endpoint' => 'https://provider.example.test/api', 'services.vtu.token' => 'test-secret']);
+        $provider = new class implements VtuProvider {
+            public function assertConfigured(): void {}
+            public function assertProductConfigured(VtuProduct $product): void {}
+            public function submit(\\App\\Models\\VtuOrder $order): array { return ['status' => 'pending']; }
+            public function lookup(\\App\\Models\\VtuOrder $order): array { return ['status' => 'pending']; }
+        };
+        $this->app->instance(VtuProvider::class, $provider);
+
+        $user = User::query()->create(['name' => 'Disabled Tier Customer', 'email' => 'disabled-tier@example.test', 'password' => 'not-a-real-password']);
+        $user->forceFill(['user_level' => 'level_2'])->save();
+        $wallet = app(WalletAccountService::class)->openForUser($user);
+        app(WalletLedgerService::class)->post($wallet->id, 'credit', 5000, 'disabled-tier-funding');
+        $product = VtuProduct::query()->create([
+            'service_type' => 'airtime', 'network' => 'mtn', 'code' => 'disabled-tier-airtime',
+            'name' => 'Disabled Tier Airtime', 'price_minor' => 1000, 'face_value_minor' => 1000,
+            'currency' => 'NGN', 'is_active' => true,
+        ]);
+        UserLevelPolicy::query()->where('level', 'level_2')->update(['is_active' => false]);
+
+        try {
+            app(VtuOrderService::class)->purchase($user, $product->code, '08012345678', 'disabled-tier-order');
+            $this->fail('Purchases must be blocked for a disabled account tier.');
+        } catch (InvalidArgumentException $exception) {
+            $this->assertStringContainsString('Transactions are disabled', $exception->getMessage());
+            $this->assertSame(5000, (int) $wallet->fresh()->available_balance_minor);
+            $this->assertDatabaseCount('vtu_orders', 0);
+            $this->assertDatabaseCount('wallet_transactions', 1);
+            $this->assertDatabaseCount('wallet_ledger_entries', 1);
+        }
+    }
+
 }
