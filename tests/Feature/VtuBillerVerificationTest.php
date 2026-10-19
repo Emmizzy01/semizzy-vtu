@@ -43,7 +43,7 @@ class VtuBillerVerificationTest extends TestCase
             'price_minor' => 0,
             'currency' => 'NGN',
             'is_active' => false,
-            'metadata' => ['provider_service_id' => 'ikeja-electric'],
+            'metadata' => ['catalog_source' => 'vtpass', 'provider_service_id' => 'ikeja-electric'],
         ]);
 
         $this->actingAs($user)->postJson('/wallet/vtu/verify-biller', [
@@ -86,7 +86,7 @@ class VtuBillerVerificationTest extends TestCase
             'price_minor' => 0,
             'currency' => 'NGN',
             'is_active' => false,
-            'metadata' => ['provider_service_id' => 'eko-electric'],
+            'metadata' => ['catalog_source' => 'vtpass', 'provider_service_id' => 'eko-electric'],
         ]);
 
         $this->actingAs($user)->postJson('/wallet/vtu/verify-biller', [
@@ -116,7 +116,7 @@ class VtuBillerVerificationTest extends TestCase
             'price_minor' => 500000,
             'currency' => 'NGN',
             'is_active' => true,
-            'metadata' => ['provider_service_id' => 'dstv'],
+            'metadata' => ['catalog_source' => 'vtpass', 'provider_service_id' => 'dstv'],
         ]);
 
         Http::fake([
@@ -148,6 +148,36 @@ class VtuBillerVerificationTest extends TestCase
         $this->assertDatabaseCount('vtu_orders', 0);
         Http::assertSentCount(3);
         Http::assertNotSent(fn ($request) => str_ends_with($request->url(), '/pay'));
+    }
+
+    public function test_verification_never_falls_back_to_vtpass_for_a_different_active_provider(): void
+    {
+        Http::fake();
+        $user = User::query()->create([
+            'name' => 'Other Provider User',
+            'email' => 'other-provider@example.test',
+            'password' => 'not-a-real-password',
+        ]);
+        VtuProduct::query()->create([
+            'service_type' => 'electricity-bill',
+            'network' => 'example-electric',
+            'code' => 'other-provider-meter',
+            'name' => 'Example Electric',
+            'price_minor' => 0,
+            'currency' => 'NGN',
+            'is_active' => true,
+            'metadata' => ['catalog_source' => 'other-provider', 'provider_service_id' => 'example-electric'],
+        ]);
+
+        $this->actingAs($user)->postJson('/wallet/vtu/verify-biller', [
+            'product_code' => 'other-provider-meter',
+            'biller_code' => '12345678901',
+            'meter_type' => 'prepaid',
+        ])->assertStatus(503)
+            ->assertJsonPath('data.status', 'unknown');
+
+        $this->assertDatabaseCount('vtu_orders', 0);
+        Http::assertNothingSent();
     }
 
     public function test_electricity_verification_requires_meter_type_and_rejects_non_biller_products(): void
