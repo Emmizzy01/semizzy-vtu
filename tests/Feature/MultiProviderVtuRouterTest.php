@@ -130,6 +130,25 @@ class MultiProviderVtuRouterTest extends TestCase
     }
 
 
+    public function test_provider_key_remains_authoritative_when_catalog_source_metadata_conflicts(): void
+    {
+        config(['services.vtu.multi_provider.priority' => ['gsubz', 'sogo', 'dataway']]);
+        $product = new VtuProduct([
+            'service_type' => 'data',
+            'provider_key' => 'sogo',
+            'metadata' => [
+                'catalog_source' => 'gsubz',
+                'provider_mappings' => [
+                    'sogo' => ['network' => 'mtn', 'variation_code' => 'sogo-1gb-7d'],
+                    'gsubz' => ['network' => 'mtn-data', 'plan_code' => 'gsubz-different-plan'],
+                ],
+            ],
+        ]);
+
+        // A stale or conflicting metadata label must never redirect this catalogue row.
+        $this->assertSame('sogo', app(MultiProviderVtuRouter::class)->providerNameForProduct($product));
+    }
+
     public function test_sogo_order_dispatches_with_its_own_variation_mapping(): void
     {
         Http::fake([
