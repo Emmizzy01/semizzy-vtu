@@ -205,6 +205,36 @@ class VtuOrderWorkflowTest extends TestCase
         }
     }
 
+    public function test_active_gsubz_catalogue_product_without_purchase_approval_is_blocked_before_debit(): void
+    {
+        Http::fake();
+        [$user, $wallet, $product] = $this->preparedCustomer(1000, 1500);
+        $product->forceFill([
+            'provider_key' => 'gsubz',
+            'metadata' => [
+                'catalog_source' => 'gsubz',
+                'provider_mappings' => ['gsubz' => ['network' => 'mtn-data', 'plan_code' => 'gsubz-1gb-7d']],
+                'purchase_approved' => false,
+            ],
+        ])->save();
+
+        try {
+            app(VtuOrderService::class)->purchase(
+                $user,
+                $product->code,
+                '08012345678',
+                'gsubz-active-without-approval',
+            );
+            $this->fail('An active GSUBZ catalogue row without explicit purchase approval must be blocked.');
+        } catch (\\InvalidArgumentException $exception) {
+            $this->assertStringContainsString('not approved for customer purchases', $exception->getMessage());
+            $this->assertSame(1500, (int) $wallet->fresh()->available_balance_minor);
+            $this->assertDatabaseCount('vtu_orders', 0);
+            $this->assertDatabaseCount('wallet_transactions', 1);
+            Http::assertNothingSent();
+        }
+    }
+
     public function test_vtpass_legacy_product_without_catalog_source_or_approval_is_blocked_before_debit(): void
     {
         config([
