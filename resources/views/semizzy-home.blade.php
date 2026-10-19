@@ -197,6 +197,42 @@ body{font-family:'Inter',sans-serif}
 </div>
 </div>
 
+
+<!-- Agreed footer: two columns, preserving the prototype dashboard markup above -->
+<footer class="mt-10 border-t border-gray-200 bg-white text-gray-600">
+  <div class="max-w-[1200px] mx-auto px-5 md:px-8 py-8">
+    <div class="grid grid-cols-2 gap-8">
+      <section aria-labelledby="footer-services">
+        <h2 id="footer-services" class="text-xs font-extrabold tracking-widest text-gray-900 mb-4">SERVICES</h2>
+        <ul class="space-y-3 text-sm">
+          <li><a class="hover:text-[#0f8a4f]" href="/wallet/vtu/airtime">Buy Airtime</a></li>
+          <li><a class="hover:text-[#0f8a4f]" href="/wallet/vtu/data">Buy Data</a></li>
+          <li><a class="hover:text-[#0f8a4f]" href="/services">Marketplace</a></li>
+          <li><a class="hover:text-[#0f8a4f]" href="/wallet/vtu/tv">TV Subscription</a></li>
+          <li><a class="hover:text-[#0f8a4f]" href="/wallet/vtu/electricity">Electricity Bill</a></li>
+          <li><a class="hover:text-[#0f8a4f]" href="/wallet/vtu/tv">Cable TV</a></li>
+          <li><a class="hover:text-[#0f8a4f]" href="/services/coming-soon/internet">Internet Data</a></li>
+          <li><a class="hover:text-[#0f8a4f]" href="/services/education">Education PIN</a></li>
+        </ul>
+      </section>
+      <section aria-labelledby="footer-support">
+        <h2 id="footer-support" class="text-xs font-extrabold tracking-widest text-gray-900 mb-4">SUPPORT</h2>
+        <ul class="space-y-3 text-sm">
+          <li><a class="hover:text-[#0f8a4f]" href="/help/help-center">Help Center</a></li>
+          <li><a class="hover:text-[#0f8a4f]" href="/help/contact-us">Contact Us</a></li>
+          <li><a class="hover:text-[#0f8a4f]" href="/help/live-chat">Live Chat</a></li>
+          <li><a class="hover:text-[#0f8a4f]" href="/help/faqs">FAQs</a></li>
+          <li><a class="hover:text-[#0f8a4f]" href="/help/transaction-status">Transaction Status</a></li>
+          <li><a class="hover:text-[#0f8a4f]" href="/help/how-to-fund-wallet">How to Fund Wallet</a></li>
+          <li><a class="hover:text-[#0f8a4f]" href="/help/report-issue">Report Issue</a></li>
+          <li><a class="hover:text-[#0f8a4f]" href="/help/24-7-support">24/7 Support</a></li>
+        </ul>
+      </section>
+    </div>
+    <p class="mt-8 border-t border-gray-100 pt-4 text-xs text-gray-400">© {{ date('Y') }} Semizzy. All rights reserved.</p>
+  </div>
+</footer>
+
 <script>
 function switchView(v){
 document.getElementById('view-user').classList.toggle('hidden', v!=='user');
