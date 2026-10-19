@@ -115,6 +115,30 @@ class VtuProductActivationGateTest extends TestCase
         $this->assertFalse($product->fresh()->metadata['purchase_approved']);
     }
 
+    public function test_approved_gsubz_product_with_live_endpoint_and_complete_mapping_can_be_activated(): void
+    {
+        config([
+            'services.vtu.gsubz.base_url' => 'https://api.gsubz.com',
+            'services.vtu.gsubz.api_key' => 'test-key',
+        ]);
+
+        $admin = $this->adminWithCataloguePermission();
+        $product = $this->product('gsubz', [
+            'purchase_approved' => false,
+            'provider_mappings' => [
+                'gsubz' => ['network' => 'mtn', 'plan_code' => 'mtn-sme-1gb'],
+            ],
+        ]);
+
+        $this->actingAs($admin)
+            ->put('/admin/vtu-products/'.$product->id, $this->activationPayload())
+            ->assertRedirect();
+
+        $product->refresh();
+        $this->assertTrue($product->is_active);
+        $this->assertTrue($product->metadata['purchase_approved']);
+    }
+
     public function test_approved_sogo_product_with_live_endpoint_and_complete_mapping_can_be_activated(): void
     {
         config([
