@@ -53,6 +53,12 @@ class VtuOrderController extends Controller
                 // before sales are enabled, while purchase() still rejects inactive
                 // products server-side. Unmapped drafts remain admin-only.
                 $metadata = $product->metadata ?? [];
+                $legacyAirtimeDenomination = $product->service_type === 'airtime'
+                    && in_array((string) ($metadata['catalog_source'] ?? ''), ['sogo', 'gsubz', 'dataway'], true)
+                    && preg_match('/-\\d{2,}$/', $product->code) === 1;
+                if ($legacyAirtimeDenomination) {
+                    return false;
+                }
                 $hasProviderService = is_string($metadata['provider_service_id'] ?? null)
                     && $metadata['provider_service_id'] !== '';
                 $hasDataVariation = is_string($metadata['provider_variation_code'] ?? null)
@@ -91,7 +97,29 @@ class VtuOrderController extends Controller
             })
             ->values();
 
-        return response()->json(['data' => $products]);
+        // Return only customer-facing catalogue fields. Provider identity, provider IDs,
+        // source metadata, and internal routing details stay on the server.
+        $customerProducts = $products->map(function (VtuProduct $product): array {
+            $metadata = $product->metadata ?? [];
+            $publicMetadata = array_intersect_key($metadata, array_flip([
+                'validity', 'data_type', 'amount_based',
+                'provider_minimum_amount', 'provider_maximum_amount',
+            ]));
+
+            return [
+                'code' => $product->code, // opaque selection key; required for checkout routing
+                'service_type' => $product->service_type,
+                'network' => $product->network,
+                'name' => $product->name,
+                'price_minor' => (int) $product->price_minor,
+                'face_value_minor' => $product->face_value_minor,
+                'currency' => $product->currency,
+                'metadata' => $publicMetadata,
+                'is_active' => (bool) $product->is_active,
+            ];
+        })->values();
+
+        return response()->json(['data' => $customerProducts]);
     }
 
     public function purchase(Request $request, VtuOrderService $orders): JsonResponse
