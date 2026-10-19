@@ -414,6 +414,68 @@ class VtuBulkPurchaseBatchTest extends TestCase
         Queue::assertNothingPushed();
     }
 
+    public function test_fresh_in_flight_items_do_not_starve_pending_items_beyond_the_worker_limit(): void
+    {
+        Queue::fake();
+        $user = User::factory()->create();
+        $batch = VtuBulkPurchaseBatch::query()->create([
+            'public_id' => (string) \\Illuminate\\Support\\Str::uuid(),
+            'user_id' => $user->id,
+            'batch_key' => 'bulk-worker-starvation-key',
+            'request_hash' => hash('sha256', 'worker-starvation'),
+            'status' => 'processing',
+            'item_count' => 11,
+            'total_amount_minor' => 11000,
+            'currency' => 'NGN',
+            'started_at' => now(),
+        ]);
+
+        $inFlightItems = [];
+        for ($i = 0; $i < 10; $i++) {
+            $inFlightItems[] = $batch->items()->create([
+                'item_index' => $i,
+                'idempotency_key' => hash('sha256', 'worker-starvation-active-'.$i),
+                'product_code' => 'private-active-code-'.$i,
+                'service_type' => 'airtime',
+                'recipient' => '08012345678',
+                'amount_minor' => 1000,
+                'status' => 'processing',
+                'started_at' => now(),
+            ]);
+        }
+
+        $pending = $batch->items()->create([
+            'item_index' => 10,
+            'idempotency_key' => hash('sha256', 'worker-starvation-pending'),
+            'product_code' => 'private-pending-code',
+            'service_type' => 'airtime',
+            'recipient' => '08087654321',
+            'amount_minor' => 1000,
+            'status' => 'pending',
+        ]);
+
+        $orders = \\Mockery::mock(VtuOrderService::class);
+        $orders->shouldReceive('purchase')
+            ->once()
+            ->withArgs(fn ($actualUser, $productCode, $recipient, $key) =>
+                $actualUser->is($user)
+                && $productCode === 'private-pending-code'
+                && $recipient === '08087654321'
+                && $key === $pending->idempotency_key
+            )
+            ->andThrow(new \\RuntimeException('Provider outcome unknown'));
+
+        (new ProcessVtuBulkPurchaseBatch((int) $batch->id))->handle($orders);
+
+        foreach ($inFlightItems as $activeItem) {
+            $this->assertSame('processing', $activeItem->fresh()->status);
+        }
+        $this->assertSame('unknown', $pending->fresh()->status);
+        $this->assertSame('partial', $batch->fresh()->status);
+        $orders->shouldHaveReceived('purchase')->once();
+        Queue::assertNothingPushed();
+    }
+
     private function preparedRequest(): array
     {
         $user = User::factory()->create();
