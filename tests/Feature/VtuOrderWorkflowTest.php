@@ -489,14 +489,14 @@ class VtuOrderWorkflowTest extends TestCase
         $this->assertDatabaseCount('vtu_orders', 1);
         $this->assertDatabaseCount('wallet_transactions', 2);
         $order = VtuOrder::query()->sole();
-        $debit = \App\\Models\\WalletTransaction::query()
+        $debit = \App\Models\WalletTransaction::query()
             ->where('reference', $order->public_id)
             ->where('type', 'debit')
             ->sole();
-        $this->assertSame(1, \Illuminate\\Support\\Facades\\DB::table('wallet_ledger_entries')
+        $this->assertSame(1, \Illuminate\Support\Facades\DB::table('wallet_ledger_entries')
             ->where('wallet_transaction_id', $debit->getKey())
             ->count(), 'The in-flight duplicate must not create another ledger entry.');
-        $this->assertSame(1, \App\\Models\\VtuProviderAttempt::query()
+        $this->assertSame(1, \App\Models\VtuProviderAttempt::query()
             ->where('vtu_order_id', $order->getKey())
             ->count(), 'The in-flight duplicate must not create another provider attempt.');
         $this->assertSame(1, $submissionCount, 'The in-flight duplicate must not submit to the provider twice.');
