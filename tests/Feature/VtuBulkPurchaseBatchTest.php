@@ -79,6 +79,49 @@ class VtuBulkPurchaseBatchTest extends TestCase
         $this->actingAs($other)->getJson(route('wallet.vtu.orders.bulk.status', $publicId))->assertNotFound();
     }
 
+
+    public function test_uncertain_provider_outcome_is_recorded_as_unknown_and_not_retried_in_the_same_batch(): void
+    {
+        $user = User::factory()->create();
+        $batch = VtuBulkPurchaseBatch::query()->create([
+            'public_id' => (string) \Illuminate\Support\Str::uuid(),
+            'user_id' => $user->id,
+            'batch_key' => 'bulk-uncertain-key-001',
+            'request_hash' => hash('sha256', 'uncertain-request'),
+            'status' => 'queued',
+            'item_count' => 1,
+            'total_amount_minor' => 1000,
+            'currency' => 'NGN',
+        ]);
+        $item = $batch->items()->create([
+            'item_index' => 0,
+            'idempotency_key' => hash('sha256', 'stable-uncertain-item-key'),
+            'product_code' => 'internal-test-code',
+            'service_type' => 'airtime',
+            'recipient' => '08012345678',
+            'amount_minor' => 1000,
+            'status' => 'pending',
+        ]);
+
+        $orders = \Mockery::mock(\App\Services\Vtu\VtuOrderService::class);
+        $orders->shouldReceive('purchase')
+            ->once()
+            ->withArgs(fn ($actualUser, $productCode, $recipient, $key) =>
+                $actualUser->is($user)
+                && $productCode === 'internal-test-code'
+                && $recipient === '08012345678'
+                && $key === $item->idempotency_key
+            )
+            ->andThrow(new \RuntimeException('Provider response timed out after submission'));
+
+        (new ProcessVtuBulkPurchaseBatch((int) $batch->id))->handle($orders);
+
+        $this->assertSame('unknown', $item->fresh()->status);
+        $this->assertStringContainsString('Reconcile the existing idempotency reference', $item->fresh()->result_message);
+        $this->assertSame('partial', $batch->fresh()->status);
+        $orders->shouldHaveReceived('purchase')->once();
+    }
+
     private function preparedRequest(): array
     {
         $user = User::factory()->create();
