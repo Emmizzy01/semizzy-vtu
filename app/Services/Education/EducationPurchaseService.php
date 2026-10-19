@@ -35,6 +35,16 @@ class EducationPurchaseService
             throw new LogicException('This education product is not approved for purchase.');
         }
 
+        $walletId = (int) (Wallet::query()->where('user_id', $user->getKey())->where('currency', 'NGN')->value('id') ?? 0);
+        $policyRejection = app(UserLevelPolicyService::class)->rejectionReasonForAmount(
+            $user,
+            $walletId,
+            (int) $product->price_minor,
+        );
+        if ($policyRejection !== null) {
+            throw new LogicException($policyRejection);
+        }
+
         if ($product->requires_candidate_validation && $candidate === []) {
             throw new InvalidArgumentException('Candidate details are required for this education product.');
         }
