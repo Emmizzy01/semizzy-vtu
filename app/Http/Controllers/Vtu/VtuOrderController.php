@@ -319,7 +319,12 @@ class VtuOrderController extends Controller
                 return $batch;
             });
         } catch (QueryException $exception) {
-            // Concurrent retries may race on the user+batch-key unique constraint.
+            // Only recover from the user+batch-key uniqueness race. Other SQL failures
+            // must remain visible instead of being mistaken for a successful retry.
+            if (! $this->isBatchKeyUniqueConstraintViolation($exception)) {
+                throw $exception;
+            }
+
             $existing = VtuBulkPurchaseBatch::query()
                 ->where('user_id', $user->getKey())
                 ->where('batch_key', $validated['batch_key'])
@@ -461,6 +466,25 @@ class VtuOrderController extends Controller
         }
 
         return VtuProduct::query()->where('code', $code)->first();
+    }
+
+    private function isBatchKeyUniqueConstraintViolation(QueryException $exception): bool
+    {
+        $errorInfo = $exception->errorInfo;
+        $sqlState = (string) ($errorInfo[0] ?? $exception->getCode());
+        $driverCode = (string) ($errorInfo[1] ?? '');
+        $message = strtolower($exception->getMessage());
+
+        $isUniqueViolation = $sqlState === '23505'
+            || $driverCode === '1062'
+            || ($sqlState === '23000' && str_contains($message, 'duplicate entry'))
+            || ($driverCode === '19' && str_contains($message, 'unique constraint failed'))
+            || ($sqlState === '23000' && str_contains($message, 'unique constraint failed'));
+
+        return $isUniqueViolation
+            && str_contains($message, 'vtu_bulk_purchase_batches')
+            && str_contains($message, 'user_id')
+            && str_contains($message, 'batch_key');
     }
 
     private function serializeOrder(VtuOrder $order): array
