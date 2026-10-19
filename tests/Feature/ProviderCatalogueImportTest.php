@@ -315,11 +315,50 @@ class ProviderCatalogueImportTest extends TestCase
         $this->assertSame(1, $result['created']);
         $this->assertSame('dataway-airtime-mtn', $product->code);
         $this->assertSame('MTN Airtime', $product->name);
-        $this->assertSame(1, $product->price_minor);
+        $this->assertSame(0, $product->price_minor, 'Amount-based airtime must not carry a fake fixed selling price.');
         $this->assertTrue($product->metadata['amount_based']);
         $this->assertTrue($product->metadata['provider_mappings']['dataway']['amount_based']);
         $this->assertFalse($product->is_active);
     }
+
+    public function test_malformed_provider_catalogue_does_not_create_or_activate_products(): void
+    {
+        config([
+            'services.vtu.sogo.base_url' => 'https://sandbox.sogo.africa/v1',
+            'services.vtu.sogo.api_key' => 'sogo_test_key',
+        ]);
+
+        $existing = VtuProduct::query()->create([
+            'service_type' => 'data',
+            'provider_key' => 'sogo',
+            'provider_product_code' => 'existing-plan',
+            'network' => 'mtn',
+            'code' => 'sogo-data-mtn-existing-plan',
+            'name' => 'Previously reviewed plan',
+            'price_minor' => 50000,
+            'currency' => 'NGN',
+            'is_active' => false,
+            'metadata' => ['purchase_approved' => false],
+        ]);
+
+        Http::fake([
+            'sandbox.sogo.africa/v1/bills/catalog*' => Http::response([
+                'data' => ['data' => ['providers' => 'malformed']],
+            ]),
+        ]);
+
+        try {
+            app(ProviderCatalogueImportService::class)->import('sogo', 'data');
+            $this->fail('Malformed provider catalogue must be rejected.');
+        } catch (\\RuntimeException $exception) {
+            $this->assertStringContainsString('invalid bill catalogue', strtolower($exception->getMessage()));
+        }
+
+        $this->assertSame(1, VtuProduct::query()->count());
+        $this->assertFalse($existing->fresh()->is_active);
+        $this->assertFalse($existing->fresh()->metadata['purchase_approved']);
+    }
+
 
     public function test_provider_api_failures_for_each_import_adapter_apply_no_catalogue_rows(): void
     {
