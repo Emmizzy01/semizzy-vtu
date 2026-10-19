@@ -39,7 +39,7 @@ use App\Http\Controllers\StreamingSubscriptionController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
-Route::get('/', fn () => Inertia::render('Welcome'))
+Route::view('/', 'semizzy-home')
     ->name('home');
 
 Route::get('/store/{storefront:slug}', [BusinessWorkspaceStorefrontController::class, 'show'])->middleware('throttle:60,1')->name('storefronts.show');
