@@ -23,7 +23,7 @@ class ReferralProgramController extends Controller
         $data = $request->validate([
             'enabled' => ['required', 'boolean'],
             'reward_minor' => ['required', 'integer', 'min:0', 'max:100000000'],
-            'qualifying_event' => ['required', 'in:admin_verified,first_verified_funding,first_successful_purchase'],
+            'qualifying_event' => ['required', 'in:admin_verified'],
             'reason' => ['required', 'string', 'min:8', 'max:500'],
         ]);
 
