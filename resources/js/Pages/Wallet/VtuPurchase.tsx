@@ -16,6 +16,33 @@ type Product = {
   metadata?: Record<string, unknown>;
 };
 
+type DetectedNetwork = { label: string; prefixes: string[] };
+
+/**
+ * Prefix-based network hint only. Nigerian mobile-number portability means
+ * this must never be represented as authoritative current-carrier verification.
+ */
+const NIGERIAN_NETWORK_PREFIXES: DetectedNetwork[] = [
+  { label: 'MTN', prefixes: ['0703', '0706', '0803', '0806', '0810', '0813', '0814', '0816', '0903', '0906', '0913', '0916'] },
+  { label: 'Airtel', prefixes: ['0701', '0708', '0802', '0808', '0812', '0901', '0902', '0907', '0912'] },
+  { label: 'Glo', prefixes: ['0705', '0805', '0807', '0811', '0815', '0905', '0915'] },
+  { label: '9mobile', prefixes: ['0809', '0817', '0818', '0908', '0909'] },
+];
+
+function suggestNigerianNetwork(input: string): string | null {
+  let digits = input.replace(/\\D/g, '');
+  if (digits.startsWith('234')) digits = `0${digits.slice(3)}`;
+  if (digits.length < 4 || !digits.startsWith('0')) return null;
+  return NIGERIAN_NETWORK_PREFIXES.find((network) => network.prefixes.includes(digits.slice(0, 4)))?.label ?? null;
+}
+
+function networkMatchesLabel(network: string, label: string): boolean {
+  const normalized = network.toLowerCase().replace(/[^a-z0-9]/g, '');
+  const expected = label.toLowerCase().replace(/[^a-z0-9]/g, '');
+  if (expected === '9mobile') return normalized.includes('9mobile') || normalized.includes('etisalat');
+  return normalized.includes(expected);
+}
+
 type PendingPurchase = {
   serviceType: ServiceType;
   productCode: string;
@@ -197,6 +224,12 @@ export default function VtuPurchase({ serviceType }: { serviceType: ServiceType 
     [products],
   );
   const selectedProduct = products.find((product) => product.code === productCode);
+  const detectedNetwork = (serviceType === 'airtime' || serviceType === 'data')
+    ? suggestNigerianNetwork(recipient)
+    : null;
+  const suggestedNetworkProduct = detectedNetwork
+    ? products.find((product) => product.is_active && networkMatchesLabel(product.network, detectedNetwork))
+    : undefined;
   const isElectricity = serviceType === 'electricity-bill';
   const isTv = serviceType === 'tv-subscription';
   const needsVerification = isElectricity || isTv;
@@ -472,9 +505,17 @@ export default function VtuPurchase({ serviceType }: { serviceType: ServiceType 
                     autoComplete="tel"
                     value={recipient}
                     onChange={(event) => {
-                      setRecipient(event.target.value);
+                      const nextRecipient = event.target.value;
+                      setRecipient(nextRecipient);
                       setVerification(null);
                       setRequestKey(newRequestKey());
+                      if (serviceType === 'airtime' || serviceType === 'data') {
+                        const suggested = suggestNigerianNetwork(nextRecipient);
+                        const matchingProduct = suggested
+                          ? products.find((product) => product.is_active && networkMatchesLabel(product.network, suggested))
+                          : undefined;
+                        if (matchingProduct) setProductCode(matchingProduct.code);
+                      }
                     }}
                     placeholder={isElectricity ? "Enter your electricity meter number" : isTv ? "Enter your TV smartcard number" : "e.g. 08012345678"}
                     maxLength={40}
@@ -483,6 +524,18 @@ export default function VtuPurchase({ serviceType }: { serviceType: ServiceType 
                     className="mt-2 w-full rounded-xl border border-[var(--line)] bg-[var(--page)] px-4 py-3 font-normal outline-none focus:border-[var(--brand)] focus-visible:ring-2 focus-visible:ring-[var(--brand)] focus-visible:ring-offset-2"
                   />
                 </label>
+
+                {(serviceType === 'airtime' || serviceType === 'data') && detectedNetwork && (
+                  <div role="status" className="rounded-xl border border-[var(--line)] bg-[var(--page)] p-3 text-sm">
+                    <p className="font-semibold">Network prefix suggests {detectedNetwork}</p>
+                    <p className="mt-1 text-xs leading-5 text-[var(--muted)]">
+                      {suggestedNetworkProduct
+                        ? `We've selected an available ${detectedNetwork} option. Please confirm the recipient's actual network before purchase.`
+                        : `No active ${detectedNetwork} option is available right now. Choose the correct network manually if the number has been ported.`}
+                      {' '}Number portability means a prefix cannot confirm the current network.
+                    </p>
+                  </div>
+                )}
 
                 {isAirtime && (
                   <label className="block text-sm font-semibold">Airtime amount (₦)
