@@ -256,7 +256,8 @@ class ProviderCatalogueImportService
                 if (! $productsResponse->successful()) throw new RuntimeException('Dataway product catalogue failed; no import was applied.');
                 $plans = data_get($productsResponse->json(), 'data', []);
             }
-            if (! is_array($plans)) continue;
+            if (! is_array($plans)) throw new RuntimeException('Dataway returned an invalid product catalogue.');
+            $mappedPlans = 0;
             foreach ($plans as $plan) {
                 if (! is_array($plan)) continue;
                 $code = (string) ($plan['id'] ?? $plan['code'] ?? '');
@@ -265,7 +266,16 @@ class ProviderCatalogueImportService
                 $items[] = ['code' => $slug.'-'.$code, 'name' => (string) ($plan['name'] ?? $code), 'network' => $slug,
                     'cost_minor' => (int) round((float) $amount * 100), 'validity' => (string) ($plan['validity_days'] ?? ''),
                     'data_type' => (string) ($plan['benefit_type'] ?? 'provider-defined'),
-                    'mapping' => ['product_id' => $code]];
+                    'service_type' => $this->serviceType($category),
+                    'mapping' => ['product_id' => (string) $code, 'catalog_only' => ! in_array($category, ['data'], true)]];
+                $mappedPlans++;
+            }
+            if ($mappedPlans === 0 && $category !== 'data') {
+                // Keep provider-discovered billers visible even when that service has no fixed plans.
+                // The placeholder is inactive and cannot be purchased or mistaken for a live price.
+                $items[] = ['code' => $slug, 'name' => (string) ($biller['name'] ?? $slug), 'network' => $slug,
+                    'cost_minor' => null, 'selling_minor' => 1, 'service_type' => $this->serviceType($category),
+                    'mapping' => ['biller' => $slug, 'catalog_only' => true, 'variable_amount' => true]];
             }
         }
         return $items;
@@ -282,7 +292,7 @@ class ProviderCatalogueImportService
         $categories = match ($provider) {
             'sogo' => ['airtime', 'data', 'electricity', 'cable_tv', 'education', 'betting', 'epin', 'esim'],
             'gsubz' => ['airtime', 'data', 'electricity', 'cable_tv', 'education', 'social-media', 'recharge-pin'],
-            'dataway' => ['airtime', 'data', 'electricity', 'cable_tv', 'betting', 'education', 'exam', 'internet', 'recharge-pin', 'airtime_cash'],
+            'dataway' => ['airtime', 'data', 'electricity', 'cable', 'betting', 'education', 'exam', 'internet', 'rechargepin', 'airtime_cash'],
             default => throw new LogicException('Choose Sogo Africa, GSUBZ, or Dataway for provider catalogue import.'),
         };
 
@@ -308,10 +318,10 @@ class ProviderCatalogueImportService
     {
         return match ($category) {
             'electricity' => 'electricity-bill',
-            'cable_tv' => 'tv-subscription',
+            'cable_tv', 'cable' => 'tv-subscription',
             'education', 'exam' => 'education',
             'betting' => 'betting',
-            'epin', 'recharge-pin' => 'recharge-pin',
+            'epin', 'recharge-pin', 'rechargepin' => 'recharge-pin',
             'esim', 'internet' => 'internet',
             'social-media' => 'social-media',
             'airtime_cash' => 'airtime-cash',
