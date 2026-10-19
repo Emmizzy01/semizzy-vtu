@@ -25,6 +25,14 @@ class PlatformSettingsController extends Controller
             'maintenance_mode' => filter_var($settings->get('site.maintenance_mode', false), FILTER_VALIDATE_BOOLEAN),
             'airtime_data_enabled' => filter_var($settings->get('service.airtime_data.enabled', true), FILTER_VALIDATE_BOOLEAN),
             'manual_deposit_enabled' => filter_var($settings->get('manual_deposit.enabled', false), FILTER_VALIDATE_BOOLEAN),
+            'homepage_browser_title' => (string) $settings->get('homepage.browser_title', 'Semizzy VTU - Single File Dashboard'),
+            'homepage_cashback_line_one' => (string) $settings->get('homepage.cashback_line_one', 'Enjoy 10% cashback'),
+            'homepage_cashback_line_two' => (string) $settings->get('homepage.cashback_line_two', 'on data purchases'),
+            'homepage_cashback_subtitle' => (string) $settings->get('homepage.cashback_subtitle', 'Limited time offer'),
+            'homepage_gadget_sale_title' => (string) $settings->get('homepage.gadget_sale_title', '🔥 Big Gadget Sale! Up to 50% OFF'),
+            'homepage_gadget_sale_subtitle' => (string) $settings->get('homepage.gadget_sale_subtitle', 'iPhones, Samsung, Laptops'),
+            'homepage_referral_title' => (string) $settings->get('homepage.referral_title', '💰 Refer & Earn ₦500 per friend!'),
+            'homepage_referral_subtitle' => (string) $settings->get('homepage.referral_subtitle', 'Invite friends to Semizzy'),
         ]]);
     }
 
@@ -39,6 +47,14 @@ class PlatformSettingsController extends Controller
             'maintenance_mode' => ['required', 'boolean'],
             'airtime_data_enabled' => ['required', 'boolean'],
             'manual_deposit_enabled' => ['required', 'boolean'],
+            'homepage_browser_title' => ['required', 'string', 'min:2', 'max:120'],
+            'homepage_cashback_line_one' => ['required', 'string', 'max:90'],
+            'homepage_cashback_line_two' => ['required', 'string', 'max:90'],
+            'homepage_cashback_subtitle' => ['required', 'string', 'max:120'],
+            'homepage_gadget_sale_title' => ['required', 'string', 'max:120'],
+            'homepage_gadget_sale_subtitle' => ['required', 'string', 'max:120'],
+            'homepage_referral_title' => ['required', 'string', 'max:120'],
+            'homepage_referral_subtitle' => ['required', 'string', 'max:120'],
             'reason' => ['required', 'string', 'min:8', 'max:500'],
         ]);
         $data['theme_mode'] = $data['theme_mode'] ?? (string) $settings->get('site.theme_mode', 'light');
@@ -54,6 +70,14 @@ class PlatformSettingsController extends Controller
         $map = [
             'site_name' => 'site.name', 'support_email' => 'site.support_email',
             'support_phone' => 'site.support_phone', 'theme_skin' => 'site.theme_skin', 'theme_mode' => 'site.theme_mode', 'maintenance_mode' => 'site.maintenance_mode',
+            'homepage_browser_title' => 'homepage.browser_title',
+            'homepage_cashback_line_one' => 'homepage.cashback_line_one',
+            'homepage_cashback_line_two' => 'homepage.cashback_line_two',
+            'homepage_cashback_subtitle' => 'homepage.cashback_subtitle',
+            'homepage_gadget_sale_title' => 'homepage.gadget_sale_title',
+            'homepage_gadget_sale_subtitle' => 'homepage.gadget_sale_subtitle',
+            'homepage_referral_title' => 'homepage.referral_title',
+            'homepage_referral_subtitle' => 'homepage.referral_subtitle',
             'airtime_data_enabled' => 'service.airtime_data.enabled', 'manual_deposit_enabled' => 'manual_deposit.enabled',
         ];
         DB::transaction(function () use ($request, $settings, $data, $map): void {
@@ -65,6 +89,14 @@ class PlatformSettingsController extends Controller
                     'maintenance_mode' => '0',
                     'airtime_data_enabled' => '1',
                     'manual_deposit_enabled' => '0',
+                    'homepage_browser_title' => 'Semizzy VTU - Single File Dashboard',
+                    'homepage_cashback_line_one' => 'Enjoy 10% cashback',
+                    'homepage_cashback_line_two' => 'on data purchases',
+                    'homepage_cashback_subtitle' => 'Limited time offer',
+                    'homepage_gadget_sale_title' => '🔥 Big Gadget Sale! Up to 50% OFF',
+                    'homepage_gadget_sale_subtitle' => 'iPhones, Samsung, Laptops',
+                    'homepage_referral_title' => '💰 Refer & Earn ₦500 per friend!',
+                    'homepage_referral_subtitle' => 'Invite friends to Semizzy',
                     default => '',
                 };
                 $old = (string) $settings->get($key, $fallback);
