@@ -1938,10 +1938,23 @@ class VtuOrderWorkflowTest extends TestCase
             'recover-existing-order-key',
         );
 
-        $this->actingAs($user)->getJson('/wallet/vtu/orders/recover?idempotency_key=recover-existing-order-key')
+        $recovery = $this->actingAs($user)->getJson('/wallet/vtu/orders/recover?idempotency_key=recover-existing-order-key')
             ->assertOk()
             ->assertJsonPath('data.id', $order->public_id)
             ->assertJsonPath('data.status', 'processing');
+
+        $publicProductCode = (string) $recovery->json('data.product_code');
+        $this->assertMatchesRegularExpression('/^p[0-9a-z]+\\.[a-f0-9]{32}$/', $publicProductCode);
+        $this->assertNotSame($product->code, $publicProductCode);
+        $this->assertArrayNotHasKey('provider', $recovery->json('data'));
+        $this->assertArrayNotHasKey('provider_key', $recovery->json('data'));
+        $this->assertArrayNotHasKey('provider_product_code', $recovery->json('data'));
+
+        $this->actingAs($user)->getJson('/wallet/vtu/orders/'.$order->public_id)
+            ->assertOk()
+            ->assertJsonPath('data.product_code', $publicProductCode)
+            ->assertJsonMissingPath('data.provider')
+            ->assertJsonMissingPath('data.provider_key');
 
         $this->actingAs($user)->getJson('/wallet/vtu/orders/recover?idempotency_key=not-created-yet')
             ->assertNotFound()
