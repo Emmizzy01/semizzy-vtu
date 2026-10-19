@@ -120,4 +120,51 @@ class PaymentFundingWorkflowTest extends TestCase
         $this->assertDatabaseCount('payment_webhook_events', 0);
         $this->assertDatabaseCount('wallet_transactions', 0);
     }
+
+    public function test_verified_gateway_funding_respects_wallet_caps_for_all_four_tiers_even_when_disabled(): void
+    {
+        config(['services.semizzy_payments.webhook_secrets.semizzy' => 'test-secret-that-is-long-enough-for-tests']);
+
+        foreach (['level_1', 'level_2', 'level_3', 'level_4'] as $index => $level) {
+            $user = User::query()->create([
+                'name' => 'Capped Tier Funding '.$index,
+                'email' => 'capped-tier-funding-'.$index.'@example.test',
+                'password' => 'not-a-real-password',
+            ]);
+            $user->forceFill(['user_level' => $level])->save();
+            $wallet = app(WalletAccountService::class)->openForUser($user);
+            app(WalletLedgerService::class)->post($wallet->id, 'credit', 9500, 'tier-funding-seed-'.$level);
+            UserLevelPolicy::query()->where('level', $level)->update([
+                'wallet_balance_limit_minor' => 10000,
+                'is_active' => false,
+            ]);
+            $intent = app(PaymentIntentService::class)->create($wallet, 1000, 'semizzy');
+            $eventId = 'evt_tier_limit_'.$level;
+            $payload = ['id' => $eventId, 'type' => 'payment.succeeded', 'data' => [
+                'reference' => $intent->reference,
+                'transaction_id' => 'provider_tx_tier_limit_'.$level,
+                'status' => 'succeeded',
+                'amount_minor' => 1000,
+                'currency' => 'NGN',
+            ]];
+            $raw = json_encode($payload, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES);
+            $timestamp = now()->timestamp;
+            $signature = hash_hmac('sha256', $timestamp.'.'.$raw, 'test-secret-that-is-long-enough-for-tests');
+            $response = $this->call('POST', '/api/payments/webhooks/semizzy', [], [], [], [
+                'HTTP_X_SEMIZZY_SIGNATURE' => 't='.$timestamp.',v1='.$signature,
+                'CONTENT_TYPE' => 'application/json',
+            ], $raw);
+
+            $response->assertOk()->assertJsonPath('outcome', 'wallet_limit_review');
+            $this->assertSame(9500, (int) $wallet->fresh()->balance_minor, 'Funding bypassed wallet cap for '.$level);
+            $this->assertSame('review_required', $intent->fresh()->status, 'Funding was not held for review for '.$level);
+            $this->assertDatabaseHas('payment_webhook_events', [
+                'event_id' => $eventId,
+                'outcome' => 'wallet_limit_review',
+            ]);
+        }
+
+        $this->assertDatabaseCount('wallet_ledger_entries', 4);
+    }
+
 }
