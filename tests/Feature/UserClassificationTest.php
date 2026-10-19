@@ -54,4 +54,43 @@ class UserClassificationTest extends TestCase
             'reason' => 'Attempted self privilege escalation',
         ])->assertForbidden();
     }
+
+    public function test_admin_cannot_change_own_classification_even_with_valid_payload(): void
+    {
+        $admin = User::query()->create(['name' => 'Self Classification Admin', 'email' => 'self-classification-admin@example.test', 'password' => 'not-a-real-password']);
+        UserPermission::query()->create(['user_id' => $admin->id, 'permission' => 'staff.permissions.manage']);
+
+        $this->actingAs($admin)->put('/admin/users/'.$admin->id.'/classification', [
+            'user_type' => 'customer', 'user_level' => 'level_1', 'kyc_status' => 'unverified',
+            'reason' => 'Attempt to change own account classification',
+        ])->assertForbidden();
+
+        $this->assertDatabaseHas('users', ['id' => $admin->id, 'user_type' => 'customer', 'user_level' => 'level_1', 'kyc_status' => 'unverified']);
+        $this->assertDatabaseMissing('user_role_audits', ['target_user_id' => $admin->id]);
+    }
+
+    public function test_admin_user_list_filters_by_type_level_and_kyc_status(): void
+    {
+        $admin = User::query()->create(['name' => 'Filter Admin', 'email' => 'filter-admin@example.test', 'password' => 'not-a-real-password']);
+        UserPermission::query()->create(['user_id' => $admin->id, 'permission' => 'staff.permissions.manage']);
+        $matching = User::query()->create([
+            'name' => 'Matching Merchant', 'email' => 'matching-merchant@example.test', 'password' => 'not-a-real-password',
+            'user_type' => 'vendor', 'user_level' => 'level_4', 'kyc_status' => 'pending',
+        ]);
+        User::query()->create([
+            'name' => 'Nonmatching Customer', 'email' => 'nonmatching-customer@example.test', 'password' => 'not-a-real-password',
+            'user_type' => 'customer', 'user_level' => 'level_1', 'kyc_status' => 'unverified',
+        ]);
+
+        $this->actingAs($admin)->get('/admin/users?type=vendor&level=level_4&kyc=pending')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('Admin/Users/Index')
+                ->where('filters.type', 'vendor')
+                ->where('filters.level', 'level_4')
+                ->where('filters.kyc', 'pending')
+                ->has('users.data', 1)
+                ->where('users.data.0.id', $matching->id));
+    }
+
 }
