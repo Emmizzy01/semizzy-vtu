@@ -22,7 +22,7 @@ class ProcessVtuBulkPurchaseBatch implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public int $tries = 3;
-    public int $timeout = 120;
+    public int $timeout = 60;
     public bool $failOnTimeout = true;
 
     public function __construct(public readonly int $batchId)
@@ -49,6 +49,7 @@ class ProcessVtuBulkPurchaseBatch implements ShouldQueue
             ->where('batch_id', $batch->id)
             ->whereIn('status', ['pending', 'processing'])
             ->orderBy('item_index')
+            ->limit(10)
             ->get();
 
         foreach ($items as $item) {
@@ -107,6 +108,9 @@ class ProcessVtuBulkPurchaseBatch implements ShouldQueue
         }
 
         $this->refreshBatchStatus($batch->id);
+        if (VtuBulkPurchaseItem::query()->where('batch_id', $batch->id)->where('status', 'pending')->exists()) {
+            self::dispatch($batch->id);
+        }
     }
 
     public function failed(?Throwable $exception): void
@@ -125,6 +129,9 @@ class ProcessVtuBulkPurchaseBatch implements ShouldQueue
             ]);
 
         $this->refreshBatchStatus($batch->id);
+        if (VtuBulkPurchaseItem::query()->where('batch_id', $batch->id)->where('status', 'pending')->exists()) {
+            self::dispatch($batch->id);
+        }
     }
 
     private function refreshBatchStatus(int $batchId): void
