@@ -91,4 +91,34 @@ class ScheduledPurchaseRunnerTest extends TestCase
         $this->assertSame('processing', $schedule->last_result);
         $this->assertStringContainsString('paused until the existing order is reconciled', (string) $schedule->last_error);
     }
+    public function test_abandoned_processing_schedule_is_paused_without_replaying_purchase(): void
+    {
+        $user = User::query()->create([
+            'name' => 'Stale Scheduled User',
+            'email' => 'stale-scheduled@example.test',
+            'password' => 'not-a-real-password',
+        ]);
+        $schedule = ScheduledServicePurchase::query()->create([
+            'user_id' => $user->id,
+            'service_type' => 'data',
+            'product_code' => 'stale-runner-plan',
+            'recipient' => '08012345678',
+            'frequency' => 'daily',
+            'next_run_at' => now()->subMinutes(45),
+            'status' => 'processing',
+        ]);
+        \\Illuminate\\Support\\Facades\\DB::table('scheduled_service_purchases')
+            ->where('id', $schedule->id)
+            ->update(['updated_at' => now()->subMinutes(31)]);
+
+        $this->mock(VtuOrderService::class)->shouldNotReceive('purchase');
+
+        $this->artisan('vtu:run-scheduled-purchases --limit=100')->assertExitCode(0);
+
+        $schedule->refresh();
+        $this->assertSame('paused', $schedule->status);
+        $this->assertSame('unknown', $schedule->last_result);
+        $this->assertStringContainsString('Check the stable scheduled idempotency reference', (string) $schedule->last_error);
+    }
+
 }
