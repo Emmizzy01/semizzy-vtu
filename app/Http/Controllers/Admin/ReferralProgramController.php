@@ -58,7 +58,7 @@ class ReferralProgramController extends Controller
                 trim($data['review_note']),
                 $request->user(),
             );
-        } catch (InvalidArgumentException|LogicException $exception) {
+        } catch (LogicException $exception) {
             return back()->withErrors(['review_note' => $exception->getMessage()]);
         }
 
