@@ -107,7 +107,7 @@ class VtuOrderController extends Controller
             ]));
 
             return [
-                'code' => $product->code, // opaque selection key; required for checkout routing
+                'code' => $this->customerSelectionCode($product), // signed opaque key; never exposes provider-prefixed internal codes
                 'service_type' => $product->service_type,
                 'network' => $product->network,
                 'name' => $product->name,
@@ -136,7 +136,8 @@ class VtuOrderController extends Controller
             'amount' => ['nullable', 'numeric', 'min:1', 'max:1000000'],
         ]);
 
-        $productType = VtuProduct::query()->where('code', $validated['product_code'])->value('service_type');
+        $selectedProduct = $this->resolveCustomerSelectionCode($validated['product_code']);
+        $productType = $selectedProduct?->service_type;
         if ($productType === 'airtime' && ! isset($validated['amount'])) {
             return response()->json(['message' => 'Enter the airtime amount you want to purchase.'], 422);
         }
@@ -159,7 +160,7 @@ class VtuOrderController extends Controller
         try {
             $order = $orders->purchase(
                 $user,
-                $validated['product_code'],
+                $selectedProduct?->code ?? $validated['product_code'],
                 $validated['recipient'],
                 $validated['idempotency_key'],
                 array_filter([
@@ -222,6 +223,35 @@ class VtuOrderController extends Controller
     }
 
     /** @return array<string, mixed> */
+    /** Return a stable, signed selection key without exposing provider-prefixed catalogue codes. */
+    private function customerSelectionCode(VtuProduct $product): string
+    {
+        $id = (string) $product->getKey();
+        $signature = substr(hash_hmac('sha256', 'vtu-product:'.$id, (string) config('app.key')), 0, 32);
+
+        return 'p'.base_convert($id, 10, 36).'.'.$signature;
+    }
+
+    /** Resolve a signed public selection key; legacy internal codes remain accepted for compatibility. */
+    private function resolveCustomerSelectionCode(string $code): ?VtuProduct
+    {
+        if (preg_match('/^p([0-9a-z]+)\.([a-f0-9]{32})$/D', $code, $matches) === 1) {
+            $id = base_convert($matches[1], 36, 10);
+            if (! ctype_digit($id) || (int) $id < 1) {
+                return null;
+            }
+
+            $expected = substr(hash_hmac('sha256', 'vtu-product:'.$id, (string) config('app.key')), 0, 32);
+            if (! hash_equals($expected, $matches[2])) {
+                return null;
+            }
+
+            return VtuProduct::query()->find((int) $id);
+        }
+
+        return VtuProduct::query()->where('code', $code)->first();
+    }
+
     private function serializeOrder(VtuOrder $order): array
     {
         return [
