@@ -12,11 +12,42 @@ use App\Models\VtuProduct;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Queue;
+use Illuminate\Database\QueryException;
+use ReflectionMethod;
 use Tests\TestCase;
 
 class VtuBulkPurchaseBatchTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_batch_key_collision_detector_accepts_only_matching_unique_constraint_errors(): void
+    {
+        $controller = app(\App\Http\Controllers\Vtu\VtuOrderController::class);
+        $method = new ReflectionMethod($controller, 'isBatchKeyUniqueConstraintViolation');
+
+        $batchCollision = new QueryException(
+            'sqlite',
+            'insert into vtu_bulk_purchase_batches (user_id, batch_key) values (?, ?)',
+            [],
+            new \PDOException('SQLSTATE[23000]: Integrity constraint violation: 19 UNIQUE constraint failed: vtu_bulk_purchase_batches.user_id, vtu_bulk_purchase_batches.batch_key')
+        );
+        $otherUniqueCollision = new QueryException(
+            'sqlite',
+            'insert into users (email) values (?)',
+            [],
+            new \PDOException('SQLSTATE[23000]: Integrity constraint violation: 19 UNIQUE constraint failed: users.email')
+        );
+        $otherDatabaseFailure = new QueryException(
+            'sqlite',
+            'insert into vtu_bulk_purchase_batches (user_id, batch_key) values (?, ?)',
+            [],
+            new \PDOException('SQLSTATE[HY000]: General error: 1 no such table: vtu_bulk_purchase_batches')
+        );
+
+        $this->assertTrue($method->invoke($controller, $batchCollision));
+        $this->assertFalse($method->invoke($controller, $otherUniqueCollision));
+        $this->assertFalse($method->invoke($controller, $otherDatabaseFailure));
+    }
 
     public function test_bulk_request_persists_items_and_dispatches_one_durable_batch_job(): void
     {
