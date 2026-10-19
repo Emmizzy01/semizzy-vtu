@@ -36,6 +36,7 @@ class IntegrationSettingsController extends Controller
             ],
             'gateway' => [
             'name' => 'Paystack', 'configured' => $secret !== '',
+            'transfersEnabled' => filter_var($settings->get('paystack.transfers_enabled', false), FILTER_VALIDATE_BOOLEAN),
             'production' => app()->environment('production'),
             'callbackConfigured' => $callback !== '',
             'mode' => $mode,
@@ -53,6 +54,7 @@ class IntegrationSettingsController extends Controller
             'mode' => ['required', 'in:test,live'],
             'callback_url' => ['required', 'url', 'starts_with:https://', 'max:2048'],
             'confirm_live' => ['nullable', 'boolean'],
+            'transfers_enabled' => ['nullable', 'boolean'],
             'reason' => ['required', 'string', 'min:8', 'max:500'],
         ]);
         $secret = trim((string) ($data['secret_key'] ?? ''));
@@ -78,13 +80,14 @@ class IntegrationSettingsController extends Controller
             $updates = [
                 'paystack.mode' => $data['mode'],
                 'paystack.callback_url' => trim($data['callback_url']),
+                'paystack.transfers_enabled' => ! empty($data['transfers_enabled']) ? '1' : '0',
             ];
             if ($secret !== '') $updates['paystack.secret_key'] = $secret;
 
             foreach ($updates as $key => $newValue) {
                 $fallback = $key === 'paystack.secret_key'
                     ? (string) config('services.paystack.secret_key', '')
-                    : ($key === 'paystack.callback_url' ? (string) config('services.paystack.callback_url', '') : 'test');
+                    : ($key === 'paystack.callback_url' ? (string) config('services.paystack.callback_url', '') : ($key === 'paystack.mode' ? 'test' : '0'));
                 $oldValue = (string) $settings->get($key, $fallback);
                 $storedSettingExists = \App\Models\IntegrationSetting::query()->where('key', $key)->exists();
                 if ($storedSettingExists && hash_equals(hash('sha256', $oldValue), hash('sha256', (string) $newValue))) continue;
