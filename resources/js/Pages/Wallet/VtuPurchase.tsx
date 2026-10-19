@@ -1,7 +1,7 @@
 import { Head } from '@inertiajs/react';
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { AlertCircle, CheckCircle2, Clock3, LoaderCircle, RefreshCw, Smartphone, ShieldCheck } from 'lucide-react';
-import VtuBulkPurchasePanel from '@/Components/VtuBulkPurchasePanel';
+import VtuBulkPurchasePanel from '../../Components/VtuBulkPurchasePanel';
 
 type ServiceType = 'airtime' | 'data' | 'electricity-bill' | 'tv-subscription';
 
