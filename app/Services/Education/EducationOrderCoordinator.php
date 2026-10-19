@@ -7,6 +7,8 @@ use App\Models\EducationOrder;
 use App\Models\EducationProviderAttempt;
 use App\Models\EducationServiceProduct;
 use App\Models\User;
+use App\Models\Wallet;
+use App\Services\Security\UserLevelPolicyService;
 use App\Services\Wallets\WalletAccountService;
 use App\Services\Wallets\WalletLedgerService;
 use Illuminate\Database\QueryException;
@@ -21,6 +23,7 @@ class EducationOrderCoordinator
         private readonly EducationProviderRegistry $providers,
         private readonly WalletAccountService $walletAccounts,
         private readonly WalletLedgerService $ledger,
+        private readonly UserLevelPolicyService $levelPolicies,
     ) {
     }
 
@@ -70,6 +73,16 @@ class EducationOrderCoordinator
                     || (string) $lockedProduct->provider !== (string) $product->provider
                     || (string) $lockedProduct->provider_product_code !== (string) $product->provider_product_code) {
                     throw new \LogicException('Education product price or provider mapping changed before reservation; retry after reviewing the catalogue.');
+                }
+
+                $lockedWallet = Wallet::query()->whereKey($wallet->getKey())->lockForUpdate()->firstOrFail();
+                $policyRejection = $this->levelPolicies->rejectionReasonForAmount(
+                    $user,
+                    (int) $lockedWallet->getKey(),
+                    (int) $lockedProduct->price_minor,
+                );
+                if ($policyRejection !== null) {
+                    throw new \LogicException($policyRejection);
                 }
 
                 $order = EducationOrder::query()->create([
