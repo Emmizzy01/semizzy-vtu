@@ -79,19 +79,22 @@ class BankDirectoryImportTest extends TestCase
 
     public function test_account_name_verification_must_match_the_requested_account_number(): void
     {
-        Http::fake([
-            'api.paystack.co/bank*' => Http::response([
+        Http::fake(function ($request) {
+            if (str_contains($request->url(), '/bank/resolve')) {
+                return Http::response([
+                    'status' => true,
+                    'data' => [
+                        'account_name' => 'Some Account',
+                        'account_number' => '9999999999',
+                    ],
+                ], 200);
+            }
+
+            return Http::response([
                 'status' => true,
                 'data' => [['name' => 'Test Bank', 'code' => '001']],
-            ], 200),
-            'api.paystack.co/bank/resolve*' => Http::response([
-                'status' => true,
-                'data' => [
-                    'account_name' => 'Some Account',
-                    'account_number' => '9999999999',
-                ],
-            ], 200),
-        ]);
+            ], 200);
+        });
 
         $user = User::query()->create([
             'name' => 'Directory Test User',
