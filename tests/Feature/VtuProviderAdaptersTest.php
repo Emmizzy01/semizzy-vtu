@@ -236,6 +236,22 @@ class VtuProviderAdaptersTest extends TestCase
     }
 
 
+    public function test_gsubz_lookup_uses_admin_configured_integration_key(): void
+    {
+        app(\\App\\Services\\IntegrationSettings::class)->set('vtu.gsubz.api_key', 'admin-configured-gsubz-key', null);
+        Http::fake(['api.gsubz.com/*' => Http::response([
+            'code' => '200',
+            'status' => 'success',
+            'description' => 'TRANSACTION_SUCCESSFUL',
+        ], 200)]);
+
+        $result = app(GsubzProviderClient::class)->lookup($this->order());
+
+        $this->assertSame('success', $result['status']);
+        Http::assertSent(fn ($request) => str_ends_with($request->url(), '/api/verify/')
+            && $request['api'] === 'admin-configured-gsubz-key');
+    }
+
     public function test_sogo_and_gsubz_lookup_unknown_statuses_never_authorize_failure_recovery(): void
     {
         Http::fakeSequence()
