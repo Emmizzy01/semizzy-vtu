@@ -4,6 +4,8 @@ import { AlertCircle, CheckCircle2, Clock3, LoaderCircle, RefreshCw, Smartphone,
 
 type ServiceType = 'airtime' | 'data' | 'electricity-bill' | 'tv-subscription';
 
+type SavedBeneficiary = { id: number; service_type: string; label: string; recipient: string; network: string | null; product_code: string | null; service_details: Record<string, unknown> | null };
+
 type Product = {
   code: string;
   service_type: ServiceType;
@@ -143,6 +145,8 @@ export default function VtuPurchase({ serviceType }: { serviceType: ServiceType 
   const [products, setProducts] = useState<Product[]>([]);
   const [productCode, setProductCode] = useState(restoredPending?.productCode ?? '');
   const [recipient, setRecipient] = useState(restoredPending?.recipient ?? '');
+  const [beneficiaries, setBeneficiaries] = useState<SavedBeneficiary[]>([]);
+  const [savingBeneficiary, setSavingBeneficiary] = useState(false);
   const [transactionPin, setTransactionPin] = useState('');
   const [meterType, setMeterType] = useState<'prepaid' | 'postpaid'>('prepaid');
   const [contactPhone, setContactPhone] = useState('');
@@ -156,6 +160,22 @@ export default function VtuPurchase({ serviceType }: { serviceType: ServiceType 
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
   const [submissionUncertain, setSubmissionUncertain] = useState(restoredPending?.uncertain ?? false);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`/wallet/service-beneficiaries?service_type=${encodeURIComponent(serviceType)}`, {
+      headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+      credentials: 'same-origin',
+    }).then(async (response) => {
+      if (!response.ok) throw new Error('Saved beneficiaries could not be loaded.');
+      return response.json();
+    }).then((body) => {
+      if (!cancelled) setBeneficiaries(Array.isArray(body.data) ? body.data as SavedBeneficiary[] : []);
+    }).catch(() => {
+      if (!cancelled) setBeneficiaries([]);
+    });
+    return () => { cancelled = true; };
+  }, [serviceType]);
 
   useEffect(() => {
     let cancelled = false;
@@ -497,6 +517,27 @@ export default function VtuPurchase({ serviceType }: { serviceType: ServiceType 
                   </label>
                 </div>
 
+                {beneficiaries.length > 0 && (
+                  <label className="block text-sm font-semibold">Saved beneficiaries
+                    <select value="" onChange={(event) => {
+                      const saved = beneficiaries.find((item) => String(item.id) === event.target.value);
+                      if (!saved) return;
+                      setRecipient(saved.recipient);
+                      if (saved.product_code && products.some((item) => item.code === saved.product_code && item.is_active)) setProductCode(saved.product_code);
+                      if (saved.network) {
+                        const matching = products.find((item) => item.network === saved.network && item.is_active);
+                        if (matching) setProductCode(matching.code);
+                      }
+                      if (saved.service_details?.meter_type === 'prepaid' || saved.service_details?.meter_type === 'postpaid') setMeterType(saved.service_details.meter_type);
+                      setVerification(null);
+                      setRequestKey(newRequestKey());
+                    }} disabled={submissionUncertain} className="mt-2 w-full rounded-xl border border-[var(--line)] bg-[var(--page)] px-3 py-3 font-normal">
+                      <option value="">Choose a saved beneficiary…</option>
+                      {beneficiaries.map((item) => <option key={item.id} value={item.id}>{item.label} · {item.recipient}</option>)}
+                    </select>
+                  </label>
+                )}
+
                 <label className="block text-sm font-semibold">
                   {isElectricity ? 'Meter number' : isTv ? 'TV smartcard / decoder number' : 'Recipient phone number'}
                   <input
@@ -536,6 +577,32 @@ export default function VtuPurchase({ serviceType }: { serviceType: ServiceType 
                     </p>
                   </div>
                 )}
+
+                <button type="button" disabled={submissionUncertain || savingBeneficiary || !recipient.trim()} onClick={async () => {
+                  const label = window.prompt('Give this beneficiary a name (for example, Mum or Home TV):')?.trim();
+                  if (!label) return;
+                  setSavingBeneficiary(true); setError('');
+                  try {
+                    const csrf = document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ?? '';
+                    const response = await fetch('/wallet/service-beneficiaries', {
+                      method: 'POST', credentials: 'same-origin',
+                      headers: { Accept: 'application/json', 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'X-CSRF-TOKEN': csrf },
+                      body: JSON.stringify({
+                        service_type: serviceType, label, recipient,
+                        network: selectedProduct?.network ?? null,
+                        product_code: selectedProduct?.code ?? null,
+                        service_details: isElectricity ? { meter_type: meterType } : (isTv ? { subscription_type: 'change' } : {}),
+                      }),
+                    });
+                    const body = await response.json().catch(() => ({}));
+                    if (!response.ok) throw new Error(typeof body.message === 'string' ? body.message : 'Beneficiary could not be saved.');
+                    setBeneficiaries((current) => [...current, body.data as SavedBeneficiary].sort((a, b) => a.label.localeCompare(b.label)));
+                  } catch (cause: unknown) {
+                    setError(cause instanceof Error ? cause.message : 'Beneficiary could not be saved.');
+                  } finally { setSavingBeneficiary(false); }
+                }} className="w-full rounded-xl border border-[var(--line)] px-4 py-2 text-sm font-semibold disabled:opacity-50">
+                  {savingBeneficiary ? 'Saving beneficiary…' : 'Save recipient as beneficiary'}
+                </button>
 
                 {isAirtime && (
                   <label className="block text-sm font-semibold">Airtime amount (₦)
