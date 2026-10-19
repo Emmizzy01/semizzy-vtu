@@ -1,5 +1,5 @@
 import { Head, router, useForm } from '@inertiajs/react';
-import { FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
 import DashboardLayout from '../../Components/DashboardLayout';
 
 type Referral = { id: number; status: string; referrer_name: string | null; referrer_email: string | null; referred_name: string | null; referred_email: string | null; reward_minor: number; qualifying_reference: string | null; review_note: string | null; created_at: string | null };
@@ -27,7 +27,7 @@ export default function ReferralProgram(props: Props) {
         <form onSubmit={save} className="mt-5 grid gap-4 sm:grid-cols-2">
           <label className="flex items-center gap-3 rounded-xl border border-slate-200 p-4 dark:border-slate-700"><input type="checkbox" checked={settings.data.enabled} onChange={e => settings.setData('enabled', e.target.checked)} /><span><span className="block font-bold">Enable referrals</span><span className="block text-xs text-slate-500">New sign-ups will be attributed only while enabled.</span></span></label>
           <label className="block text-sm font-semibold">Reward per approved referral (₦)<input type="number" min="0" max="1000000" step="0.01" value={settings.data.reward_minor} onChange={e => settings.setData('reward_minor', e.target.value)} className="mt-2 w-full rounded-xl border border-slate-300 bg-transparent px-3 py-3 font-normal dark:border-slate-700" /></label>
-          <label className="block text-sm font-semibold">Qualifying event<select value={settings.data.qualifying_event} onChange={e => settings.setData('qualifying_event', e.target.value)} className="mt-2 w-full rounded-xl border border-slate-300 bg-transparent px-3 py-3 font-normal dark:border-slate-700"><option value="admin_verified">Admin-verified qualifying event</option><option value="first_verified_funding">First verified funding</option><option value="first_successful_purchase">First successful purchase</option></select></label>
+          <label className="block text-sm font-semibold">Qualifying event<select value={settings.data.qualifying_event} onChange={e => settings.setData('qualifying_event', e.target.value)} className="mt-2 w-full rounded-xl border border-slate-300 bg-transparent px-3 py-3 font-normal dark:border-slate-700"><option value="admin_verified">Admin-verified qualifying event</option></select></label>
           <label className="block text-sm font-semibold">Audit reason<input required minLength={8} maxLength={500} value={settings.data.reason} onChange={e => settings.setData('reason', e.target.value)} placeholder="Why are these referral settings changing?" className="mt-2 w-full rounded-xl border border-slate-300 bg-transparent px-3 py-3 font-normal dark:border-slate-700" /></label>
           {settings.errors.reward_minor && <p role="alert" className="text-sm text-red-600">{settings.errors.reward_minor}</p>}
           <button disabled={settings.processing} className="rounded-xl bg-emerald-700 px-5 py-3 font-bold text-white sm:col-span-2">{settings.processing ? 'Saving…' : 'Save audited settings'}</button>
