@@ -377,6 +377,43 @@ class VtuBulkPurchaseBatchTest extends TestCase
         Queue::assertPushed(ProcessVtuBulkPurchaseBatch::class, 1);
     }
 
+    public function test_duplicate_job_delivery_does_not_resubmit_an_item_with_uncertain_outcome(): void
+    {
+        Queue::fake();
+        $user = User::factory()->create();
+        $batch = VtuBulkPurchaseBatch::query()->create([
+            'public_id' => (string) \\Illuminate\\Support\\Str::uuid(),
+            'user_id' => $user->id,
+            'batch_key' => 'bulk-duplicate-delivery-key',
+            'request_hash' => hash('sha256', 'duplicate-delivery'),
+            'status' => 'partial',
+            'item_count' => 1,
+            'total_amount_minor' => 1000,
+            'currency' => 'NGN',
+            'started_at' => now(),
+            'completed_at' => now(),
+        ]);
+        $item = $batch->items()->create([
+            'item_index' => 0,
+            'idempotency_key' => hash('sha256', 'duplicate-delivery-item'),
+            'product_code' => 'private-provider-code',
+            'service_type' => 'airtime',
+            'recipient' => '08012345678',
+            'amount_minor' => 1000,
+            'status' => 'unknown',
+            'result_message' => 'Reconcile before retrying.',
+            'completed_at' => now(),
+        ]);
+        $orders = \\Mockery::mock(VtuOrderService::class);
+        $orders->shouldNotReceive('purchase');
+
+        (new ProcessVtuBulkPurchaseBatch((int) $batch->id))->handle($orders);
+
+        $this->assertSame('unknown', $item->fresh()->status);
+        $this->assertSame('partial', $batch->fresh()->status);
+        Queue::assertNothingPushed();
+    }
+
     private function preparedRequest(): array
     {
         $user = User::factory()->create();
