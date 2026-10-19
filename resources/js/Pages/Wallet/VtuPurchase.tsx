@@ -83,6 +83,8 @@ function naira(amountMinor: number) {
 }
 
 function productLabel(product: Product) {
+  // Airtime is a network selection plus a customer-entered amount, never a fixed denomination.
+  if (product.service_type === 'airtime') return `${product.name} · Enter amount`;
   const details: string[] = [];
   const validity = product.metadata?.validity;
   const dataType = product.metadata?.data_type;
@@ -92,7 +94,7 @@ function productLabel(product: Product) {
   if (typeof dataType === 'string' && dataType.trim() && !product.name.toLowerCase().includes(dataType.toLowerCase())) {
     details.push(dataType.trim());
   }
-  return `${product.name}${details.length ? ` (${details.join(' · ')})` : ''} · ${naira(product.price_minor)}`;
+  return `${product.name}${details.length ? ` (${details.join(' · ')})` : ''} · `NaN`;
 }
 
 async function readMessage(response: Response) {
@@ -136,7 +138,17 @@ export default function VtuPurchase({ serviceType }: { serviceType: ServiceType 
       })
       .then((body) => {
         if (cancelled) return;
-        const list = Array.isArray(body.data) ? body.data as Product[] : [];
+        const rawList = Array.isArray(body.data) ? body.data as Product[] : [];
+        // Hide legacy fixed-denomination rows created by earlier provider imports.
+        // Keep network mappings and let the amount field determine airtime value.
+        const list = serviceType === 'airtime'
+          ? rawList.filter((product) => {
+              const source = product.metadata?.catalog_source;
+              const legacyProviderDenomination = ['sogo', 'gsubz', 'dataway'].includes(String(source))
+                && /-\d{2,}$/.test(product.code);
+              return !legacyProviderDenomination;
+            })
+          : rawList;
         setProducts(list);
         const query = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
         const requestedCode = query?.get('product_code') ?? undefined;
