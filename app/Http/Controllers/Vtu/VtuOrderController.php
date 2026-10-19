@@ -186,6 +186,85 @@ class VtuOrderController extends Controller
         return response()->json(['data' => $this->serializeOrder($order)], $order->getAttribute('_created_for_request') === true ? 201 : 200);
     }
 
+    /**
+     * Process a small batch as independent idempotent orders. Each item keeps
+     * the existing order service's wallet, provider approval and reconciliation
+     * safeguards; a partial batch is reported per item and is never auto-retried.
+     */
+    public function bulkPurchase(Request $request, VtuOrderService $orders): JsonResponse
+    {
+        $validated = $request->validate([
+            'batch_key' => ['required', 'string', 'min:8', 'max:128'],
+            'transaction_pin' => ['required', 'string', 'digits:4'],
+            'items' => ['required', 'array', 'min:1', 'max:10'],
+            'items.*.product_code' => ['required', 'string', 'max:80'],
+            'items.*.recipient' => ['required', 'string', 'max:40', 'regex:/^[a-zA-Z0-9+\\s-]+$/'],
+            'items.*.amount' => ['nullable', 'numeric', 'min:1', 'max:1000000'],
+            'items.*.meter_type' => ['nullable', 'string', 'in:prepaid,postpaid'],
+            'items.*.subscription_type' => ['nullable', 'string', 'in:change'],
+            'items.*.contact_phone' => ['nullable', 'string', 'max:20', 'regex:/^\\+?[0-9\\s-]{10,20}$/'],
+        ]);
+
+        $user = $request->user();
+        abort_unless($user, 401);
+        if (! $user->transaction_pin_hash) {
+            return response()->json(['message' => 'Set up a transaction PIN before making wallet-funded purchases.', 'setup_url' => '/security/transaction-pin'], 428);
+        }
+        $pinStatus = app(TransactionPinService::class)->verify($user, (string) $validated['transaction_pin']);
+        if ($pinStatus === 'locked') {
+            return response()->json(['message' => 'Transaction PIN is locked for 15 minutes after repeated failures.'], 423);
+        }
+        if ($pinStatus !== 'verified') {
+            return response()->json(['message' => 'Transaction PIN is incorrect.'], 422);
+        }
+
+        $results = [];
+        foreach ($validated['items'] as $index => $item) {
+            $selection = $this->resolveCustomerSelectionCode($item['product_code']);
+            if ($selection === null) {
+                $results[] = ['item' => $index, 'status' => 'rejected', 'message' => 'This product selection is invalid.'];
+                continue;
+            }
+            if ($selection->service_type === 'airtime' && ! isset($item['amount'])) {
+                $results[] = ['item' => $index, 'status' => 'rejected', 'message' => 'Enter the airtime amount you want to purchase.'];
+                continue;
+            }
+
+            try {
+                $order = $orders->purchase(
+                    $user,
+                    $selection->code,
+                    $item['recipient'],
+                    hash('sha256', $validated['batch_key'].'|item:'.$index),
+                    array_filter([
+                        'meter_type' => $item['meter_type'] ?? null,
+                        'subscription_type' => $item['subscription_type'] ?? null,
+                        'contact_phone' => $item['contact_phone'] ?? null,
+                    ], fn ($value) => $value !== null),
+                    isset($item['amount']) ? (int) round((float) $item['amount'] * 100) : null,
+                );
+                $results[] = [
+                    'item' => $index,
+                    'status' => $order->status,
+                    'order' => $this->serializeOrder($order),
+                ];
+            } catch (InvalidArgumentException|InsufficientWalletFunds|ConflictHttpException $exception) {
+                $results[] = ['item' => $index, 'status' => 'rejected', 'message' => $exception->getMessage()];
+            } catch (LogicException $exception) {
+                report($exception);
+                $results[] = ['item' => $index, 'status' => 'unavailable', 'message' => 'This item could not be submitted because its service is not configured.'];
+            }
+        }
+
+        $hasRejected = collect($results)->contains(fn (array $result) => in_array($result['status'], ['rejected', 'unavailable'], true));
+        return response()->json([
+            'batch_key' => $validated['batch_key'],
+            'results' => $results,
+            'partial' => $hasRejected,
+            'message' => 'Items are processed independently. Check each item status before attempting any further action.',
+        ], 200);
+    }
+
     public function recover(Request $request): JsonResponse
     {
         $validated = $request->validate([
