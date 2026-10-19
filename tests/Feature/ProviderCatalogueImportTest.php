@@ -361,4 +361,34 @@ class ProviderCatalogueImportTest extends TestCase
     }
 
 
+
+    public function test_unsupported_service_catalogue_entries_are_inactive_and_marked_catalogue_only(): void
+    {
+        config([
+            'services.vtu.dataway.base_url' => 'https://dataway.ng/api/v1/merchant',
+            'services.vtu.dataway.api_key' => 'test-key',
+        ]);
+        Http::fake([
+            'dataway.ng/*' => Http::response([
+                'count' => 1,
+                'data' => [[
+                    'id' => 88,
+                    'name' => 'Ikeja Electric',
+                    'slug' => 'ikeja-electric',
+                    'category' => 'electricity',
+                ]],
+            ]),
+        ]);
+
+        app(ProviderCatalogueImportService::class)->import('dataway', 'electricity');
+        $product = VtuProduct::query()->where('provider_key', 'dataway')->firstOrFail();
+
+        $this->assertSame('electricity-bill', $product->service_type);
+        $this->assertFalse($product->is_active);
+        $this->assertFalse($product->metadata['purchase_supported']);
+        $this->assertTrue($product->metadata['catalog_only']);
+        $this->assertFalse($product->metadata['purchase_approved']);
+    }
+
+
 }
