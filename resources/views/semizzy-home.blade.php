@@ -3,7 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>{{ $homepage['browser_title'] ?? 'Semizzy VTU - Single File Dashboard' }}</title>
+<title>{{ $homepage['browser_title'] ?? 'SEMIZZY ONE — Nigerian Digital Super Platform' }}</title>
+@php($brandingSettings = app(\App\Services\IntegrationSettings::class))
+@php($socialImage = (string) $brandingSettings->get('branding.social_image', ''))
+@if($brandingSettings->has('branding.favicon'))<link rel="icon" href="{{ asset(ltrim((string) $brandingSettings->get('branding.favicon'), '/')) }}">@endif
+<meta property="og:site_name" content="{{ $brandingSettings->get('site.name', 'SEMIZZY ONE') }}">
+<meta property="og:title" content="{{ $homepage['browser_title'] ?? 'SEMIZZY ONE' }}">
+<meta property="og:description" content="We Design. We Develop. We Deliver. — SEMIZZY ONE, Nigerian Digital Super Platform.">
+<meta name="twitter:card" content="summary_large_image">
+@if($socialImage !== '')<meta property="og:image" content="{{ url($socialImage) }}"><meta name="twitter:image" content="{{ url($socialImage) }}">@endif
 <script src="https://cdn.tailwindcss.com"></script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
