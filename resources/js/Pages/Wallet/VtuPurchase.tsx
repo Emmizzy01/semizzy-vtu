@@ -32,7 +32,7 @@ const NIGERIAN_NETWORK_PREFIXES: DetectedNetwork[] = [
 ];
 
 function suggestNigerianNetwork(input: string): string | null {
-  let digits = input.replace(/\\D/g, '');
+  let digits = input.replace(/\D/g, '');
   if (digits.startsWith('234')) digits = `0${digits.slice(3)}`;
   if (digits.length < 4 || !digits.startsWith('0')) return null;
   return NIGERIAN_NETWORK_PREFIXES.find((network) => network.prefixes.includes(digits.slice(0, 4)))?.label ?? null;
