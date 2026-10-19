@@ -58,6 +58,21 @@ jobs:
         run: |
           npm install
           npm run build
+      - name: Run targeted VTU multi-provider router tests
+        run: php artisan test tests/Feature/MultiProviderVtuRouterTest.php
+        env:
+          APP_ENV: testing
+          APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+          DB_CONNECTION: mysql
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_DATABASE: semizzy_test
+          DB_USERNAME: root
+          DB_PASSWORD: root
+          CACHE_STORE: array
+          SESSION_DRIVER: array
+          QUEUE_CONNECTION: sync
+          MAIL_MAILER: array
       - name: Run targeted education coordinator and MariaDB concurrency tests
         run: php artisan test tests/Feature/EducationOrderCoordinatorTest.php tests/Feature/EducationOrderMariaDbConcurrencyTest.php
         env:
