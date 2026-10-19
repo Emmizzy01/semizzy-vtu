@@ -15,12 +15,12 @@ class ProviderCatalogueImportController extends Controller
     public function import(Request $request, string $provider, ProviderCatalogueImportService $catalogue): RedirectResponse
     {
         $data = $request->validate([
-            'category' => ['required', 'in:airtime,data'],
+            'category' => ['required', 'in:all,airtime,data,electricity,cable,cable_tv,education,betting,epin,esim,social-media,recharge-pin,rechargepin,internet,exam,airtime_cash'],
             'reason' => ['required', 'string', 'min:8', 'max:500'],
         ]);
 
         try {
-            $result = $catalogue->import($provider, $data['category']);
+            $result = $data['category'] === 'all'\n                ? $catalogue->importAll($provider)\n                : $catalogue->import($provider, $data['category']);
         } catch (LogicException $exception) {
             return back()->withErrors(['catalog_import' => $exception->getMessage()]);
         } catch (Throwable $exception) {
@@ -37,6 +37,10 @@ class ProviderCatalogueImportController extends Controller
             'created_at' => now(),
         ]);
 
-        return back()->with('success', strtoupper($provider).' '.$data['category'].' catalogue imported: '.$result['created'].' new inactive products, '.$result['updated'].' provider records refreshed, '.$result['skipped'].' skipped.');
+        $message = strtoupper($provider).' '.$data['category'].' catalogue import finished: '.$result['created'].' new inactive products, '.$result['updated'].' provider records refreshed, '.$result['skipped'].' skipped.';
+        if (! empty($result['errors'])) {
+            $message .= ' Some categories failed safely: '.implode(', ', array_keys($result['errors'])).'. No purchases were submitted.';
+        }
+        return back()->with('success', $message);
     }
 }
