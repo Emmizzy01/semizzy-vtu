@@ -143,7 +143,7 @@ export default function VtuBulkPurchasePanel({
           <div className="max-h-80 space-y-2 overflow-auto rounded-xl border border-[var(--line)] p-3">
             {batch.items.map((item) => <div key={item.item} className="flex items-start justify-between gap-3 border-b border-[var(--line)] py-2 last:border-0"><div className="min-w-0"><p className="text-sm font-semibold">Item {item.item + 1} · {item.recipient}</p>{item.order_public_id && <p className="mt-1 break-all text-xs text-[var(--muted)]">Order: {item.order_public_id}</p>}{item.message && <p className="mt-1 text-xs text-amber-700">{item.message}</p>}</div><span className="shrink-0 text-xs font-bold capitalize">{item.status.replaceAll('_', ' ')}</span></div>)}
           </div>
-          <button type="button" onClick={() => { try { window.sessionStorage.removeItem(BULK_DRAFT_KEY); } catch { /* optional browser storage */ } setBatch(null); setRecipientsText(''); setAmount(''); setBatchKey(requestKey()); setError(''); try { window.sessionStorage.removeItem(BULK_STORAGE_KEY); } catch { /* optional browser storage */ } }} className="w-full rounded-xl border border-[var(--line)] px-4 py-3 font-semibold">Prepare another batch</button>
+          <button type="button" onClick={() => { try { window.sessionStorage.removeItem(BULK_DRAFT_KEY); } catch { /* optional browser storage */ } setBatch(null); setRecipientsText(''); setAmount(''); setBatchKey(requestKey()); setError(''); }} className="w-full rounded-xl border border-[var(--line)] px-4 py-3 font-semibold">Prepare another batch</button>
         </>
       ) : (
         <form onSubmit={submit} className="space-y-4">
