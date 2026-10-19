@@ -196,7 +196,7 @@ class VtuOrderWorkflowTest extends TestCase
                 'sogo-active-without-approval',
             );
             $this->fail('An active Sogo catalogue row without explicit purchase approval must be blocked.');
-        } catch (\\InvalidArgumentException $exception) {
+        } catch (\InvalidArgumentException $exception) {
             $this->assertStringContainsString('not approved for customer purchases', $exception->getMessage());
             $this->assertSame(1500, (int) $wallet->fresh()->available_balance_minor);
             $this->assertDatabaseCount('vtu_orders', 0);
