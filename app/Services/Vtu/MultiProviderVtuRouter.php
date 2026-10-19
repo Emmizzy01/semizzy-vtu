@@ -153,23 +153,50 @@ class MultiProviderVtuRouter implements VtuProvider
     private function selectProvider(VtuProduct $product): void
     {
         $this->selectedProvider = null;
+
+        // Imported provider products carry an authoritative provider_key. Never
+        // route these through priority/fallback: the selected catalogue row must
+        // submit using its own mapping or fail before an order/debit is created.
+        $source = $product->provider_key;
+        if (! is_string($source) || ! isset($this->providers[$source])) {
+            $metadataSource = is_array($product->metadata) ? ($product->metadata['catalog_source'] ?? null) : null;
+            $source = is_string($metadataSource) && isset($this->providers[$metadataSource])
+                ? $metadataSource
+                : null;
+        }
+
+        if ($source !== null) {
+            if ($source === 'dataway') {
+                throw new LogicException('Dataway purchases remain disabled until its account-specific transaction lookup and recovery contract is verified.');
+            }
+
+            $this->providers[$source]->assertConfigured();
+            $this->providers[$source]->assertProductConfigured($product);
+            $this->selectedProvider = $source;
+
+            return;
+        }
+
+        // Legacy/generic rows may use pre-dispatch eligibility selection only.
+        // Dataway is intentionally excluded because unknown outcomes cannot yet
+        // be reconciled safely. This is not post-submit failover.
         $priority = config('services.vtu.multi_provider.priority', ['sogo', 'gsubz', 'dataway']);
         if (! is_array($priority)) $priority = ['sogo', 'gsubz', 'dataway'];
 
         foreach ($priority as $name) {
-            if (! is_string($name) || ! isset($this->providers[$name])) continue;
-            // Dataway is excluded until its account-specific requery contract is confirmed.
-            if ($name === 'dataway') continue;
+            if (! is_string($name) || ! isset($this->providers[$name]) || $name === 'dataway') continue;
 
             try {
                 $this->providers[$name]->assertConfigured();
                 $this->providers[$name]->assertProductConfigured($product);
                 $this->selectedProvider = $name;
+
                 return;
             } catch (LogicException) {
-                // Safe pre-dispatch fallback only; no order or wallet debit exists yet.
+                // No request has been submitted and no wallet debit exists yet.
             }
         }
+
         throw new LogicException('No configured, mapped, reconciliation-capable VTU provider is available for this product.');
     }
 
