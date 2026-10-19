@@ -35,6 +35,8 @@ use App\Services\IntegrationSettings;
 use App\Http\Controllers\Payments\PaymentRefundController;
 use App\Http\Controllers\Wallet\PeerWalletTransferController;
 use App\Http\Controllers\Wallet\BankPayoutController;
+use App\Http\Controllers\Account\ReferralController;
+use App\Http\Controllers\Admin\ReferralProgramController;
 use App\Http\Controllers\Vtu\VtuOrderController;
 use App\Http\Controllers\Vtu\VtuBillerVerificationController;
 use App\Http\Controllers\Kyc\KycSubmissionController;
@@ -115,7 +117,7 @@ Route::middleware('auth')->group(function (): void {
     Route::post('/wallet/bank-transfer/beneficiaries', [BankPayoutController::class, 'storeBeneficiary'])->middleware('throttle:5,1')->name('wallet.bank-transfer.beneficiaries.store');
     Route::get('/wallet/bank-transfer/history', [BankPayoutController::class, 'payouts'])->middleware('throttle:30,1')->name('wallet.bank-transfer.history');
     Route::post('/wallet/bank-transfer', [BankPayoutController::class, 'storePayout'])->middleware('throttle:5,1')->name('wallet.bank-transfer.store');
-    Route::get('/account/referrals', fn () => Inertia::render('Services/ComingSoon', ['serviceName' => 'Refer & Earn']))->name('account.referrals');
+    Route::get('/account/referrals', [ReferralController::class, 'index'])->middleware('throttle:30,1')->name('account.referrals');
     Route::get('/services/coming-soon/{feature}', function (string $feature) {
         $features = [
             'internet' => 'Internet bills',
@@ -204,6 +206,9 @@ Route::middleware(['auth', 'can:staff.permissions.manage'])->prefix('admin')->na
     Route::put('/manual-deposits/settings', [ManualDepositSettingsController::class, 'update'])->middleware('throttle:10,1')->name('manual-deposits.settings.update');
     Route::get('/manual-deposits/{publicId}/evidence', [ManualDepositController::class, 'evidence'])->middleware('throttle:20,1')->name('manual-deposits.evidence');
     Route::post('/manual-deposits/{publicId}/review', [ManualDepositController::class, 'review'])->middleware('throttle:10,1')->name('manual-deposits.review');
+    Route::get('/referrals', [ReferralProgramController::class, 'index'])->name('referrals.index');
+    Route::put('/referrals/settings', [ReferralProgramController::class, 'update'])->middleware('throttle:10,1')->name('referrals.settings.update');
+    Route::post('/referrals/{referral}/review', [ReferralProgramController::class, 'review'])->whereNumber('referral')->middleware('throttle:10,1')->name('referrals.review');
     Route::get('/payment-gateway', [IntegrationSettingsController::class, 'paymentGateway'])->name('payment-gateway');
     Route::put('/payment-gateway', [IntegrationSettingsController::class, 'updatePaymentGateway'])->name('payment-gateway.update');
     Route::get('/storefront-commissions', [StorefrontCommissionController::class, 'index'])->middleware('throttle:30,1')->name('storefront-commissions.index');
