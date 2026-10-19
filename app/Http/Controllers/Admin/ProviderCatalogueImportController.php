@@ -20,7 +20,9 @@ class ProviderCatalogueImportController extends Controller
         ]);
 
         try {
-            $result = $data['category'] === 'all'\n                ? $catalogue->importAll($provider)\n                : $catalogue->import($provider, $data['category']);
+            $result = $data['category'] === 'all'
+                ? $catalogue->importAll($provider)
+                : $catalogue->import($provider, $data['category']);
         } catch (LogicException $exception) {
             return back()->withErrors(['catalog_import' => $exception->getMessage()]);
         } catch (Throwable $exception) {
