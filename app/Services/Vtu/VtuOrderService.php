@@ -151,6 +151,7 @@ class VtuOrderService
         if (! $product->is_active) {
             throw new InvalidArgumentException('This product is no longer available.');
         }
+        $this->assertMappedProviderPurchaseApproved($product);
 
         if ($storefrontSlug !== null) {
             $this->assertStorefrontProductAvailable($storefrontSlug, $product);
@@ -192,6 +193,7 @@ class VtuOrderService
                 if (! $lockedProduct->is_active) {
                     throw new InvalidArgumentException('This product is no longer available.');
                 }
+                $this->assertMappedProviderPurchaseApproved($lockedProduct);
 
                 $this->assertServiceFeatureEnabled($lockedProduct);
                 $this->provider->assertProductConfigured($lockedProduct);
@@ -424,6 +426,23 @@ class VtuOrderService
     }
 
     /** Fail closed until electricity/TV workflows are explicitly implemented and enabled. */
+    /**
+     * Defence in depth: imported Sogo/GSUBZ rows must retain explicit purchase
+     * approval even if a row was activated outside the guarded admin workflow.
+     */
+    private function assertMappedProviderPurchaseApproved(VtuProduct $product): void
+    {
+        $metadata = is_array($product->metadata) ? $product->metadata : [];
+        $provider = in_array($product->provider_key, ['sogo', 'gsubz', 'dataway'], true)
+            ? $product->provider_key
+            : ($metadata['catalog_source'] ?? null);
+
+        if (in_array($provider, ['sogo', 'gsubz', 'dataway'], true)
+            && ($metadata['purchase_approved'] ?? false) !== true) {
+            throw new InvalidArgumentException('This provider product is not approved for customer purchases.');
+        }
+    }
+
     private function assertServiceFeatureEnabled(VtuProduct $product): void
     {
         $featureKey = match ($product->service_type) {
