@@ -3044,4 +3044,56 @@ class VtuOrderWorkflowTest extends TestCase
 
         return [$user, $wallet->fresh(), $product];
     }
+
+    public function test_customer_catalogue_returns_distinct_provider_options_without_leaking_routing_metadata(): void
+    {
+        $user = User::factory()->create();
+
+        foreach ([
+            ['provider' => 'sogo', 'code' => 'sogo-mtn-sme-1gb-30d', 'provider_code' => 'sogo-secret-plan'],
+            ['provider' => 'gsubz', 'code' => 'gsubz-mtn-sme-1gb-30d', 'provider_code' => 'gsubz-secret-plan'],
+        ] as $entry) {
+            VtuProduct::query()->create([
+                'service_type' => 'data',
+                'provider_key' => $entry['provider'],
+                'provider_product_code' => $entry['provider_code'],
+                'provider_cost_minor' => 25000,
+                'network' => 'mtn',
+                'code' => $entry['code'],
+                'name' => 'MTN 1GB SME',
+                'price_minor' => 30000,
+                'currency' => 'NGN',
+                'is_active' => true,
+                'metadata' => [
+                    'catalog_source' => $entry['provider'],
+                    'purchase_approved' => true,
+                    'provider_mappings' => [$entry['provider'] => ['plan_code' => $entry['provider_code']]],
+                    'validity' => '30 days',
+                    'data_type' => 'SME',
+                    'internal_routing_note' => 'private routing detail',
+                ],
+            ]);
+        }
+
+        $response = $this->actingAs($user)
+            ->getJson('/wallet/vtu/products?service_type=data')
+            ->assertOk()
+            ->assertJsonCount(2, 'data');
+
+        $products = $response->json('data');
+        $this->assertNotSame($products[0]['code'], $products[1]['code']);
+
+        foreach ($products as $product) {
+            $this->assertMatchesRegularExpression('/^p[0-9a-z]+\\.[a-f0-9]{32}$/', $product['code']);
+            $this->assertSame('30 days', $product['metadata']['validity']);
+            $this->assertSame('SME', $product['metadata']['data_type']);
+            $this->assertArrayNotHasKey('provider_key', $product);
+            $this->assertArrayNotHasKey('provider_product_code', $product);
+            $this->assertArrayNotHasKey('provider_cost_minor', $product);
+            $this->assertArrayNotHasKey('catalog_source', $product['metadata']);
+            $this->assertArrayNotHasKey('provider_mappings', $product['metadata']);
+            $this->assertArrayNotHasKey('internal_routing_note', $product['metadata']);
+        }
+    }
+
 }
