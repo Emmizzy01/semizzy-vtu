@@ -67,13 +67,13 @@ class BankPayoutService
 
     public function removeBeneficiary(User $user, int $beneficiaryId): void
     {
-        $beneficiary = BankBeneficiary::query()
-            ->where('user_id', $user->id)
-            ->whereKey($beneficiaryId)
-            ->lockForUpdate()
-            ->firstOrFail();
+        DB::transaction(function () use ($user, $beneficiaryId): void {
+            $beneficiary = BankBeneficiary::query()
+                ->where('user_id', $user->id)
+                ->whereKey($beneficiaryId)
+                ->lockForUpdate()
+                ->firstOrFail();
 
-        DB::transaction(function () use ($beneficiary): void {
             $hasPayoutHistory = BankPayout::query()
                 ->where('bank_beneficiary_id', $beneficiary->id)
                 ->exists();
