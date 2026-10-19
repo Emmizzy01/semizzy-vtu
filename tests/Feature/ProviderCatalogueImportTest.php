@@ -274,8 +274,9 @@ class ProviderCatalogueImportTest extends TestCase
             ]),
             'api.gsubz.com/api/plans/*' => Http::response([
                 'data' => [[
-                    'plan' => 'mtn-sme-1gb',
-                    'PlanName' => 'MTN SME 1GB',
+                    'plan' => 'legacy-plan-field',
+                    'value' => 'mtn-sme-1gb',
+                    'PlanName' => 'plan',
                     'api_price' => 290,
                     'validity' => '30 days',
                 ]],
