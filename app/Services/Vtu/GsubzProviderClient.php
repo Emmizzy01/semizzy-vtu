@@ -49,7 +49,7 @@ class GsubzProviderClient extends AbstractMappedVtuProvider
     {
         $this->assertConfigured();
         $response = $this->http()->asForm()->post('/api/verify/', [
-            'api' => (string) config('services.vtu.gsubz.api_key'),
+            'api' => $this->apiKey(),
             'requestID' => $order->public_id,
         ]);
         if (! $response->successful() || ! is_array($response->json())) return ['status' => 'unknown'];
