@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Controllers\Admin\IntegrationSettingsController;
+use App\Http\Controllers\Admin\GovernanceController;
+use App\Http\Controllers\Account\PrivacyRequestController;
 use App\Http\Controllers\Admin\PlatformAddonController;
 use App\Http\Controllers\Admin\StaffAccessController;
 use App\Http\Controllers\Admin\StorefrontCommissionController;
@@ -89,6 +91,9 @@ Route::middleware('auth')->group(function (): void {
     Route::post('/support', [SupportTicketController::class, 'store'])->middleware('throttle:5,1')->name('support.store');
     Route::post('/support/{ticket}/reply', [SupportTicketController::class, 'reply'])->middleware('throttle:10,1')->name('support.reply');
     Route::get('/profile', [ProfileController::class, 'show'])->name('profile.show');
+    Route::get('/privacy/requests', [PrivacyRequestController::class, 'index'])->middleware('throttle:30,1')->name('privacy.requests.index');
+    Route::post('/privacy/requests', [PrivacyRequestController::class, 'store'])->middleware('throttle:5,1')->name('privacy.requests.store');
+    Route::get('/privacy/export', [PrivacyRequestController::class, 'export'])->middleware('throttle:3,1')->name('privacy.export');
     Route::get('/workspaces', [BusinessWorkspaceController::class, 'index'])->middleware('throttle:30,1')->name('workspaces.index');
     Route::post('/workspaces', [BusinessWorkspaceController::class, 'store'])->middleware('throttle:5,1')->name('workspaces.store');
     Route::get('/workspaces/{workspace}/team', [BusinessWorkspaceController::class, 'team'])->middleware('throttle:30,1')->name('workspaces.team');
@@ -191,6 +196,11 @@ Route::middleware(['auth', 'can:refunds.approve', 'throttle:20,1'])->post('/admi
 Route::put('/admin/platform-theme', [PlatformSettingsController::class, 'updateTheme'])->middleware(['auth', 'can:admin.dashboard', 'throttle:10,1'])->name('admin.platform-theme.update');
 
 Route::middleware(['auth', 'can:staff.permissions.manage'])->prefix('admin')->name('admin.')->group(function (): void {
+    Route::get('/governance', [GovernanceController::class, 'index'])->middleware('throttle:30,1')->name('governance.index');
+    Route::put('/privacy-requests/{privacyRequest}', [GovernanceController::class, 'reviewPrivacyRequest'])->middleware('throttle:10,1')->name('privacy-requests.review');
+    Route::put('/retention-policies/{policy}', [GovernanceController::class, 'updateRetention'])->middleware('throttle:10,1')->name('retention-policies.update');
+    Route::post('/security-incidents', [GovernanceController::class, 'createIncident'])->middleware('throttle:5,1')->name('security-incidents.store');
+    Route::put('/security-incidents/{incident}', [GovernanceController::class, 'updateIncident'])->middleware('throttle:10,1')->name('security-incidents.update');
     Route::get('/search', GlobalSearchController::class)->middleware('throttle:30,1')->name('search');
     Route::get('/support', [SupportTicketOperationsController::class, 'index'])->middleware('throttle:30,1')->name('support.index');
     Route::get('/vtu-website-requests', [VtuWebsiteRequestController::class, 'adminIndex'])->middleware('throttle:30,1')->name('vtu-website-requests.index');
