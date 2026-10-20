@@ -1416,6 +1416,72 @@ class VtuOrderWorkflowTest extends TestCase
         Http::assertNotSent(fn ($request) => str_contains($request->url(), 'api.gsubz.com'));
     }
 
+    public function test_late_webhook_from_old_provider_attempt_cannot_touch_newer_attempt(): void
+    {
+        config([
+            'services.vtu.multi_provider.enabled' => true,
+            'services.vtu.multi_provider.failover_enabled' => true,
+            'services.vtu.multi_provider.priority' => ['sogo', 'gsubz'],
+            'services.vtu.multi_provider.definitive_failure_providers' => ['sogo'],
+            'services.vtu.sogo.base_url' => 'https://api.sogo.africa/v1',
+            'services.vtu.sogo.api_key' => 'sogo-test-key',
+            'services.vtu.gsubz.base_url' => 'https://api.gsubz.com',
+            'services.vtu.gsubz.api_key' => 'gsubz-test-key',
+        ]);
+        Http::fake([
+            'api.sogo.africa/*' => Http::response([
+                'data' => ['status' => 'pending', 'reference' => 'SOGO-WEBHOOK-OLD-REF'],
+            ], 200),
+            'api.gsubz.com/*' => Http::response(['status' => 'pending'], 200),
+        ]);
+
+        [$user, $wallet, $product] = $this->preparedCustomer(1000, 1500);
+        $product->forceFill(['metadata' => ['provider_mappings' => [
+            'sogo' => ['network' => 'mtn'],
+            'gsubz' => ['network' => 'mtn'],
+        ]]])->save();
+
+        $order = app(VtuOrderService::class)->purchase(
+            $user,
+            $product->code,
+            '08012345678',
+            'late-old-provider-webhook',
+        );
+        $this->assertSame('sogo', $order->provider);
+
+        $oldReference = (string) $order->provider_reference;
+        $order->forceFill([
+            'provider' => 'gsubz',
+            'provider_reference' => 'GSUBZ-WEBHOOK-NEW-REF',
+            'status' => 'processing',
+        ])->save();
+
+        $event = \App\Models\VtuProviderWebhookEvent::query()->create([
+            'provider' => 'sogo',
+            'event_id' => 'evt-old-provider-attempt',
+            'event_type' => 'transaction.completed',
+            'provider_reference' => $oldReference,
+            'payload' => [
+                'id' => 'evt-old-provider-attempt',
+                'event' => 'transaction.completed',
+                'data' => ['reference' => $oldReference, 'status' => 'completed'],
+            ],
+            'payload_sha256' => hash('sha256', 'evt-old-provider-attempt'),
+            'received_at' => now(),
+        ]);
+
+        $stats = app(\App\Services\Vtu\VtuProviderWebhookService::class)->process();
+        $fresh = $order->fresh();
+
+        $this->assertSame(1, $stats['unmatched']);
+        $this->assertNull($event->fresh()->processed_at, 'A stale webhook must remain retryable/unmatched, not be applied to the newer attempt.');
+        $this->assertSame('processing', $fresh->status);
+        $this->assertSame('gsubz', $fresh->provider);
+        $this->assertSame('GSUBZ-WEBHOOK-NEW-REF', $fresh->provider_reference);
+        $this->assertSame(500, (int) $wallet->fresh()->available_balance_minor);
+        $this->assertSame(2, \App\Models\WalletTransaction::query()->count());
+    }
+
     public function test_reconciliation_with_a_different_provider_reference_stays_unresolved(): void
     {
         Http::fake(function ($request) {
