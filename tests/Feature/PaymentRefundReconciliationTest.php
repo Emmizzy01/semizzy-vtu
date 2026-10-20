@@ -72,29 +72,25 @@ class PaymentRefundReconciliationTest extends TestCase
 
     public function test_provider_amount_mismatch_never_marks_refund_succeeded(): void
     {
-        Http::fake([
-            'api.paystack.co/refund/123457' => Http::sequence()
-                ->push([
-                    'status' => true,
-                    'data' => [
-                        'id' => 123457,
-                        'transaction' => 987655,
-                        'amount' => 9999,
-                        'currency' => 'NGN',
-                        'status' => 'processed',
-                    ],
-                ], 200)
-                ->push([
-                    'status' => true,
-                    'data' => [
-                        'id' => 123457,
-                        'transaction' => 987655,
-                        'amount' => 2500,
-                        'currency' => 'NGN',
-                        'status' => 'processed',
-                    ],
-                ], 200),
-        ]);
+        $lookupCount = 0;
+        Http::fake(function ($request) use (&$lookupCount) {
+            if (! str_ends_with($request->url(), '/refund/123457')) {
+                return Http::response(['status' => false, 'message' => 'Unexpected test request'], 404);
+            }
+
+            $lookupCount++;
+
+            return Http::response([
+                'status' => true,
+                'data' => [
+                    'id' => 123457,
+                    'transaction' => 987655,
+                    'amount' => $lookupCount === 1 ? 9999 : 2500,
+                    'currency' => 'NGN',
+                    'status' => 'processed',
+                ],
+            ], 200);
+        });
         config(['services.paystack.secret_key' => 'sk_test_refund_reconcile']);
 
         $user = User::query()->create([
