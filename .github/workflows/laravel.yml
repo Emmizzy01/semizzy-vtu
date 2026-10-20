@@ -93,6 +93,21 @@ jobs:
           SESSION_DRIVER: array
           QUEUE_CONNECTION: sync
           MAIL_MAILER: array
+      - name: Run payout, peer-transfer, bulk-recovery, and payout race regressions
+        run: php artisan test tests/Feature/BankPayoutSafetyTest.php tests/Feature/PeerWalletTransferTest.php tests/Feature/VtuBulkPurchaseBatchTest.php tests/Feature/BankPayoutMariaDbConcurrencyTest.php
+        env:
+          APP_ENV: testing
+          APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+          DB_CONNECTION: mysql
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_DATABASE: semizzy_test
+          DB_USERNAME: root
+          DB_PASSWORD: root
+          CACHE_STORE: array
+          SESSION_DRIVER: array
+          QUEUE_CONNECTION: sync
+          MAIL_MAILER: array
       - name: Run focused provider catalogue import tests
         run: php artisan test tests/Feature/ProviderCatalogueImportTest.php tests/Feature/VtpassCatalogueFailureSafetyTest.php tests/Feature/GsubzCatalogueIdentifierCompatibilityTest.php
         env:
