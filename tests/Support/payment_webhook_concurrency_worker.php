@@ -5,19 +5,27 @@ use Illuminate\Contracts\Console\Kernel;
 
 require dirname(__DIR__, 2).'/vendor/autoload.php';
 
-if ($provider === 'paystack') {\n    // The isolated CI worker opts into the test-only live settlement path; no real gateway is called.\n    putenv('SEMIZZY_LIVE_FUNDING_ENABLED=true');\n    $_ENV['SEMIZZY_LIVE_FUNDING_ENABLED'] = 'true';\n    $_SERVER['SEMIZZY_LIVE_FUNDING_ENABLED'] = 'true';\n}\n\n$app = require dirname(__DIR__, 2).'/bootstrap/app.php';
-$app->make(Kernel::class)->bootstrap();
-
 $statePath = $argv[1] ?? '';
 $eventId = $argv[2] ?? '';
 $reference = $argv[3] ?? '';
 $transactionId = $argv[4] ?? '';
-$amount = filter_var($argv[5] ?? null, FILTER_VALIDATE_INT);\n$provider = $argv[6] ?? 'semizzy';
+$amount = filter_var($argv[5] ?? null, FILTER_VALIDATE_INT);
+$provider = $argv[6] ?? 'semizzy';
 
 if ($statePath === '' || $eventId === '' || $reference === '' || $transactionId === '' || $amount === false || ! in_array($provider, ['semizzy', 'paystack'], true)) {
     fwrite(STDERR, "Invalid payment webhook worker arguments.\n");
     exit(2);
 }
+
+if ($provider === 'paystack') {
+    // The isolated CI worker opts into the test-only live settlement path; no real gateway is called.
+    putenv('SEMIZZY_LIVE_FUNDING_ENABLED=true');
+    $_ENV['SEMIZZY_LIVE_FUNDING_ENABLED'] = 'true';
+    $_SERVER['SEMIZZY_LIVE_FUNDING_ENABLED'] = 'true';
+}
+
+$app = require dirname(__DIR__, 2).'/bootstrap/app.php';
+$app->make(Kernel::class)->bootstrap();
 
 $deadline = microtime(true) + 15;
 do {
