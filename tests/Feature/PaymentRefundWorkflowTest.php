@@ -396,4 +396,51 @@ class PaymentRefundWorkflowTest extends TestCase
         ]);
     }
 
+
+    public function test_provider_outage_during_refund_submission_fails_closed_and_replay_cannot_resubmit(): void
+    {
+        Http::fake(['api.paystack.co/refund' => Http::response([
+            'status' => false,
+            'message' => 'Temporary provider outage',
+        ], 503)]);
+
+        $customer = User::query()->create([
+            'name' => 'Refund Outage Customer',
+            'email' => 'refund-outage-customer@example.test',
+            'password' => 'test-password',
+        ]);
+        $approver = User::query()->create([
+            'name' => 'Refund Outage Approver',
+            'email' => 'refund-outage-approver@example.test',
+            'password' => 'test-password',
+        ]);
+        UserPermission::query()->create(['user_id' => $approver->id, 'permission' => 'refunds.approve']);
+        $intent = $this->paidIntent($customer, 10000);
+
+        $request = $this->actingAs($customer)->postJson('/wallet/refund-requests', [
+            'payment_intent_id' => $intent->public_id,
+            'amount_minor' => 2500,
+            'reason' => 'Provider outage recovery protection',
+            'idempotency_key' => 'refund-outage-recovery-'.$customer->id,
+        ])->assertCreated();
+        $url = '/admin/payment-refunds/'.$request->json('data.id').'/approve';
+
+        $this->actingAs($approver)->postJson($url)
+            ->assertStatus(409)
+            ->assertJsonPath('data.status', 'review_required');
+
+        // A provider error can be ambiguous: keep the reservation and require
+        // canonical reconciliation instead of blindly submitting another refund.
+        $this->actingAs($approver)->postJson($url)->assertStatus(409);
+        $this->assertSame(7500, (int) $intent->wallet()->first()->fresh()->balance_minor);
+        $this->assertDatabaseHas('payment_refunds', [
+            'public_id' => $request->json('data.id'),
+            'status' => 'review_required',
+            'metadata->settlement_block' => null,
+        ]);
+        $this->assertDatabaseCount('wallet_transactions', 2);
+        $this->assertDatabaseCount('wallet_ledger_entries', 2);
+        Http::assertSentCount(1);
+    }
+
 }
