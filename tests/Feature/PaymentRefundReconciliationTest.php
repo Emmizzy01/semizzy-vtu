@@ -134,6 +134,60 @@ class PaymentRefundReconciliationTest extends TestCase
         Http::assertSentCount(2);
     }
 
+    public function test_stale_review_required_refund_is_reconciled_by_scheduled_reconciliation(): void
+    {
+        Http::fake([
+            'api.paystack.co/refund/123459' => Http::response([
+                'status' => true,
+                'data' => [
+                    'id' => 123459,
+                    'transaction' => 987657,
+                    'amount' => 2500,
+                    'currency' => 'NGN',
+                    'status' => 'processed',
+                ],
+            ], 200),
+        ]);
+        config(['services.paystack.secret_key' => 'sk_test_refund_reconcile']);
+
+        $user = User::query()->create([
+            'name' => 'Stale Review Refund Customer',
+            'email' => 'stale-review-refund@example.test',
+            'password' => 'test-password',
+        ]);
+        $wallet = app(WalletAccountService::class)->openForUser($user);
+        $intent = app(PaymentIntentService::class)->create($wallet, 10000, 'paystack');
+        $intent->forceFill([
+            'status' => 'paid',
+            'provider_transaction_id' => '987657',
+            'paid_at' => now(),
+        ])->save();
+
+        $refund = PaymentRefund::query()->create([
+            'public_id' => (string) \\Illuminate\\Support\\Str::uuid(),
+            'payment_intent_id' => $intent->id,
+            'requested_by_user_id' => $user->id,
+            'idempotency_key' => 'refund-reconcile-review-required',
+            'amount_minor' => 2500,
+            'reason' => 'Scheduled review recovery test',
+            'status' => 'review_required',
+            'status_changed_at' => now()->subHour(),
+            'provider_refund_reference' => '123459',
+            'provider_status' => 'needs-attention',
+            'metadata' => ['currency' => 'NGN'],
+            'created_at' => now()->subHour(),
+            'updated_at' => now()->subHour(),
+        ]);
+
+        $stats = app(PaymentRefundReconciliationService::class)->reconcile();
+
+        $this->assertSame(1, $stats['checked']);
+        $this->assertSame(1, $stats['reconciled']);
+        $this->assertSame('succeeded', $refund->fresh()->status);
+        $this->assertSame('processed', $refund->fresh()->provider_status);
+        Http::assertSentCount(1);
+    }
+
     public function test_unavailable_provider_refund_lookup_keeps_refund_pending_for_retry(): void
     {
         config(['services.paystack.secret_key' => 'sk_test_refund_reconcile']);
