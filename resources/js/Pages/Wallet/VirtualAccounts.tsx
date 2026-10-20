@@ -61,7 +61,7 @@ export default function VirtualAccounts({
   };
 
   return (
-    <DashboardLayout>
+    <DashboardLayout title="Virtual Accounts" description="View assigned bank accounts and their provider-confirmed funding status.">
       <Head title="Virtual Accounts" />
       <div className="mx-auto w-full max-w-5xl space-y-6 px-4 py-6">
         <div>
