@@ -56,11 +56,7 @@ class AuthController extends Controller
             ])->onlyInput('identifier');
         }
 
-        if (config('auth_security.email_otp_enabled', false)) {
-            if (! $user->email) {
-                return back()->withErrors(['identifier' => 'This account cannot use email verification.'])->onlyInput('identifier');
-            }
-
+        if ($this->loginOtpEnabled()) {
             try {
                 $challenges->start($request, $user, (bool) ($credentials['remember'] ?? false));
             } catch (\Throwable $exception) {
@@ -152,4 +148,15 @@ class AuthController extends Controller
 
         return redirect('/');
     }
+
+    private function loginOtpEnabled(): bool
+    {
+        return match ((string) config('auth_security.login_otp_channel', 'email')) {
+            'email' => (bool) config('auth_security.email_otp_enabled', false),
+            'sms' => (bool) config('auth_security.sms_otp_enabled', false),
+            'whatsapp' => (bool) config('auth_security.whatsapp_otp_enabled', false),
+            default => false,
+        };
+    }
+
 }
