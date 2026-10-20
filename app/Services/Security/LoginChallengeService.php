@@ -2,14 +2,11 @@
 
 namespace App\Services\Security;
 
-use App\Mail\LoginOtpMail;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
-use RuntimeException;
 
 class LoginChallengeService
 {
@@ -34,7 +31,7 @@ class LoginChallengeService
         ]);
 
         try {
-            Mail::to($user->email)->send(new LoginOtpMail($code));
+            app(LoginOtpDeliveryService::class)->deliver($user, $code, $channel);
         } catch (\Throwable $exception) {
             DB::table('login_challenges')->where('id', $id)->delete();
             throw $exception;
