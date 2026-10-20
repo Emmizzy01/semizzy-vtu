@@ -386,7 +386,9 @@ class PaystackClient
             || !is_string($data['account_number'] ?? null)
             || !preg_match('/^\\d{10}$/', $data['account_number'])
             || !is_string($data['account_name'] ?? null) || trim($data['account_name']) === ''
-            || !is_string($data['bank']['name'] ?? null) || trim($data['bank']['name']) === '') {
+            || !is_string($data['bank']['name'] ?? null) || trim($data['bank']['name']) === ''
+            || ($data['assigned'] ?? false) !== true || ($data['active'] ?? false) !== true
+            || strtoupper((string) ($data['currency'] ?? '')) !== 'NGN') {
             throw new LogicException('Paystack did not confirm a valid dedicated virtual account.');
         }
 
