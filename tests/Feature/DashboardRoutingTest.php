@@ -247,6 +247,46 @@ class DashboardRoutingTest extends TestCase
                 ->where('orders.0.recipient', '08012345678'));
     }
 
+    public function test_customer_order_search_does_not_use_internal_provider_references(): void
+    {
+        $customer = $this->account('provider-reference-search@example.test');
+        $wallet = Wallet::query()->create(['user_id' => $customer->id, 'currency' => 'NGN']);
+        $product = VtuProduct::query()->create([
+            'service_type' => 'airtime',
+            'network' => 'mtn',
+            'code' => 'provider-reference-search-airtime',
+            'name' => 'Provider reference search airtime',
+            'price_minor' => 10000,
+            'currency' => 'NGN',
+            'is_active' => true,
+        ]);
+
+        VtuOrder::query()->create([
+            'public_id' => (string) Str::uuid(),
+            'user_id' => $customer->id,
+            'wallet_id' => $wallet->id,
+            'vtu_product_id' => $product->id,
+            'idempotency_key' => 'provider-reference-search-order',
+            'request_hash' => hash('sha256', 'provider-reference-search-order'),
+            'service_type' => 'airtime',
+            'network' => 'mtn',
+            'product_code' => $product->code,
+            'recipient' => '08012345678',
+            'amount_minor' => 10000,
+            'currency' => 'NGN',
+            'status' => 'successful',
+            'provider' => 'test_provider',
+            'provider_reference' => 'INTERNAL-PROVIDER-REFERENCE-ONLY',
+        ]);
+
+        $this->actingAs($customer)
+            ->get('/dashboard?order_search=INTERNAL-PROVIDER-REFERENCE-ONLY')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page->component('Dashboard')
+                ->has('orders', 0)
+                ->where('orderPagination.total', 0));
+    }
+
     public function test_user_with_admin_permission_is_routed_to_admin_command_center(): void
     {
         $admin = $this->account('admin@example.test');
