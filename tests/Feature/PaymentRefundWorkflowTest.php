@@ -444,6 +444,83 @@ class PaymentRefundWorkflowTest extends TestCase
     }
 
 
+    public function test_review_required_refund_cannot_be_downgraded_by_a_later_webhook(): void
+    {
+        Http::fake(['api.paystack.co/refund' => Http::response([
+            'status' => true,
+            'data' => ['id' => 765433, 'status' => 'pending'],
+        ], 200)]);
+
+        $customer = User::query()->create([
+            'name' => 'Refund Review Customer',
+            'email' => 'refund-review-customer@example.test',
+            'password' => 'test-password',
+        ]);
+        $approver = User::query()->create([
+            'name' => 'Refund Review Approver',
+            'email' => 'refund-review-approver@example.test',
+            'password' => 'test-password',
+        ]);
+        UserPermission::query()->create(['user_id' => $approver->id, 'permission' => 'refunds.approve']);
+        $intent = $this->paidIntent($customer, 10000);
+
+        $request = $this->actingAs($customer)->postJson('/wallet/refund-requests', [
+            'payment_intent_id' => $intent->public_id,
+            'amount_minor' => 2500,
+            'reason' => 'Review state downgrade protection',
+            'idempotency_key' => 'refund-review-no-downgrade',
+        ])->assertCreated();
+        $refundId = $request->json('data.id');
+
+        $this->actingAs($approver)->postJson('/admin/payment-refunds/'.$refundId.'/approve')
+            ->assertOk()
+            ->assertJsonPath('data.status', 'provider_pending');
+
+        $sendEvent = function (array $payload): void {
+            $raw = json_encode($payload, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES);
+            $signature = hash_hmac('sha512', $raw, 'sk_test_refund_workflow_secret');
+            $this->call('POST', '/api/payments/webhooks/paystack', [], [], [], [
+                'CONTENT_TYPE' => 'application/json',
+                'HTTP_X_PAYSTACK_SIGNATURE' => $signature,
+            ], $raw)->assertOk();
+        };
+
+        $sendEvent([
+            'event' => 'refund.pending',
+            'data' => [
+                'status' => 'pending',
+                'transaction_reference' => $intent->reference,
+                'refund_reference' => '765433',
+                'amount' => 2400,
+                'currency' => 'NGN',
+            ],
+        ]);
+        $this->assertDatabaseHas('payment_refunds', [
+            'public_id' => $refundId,
+            'status' => 'review_required',
+        ]);
+
+        $sendEvent([
+            'event' => 'refund.pending',
+            'data' => [
+                'status' => 'pending',
+                'transaction_reference' => $intent->reference,
+                'refund_reference' => '765433',
+                'amount' => 2500,
+                'currency' => 'NGN',
+            ],
+        ]);
+
+        $this->assertDatabaseHas('payment_refunds', [
+            'public_id' => $refundId,
+            'status' => 'review_required',
+        ]);
+        $this->assertSame(7500, (int) $intent->wallet()->first()->fresh()->balance_minor);
+        $this->assertDatabaseCount('wallet_transactions', 2);
+        $this->assertDatabaseCount('wallet_ledger_entries', 2);
+        Http::assertSentCount(1);
+    }
+
     public function test_refund_request_idempotency_returns_same_request_and_rejects_changed_payload(): void
     {
         $customer = User::query()->create([
