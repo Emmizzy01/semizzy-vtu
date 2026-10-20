@@ -221,4 +221,50 @@ class MultiProviderVtuRouterTest extends TestCase
         Http::assertNotSent(fn ($request) => str_contains($request->url(), 'api.sogo.africa'));
     }
 
+
+    public function test_sogo_sandbox_not_found_does_not_authorize_same_key_resubmission(): void
+    {
+        config([
+            'services.vtu.sogo.base_url' => 'https://sandbox.sogo.africa/v1',
+            'services.vtu.sogo.api_key' => 'sogo-test-key',
+        ]);
+        Http::fake(['sandbox.sogo.africa/*' => Http::response(['message' => 'not found'], 404)]);
+
+        $order = new VtuOrder([
+            'public_id' => 'sogo-sandbox-not-found-1',
+            'provider' => 'sogo',
+            'status' => 'processing',
+        ]);
+
+        $result = app(MultiProviderVtuRouter::class)->lookup($order);
+
+        $this->assertSame('unknown', $result['status']);
+        $this->assertSame('not_found', $result['lookup_state']);
+        $this->assertArrayNotHasKey('safe_to_submit_same_key', $result);
+    }
+
+    public function test_gsubz_verify_unknown_failure_code_remains_ambiguous(): void
+    {
+        config([
+            'services.vtu.gsubz.base_url' => 'https://api.gsubz.com',
+            'services.vtu.gsubz.api_key' => 'gsubz-test-key',
+        ]);
+        Http::fake(['api.gsubz.com/api/verify/*' => Http::response([
+            'status' => 'failed',
+            'code' => 500,
+            'message' => 'upstream error',
+        ], 200)]);
+
+        $order = new VtuOrder([
+            'public_id' => 'gsubz-ambiguous-verify-1',
+            'provider' => 'gsubz',
+            'status' => 'processing',
+        ]);
+
+        $result = app(MultiProviderVtuRouter::class)->lookup($order);
+
+        $this->assertSame('failed', $result['status']);
+        $this->assertFalse($result['definitive_failure']);
+    }
+
 }
