@@ -85,6 +85,14 @@ class LoginChallengeController extends Controller
             return redirect()->route('login')->withErrors(['identifier' => 'This account is not available for sign-in.']);
         }
 
+        if ($user->two_factor_enabled_at !== null && is_string($user->two_factor_secret) && $user->two_factor_secret !== '') {
+            $request->session()->regenerate();
+            $request->session()->put('auth.two_factor_user_id', (int) $user->id);
+            $request->session()->put('auth.two_factor_remember', (bool) $result['remember']);
+            $request->session()->put('auth.two_factor_attempts', 0);
+            return redirect()->route('login.two-factor');
+        }
+
         Auth::login($user, $result['remember']);
         $request->session()->regenerate();
 
