@@ -77,12 +77,34 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-      - name: Commit built assets to main
+      - name: Commit built assets to main safely
+        shell: bash
         run: |
-          git add -f public/build
-          if git diff --cached --quiet; then
-            echo "public/build is already up to date."
-            exit 0
-          fi
-          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" commit -m "Build and publish frontend assets"
-          git push origin HEAD:main
+          set -euo pipefail
+          for attempt in 1 2 3; do
+            # Rebuild from the latest main each attempt so assets never get
+            # committed from an older source revision after a concurrent push.
+            git fetch origin main
+            git reset --hard origin/main
+            composer install --no-interaction --prefer-dist --no-progress
+            cp .env.example .env
+            php artisan key:generate
+            echo "DB_CONNECTION=sqlite" >> .env
+            echo "DB_DATABASE=:memory:" >> .env
+            php artisan test
+            npm install --no-audit --no-fund
+            npm run build
+            test -s public/build/manifest.json
+            git add -f public/build
+            if git diff --cached --quiet; then
+              echo "public/build is already up to date for origin/main."
+              exit 0
+            fi
+            git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" commit -m "Build and publish frontend assets"
+            if git push origin HEAD:main; then
+              exit 0
+            fi
+            echo "main advanced during asset publication; retrying from latest main (attempt $attempt/3)."
+          done
+          echo "Could not publish assets after three fresh-main rebuild attempts."
+          exit 1
