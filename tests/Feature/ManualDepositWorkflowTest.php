@@ -38,6 +38,37 @@ class ManualDepositWorkflowTest extends TestCase
     }
 
 
+    public function test_uploaded_receipt_is_removed_if_manual_deposit_submission_fails(): void
+    {
+        Storage::fake('local');
+        $customer = User::query()->create([
+            'name' => 'Failed Submission Customer',
+            'email' => 'failed-manual-deposit@example.test',
+            'password' => 'not-a-real-password',
+        ]);
+        app(WalletAccountService::class)->openForUser($customer);
+        app(IntegrationSettings::class)->set('manual_deposit.enabled', '1', $customer->id);
+
+        $submission = \\Mockery::mock(\\App\\Services\\Payments\\ManualDepositSubmissionService::class);
+        $submission->shouldReceive('submit')->once()->andThrow(new \\RuntimeException('Simulated database submission failure'));
+        $this->app->instance(\\App\\Services\\Payments\\ManualDepositSubmissionService::class, $submission);
+
+        $this->withoutExceptionHandling();
+        try {
+            $this->actingAs($customer)->post('/wallet/manual-deposits', [
+                'amount_minor' => 250000,
+                'transfer_reference' => 'FAILED-SUBMISSION-TRANSFER-001',
+                'evidence' => UploadedFile::fake()->image('receipt.png'),
+            ]);
+            $this->fail('Expected the submission failure to be rethrown.');
+        } catch (\\RuntimeException $exception) {
+            $this->assertSame('Simulated database submission failure', $exception->getMessage());
+        }
+
+        $this->assertSame([], Storage::disk('local')->allFiles('manual-deposits'));
+        $this->assertDatabaseCount('manual_deposits', 0);
+    }
+
     public function test_manual_deposits_are_disabled_until_admin_configures_instructions(): void
     {
         Storage::fake('local');
