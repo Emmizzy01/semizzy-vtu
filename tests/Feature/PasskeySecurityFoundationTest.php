@@ -32,7 +32,7 @@ class PasskeySecurityFoundationTest extends TestCase
 
     public function test_passkey_management_requires_recent_password_confirmation(): void
     {
-        Route::middleware(EnsureRecentPasskeyConfirmation::class)->get('/__test/passkeys-confirm', fn () => response('ok'));
+        Route::middleware(['web', EnsureRecentPasskeyConfirmation::class])->get('/__test/passkeys-confirm', fn () => response('ok'));
 
         $this->get('/__test/passkeys-confirm')->assertForbidden();
         $this->withSession(['passkeys.password_confirmed_at' => now()->timestamp])
