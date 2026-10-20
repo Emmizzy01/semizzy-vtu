@@ -1265,14 +1265,14 @@ class VtuOrderWorkflowTest extends TestCase
             if (str_contains($request->url(), 'api.sogo.africa') && str_contains($path, '/transactions/')) {
                 if (! $advanced && $orderId !== null) {
                     $advanced = true;
-                    $order = \\App\\Models\\VtuOrder::query()->findOrFail($orderId);
-                    \\Illuminate\\Support\\Facades\\DB::table('vtu_orders')->where('id', $orderId)->update([
+                    $order = \App\Models\VtuOrder::query()->findOrFail($orderId);
+                    \Illuminate\Support\Facades\DB::table('vtu_orders')->where('id', $orderId)->update([
                         'provider' => 'gsubz',
                         'provider_reference' => 'GSUBZ-NEW-REF',
                         'status' => 'processing',
                         'updated_at' => now(),
                     ]);
-                    \\App\\Models\\VtuProviderAttempt::query()->create([
+                    \App\Models\VtuProviderAttempt::query()->create([
                         'vtu_order_id' => $orderId,
                         'attempt_number' => 2,
                         'provider' => 'gsubz',
@@ -1323,7 +1323,7 @@ class VtuOrderWorkflowTest extends TestCase
             'provider' => 'gsubz',
             'outcome' => 'reserved',
         ]);
-        $this->assertSame(2, \\App\\Models\\WalletTransaction::query()->count());
+        $this->assertSame(2, \App\Models\WalletTransaction::query()->count());
         $this->assertSame(500, (int) $wallet->fresh()->available_balance_minor);
         Http::assertNotSent(fn ($request) => str_contains($request->url(), 'api.gsubz.com'));
     }
