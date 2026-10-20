@@ -98,5 +98,7 @@ return [
         ],
         'signature_tolerance_seconds' => (int) env('SEMIZZY_WEBHOOK_TOLERANCE_SECONDS', 300),
         'intent_ttl_minutes' => (int) env('SEMIZZY_PAYMENT_INTENT_TTL_MINUTES', 30),
+        // Hard-off until funding retry, webhook concurrency, and full CI release checks pass.
+        'live_funding_enabled' => (bool) env('SEMIZZY_LIVE_FUNDING_ENABLED', false),
     ],
 ];
