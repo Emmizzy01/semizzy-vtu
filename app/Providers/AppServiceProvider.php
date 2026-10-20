@@ -22,6 +22,11 @@ use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 use Laravel\Passkeys\Passkeys;
 use Laravel\Passkeys\Contracts\PasskeyUser;
+use Laravel\Passkeys\Events\PasskeyRegistered;
+use Laravel\Passkeys\Events\PasskeyVerified;
+use Laravel\Passkeys\Events\PasskeyDeleted;
+use App\Services\Security\TransactionPinService;
+use Illuminate\Support\Facades\Event;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -46,6 +51,16 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        Event::listen(PasskeyRegistered::class, function (PasskeyRegistered $event): void {
+            if ($event->user instanceof User) app(TransactionPinService::class)->record((int) $event->user->getAuthIdentifier(), 'passkey_registered', 'success', ['passkey_id' => $event->passkey->getKey()]);
+        });
+        Event::listen(PasskeyVerified::class, function (PasskeyVerified $event): void {
+            if ($event->user instanceof User) app(TransactionPinService::class)->record((int) $event->user->getAuthIdentifier(), 'passkey_verified', 'success', ['passkey_id' => $event->passkey->getKey()]);
+        });
+        Event::listen(PasskeyDeleted::class, function (PasskeyDeleted $event): void {
+            if ($event->user instanceof User) app(TransactionPinService::class)->record((int) $event->user->getAuthIdentifier(), 'passkey_deleted', 'success', ['passkey_id' => $event->passkey->getKey()]);
+        });
+
         Passkeys::authorizeLoginUsing(function (Request $request, PasskeyUser $passkeyUser, \Laravel\Passkeys\Passkey $passkey): bool {
             if (! $passkeyUser instanceof User || $passkeyUser->account_status !== 'active') {
                 throw ValidationException::withMessages(['credential' => 'Passkey sign-in could not be completed.']);
