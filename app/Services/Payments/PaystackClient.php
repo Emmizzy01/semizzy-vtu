@@ -341,6 +341,29 @@ class PaystackClient
     }
 
     /** @return array<string, mixed> */
+    public function fetchCustomer(string $customerCode): array
+    {
+        if ($customerCode === '' || strlen($customerCode) > 150) {
+            throw new \\InvalidArgumentException('Paystack customer reference is invalid.');
+        }
+
+        try {
+            $response = Http::withToken($this->secretKey())->acceptJson()->timeout(15)
+                ->get('https://api.paystack.co/customer/'.rawurlencode($customerCode));
+        } catch (ConnectionException $exception) {
+            throw new LogicException('Virtual-account customer state is unknown; reconcile before retrying.', previous: $exception);
+        }
+
+        $data = $response->json('data');
+        if (!$response->successful() || $response->json('status') !== true || !is_array($data)
+            || ($data['customer_code'] ?? null) !== $customerCode) {
+            throw new LogicException('Paystack could not confirm the existing virtual-account customer.');
+        }
+
+        return $data;
+    }
+
+    /** @return array<string, mixed> */
     public function assignDedicatedVirtualAccount(string $customerCode, string $preferredBank): array
     {
         if ($customerCode === '' || !in_array($preferredBank, ['wema-bank', 'titan-paystack'], true)) {
