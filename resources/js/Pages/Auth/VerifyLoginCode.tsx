@@ -2,7 +2,8 @@ import { Head, Link, useForm } from '@inertiajs/react';
 import type { FormEvent } from 'react';
 import { LoaderCircle, ShieldCheck } from 'lucide-react';
 
-export default function VerifyLoginCode() {
+export default function VerifyLoginCode({ channel = 'email' }: { channel?: string }) {
+  const destinationLabel = channel === 'sms' ? 'SMS' : channel === 'whatsapp' ? 'WhatsApp' : 'email';
   const form = useForm({ code: '' });
 
   function submit(event: FormEvent<HTMLFormElement>) {
@@ -17,7 +18,7 @@ export default function VerifyLoginCode() {
         <section className="w-full max-w-md rounded-3xl border border-[var(--line)] bg-[var(--surface)] p-6 shadow-sm sm:p-8">
           <div className="mb-6 grid h-12 w-12 place-items-center rounded-2xl bg-[var(--brand)]/10 text-[var(--brand)]"><ShieldCheck size={25} /></div>
           <h1 className="font-display text-2xl font-extrabold">Verify it’s you</h1>
-          <p className="mt-2 text-sm leading-6 text-[var(--muted)]">Enter the six-digit code sent to your email to finish signing in. The code expires after a short time and can only be used once.</p>
+          <p className="mt-2 text-sm leading-6 text-[var(--muted)]">Enter the six-digit code sent to your {destinationLabel} to finish signing in. The code expires after a short time and can only be used once.</p>
           <form onSubmit={submit} className="mt-6 space-y-5">
             <label className="block text-sm font-semibold">Verification code
               <input name="code" type="text" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} required autoFocus value={form.data.code} onChange={(event) => form.setData('code', event.target.value.replace(/\D/g, '').slice(0, 6))} aria-invalid={Boolean(form.errors.code)} className="mt-2 w-full rounded-xl border border-[var(--line)] bg-[var(--page)] px-4 py-3 text-center font-mono text-2xl tracking-[0.4em] outline-none focus:border-[var(--brand)] focus-visible:ring-2 focus-visible:ring-[var(--brand)]" />
