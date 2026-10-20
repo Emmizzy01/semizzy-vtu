@@ -8,6 +8,7 @@ use App\Models\UserPermission;
 use App\Models\IntegrationSetting;
 use App\Services\Vtu\ProviderCatalogueImportService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
 use LogicException;
 use Tests\TestCase;
@@ -478,6 +479,53 @@ class ProviderCatalogueImportTest extends TestCase
         $this->assertFalse($product->metadata['purchase_approved']);
         $this->assertFalse($product->metadata['purchase_supported']);
         $this->assertTrue($product->metadata['catalog_only']);
+    }
+
+
+    public function test_sogo_catalogue_timeout_after_a_partial_response_does_not_import_partial_products(): void
+    {
+        config([
+            'services.vtu.sogo.base_url' => 'https://api.sogo.africa/v1',
+            'services.vtu.sogo.api_key' => 'sogo_test_key',
+        ]);
+
+        Http::fake(function ($request) {
+            if (str_contains($request->url(), '/bills/catalog')) {
+                return Http::response([
+                    'data' => ['data' => ['providers' => [
+                        ['slug' => 'mtn', 'name' => 'MTN'],
+                        ['slug' => 'airtel', 'name' => 'Airtel'],
+                    ]]],
+                ]);
+            }
+
+            if (str_contains($request->url(), '/bills/data-plans') && str_contains($request->url(), 'network=mtn')) {
+                return Http::response([
+                    'data' => ['plans' => [[
+                        'variation_code' => 'mtn-sme-1gb',
+                        'name' => 'MTN SME 1GB',
+                        'amount' => 285,
+                        'type' => 'SME',
+                        'validity' => '30 days',
+                    ]]],
+                ]);
+            }
+
+            if (str_contains($request->url(), '/bills/data-plans') && str_contains($request->url(), 'network=airtel')) {
+                throw new ConnectionException('Connection timed out.');
+            }
+
+            return Http::response(['message' => 'Unexpected request'], 500);
+        });
+
+        try {
+            app(ProviderCatalogueImportService::class)->import('sogo', 'data');
+            $this->fail('A catalogue timeout must abort the import instead of saving a partial provider snapshot.');
+        } catch (ConnectionException $exception) {
+            $this->assertStringContainsString('timed out', $exception->getMessage());
+        }
+
+        $this->assertSame(0, VtuProduct::query()->count());
     }
 
 }
