@@ -26,7 +26,7 @@ class EnsurePasskeysEnabled
             $scheme = strtolower((string) ($parts['scheme'] ?? ''));
 
             // Browser Origin values have no path, query, fragment, credentials or wildcard.
-            if ($scheme !== 'https' || $host === ''
+            if ($scheme !== 'https' || $host === '' || str_contains($host, '*')
                 || isset($parts['path']) || isset($parts['query']) || isset($parts['fragment'])
                 || isset($parts['user']) || isset($parts['pass'])
                 || ($host !== $rpId && ! str_ends_with($host, '.'.$rpId))) {
