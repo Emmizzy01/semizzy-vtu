@@ -66,6 +66,9 @@ class AdminControlPermissionBoundaryTest extends TestCase
         $this->actingAs($operator)->put('/admin/payment-gateway', [])->assertForbidden();
         $this->actingAs($operator)->put('/admin/api-providers', [])->assertForbidden();
         $this->actingAs($operator)->get('/admin/payment-refunds')->assertOk();
+        // A missing refund reaches the approval handler (404), proving this narrow
+        // capability is preserved without performing or simulating a real refund.
+        $this->actingAs($operator)->post('/admin/payment-refunds/nonexistent-refund/approve')->assertNotFound();
     }
 
     public function test_staff_manager_can_access_admin_controls_without_implicitly_becoming_refund_approver(): void
@@ -77,5 +80,6 @@ class AdminControlPermissionBoundaryTest extends TestCase
         $this->actingAs($manager)->get('/admin/platform-settings')->assertOk();
         $this->actingAs($manager)->get('/admin/staff')->assertOk();
         $this->actingAs($manager)->get('/admin/refunds')->assertForbidden();
+        $this->actingAs($manager)->post('/admin/payment-refunds/nonexistent-refund/approve')->assertForbidden();
     }
 }
