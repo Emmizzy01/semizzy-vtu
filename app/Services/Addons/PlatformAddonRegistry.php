@@ -22,11 +22,21 @@ class PlatformAddonRegistry
 
     public function assess(PlatformAddon $addon): array
     {
+        return $this->assessRecursive($addon, []);
+    }
+
+    private function assessRecursive(PlatformAddon $addon, array $path): array
+    {
+        if (in_array($addon->addon_key, $path, true)) {
+            return ['status' => 'blocked', 'message' => 'Dependency cycle detected in the registered manifests.'];
+        }
+
         $coreVersion = $this->coreVersion();
         if (version_compare($coreVersion, (string) $addon->minimum_core_version, '<')) {
             return ['status' => 'incompatible', 'message' => "Requires core {$addon->minimum_core_version}; current core is {$coreVersion}."];
         }
 
+        $path[] = $addon->addon_key;
         foreach (($addon->dependencies ?? []) as $dependencyKey) {
             $dependency = PlatformAddon::query()->where('addon_key', $dependencyKey)->first();
             if (!$dependency) {
@@ -35,9 +45,17 @@ class PlatformAddonRegistry
             if ($dependency->status !== 'enabled') {
                 return ['status' => 'blocked', 'message' => "Dependency {$dependencyKey} must be enabled first."];
             }
+
+            $dependencyAssessment = $this->assessRecursive($dependency, $path);
+            if ($dependencyAssessment['status'] !== 'compatible') {
+                return [
+                    'status' => 'blocked',
+                    'message' => "Dependency {$dependencyKey} is not compatible: {$dependencyAssessment['message']}",
+                ];
+            }
         }
 
-        return ['status' => 'compatible', 'message' => 'Core version and declared dependencies are compatible.'];
+        return ['status' => 'compatible', 'message' => 'Core version and declared dependency chain are compatible.'];
     }
 
     public function refreshCompatibility(): void
