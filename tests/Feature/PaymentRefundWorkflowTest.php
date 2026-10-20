@@ -343,4 +343,57 @@ class PaymentRefundWorkflowTest extends TestCase
         $this->assertDatabaseCount('wallet_ledger_entries', 3);
     }
 
+
+    public function test_refund_uses_original_payment_mode_and_fails_closed_after_gateway_mode_switch(): void
+    {
+        Http::fake();
+        $customer = User::query()->create([
+            'name' => 'Mode Switch Refund Customer',
+            'email' => 'refund-mode-switch-customer@example.test',
+            'password' => 'test-password',
+        ]);
+        $approver = User::query()->create([
+            'name' => 'Mode Switch Refund Approver',
+            'email' => 'refund-mode-switch-approver@example.test',
+            'password' => 'test-password',
+        ]);
+        UserPermission::query()->create(['user_id' => $approver->id, 'permission' => 'refunds.approve']);
+        $wallet = app(WalletAccountService::class)->openForUser($customer);
+        app(WalletLedgerService::class)->post($wallet->id, 'credit', 10000, 'seed-mode-switch-'.$customer->id, description: 'Synthetic test funding');
+        $intent = app(PaymentIntentService::class)->create($wallet, 10000, 'paystack', 'live', 'mode-switch-refund-intent');
+        $intent->forceFill([
+            'status' => 'paid',
+            'provider_transaction_id' => 'synthetic-live-transaction-'.$customer->id,
+            'paid_at' => now(),
+        ])->save();
+
+        $request = $this->actingAs($customer)->postJson('/wallet/refund-requests', [
+            'payment_intent_id' => $intent->public_id,
+            'amount_minor' => 2500,
+            'reason' => 'Verify refund mode pinning',
+            'idempotency_key' => 'refund-mode-switch-'.$customer->id,
+        ])->assertCreated();
+
+        // The active gateway is now test mode while this paid intent was created in live mode.
+        \App\Models\IntegrationSetting::query()->updateOrCreate(
+            ['key' => 'paystack.mode'],
+            ['value' => 'test'],
+        );
+        \App\Models\IntegrationSetting::query()->updateOrCreate(
+            ['key' => 'paystack.secret_key'],
+            ['value' => 'sk_test_refund_workflow_secret'],
+        );
+
+        $this->actingAs($approver)->postJson('/admin/payment-refunds/'.$request->json('data.id').'/approve')
+            ->assertOk()
+            ->assertJsonPath('data.status', 'review_required');
+
+        Http::assertNothingSent();
+        $this->assertSame(7500, (int) $wallet->fresh()->balance_minor);
+        $this->assertDatabaseHas('payment_refunds', [
+            'public_id' => $request->json('data.id'),
+            'status' => 'review_required',
+        ]);
+    }
+
 }
