@@ -55,7 +55,7 @@ jobs:
           cache-dependency-path: package.json
 
       - name: Install frontend dependencies
-        run: npm install --no-audit --no-fund
+        run: npm install --no-audit --no-fund --legacy-peer-deps
 
       - name: Build production assets
         run: npm run build
@@ -92,7 +92,7 @@ jobs:
             echo "DB_CONNECTION=sqlite" >> .env
             echo "DB_DATABASE=:memory:" >> .env
             php artisan test
-            npm install --no-audit --no-fund
+            npm install --no-audit --no-fund --legacy-peer-deps
             npm run build
             test -s public/build/manifest.json
             git add -f public/build
