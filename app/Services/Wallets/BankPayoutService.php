@@ -180,6 +180,26 @@ class BankPayoutService
 
             $wallet = $this->wallets->openForUser($user, 'NGN');
             $wallet = Wallet::query()->whereKey($wallet->id)->lockForUpdate()->firstOrFail();
+
+            // The wallet row is the per-customer serialization point. A second
+            // independent request may have passed the first idempotency lookup
+            // while the first request was still in flight; re-check only after
+            // acquiring this lock so it returns the committed payout instead
+            // of attempting a second debit or relying on a unique-key exception.
+            $existing = BankPayout::query()
+                ->where('user_id', $user->id)
+                ->where('idempotency_key', $idempotencyKey)
+                ->lockForUpdate()
+                ->first();
+
+            if ($existing !== null) {
+                if (! hash_equals($existing->request_hash, $requestHash)) {
+                    throw new IdempotencyConflict('This payout key was already used for a different request.');
+                }
+
+                return $existing;
+            }
+
             $publicId = (string) Str::uuid();
             $reference = 'semizzy_'.str_replace('-', '', $publicId);
 
