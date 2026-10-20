@@ -17,7 +17,7 @@ class PasskeyManagementController extends Controller
 
         return Inertia::render('Security/Passkeys', [
             'enabled' => (bool) config('passkeys.enabled', false),
-            'credentials' => $user->passkeys()->orderByDesc('last_used_at')->get(['id', 'name', 'last_used_at', 'created_at'])->map(fn ($passkey) => [
+            'credentials' => ! config('passkeys.enabled', false) ? [] : $user->passkeys()->orderByDesc('last_used_at')->get(['id', 'name', 'last_used_at', 'created_at'])->map(fn ($passkey) => [
                 'id' => $passkey->getKey(),
                 'name' => $passkey->name,
                 'last_used_at' => $passkey->last_used_at?->toISOString(),
