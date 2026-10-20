@@ -674,7 +674,7 @@ class ProviderCatalogueImportTest extends TestCase
         ]);
 
         Http::fake(function ($request) {
-            if (str_contains($request->url(), '/billers/')) {
+            if (str_contains($request->url(), '/products/')) {
                 return Http::response(['message' => 'success but product data omitted']);
             }
 
