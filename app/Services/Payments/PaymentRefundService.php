@@ -338,6 +338,13 @@ class PaymentRefundService
             return true;
         }
 
+        // A refund already escalated for review must not be downgraded by a later
+        // webhook, even if that event is otherwise well-formed. Resolve review_required
+        // only through canonical provider reconciliation or an explicit operator workflow.
+        if ($refund->status === 'review_required') {
+            return true;
+        }
+
         $this->applyStatus(
             $refund->public_id,
             $status,
