@@ -337,9 +337,10 @@ class DashboardController extends Controller
 
     private function hasAdminAccess(int $userId): bool
     {
+        // Refund approval is a narrow operational capability, not global dashboard access.
         return UserPermission::query()
             ->where('user_id', $userId)
-            ->whereIn('permission', ['staff.permissions.manage', 'refunds.approve'])
+            ->where('permission', 'staff.permissions.manage')
             ->exists();
     }
 }
