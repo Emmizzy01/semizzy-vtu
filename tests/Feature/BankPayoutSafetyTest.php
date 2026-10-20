@@ -40,7 +40,7 @@ class BankPayoutSafetyTest extends TestCase
             'password' => 'not-a-real-password',
         ]);
         $user->forceFill([
-            'transaction_pin_hash' => \\Illuminate\\Support\\Facades\\Hash::make('4928'),
+            'transaction_pin_hash' => \Illuminate\Support\Facades\Hash::make('4928'),
         ])->save();
 
         $this->actingAs($user)->postJson('/wallet/bank-transfer', [
