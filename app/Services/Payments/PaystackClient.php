@@ -115,14 +115,14 @@ class PaystackClient
      *
      * @return array<string, mixed>
      */
-    public function refund(string $transactionReference, int $amountMinor, string $reason): array
+    public function refund(string $transactionReference, int $amountMinor, string $reason, ?string $requiredMode = null): array
     {
         if ($transactionReference === '' || strlen($transactionReference) > 150 || $amountMinor < 1) {
             throw new \InvalidArgumentException('Refund transaction and amount are invalid.');
         }
 
         try {
-            $response = Http::withToken($this->secretKey())
+            $response = Http::withToken($this->secretKey($requiredMode))
                 ->acceptJson()
                 ->asJson()
                 ->timeout(20)
@@ -150,14 +150,14 @@ class PaystackClient
      *
      * @return array<string, mixed>
      */
-    public function fetchRefund(string $refundId): array
+    public function fetchRefund(string $refundId, ?string $requiredMode = null): array
     {
         if ($refundId === '' || ! ctype_digit($refundId)) {
             throw new \InvalidArgumentException('Paystack refund ID must be numeric.');
         }
 
         try {
-            $response = Http::withToken($this->secretKey())
+            $response = Http::withToken($this->secretKey($requiredMode))
                 ->acceptJson()
                 ->timeout(15)
                 ->get('https://api.paystack.co/refund/'.rawurlencode($refundId));
