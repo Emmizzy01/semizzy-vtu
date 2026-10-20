@@ -18,7 +18,7 @@ use Inertia\Response as InertiaResponse;
 
 class VtuProductCatalogueController extends Controller
 {
-    public function index(Request $request): InertiaResponse
+    public function index(Request $request, IntegrationSettings $settings): InertiaResponse
     {
         $filters = $request->validate([
             'search' => ['nullable', 'string', 'max:100'],
@@ -55,6 +55,17 @@ class VtuProductCatalogueController extends Controller
             'pagination' => ['currentPage' => $products->currentPage(), 'lastPage' => $products->lastPage(), 'total' => $products->total()],
             'filters' => ['search' => $search, 'service_type' => $type, 'status' => $status],
             'networks' => ['MTN', 'Airtel', 'Glo', '9mobile', 'Lebara'],
+            'providerReadiness' => collect(['sogo' => 'Sogo Africa', 'gsubz' => 'GSUBZ', 'dataway' => 'Dataway'])
+                ->mapWithKeys(function (string $name, string $provider) use ($settings): array {
+                    $base = trim((string) $settings->get("vtu.{$provider}.base_url", config("services.vtu.{$provider}.base_url", '')));
+                    $key = trim((string) $settings->get("vtu.{$provider}.api_key", config("services.vtu.{$provider}.api_key", '')));
+
+                    return [$provider => [
+                        'name' => $name,
+                        'configured' => $key !== '' && parse_url($base, PHP_URL_SCHEME) === 'https',
+                        'environment' => str_contains(strtolower($base), 'sandbox') ? 'Sandbox' : ($base !== '' ? 'Configured endpoint' : 'Endpoint missing'),
+                    ]];
+                }),
             'serviceTypes' => VtuProduct::query()->select('service_type')->distinct()->orderBy('service_type')->pluck('service_type')->values(),
         ]);
     }
