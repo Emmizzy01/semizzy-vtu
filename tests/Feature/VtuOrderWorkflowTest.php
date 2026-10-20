@@ -3444,7 +3444,7 @@ class VtuOrderWorkflowTest extends TestCase
 
         $product = VtuProduct::query()->create([
             'service_type' => 'airtime',
-            'network' => 'test_network',
+            'network' => 'mtn',
             'code' => 'test-airtime-'.uniqid(),
             'name' => 'Test Airtime',
             'price_minor' => $productPriceMinor,
