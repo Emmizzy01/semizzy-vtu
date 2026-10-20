@@ -60,7 +60,7 @@ try {
         fwrite(STDOUT, json_encode([
             'status' => $response->getStatusCode(),
             'body' => $response->getData(true),
-        ], JSON_THROW_ON_ERROR)."\\n");
+        ], JSON_THROW_ON_ERROR)."\n");
         exit(0);
     }
     if ($mode === 'process-webhooks') {
