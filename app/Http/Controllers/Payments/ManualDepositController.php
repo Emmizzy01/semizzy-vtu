@@ -90,7 +90,7 @@ class ManualDepositController extends Controller
                 $path,
                 $evidenceHash,
             );
-        } catch (\\Throwable $exception) {
+        } catch (\Throwable $exception) {
             // The file is stored before the database transaction. Remove it if
             // submission fails so retries do not leave unreferenced receipts behind.
             Storage::disk('local')->delete($path);
