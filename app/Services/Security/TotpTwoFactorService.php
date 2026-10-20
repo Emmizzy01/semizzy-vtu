@@ -49,6 +49,11 @@ class TotpTwoFactorService
         return $codes;
     }
 
+    public function verifySecret(string $secret, string $code): bool
+    {
+        return preg_match('/^\\d{6}$/', $code) === 1 && $this->verifyTotp($secret, $code);
+    }
+
     public function verifyUserCode(User $user, string $code): bool
     {
         if (!$user->two_factor_enabled_at || !is_string($user->two_factor_secret) || $user->two_factor_secret === '') {
