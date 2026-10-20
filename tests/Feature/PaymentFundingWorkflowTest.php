@@ -107,6 +107,57 @@ class PaymentFundingWorkflowTest extends TestCase
         $this->assertDatabaseCount('wallet_ledger_entries', 1);
     }
 
+    public function test_failed_settlement_transaction_rolls_back_event_and_allows_safe_replay(): void
+    {
+        $user = User::query()->create([
+            'name' => 'Settlement Recovery Customer',
+            'email' => 'settlement-recovery@example.test',
+            'password' => 'not-a-real-password',
+        ]);
+        $wallet = app(WalletAccountService::class)->openForUser($user);
+        $intent = app(PaymentIntentService::class)->create($wallet, 12500, 'semizzy');
+        $payload = [
+            'id' => 'evt_settlement_recovery_0001',
+            'type' => 'payment.succeeded',
+            'data' => [
+                'reference' => $intent->reference,
+                'transaction_id' => 'provider_tx_settlement_recovery_0001',
+                'status' => 'succeeded',
+                'amount_minor' => 12500,
+                'currency' => 'NGN',
+            ],
+        ];
+
+        $failingLedger = \Mockery::mock(WalletLedgerService::class);
+        $failingLedger->shouldReceive('post')->once()->andThrow(new \RuntimeException('Simulated ledger worker failure'));
+        try {
+            (new \App\Services\Payments\PaymentFundingService($failingLedger))
+                ->processVerifiedEvent('semizzy', $payload);
+            $this->fail('Expected the simulated settlement failure to escape.');
+        } catch (\RuntimeException $exception) {
+            $this->assertSame('Simulated ledger worker failure', $exception->getMessage());
+        }
+
+        // The webhook receipt and intent update are in the same transaction as ledger posting.
+        // A crash/failure before commit must leave no partial settlement and permit safe replay.
+        $this->assertDatabaseCount('payment_webhook_events', 0);
+        $this->assertDatabaseCount('wallet_transactions', 0);
+        $this->assertDatabaseCount('wallet_ledger_entries', 0);
+        $this->assertSame('pending', $intent->fresh()->status);
+        $this->assertSame(0, (int) $wallet->fresh()->balance_minor);
+
+        $replayed = app(\App\Services\Payments\PaymentFundingService::class)
+            ->processVerifiedEvent('semizzy', $payload);
+
+        $this->assertSame('credited', $replayed['outcome']);
+        $this->assertFalse($replayed['duplicate']);
+        $this->assertSame('paid', $intent->fresh()->status);
+        $this->assertSame(12500, (int) $wallet->fresh()->balance_minor);
+        $this->assertDatabaseCount('payment_webhook_events', 1);
+        $this->assertDatabaseCount('wallet_transactions', 1);
+        $this->assertDatabaseCount('wallet_ledger_entries', 1);
+    }
+
     public function test_invalid_signature_never_credits_wallet(): void
     {
         config(['services.semizzy_payments.webhook_secrets.semizzy' => 'test-secret-that-is-long-enough-for-tests']);
