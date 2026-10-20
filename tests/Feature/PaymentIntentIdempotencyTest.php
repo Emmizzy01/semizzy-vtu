@@ -112,4 +112,33 @@ class PaymentIntentIdempotencyTest extends TestCase
         $funding->processVerifiedEvent('paystack', $mismatched);
     }
 
+
+    public function test_live_funding_settlement_is_blocked_until_release_gate_is_open(): void
+    {
+        config(['services.semizzy_payments.live_funding_enabled' => false]);
+
+        $user = User::factory()->create();
+        $wallet = Wallet::query()->create([
+            'user_id' => $user->id,
+            'currency' => 'NGN',
+            'status' => 'active',
+            'balance_minor' => 0,
+            'available_balance_minor' => 0,
+        ]);
+        $intent = app(PaymentIntentService::class)->create($wallet, 25000, 'paystack', 'live', 'live-funding-gate-key');
+
+        $this->expectException(\\LogicException::class);
+        app(PaymentFundingService::class)->processVerifiedEvent('paystack', [
+            'id' => 'paystack-live-charge-1001',
+            'type' => 'payment.succeeded',
+            'data' => [
+                'reference' => $intent->reference,
+                'transaction_id' => '1001',
+                'status' => 'succeeded',
+                'amount_minor' => 25000,
+                'currency' => 'NGN',
+            ],
+        ]);
+    }
+
 }
