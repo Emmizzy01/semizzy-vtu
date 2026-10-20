@@ -148,6 +148,7 @@ export default function VtuPurchase({ serviceType }: { serviceType: ServiceType 
   const [productCode, setProductCode] = useState(restoredPending?.productCode ?? '');
   const [recipient, setRecipient] = useState(restoredPending?.recipient ?? '');
   const [beneficiaries, setBeneficiaries] = useState<SavedBeneficiary[]>([]);
+  const [selectedBeneficiaryId, setSelectedBeneficiaryId] = useState('');
   const [savingBeneficiary, setSavingBeneficiary] = useState(false);
   const [scheduleMode, setScheduleMode] = useState(false);
   const [scheduleFrequency, setScheduleFrequency] = useState<'daily' | 'weekly' | 'monthly'>('monthly');
@@ -580,9 +581,10 @@ export default function VtuPurchase({ serviceType }: { serviceType: ServiceType 
 
                 {beneficiaries.length > 0 && (
                   <label className="block text-sm font-semibold">Saved beneficiaries
-                    <select value="" onChange={(event) => {
+                    <select value={selectedBeneficiaryId} onChange={(event) => {
                       const saved = beneficiaries.find((item) => String(item.id) === event.target.value);
-                      if (!saved) return;
+                      if (!saved) { setSelectedBeneficiaryId(''); return; }
+                      setSelectedBeneficiaryId(event.target.value);
                       setRecipient(saved.recipient);
                       if (saved.product_code && products.some((item) => item.code === saved.product_code && item.is_active)) setProductCode(saved.product_code);
                       if (saved.network) {
@@ -597,6 +599,28 @@ export default function VtuPurchase({ serviceType }: { serviceType: ServiceType 
                       {beneficiaries.map((item) => <option key={item.id} value={item.id}>{item.label} · {item.recipient}</option>)}
                     </select>
                   </label>
+                  {selectedBeneficiaryId && beneficiaries.some((item) => String(item.id) === selectedBeneficiaryId) && (
+                    <button type="button" disabled={submissionUncertain} onClick={async () => {
+                      const selected = beneficiaries.find((item) => String(item.id) === selectedBeneficiaryId);
+                      if (!selected || !window.confirm(`Remove saved beneficiary “${selected.label}”?`)) return;
+                      setError('');
+                      try {
+                        const csrf = document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ?? '';
+                        const response = await fetch(`/wallet/service-beneficiaries/${selected.id}`, {
+                          method: 'DELETE', credentials: 'same-origin',
+                          headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'X-CSRF-TOKEN': csrf },
+                        });
+                        const body = await response.json().catch(() => ({}));
+                        if (!response.ok) throw new Error(typeof body.message === 'string' ? body.message : 'Beneficiary could not be removed.');
+                        setBeneficiaries((current) => current.filter((item) => item.id !== selected.id));
+                        setSelectedBeneficiaryId('');
+                      } catch (cause: unknown) {
+                        setError(cause instanceof Error ? cause.message : 'Beneficiary could not be removed.');
+                      }
+                    }} className="mt-2 w-full rounded-xl border border-rose-500/40 px-4 py-2 text-sm font-semibold text-rose-700 disabled:opacity-50">
+                      Remove selected beneficiary
+                    </button>
+                  )}
                 )}
 
                 <label className="block text-sm font-semibold">
