@@ -48,6 +48,9 @@ class PaymentFundingController extends Controller
 
         try {
             $gatewayMode = $paystack->mode();
+            if ($gatewayMode === 'live' && ! config('services.semizzy_payments.live_funding_enabled', false)) {
+                return response()->json(['message' => 'Live wallet funding is temporarily locked while payment safety checks are being completed.'], 503);
+            }
             $clientIdempotencyKey = trim((string) $request->header('Idempotency-Key', ''));
             if ($clientIdempotencyKey !== '' && (strlen($clientIdempotencyKey) > 200 || preg_match('/[\\r\\n]/', $clientIdempotencyKey))) {
                 throw ValidationException::withMessages(['amount_minor' => 'The funding retry key is invalid.']);
