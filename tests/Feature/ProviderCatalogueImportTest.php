@@ -697,4 +697,175 @@ class ProviderCatalogueImportTest extends TestCase
         $this->assertSame(0, VtuProduct::query()->count());
     }
 
+
+    public function test_sogo_explicit_empty_provider_list_preserves_existing_product_and_pricing(): void
+    {
+        config([
+            'services.vtu.sogo.base_url' => 'https://sandbox.sogo.africa/v1',
+            'services.vtu.sogo.api_key' => 'sogo_test_key',
+        ]);
+        $product = VtuProduct::query()->create([
+            'service_type' => 'data', 'provider_key' => 'sogo', 'provider_product_code' => 'mtn-plan',
+            'provider_cost_minor' => 27000, 'network' => 'mtn', 'code' => 'sogo-data-mtn-plan',
+            'name' => 'Reviewed plan', 'price_minor' => 32000, 'currency' => 'NGN',
+            'is_active' => true, 'metadata' => ['purchase_approved' => true],
+        ]);
+        Http::fake(['sandbox.sogo.africa/v1/bills/catalog*' => Http::response([
+            'data' => ['data' => ['providers' => []]],
+        ])]);
+
+        $result = app(ProviderCatalogueImportService::class)->import('sogo', 'data');
+        $product->refresh();
+
+        $this->assertSame(0, $result['created']);
+        $this->assertSame(0, $result['updated']);
+        $this->assertSame(1, VtuProduct::query()->count());
+        $this->assertSame(27000, $product->provider_cost_minor);
+        $this->assertSame(32000, $product->price_minor);
+        $this->assertTrue($product->is_active);
+        $this->assertTrue($product->metadata['purchase_approved']);
+    }
+
+    public function test_gsubz_explicit_empty_catalogue_preserves_existing_product_and_flags(): void
+    {
+        config([
+            'services.vtu.gsubz.base_url' => 'https://api.gsubz.com',
+            'services.vtu.gsubz.api_key' => 'gsubz_test_key',
+        ]);
+        $product = VtuProduct::query()->create([
+            'service_type' => 'data', 'provider_key' => 'gsubz', 'provider_product_code' => 'mtn-plan',
+            'provider_cost_minor' => 27000, 'network' => 'mtn', 'code' => 'gsubz-data-mtn-plan',
+            'name' => 'Reviewed plan', 'price_minor' => 32000, 'currency' => 'NGN',
+            'is_active' => true, 'metadata' => ['purchase_approved' => true],
+        ]);
+        Http::fake(['api.gsubz.com/api/category/*' => Http::response(['data' => []])]);
+
+        $result = app(ProviderCatalogueImportService::class)->import('gsubz', 'data');
+        $product->refresh();
+
+        $this->assertSame(0, $result['created']);
+        $this->assertSame(0, $result['updated']);
+        $this->assertSame(1, VtuProduct::query()->count());
+        $this->assertSame(27000, $product->provider_cost_minor);
+        $this->assertSame(32000, $product->price_minor);
+        $this->assertTrue($product->is_active);
+        $this->assertTrue($product->metadata['purchase_approved']);
+    }
+
+    public function test_sogo_malformed_nested_plan_response_aborts_without_partial_import(): void
+    {
+        config([
+            'services.vtu.sogo.base_url' => 'https://sandbox.sogo.africa/v1',
+            'services.vtu.sogo.api_key' => 'sogo_test_key',
+        ]);
+        Http::fake(function ($request) {
+            if (str_contains($request->url(), '/bills/catalog')) {
+                return Http::response(['data' => ['data' => ['providers' => [
+                    ['slug' => 'mtn', 'name' => 'MTN'],
+                ]]]]);
+            }
+            if (str_contains($request->url(), '/bills/data-plans')) {
+                return Http::response(['message' => 'success but plan data omitted']);
+            }
+            return Http::response(['message' => 'unexpected request'], 500);
+        });
+
+        try {
+            app(ProviderCatalogueImportService::class)->import('sogo', 'data');
+            $this->fail('Malformed nested Sogo plan response must abort the import.');
+        } catch (\RuntimeException $exception) {
+            $this->assertStringContainsString('invalid data plan catalogue', strtolower($exception->getMessage()));
+        }
+        $this->assertSame(0, VtuProduct::query()->count());
+    }
+
+    public function test_gsubz_malformed_nested_plan_response_aborts_without_partial_import(): void
+    {
+        config([
+            'services.vtu.gsubz.base_url' => 'https://api.gsubz.com',
+            'services.vtu.gsubz.api_key' => 'gsubz_test_key',
+        ]);
+        Http::fake([
+            'api.gsubz.com/api/category/*' => Http::response(['data' => [
+                ['serviceID' => 'mtn-data', 'name' => 'MTN Data'],
+            ]]),
+            'api.gsubz.com/api/plans/*' => Http::response(['message' => 'success but plan data omitted']),
+        ]);
+
+        try {
+            app(ProviderCatalogueImportService::class)->import('gsubz', 'data');
+            $this->fail('Malformed nested GSUBZ plan response must abort the import.');
+        } catch (\RuntimeException $exception) {
+            $this->assertStringContainsString('invalid plan catalogue', strtolower($exception->getMessage()));
+        }
+        $this->assertSame(0, VtuProduct::query()->count());
+    }
+
+    public function test_gsubz_timeout_after_a_partial_plan_response_does_not_import_partial_products(): void
+    {
+        config([
+            'services.vtu.gsubz.base_url' => 'https://api.gsubz.com',
+            'services.vtu.gsubz.api_key' => 'gsubz_test_key',
+        ]);
+        Http::fake(function ($request) {
+            if (str_contains($request->url(), '/api/category/')) {
+                return Http::response(['data' => [
+                    ['serviceID' => 'mtn-data', 'name' => 'MTN Data'],
+                    ['serviceID' => 'airtel-data', 'name' => 'Airtel Data'],
+                ]]);
+            }
+            if (str_contains($request->url(), '/api/plans/') && str_contains($request->url(), 'service=mtn-data')) {
+                return Http::response(['data' => [[
+                    'value' => 'mtn-sme-1gb', 'name' => 'MTN SME 1GB', 'api_price' => 290,
+                ]]]);
+            }
+            if (str_contains($request->url(), '/api/plans/') && str_contains($request->url(), 'service=airtel-data')) {
+                throw new ConnectionException('Connection timed out.');
+            }
+            return Http::response(['message' => 'unexpected request'], 500);
+        });
+
+        try {
+            app(ProviderCatalogueImportService::class)->import('gsubz', 'data');
+            $this->fail('A GSUBZ timeout must abort the entire partial snapshot.');
+        } catch (ConnectionException $exception) {
+            $this->assertStringContainsString('timed out', $exception->getMessage());
+        }
+        $this->assertSame(0, VtuProduct::query()->count());
+    }
+
+    public function test_dataway_timeout_after_a_partial_biller_response_does_not_import_partial_products(): void
+    {
+        config([
+            'services.vtu.dataway.base_url' => 'https://dataway.ng/api/v1/merchant',
+            'services.vtu.dataway.api_key' => 'dataway_test_key',
+        ]);
+        Http::fake(function ($request) {
+            if (str_contains($request->url(), '/billers/')) {
+                return Http::response(['data' => [
+                    [
+                        'name' => 'MTN Data', 'slug' => 'mtn-data', 'category' => 'data',
+                        'plans' => [[
+                            'id' => 41, 'name' => 'MTN SME 1GB', 'effective_total' => 275,
+                            'validity_days' => 30, 'benefit_type' => 'SME',
+                        ]],
+                    ],
+                    ['name' => 'Airtel Data', 'slug' => 'airtel-data', 'category' => 'data'],
+                ]]);
+            }
+            if (str_contains($request->url(), '/products/')) {
+                throw new ConnectionException('Connection timed out.');
+            }
+            return Http::response(['message' => 'unexpected request'], 500);
+        });
+
+        try {
+            app(ProviderCatalogueImportService::class)->import('dataway', 'data');
+            $this->fail('A Dataway timeout must abort the entire partial snapshot.');
+        } catch (ConnectionException $exception) {
+            $this->assertStringContainsString('timed out', $exception->getMessage());
+        }
+        $this->assertSame(0, VtuProduct::query()->count());
+    }
+
 }
