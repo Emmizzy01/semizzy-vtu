@@ -12,7 +12,7 @@ type Props = {
 };
 
 export default function TwoFactor({ enabled, enabledAt, setupSecret, provisioningUri, recoveryCodes }: Props) {
-  const enableForm = useForm({ code: '' });
+  const enableForm = useForm({ password: '', code: '' });
   const disableForm = useForm({ password: '', code: '' });
   const enable = (event: FormEvent) => {
     event.preventDefault();
@@ -58,6 +58,8 @@ export default function TwoFactor({ enabled, enabledAt, setupSecret, provisionin
         {setupSecret && <div className="mt-4 rounded-xl border p-4"><p className="text-xs text-[var(--muted-foreground)]">Secret key</p><p className="mt-1 break-all font-mono text-lg font-semibold">{setupSecret}</p><button type="button" onClick={() => navigator.clipboard.writeText(setupSecret)} className="mt-2 rounded-lg border px-3 py-2 text-sm">Copy secret</button></div>}
         {provisioningUri && <details className="mt-3 text-sm"><summary className="cursor-pointer">Show setup URI</summary><p className="mt-2 break-all rounded border p-3 font-mono">{provisioningUri}</p></details>}
         <form onSubmit={enable} className="mt-5 space-y-3">
+          <label className="block text-sm">Current password<input type="password" autoComplete="current-password" value={enableForm.data.password} onChange={(e) => enableForm.setData('password', e.target.value)} className="mt-1 block w-full rounded-lg border bg-transparent px-3 py-2" required /></label>
+          {enableForm.errors.password && <p role="alert" className="text-sm text-red-600">{enableForm.errors.password}</p>}
           <label className="block text-sm">Six-digit authenticator code<input inputMode="numeric" autoComplete="one-time-code" value={enableForm.data.code} onChange={(e) => enableForm.setData('code', e.target.value)} className="mt-1 block w-full rounded-lg border bg-transparent px-3 py-2" required pattern="[0-9]{6}" maxLength={6} /></label>
           {enableForm.errors.code && <p role="alert" className="text-sm text-red-600">{enableForm.errors.code}</p>}
           <button disabled={enableForm.processing} className="rounded-lg border px-4 py-2 font-medium disabled:opacity-50">Verify and enable</button>
