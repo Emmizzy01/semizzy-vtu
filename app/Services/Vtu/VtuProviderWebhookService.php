@@ -4,7 +4,9 @@ namespace App\Services\Vtu;
 
 use App\Models\VtuOrder;
 use App\Models\VtuProviderWebhookEvent;
+use Illuminate\Support\Facades\DB;
 use LogicException;
+use Throwable;
 
 class VtuProviderWebhookService
 {
@@ -24,8 +26,23 @@ class VtuProviderWebhookService
             ->orderBy('id')->limit($limit)->get();
 
         foreach ($events as $event) {
+            // Multiple scheduler/queue workers can select the same eligible row.
+            // Claim it atomically so only one worker processes this delivery in the backoff window.
+            $claimed = DB::transaction(function () use ($event): bool {
+                $locked = VtuProviderWebhookEvent::query()->whereKey($event->getKey())->lockForUpdate()->first();
+                if ($locked === null || $locked->processed_at !== null
+                    || ($locked->last_attempted_at !== null && $locked->last_attempted_at->greaterThan(now()->subMinutes(5)))) {
+                    return false;
+                }
+
+                $locked->forceFill(['last_attempted_at' => now()])->save();
+                return true;
+            }, attempts: 3);
+            if (! $claimed) {
+                continue;
+            }
+            $event->refresh();
             $stats['checked']++;
-            $event->forceFill(['last_attempted_at' => now()])->save();
             $status = $this->normalizedStatus($event->provider, $event->event_type, $event->payload);
 
             if ($status === null) {
@@ -57,6 +74,12 @@ class VtuProviderWebhookService
             } catch (LogicException $exception) {
                 report($exception);
                 $event->forceFill(['processing_error' => 'Verified event did not match recorded order owner/reference.'])->save();
+                continue;
+            } catch (Throwable $exception) {
+                // Leave the event unprocessed for retry after backoff, and keep one
+                // transient application/provider failure from aborting the whole batch.
+                report($exception);
+                $event->forceFill(['processing_error' => 'Webhook processing failed unexpectedly; retry scheduled after backoff.'])->save();
                 continue;
             }
 
