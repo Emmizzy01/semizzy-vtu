@@ -101,16 +101,16 @@ class VtuProviderWebhookTest extends TestCase
             'received_at' => now(),
         ]);
 
-        $first = app(\\App\\Services\\Vtu\\VtuProviderWebhookService::class)->process();
+        $first = app(\App\Services\Vtu\VtuProviderWebhookService::class)->process();
         $this->assertSame(1, $first['unmatched']);
         $this->assertNull($event->fresh()->processed_at);
         $this->assertStringContainsString('Waiting for the purchase response', $event->fresh()->processing_error);
 
-        $immediate = app(\\App\\Services\\Vtu\\VtuProviderWebhookService::class)->process();
+        $immediate = app(\App\Services\Vtu\VtuProviderWebhookService::class)->process();
         $this->assertSame(0, $immediate['checked']);
 
         $this->travel(6)->minutes();
-        $retried = app(\\App\\Services\\Vtu\\VtuProviderWebhookService::class)->process();
+        $retried = app(\App\Services\Vtu\VtuProviderWebhookService::class)->process();
 
         $this->assertSame(1, $retried['unmatched']);
         $this->assertNull($event->fresh()->processed_at);
