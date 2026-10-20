@@ -31,9 +31,9 @@ class VtuBulkPurchaseBatchTest extends TestCase
         $userPrevious->errorInfo = ['23000', 19, 'UNIQUE constraint failed'];
         $databasePrevious = new \PDOException('SQLSTATE[HY000]: General error: 1 no such table: vtu_bulk_purchase_batches');
         $databasePrevious->errorInfo = ['HY000', 1, 'no such table'];
-        $mysqlPrevious = new \\PDOException("SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry '1-bulk-key' for key 'vtu_bulk_purchase_batches_user_id_batch_key_unique'");
+        $mysqlPrevious = new \PDOException("SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry '1-bulk-key' for key 'vtu_bulk_purchase_batches_user_id_batch_key_unique'");
         $mysqlPrevious->errorInfo = ['23000', 1062, 'Duplicate entry for key'];
-        $postgresPrevious = new \\PDOException('SQLSTATE[23505]: Unique violation: duplicate key value violates unique constraint "vtu_bulk_purchase_batches_user_id_batch_key_unique" DETAIL: Key (user_id, batch_key)=(1, bulk-key) already exists.');
+        $postgresPrevious = new \PDOException('SQLSTATE[23505]: Unique violation: duplicate key value violates unique constraint "vtu_bulk_purchase_batches_user_id_batch_key_unique" DETAIL: Key (user_id, batch_key)=(1, bulk-key) already exists.');
         $postgresPrevious->errorInfo = ['23505', 7, 'duplicate key value violates unique constraint'];
 
 
