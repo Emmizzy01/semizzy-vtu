@@ -366,8 +366,10 @@ class PaystackClient
     /** @return array<string, mixed> */
     public function assignDedicatedVirtualAccount(string $customerCode, string $preferredBank): array
     {
-        if ($customerCode === '' || !in_array($preferredBank, ['wema-bank', 'titan-paystack'], true)) {
-            throw new \\InvalidArgumentException('A verified customer and supported preferred bank are required.');
+        $mode = $this->mode();
+        $allowedBanks = $mode === 'test' ? ['test-bank'] : ['wema-bank', 'titan-paystack'];
+        if ($customerCode === '' || !in_array($preferredBank, $allowedBanks, true)) {
+            throw new \\InvalidArgumentException('A verified customer and bank supported by the selected Paystack mode are required.');
         }
 
         try {
