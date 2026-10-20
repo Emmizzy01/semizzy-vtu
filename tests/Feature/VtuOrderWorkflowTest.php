@@ -1240,6 +1240,42 @@ class VtuOrderWorkflowTest extends TestCase
         Http::assertSentCount(2);
     }
 
+    public function test_reconciliation_with_a_different_provider_reference_stays_unresolved(): void
+    {
+        Http::fake(function ($request) {
+            if ($request->method() === 'POST') {
+                return Http::response([
+                    'status' => 'pending',
+                    'provider_reference' => 'expected-provider-reference',
+                ], 200);
+            }
+
+            return Http::response([
+                'status' => 'success',
+                'provider_reference' => 'different-provider-transaction',
+            ], 200);
+        });
+
+        [$user, $wallet, $product] = $this->preparedCustomer(1000, 1500);
+        $service = app(VtuOrderService::class);
+        $order = $service->purchase(
+            $user,
+            $product->code,
+            '08012345678',
+            'mismatched-provider-reference-reconciliation',
+        );
+
+        $reconciled = $service->reconcile($order->fresh());
+
+        $this->assertSame('awaiting_reconciliation', $reconciled->status);
+        $this->assertSame('provider_reference_mismatch', $reconciled->failure_code);
+        $this->assertSame('expected-provider-reference', $reconciled->provider_reference);
+        $this->assertSame(500, (int) $wallet->fresh()->available_balance_minor);
+        $this->assertDatabaseCount('wallet_transactions', 2, 'A mismatched lookup must neither refund nor post another debit.');
+        $this->assertSame(1, \\App\\Models\\VtuProviderAttempt::query()->where('vtu_order_id', $order->getKey())->count());
+        Http::assertSentCount(2);
+    }
+
     public function test_unrecognized_provider_status_stays_unresolved_without_refund(): void
     {
         $requests = 0;
