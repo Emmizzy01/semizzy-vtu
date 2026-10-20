@@ -20,7 +20,7 @@ class AuthController extends Controller
 {
     public function loginForm(): Response
     {
-        return Inertia::render('Auth/Login');
+        return Inertia::render('Auth/Login', ['passkeysEnabled' => (bool) config('passkeys.enabled', false)]);
     }
 
     public function login(Request $request, LoginChallengeService $challenges): RedirectResponse
