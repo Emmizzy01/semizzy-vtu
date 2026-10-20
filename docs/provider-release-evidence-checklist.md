@@ -39,6 +39,22 @@ Repository schedule definitions include:
 
 **Runtime status: NOT INDEPENDENTLY VERIFIED.** The operator previously confirmed that cPanel scheduler setup is complete. That confirms setup only, not successful execution. Before sign-off, collect timestamped cPanel Cron Job execution/output or application logs showing successful runs for the scheduler, queue drain, provider webhook processor, VTU reconciler, Paystack reconciler and refund reconciler. Redact secrets, API keys, customer identifiers and payment data. Do not trigger purchases or change production records to create evidence.
 
+## Follow-up evidence check — 20 October 2026
+
+### CI status for checklist commit
+
+Checked commit `145042b4d640df4dc046c4d81cb701b247b25523` using the repository's commit-status and associated-workflow-run lookups. The status endpoint returned no status entries, and the workflow-run lookup returned no runs for that commit. **CI is therefore not verified for this exact commit**; this is not evidence of a failing test, but it is also not a green result. The earlier green run on `cf5eea5` predates the subsequent documentation commits. Re-run or locate the current main-branch workflow and confirm the exact tested SHA before release sign-off.
+
+### Additional official contract findings
+
+- **Dataway:** published docs define unique client `reference`, `202 pending` and explicitly say not to retry a pending purchase; they describe `transaction.pending`, `transaction.successful`, and `transaction.failed` webhooks and HMAC-SHA256 signature verification. The public docs reviewed do not establish a transaction-status lookup endpoint for arbitrary prior references. Treat a timed-out or pending transaction as unresolved; ask Dataway support to confirm a lookup/recovery endpoint and contract before implementing safe retry/reconciliation.
+- **GSUBZ:** current official docs explicitly document `POST https://api.gsubz.com/api/verify/`, using the original `requestID` or returned `transactionID`. The response `status` must be checked even when HTTP is 200. This establishes the public lookup contract, but does not verify Semizzy's live account, current adapter mapping, or recovery tests against the actual live API.
+- **Sogo:** current official docs explicitly document lookup by original idempotency key using `GET /v1/transactions/{idempotency-key}?type=bill_payment`; 404 indicates no transaction was created and same-key retry is safe, while 200 requires checking transaction status. This establishes the public contract, but not Semizzy's account scopes or live endpoint access.
+
+### Evidence collection status
+
+No cPanel logs or provider account credentials/catalogue snapshots were available through the connected repository tools during this action. No credentials were requested in chat, no provider APIs were called with production credentials, no purchases were run, and no production data was changed. Runtime scheduler/queue execution and account-specific evidence remain **operator evidence required**.
+
 ## Evidence required before enabling a provider
 
 - [ ] Confirm the exact production base URL from the provider's current official documentation.
