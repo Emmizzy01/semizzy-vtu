@@ -528,4 +528,78 @@ class ProviderCatalogueImportTest extends TestCase
         $this->assertSame(0, VtuProduct::query()->count());
     }
 
+
+    public function test_dataway_malformed_catalogue_missing_data_field_aborts_without_mutating_existing_product(): void
+    {
+        config([
+            'services.vtu.dataway.base_url' => 'https://dataway.ng/api/v1/merchant',
+            'services.vtu.dataway.api_key' => 'test-key',
+        ]);
+
+        $product = VtuProduct::query()->create([
+            'service_type' => 'data',
+            'provider_key' => 'dataway',
+            'provider_product_code' => 'mtn-plan-42',
+            'provider_cost_minor' => 27000,
+            'network' => 'mtn',
+            'code' => 'dataway-data-mtn-plan-42',
+            'name' => 'Reviewed MTN plan',
+            'price_minor' => 32000,
+            'currency' => 'NGN',
+            'is_active' => false,
+            'metadata' => ['purchase_approved' => false, 'provider_mappings' => ['dataway' => ['product_id' => '42']]],
+        ]);
+
+        Http::fake(['dataway.ng/*' => Http::response(['message' => 'success but data omitted'])]);
+
+        try {
+            app(ProviderCatalogueImportService::class)->import('dataway', 'data');
+            $this->fail('A missing data field must not be treated as a valid empty catalogue.');
+        } catch (\\RuntimeException $exception) {
+            $this->assertStringContainsString('invalid biller catalogue', strtolower($exception->getMessage()));
+        }
+
+        $product->refresh();
+        $this->assertSame(1, VtuProduct::query()->count());
+        $this->assertSame(27000, $product->provider_cost_minor);
+        $this->assertSame(32000, $product->price_minor);
+        $this->assertFalse($product->is_active);
+        $this->assertFalse($product->metadata['purchase_approved']);
+    }
+
+    public function test_dataway_explicit_empty_catalogue_does_not_delete_or_activate_existing_products(): void
+    {
+        config([
+            'services.vtu.dataway.base_url' => 'https://dataway.ng/api/v1/merchant',
+            'services.vtu.dataway.api_key' => 'test-key',
+        ]);
+
+        $product = VtuProduct::query()->create([
+            'service_type' => 'data',
+            'provider_key' => 'dataway',
+            'provider_product_code' => 'mtn-plan-42',
+            'provider_cost_minor' => 27000,
+            'network' => 'mtn',
+            'code' => 'dataway-data-mtn-plan-42',
+            'name' => 'Reviewed MTN plan',
+            'price_minor' => 32000,
+            'currency' => 'NGN',
+            'is_active' => true,
+            'metadata' => ['purchase_approved' => true, 'provider_mappings' => ['dataway' => ['product_id' => '42']]],
+        ]);
+
+        Http::fake(['dataway.ng/*' => Http::response(['data' => []])]);
+
+        $result = app(ProviderCatalogueImportService::class)->import('dataway', 'data');
+        $product->refresh();
+
+        $this->assertSame(0, $result['created']);
+        $this->assertSame(0, $result['updated']);
+        $this->assertSame(1, VtuProduct::query()->count());
+        $this->assertSame(27000, $product->provider_cost_minor);
+        $this->assertSame(32000, $product->price_minor);
+        $this->assertTrue($product->is_active);
+        $this->assertTrue($product->metadata['purchase_approved']);
+    }
+
 }

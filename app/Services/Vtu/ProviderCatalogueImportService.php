@@ -241,8 +241,13 @@ class ProviderCatalogueImportService
         $http = Http::baseUrl($base)->withToken($key)->acceptJson()->connectTimeout(5)->timeout(30);
         $response = $http->get('billers/', ['category' => $category]);
         if (! $response->successful()) throw new RuntimeException('Dataway biller catalogue request failed.');
-        $billers = data_get($response->json(), 'data', []);
-        if (! is_array($billers)) throw new RuntimeException('Dataway returned an invalid biller catalogue.');
+        $catalogue = $response->json();
+        if (! is_array($catalogue) || ! array_key_exists('data', $catalogue) || ! is_array($catalogue['data'])) {
+            throw new RuntimeException('Dataway returned an invalid biller catalogue.');
+        }
+        // An explicit empty list is a valid empty snapshot; a missing or malformed
+        // data field is not. Neither case deletes existing products or changes their flags.
+        $billers = $catalogue['data'];
 
         $items = [];
         foreach ($billers as $biller) {
