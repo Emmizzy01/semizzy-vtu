@@ -90,7 +90,7 @@ class GovernanceController extends Controller
                 'setting_key' => 'privacy.request.'.$item->id,
                 'old_value_hash' => hash('sha256', $old),
                 'new_value_hash' => hash('sha256', $item->status),
-                'reason' => 'Privacy request workflow: '.trim($data['review_note']),
+                'reason' => substr('Privacy request workflow: '.trim($data['review_note']), 0, 500),
             ]);
         });
 
@@ -184,7 +184,7 @@ class GovernanceController extends Controller
                 'setting_key' => 'security.incident.'.$item->reference,
                 'old_value_hash' => hash('sha256', $old),
                 'new_value_hash' => hash('sha256', $item->status),
-                'reason' => trim($data['resolution_notes']),
+                'reason' => substr(trim($data['resolution_notes']), 0, 500),
             ]);
         });
 
