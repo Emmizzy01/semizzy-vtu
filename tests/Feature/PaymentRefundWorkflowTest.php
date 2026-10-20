@@ -385,7 +385,7 @@ class PaymentRefundWorkflowTest extends TestCase
         );
 
         $this->actingAs($approver)->postJson('/admin/payment-refunds/'.$request->json('data.id').'/approve')
-            ->assertOk()
+            ->assertStatus(409)
             ->assertJsonPath('data.status', 'review_required');
 
         Http::assertNothingSent();
