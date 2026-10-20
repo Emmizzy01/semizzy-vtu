@@ -142,7 +142,7 @@ class ScheduledPurchaseRunnerTest extends TestCase
         $this->mock(VtuOrderService::class)
             ->shouldReceive('purchase')
             ->once()
-            ->andThrow(new \\RuntimeException('Simulated transport interruption after dispatch began.'));
+            ->andThrow(new \RuntimeException('Simulated transport interruption after dispatch began.'));
 
         $this->artisan('vtu:run-scheduled-purchases --limit=100')->assertExitCode(0);
 
