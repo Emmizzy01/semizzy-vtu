@@ -113,6 +113,7 @@ class PaymentFundingController extends Controller
         PaymentProviderExceptionService $providerExceptions,
         PaymentRefundService $refunds,
         BankPayoutReconciliationService $bankPayouts,
+        VirtualAccountDepositService $virtualDeposits,
     ): JsonResponse {
         abort_unless(in_array($provider, ['paystack', 'semizzy'], true), 404);
 
@@ -166,6 +167,44 @@ class PaymentFundingController extends Controller
             $reference = $webhookData['reference'] ?? null;
             if (! is_string($reference) || $reference === '') {
                 throw new UnprocessableEntityHttpException('Paystack event has no payment reference.');
+            }
+
+            // Dedicated-account transfers do not have a checkout PaymentIntent.
+            // Verify the provider transaction and receiver account before considering a ledger credit.
+            if (($webhookData['authorization']['channel'] ?? null) === 'dedicated_nuban') {
+                try {
+                    $gatewayMode = $paystack->mode();
+                    $verifiedDva = $paystack->verifyTransaction($reference, $gatewayMode);
+                } catch (LogicException $exception) {
+                    report($exception);
+                    return response()->json(['message' => 'Virtual-account deposit could not be verified.'], 503);
+                }
+
+                if (($verifiedDva['status'] ?? null) !== 'success'
+                    || ($verifiedDva['reference'] ?? null) !== $reference
+                    || ! is_numeric($verifiedDva['id'] ?? null)
+                    || (string) ($webhookData['id'] ?? '') !== (string) $verifiedDva['id']
+                    || ! is_int($verifiedDva['amount'] ?? null)
+                    || (int) ($webhookData['amount'] ?? -1) !== $verifiedDva['amount']
+                    || ($webhookData['currency'] ?? null) !== ($verifiedDva['currency'] ?? null)
+                    || ($verifiedDva['authorization']['channel'] ?? null) !== 'dedicated_nuban'
+                    || ($webhookData['authorization']['receiver_bank_account_number'] ?? null)
+                        !== ($verifiedDva['authorization']['receiver_bank_account_number'] ?? null)) {
+                    throw new ConflictHttpException('Paystack virtual-account webhook does not match the verified transaction.');
+                }
+
+                try {
+                    $result = $virtualDeposits->processVerifiedPaystackDeposit($verifiedDva, $payload, $gatewayMode);
+                } catch (LogicException $exception) {
+                    report($exception);
+                    return response()->json(['message' => 'Virtual-account settlement is locked pending release approval or reconciliation.'], 503);
+                }
+
+                return response()->json([
+                    'received' => true,
+                    'outcome' => $result['outcome'],
+                    'duplicate' => $result['duplicate'],
+                ]);
             }
 
             $intent = PaymentIntent::query()->where('reference', $reference)->first();
