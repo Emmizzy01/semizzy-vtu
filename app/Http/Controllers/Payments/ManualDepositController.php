@@ -81,14 +81,22 @@ class ManualDepositController extends Controller
             return back()->withErrors(['evidence' => 'Proof could not be stored securely. Please try again.']);
         }
 
-        $deposit = $submissions->submit(
-            $user,
-            $wallet,
-            (int) $validated['amount_minor'],
-            trim($validated['transfer_reference']),
-            $path,
-            $evidenceHash,
-        );
+        try {
+            $deposit = $submissions->submit(
+                $user,
+                $wallet,
+                (int) $validated['amount_minor'],
+                trim($validated['transfer_reference']),
+                $path,
+                $evidenceHash,
+            );
+        } catch (\\Throwable $exception) {
+            // The file is stored before the database transaction. Remove it if
+            // submission fails so retries do not leave unreferenced receipts behind.
+            Storage::disk('local')->delete($path);
+            throw $exception;
+        }
+
         $duplicateEvidence = (bool) $deposit->duplicate_evidence;
         return redirect()->route('wallet.manual-deposits.index')->with('status', $duplicateEvidence ? 'Deposit submitted but flagged because this receipt matches earlier evidence. Wallet credit is blocked pending investigation.' : 'Deposit submitted for verification. Your wallet has not been credited yet.');
     }
