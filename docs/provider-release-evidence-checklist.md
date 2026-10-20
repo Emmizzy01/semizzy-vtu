@@ -69,6 +69,33 @@ No cPanel logs or provider account credentials/catalogue snapshots were availabl
 - [ ] Confirm relevant CI is green on the exact candidate commit.
 - [ ] Obtain explicit release approval before changing any provider purchase gate.
 
+## Operator evidence capture pack
+
+Use this section to collect the missing evidence without exposing credentials or creating transactions.
+
+### cPanel scheduler and queue runtime evidence
+
+Capture the server's local timezone and current timestamp, then export a short window covering at least one scheduled run and one queue-worker cycle. Include:
+- cron entry/schedule names and last/next run timestamps (redact account paths if they expose private information);
+- Laravel scheduler output or cron mail showing command start, exit code and duration;
+- queue worker process/supervisor status, worker start time, processed-job counts, retries and failed-job summaries;
+- application log lines for scheduled reconciliation/monitoring commands, with timestamps and correlation/order IDs;
+- failed-job counts and relevant error messages, with secrets, authorization headers, phone numbers, emails, account numbers, customer payloads and full provider responses removed.
+
+Do not run queue retries, reconciliation commands, purchases, or migrations on production merely to generate evidence. Export existing logs first. If the host does not retain scheduler output, record that as a logging gap and arrange safe output capture for a future scheduled cycle.
+
+### Provider account and catalogue evidence
+
+For each provider, provide a dated/redacted screenshot or export showing live account approval, permitted API products/scopes, production endpoint/environment, and IP allowlist status. Never include API keys or tokens. Attach a read-only catalogue snapshot with provider product code/slug, service type, validity, cost/price, currency/unit, recipient fields, and whether the product is enabled. Keep the provider's raw internal IDs in the restricted operator evidence, not in customer-facing output.
+
+### Recovery verification evidence
+
+Use the provider's documented verification/status endpoint only for a known, non-financial test reference approved by the provider or for an existing transaction that is safe and authorized to inspect. Do not create a real purchase to test recovery. Capture request timestamp, HTTP status, sanitized response status, reference correlation, and the provider documentation/version used. Explicitly test or obtain provider-confirmed semantics for success, pending, definitive failure, not found, timeout, and webhook-before-response. Pending/ambiguous states must not trigger blind resubmission.
+
+### CI sign-off evidence
+
+Open the repository's Actions page and confirm the Laravel/frontend checks and asset-build workflows ran against the exact current `main` SHA. Record workflow run IDs, tested SHA, conclusion, test count, and artifact result. A missing status entry or a run on an older SHA is **not** a green sign-off.
+
 ## Official documentation reviewed
 
 - Sogo API reference: https://developer.sogo.africa/reference
