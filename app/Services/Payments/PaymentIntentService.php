@@ -37,8 +37,6 @@ class PaymentIntentService
                 $existing = PaymentIntent::query()
                     ->where('wallet_id', $wallet->id)
                     ->where('provider', $provider)
-                    ->where('status', 'pending')
-                    ->where('expires_at', '>', now())
                     ->where('metadata->client_idempotency_key_hash', $keyHash)
                     ->lockForUpdate()
                     ->first();
@@ -48,6 +46,9 @@ class PaymentIntentService
                     }
                     if (($existing->metadata['gateway_mode'] ?? null) !== $gatewayMode) {
                         throw new InvalidArgumentException('This funding retry key is already bound to a different gateway mode.');
+                    }
+                    if ($existing->status !== 'pending' || ($existing->expires_at && $existing->expires_at->isPast())) {
+                        throw new InvalidArgumentException('This funding retry key belongs to an expired or completed attempt. Start a new attempt before retrying.');
                     }
                     return $existing;
                 }
