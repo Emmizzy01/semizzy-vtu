@@ -1,10 +1,20 @@
 import { Head, Link, useForm } from '@inertiajs/react';
 import { useState } from 'react';
 import type { FormEvent } from 'react';
-import { Eye, EyeOff, LoaderCircle } from 'lucide-react';
+import { Eye, EyeOff, LoaderCircle, Fingerprint } from 'lucide-react';
+import { Passkeys } from '@laravel/passkeys';
 
-export default function Login() {
+export default function Login({ passkeysEnabled = false }: { passkeysEnabled?: boolean }) {
   const [showPassword, setShowPassword] = useState(false);
+  const [passkeyBusy, setPasskeyBusy] = useState(false);
+  const [passkeyError, setPasskeyError] = useState('');
+
+  async function signInWithPasskey() {
+    setPasskeyBusy(true); setPasskeyError('');
+    try { await Passkeys.verify(); }
+    catch { setPasskeyError('Passkey sign-in failed or was cancelled. You can sign in with your password instead.'); }
+    finally { setPasskeyBusy(false); }
+  }
   const form = useForm({ identifier: '', password: '', remember: false });
 
   function submit(event: FormEvent<HTMLFormElement>) {
@@ -48,6 +58,7 @@ export default function Login() {
               {form.processing && <LoaderCircle size={18} className="animate-spin" aria-hidden="true" />} Sign in
             </button>
           </form>
+          {passkeysEnabled && <div className="mt-4 space-y-2"><div className="flex items-center gap-3"><span className="h-px flex-1 bg-[var(--line)]"/><span className="text-xs text-[var(--muted)]">or</span><span className="h-px flex-1 bg-[var(--line)]"/></div><button type="button" onClick={signInWithPasskey} disabled={passkeyBusy} className="flex w-full items-center justify-center gap-2 rounded-xl border border-[var(--line)] px-4 py-3 font-semibold disabled:opacity-60"><Fingerprint size={18}/>{passkeyBusy ? 'Waiting for your device…' : 'Sign in with a passkey'}</button>{passkeyError && <p role="alert" className="text-xs text-rose-500">{passkeyError}</p>}</div>}
           <p className="mt-4 text-center text-sm"><Link href="/forgot-password" className="font-semibold text-[var(--brand)]">Forgot your password?</Link></p>
           <p className="mt-6 text-center text-sm text-[var(--muted)]">New to Semizzy? <Link href="/register" className="font-bold text-[var(--brand)]">Create an account</Link></p>
         </section>
