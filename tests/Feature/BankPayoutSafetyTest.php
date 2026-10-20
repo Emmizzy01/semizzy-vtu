@@ -155,4 +155,33 @@ class BankPayoutSafetyTest extends TestCase
         $this->assertDatabaseHas('bank_beneficiaries', ['id' => $beneficiary->id]);
     }
 
+
+    public function test_payout_history_is_scoped_to_the_authenticated_user(): void
+    {
+        $owner = User::query()->create(['name' => 'Payout Owner', 'email' => 'payout-owner-scope@example.test', 'password' => 'not-a-real-password']);
+        $other = User::query()->create(['name' => 'Other Payout User', 'email' => 'payout-other-scope@example.test', 'password' => 'not-a-real-password']);
+        $makePayout = function (User $user, string $suffix): void {
+            $beneficiary = \\App\\Models\\BankBeneficiary::query()->create([
+                'user_id' => $user->id, 'bank_code' => '999', 'bank_name' => 'Scope Test Bank',
+                'account_number' => '0123456789', 'account_number_last4' => '6789',
+                'account_name' => $user->name, 'provider_recipient_code' => 'RCP_scope_'.$suffix,
+                'verification_status' => 'verified', 'verified_at' => now(),
+            ]);
+            \\App\\Models\\BankPayout::query()->create([
+                'public_id' => (string) \\Illuminate\\Support\\Str::uuid(), 'user_id' => $user->id,
+                'bank_beneficiary_id' => $beneficiary->id, 'currency' => 'NGN', 'amount_minor' => 10000,
+                'fee_minor' => 0, 'status' => 'provider_pending', 'idempotency_key' => 'payout-scope-'.$suffix,
+                'request_hash' => hash('sha256', $suffix), 'provider_reference' => 'semizzy_scope_'.$suffix,
+                'wallet_transaction_id' => null, 'metadata' => ['provider' => 'test'],
+            ]);
+        };
+        $makePayout($owner, 'owner');
+        $makePayout($other, 'other');
+
+        $this->actingAs($owner)->getJson('/wallet/bank-transfer/history')
+            ->assertOk()->assertJsonPath('meta.total', 1)->assertJsonPath('data.0.amount_minor', 10000);
+        $this->actingAs($other)->getJson('/wallet/bank-transfer/history')
+            ->assertOk()->assertJsonPath('meta.total', 1);
+        $this->assertDatabaseCount('bank_payouts', 2);
+    }
 }
