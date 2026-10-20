@@ -46,7 +46,7 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
-        Passkeys::authorizeLoginUsing(function (Request $request, PasskeyUser $passkeyUser): bool {
+        Passkeys::authorizeLoginUsing(function (Request $request, PasskeyUser $passkeyUser, \Laravel\Passkeys\Passkey $passkey): bool {
             if (! $passkeyUser instanceof User || $passkeyUser->account_status !== 'active') {
                 throw ValidationException::withMessages(['credential' => 'Passkey sign-in could not be completed.']);
             }
