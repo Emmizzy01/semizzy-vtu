@@ -9,6 +9,7 @@ SEMIZZY uses Laravel's laravel/passkeys server package and the matching @laravel
 - PASSKEYS_USER_HANDLE_SECRET should be a stable secret. If omitted, the Laravel application key is used; rotating it can make existing credentials unusable.
 - Registration/deletion routes require a password confirmation timestamp no older than five minutes. The confirmation endpoint verifies the current password server-side.
 - Login authorization rejects inactive accounts and refuses passkey login while separately configured email/SMS/WhatsApp OTP or TOTP is required, so passkeys do not silently bypass existing step-up verification.
+- Registration, successful verification and deletion events write safe event type/outcome/passkey ID entries to the existing transaction security audit table; credential payloads and secrets are not logged.
 - Browser passkeys use device/platform authenticators when available. User verification is required by the server library's registration options; biometric prompts depend on the user's device and OS and are not guaranteed on every authenticator.
 - Passkeys are unavailable until Composer/npm dependencies are installed, the migration is applied, production HTTPS/RP/origin values are configured, and real-browser registration/login tests pass.
 
