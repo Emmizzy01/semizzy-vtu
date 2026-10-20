@@ -41,7 +41,11 @@ class PaymentReconciliationService
                     PaymentIntent::query()->whereKey($intent->id)->update(['updated_at' => now()]);
 
                     try {
-                        $transaction = $this->paystack->verifyTransaction($intent->reference);
+                        $intentMode = $intent->metadata['gateway_mode'] ?? null;
+                        if (! in_array($intentMode, ['test', 'live'], true)) {
+                            throw new \\LogicException('Funding intent has no valid recorded gateway mode.');
+                        }
+                        $transaction = $this->paystack->verifyTransaction($intent->reference, $intentMode);
                     } catch (Throwable $exception) {
                         $stats['unavailable']++;
                         // Preserve a deduplicated operational record so a provider outage,
