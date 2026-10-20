@@ -44,6 +44,13 @@ class PaymentReconciliationService
                         $transaction = $this->paystack->verifyTransaction($intent->reference);
                     } catch (Throwable $exception) {
                         $stats['unavailable']++;
+                        // Preserve a deduplicated operational record so a provider outage,
+                        // mode/key mismatch, or verification error is visible for recovery.
+                        // This is evidence of an unresolved check, never evidence of payment.
+                        $this->recordCase($intent, 'verification_unavailable', [], [
+                            'reason' => 'Paystack verification did not return trusted transaction data.',
+                            'exception' => $exception::class,
+                        ]);
                         Log::warning('Paystack reconciliation verification unavailable.', [
                             'reference' => $intent->reference,
                             'exception' => $exception::class,
