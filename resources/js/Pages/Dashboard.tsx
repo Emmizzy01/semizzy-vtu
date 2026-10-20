@@ -11,7 +11,7 @@ function money(minor: number, currency = 'NGN') {
   return new Intl.NumberFormat('en-NG', { style: 'currency', currency, maximumFractionDigits: 2 }).format(minor / 100);
 }
 
-export default function CustomerDashboard({ wallet, transactions, orders = [], transactionPagination, orderPagination, isAdminPreview = false }: {
+export default function CustomerDashboard({ wallet, transactions, orders = [], transactionPagination, orderPagination, isAdminPreview = false, customer }: {
   wallet: Wallet; transactions: Transaction[]; orders?: ServiceOrder[]; transactionPagination?: Pagination; orderPagination?: Pagination; isAdminPreview?: boolean; customer?: { name?: string; type?: string; tier?: string | null; level?: string; avatarUrl?: string | null; kycStatus?: string };
 }) {
   const [balanceVisible, setBalanceVisible] = useState(true);
@@ -20,6 +20,12 @@ export default function CustomerDashboard({ wallet, transactions, orders = [], t
       {isAdminPreview && <aside className="mb-5 flex flex-col gap-3 rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-sm font-extrabold">Staff preview mode</p><p className="mt-1 text-xs leading-5 text-[var(--muted)]">This is your own account’s customer view, not a customer impersonation session.</p></div><a href="/admin/dashboard" className="inline-flex min-h-10 items-center justify-center rounded-xl bg-[var(--brand)] px-4 py-2 text-sm font-bold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)] focus-visible:ring-offset-2">Back to Command Center</a></aside>}
       <section className="mx-auto flex w-full max-w-[1400px] flex-col gap-0 pb-3">
 
+        {customer && <section aria-label="Account classification" className="mb-5 grid grid-cols-2 gap-3 rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4 sm:grid-cols-4">
+          <div className="min-w-0"><p className="text-[10px] font-semibold uppercase tracking-wide text-[var(--muted)]">Account</p><p className="mt-1 truncate text-sm font-extrabold">{customer.name || "Semizzy user"}</p></div>
+          <div className="min-w-0"><p className="text-[10px] font-semibold uppercase tracking-wide text-[var(--muted)]">User type</p><p className="mt-1 break-words text-sm font-bold">{(customer.type || "customer").replaceAll("_", " ")}</p></div>
+          <div className="min-w-0"><p className="text-[10px] font-semibold uppercase tracking-wide text-[var(--muted)]">User level</p><p className="mt-1 break-words text-sm font-bold">{(customer.level || "level_1").replaceAll("_", " ")}</p></div>
+          <div className="min-w-0"><p className="text-[10px] font-semibold uppercase tracking-wide text-[var(--muted)]">KYC status</p><p className="mt-1 break-words text-sm font-bold">{(customer.kycStatus || "unverified").replaceAll("_", " ")}</p></div>
+        </section>}
         <article id="wallet" className="relative w-full scroll-mt-6 overflow-hidden rounded-[20px] bg-gradient-to-br from-[#0e7a44] to-[#0a5c32] p-5 text-white shadow">
           <p className="text-[13px] text-white/80">Wallet Balance</p>
           <div className="mt-1 flex items-center gap-2"><h1 className="text-[32px] font-bold">{wallet ? (balanceVisible ? money(wallet.available_balance_minor, wallet.currency) : '••••••') : '—'}</h1><button type="button" onClick={() => setBalanceVisible(v => !v)} aria-label={balanceVisible ? 'Hide balance' : 'Show balance'} className="rounded-full p-1 opacity-70 transition hover:bg-white/10 hover:opacity-100">{balanceVisible ? <EyeOff size={18}/> : <Eye size={18}/>}</button></div>
