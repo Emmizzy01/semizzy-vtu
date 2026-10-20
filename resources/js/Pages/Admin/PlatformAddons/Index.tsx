@@ -1,5 +1,5 @@
 import { Head, useForm } from '@inertiajs/react';
-import { FormEvent } from 'react';
+import type { FormEvent } from 'react';
 import DashboardLayout from '../../../Components/DashboardLayout';
 
 type Addon = {
