@@ -6,6 +6,8 @@ use App\Models\PaymentIntent;
 use App\Models\User;
 use App\Models\Wallet;
 use App\Services\Payments\PaymentIntentService;
+use App\Services\Payments\PaymentFundingService;
+use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use InvalidArgumentException;
 use Tests\TestCase;
@@ -70,4 +72,44 @@ class PaymentIntentIdempotencyTest extends TestCase
         $this->expectException(InvalidArgumentException::class);
         $service->create($wallet->fresh(), 25000, 'paystack', 'live', 'funding-request-789');
     }
+
+    public function test_verified_webhook_retry_is_idempotent_and_rejects_amount_mismatch_after_settlement(): void
+    {
+        $user = User::factory()->create();
+        $wallet = Wallet::query()->create([
+            'user_id' => $user->id,
+            'currency' => 'NGN',
+            'status' => 'active',
+            'balance_minor' => 0,
+            'available_balance_minor' => 0,
+        ]);
+        $intent = app(PaymentIntentService::class)->create($wallet, 25000, 'paystack', 'test', 'webhook-test-key');
+        $funding = app(PaymentFundingService::class);
+        $payload = [
+            'id' => 'paystack-charge-success-9001',
+            'type' => 'payment.succeeded',
+            'data' => [
+                'reference' => $intent->reference,
+                'transaction_id' => '9001',
+                'status' => 'succeeded',
+                'amount_minor' => 25000,
+                'currency' => 'NGN',
+            ],
+        ];
+
+        $first = $funding->processVerifiedEvent('paystack', $payload);
+        $retry = $funding->processVerifiedEvent('paystack', $payload);
+
+        $this->assertSame('test_succeeded', $first['outcome']);
+        $this->assertTrue($retry['duplicate']);
+        $this->assertSame('test_paid', $intent->fresh()->status);
+
+        $mismatched = $payload;
+        $mismatched['id'] = 'paystack-charge-success-9002';
+        $mismatched['data']['amount_minor'] = 50000;
+
+        $this->expectException(ConflictHttpException::class);
+        $funding->processVerifiedEvent('paystack', $mismatched);
+    }
+
 }
