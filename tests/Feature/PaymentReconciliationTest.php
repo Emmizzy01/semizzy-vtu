@@ -18,6 +18,12 @@ class PaymentReconciliationTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        config(['services.semizzy_payments.live_funding_enabled' => true]);
+    }
+
+    protected function setUp(): void
+    {
+        parent::setUp();
         config([
             'services.paystack.secret_key' => 'sk_test_reconciliation_secret',
             'services.payments.reconciliation_grace_minutes' => 5,
@@ -32,7 +38,7 @@ class PaymentReconciliationTest extends TestCase
             'password' => 'not-a-real-password',
         ]);
         $wallet = app(WalletAccountService::class)->openForUser($user);
-        $intent = app(PaymentIntentService::class)->create($wallet, $amount, 'paystack');
+        $intent = app(PaymentIntentService::class)->create($wallet, $amount, 'paystack', 'live');
         $intent->forceFill(['created_at' => now()->subMinutes(10), 'expires_at' => now()->addMinutes(20)])->save();
         return [$wallet, $intent];
     }
