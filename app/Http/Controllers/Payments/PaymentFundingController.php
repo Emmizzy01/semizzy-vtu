@@ -199,7 +199,13 @@ class PaymentFundingController extends Controller
                 ],
             ];
 
-            $result = $funding->processVerifiedEvent('paystack', $normalized);
+            try {
+                $result = $funding->processVerifiedEvent('paystack', $normalized);
+            } catch (LogicException $exception) {
+                report($exception);
+
+                return response()->json(['message' => 'Wallet funding settlement is temporarily locked pending payment safety checks.'], 503);
+            }
         } else {
             try {
                 $verifier->verify($request, $provider);
@@ -251,17 +257,23 @@ class PaymentFundingController extends Controller
 
         // A successful server-side verification can settle the intent safely.
         // The same transaction ID is idempotent if the signed webhook arrives later.
-        $funding->processVerifiedEvent('paystack', [
-            'id' => 'paystack-return-'.(string) $verified['id'],
-            'type' => 'payment.succeeded',
-            'data' => [
-                'reference' => $intent->reference,
-                'transaction_id' => (string) $verified['id'],
-                'status' => 'succeeded',
-                'amount_minor' => (int) $verified['amount'],
-                'currency' => (string) $verified['currency'],
-            ],
-        ]);
+        try {
+            $funding->processVerifiedEvent('paystack', [
+                'id' => 'paystack-return-'.(string) $verified['id'],
+                'type' => 'payment.succeeded',
+                'data' => [
+                    'reference' => $intent->reference,
+                    'transaction_id' => (string) $verified['id'],
+                    'status' => 'succeeded',
+                    'amount_minor' => (int) $verified['amount'],
+                    'currency' => (string) $verified['currency'],
+                ],
+            ]);
+        } catch (LogicException $exception) {
+            report($exception);
+
+            return redirect()->route('dashboard', ['funding' => 'pending']);
+        }
 
         $finalStatus = $intent->fresh()->status;
 
