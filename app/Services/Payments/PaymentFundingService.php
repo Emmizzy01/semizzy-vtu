@@ -115,8 +115,11 @@ class PaymentFundingService
                 }
                 // Live settlements remain fail-closed until the payment release gate is explicitly opened.
                 // Throwing rolls back the webhook event too, allowing safe reconciliation/retry later.
-                if (($intent->metadata['gateway_mode'] ?? null) === 'live'
+                $intentGatewayMode = $intent->metadata['gateway_mode'] ?? null;
+                if ($provider === 'paystack' && $intentGatewayMode !== 'test'
                     && ! config('services.semizzy_payments.live_funding_enabled', false)) {
+                    // Legacy intents with no recorded mode are fail-closed too; missing metadata
+                    // must never bypass the live-settlement release gate.
                     throw new LogicException('Live wallet funding settlement is disabled until payment safety checks pass.');
                 }
 
