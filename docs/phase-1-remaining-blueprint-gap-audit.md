@@ -74,3 +74,16 @@ Source inspection of VtuOrderController confirms:
 - Bulk retry with the same key and same request returns the existing batch; reuse with different request details returns conflict. A separate recovery/status endpoint exists, but ownership and status behavior still require execution tests.
 
 Still unverified: test that repeated bulk requests and concurrent duplicate keys never create duplicate batch records, duplicate wallet debits, or duplicate provider submissions; partial failures remain item-scoped and recoverable; a batch status/recovery request cannot read another user's batch; inactive products and altered prices cannot bypass server-side checks; and the worker never retries an unknown provider outcome blindly. The runtime test suite was not executable through the current environment, so none of these are marked passed.
+
+### Regression coverage added — account isolation
+
+- Added a peer-transfer history feature test proving unrelated users see no transfer rows while sender and recipient can each see the same transfer with their own direction. This complements existing service tests for same-key duplicate transfers, changed-payload key conflicts, and insufficient-funds rollback.
+- Added a bank-payout history feature test proving each authenticated user sees only their own payout history rows. Existing payout safety tests also cover default-disabled payouts, wrong-PIN rejection before payout creation, beneficiary encryption, and retaining beneficiaries referenced by payout history.
+- Existing bulk batch feature tests already cover same-key/same-payload idempotent retries without a second queue dispatch, conflicting payload rejection, same batch key across different users, owner-only recovery/status access, and worker handling of unknown provider outcomes without resubmission.
+
+### Verification status for this sweep
+
+- New/extended tests committed to main: yes.
+- Laravel feature tests executed after these changes: no. Current GitHub integration reports no status checks or usable workflow runs for the commits, and the execution environment cannot fetch the repository checkout. These are added regression assertions, not verified passing results.
+- Still outstanding: payout-service duplicate-request/provider-submit-once test with a mocked provider; actual concurrent database tests for wallet transfers, payouts and batch-key creation; direct payout-record authorization/ownership test if a detail endpoint is introduced; full suite and frontend build.
+- No real provider requests or production financial transactions were sent. Keep live payouts and purchases gated until the relevant tests run successfully in the project test environment.
