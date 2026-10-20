@@ -76,6 +76,57 @@ class VtpassCatalogueFailureSafetyTest extends TestCase
         $this->assertDatabaseMissing('platform_setting_audits', ['setting_key' => 'vtu_catalogue.synced.vtpass']);
     }
 
+    public function test_vtpass_repeated_catalogue_sync_is_idempotent_and_keeps_products_inactive(): void
+    {
+        config([
+            'services.vtu.vtpass.base_url' => 'https://sandbox.vtpass.com/api',
+            'services.vtu.vtpass.api_key' => 'test-key',
+            'services.vtu.vtpass.secret_key' => 'test-secret',
+            'services.vtu.airtime_denominations' => [100],
+        ]);
+
+        Http::fake(function ($request) {
+            $path = parse_url($request->url(), PHP_URL_PATH);
+            if ($path === '/api/service-categories') {
+                return Http::response(['content' => [
+                    ['identifier' => 'airtime', 'name' => 'Airtime'],
+                    ['identifier' => 'data', 'name' => 'Data'],
+                ]]);
+            }
+            if ($path === '/api/services') {
+                parse_str((string) parse_url($request->url(), PHP_URL_QUERY), $query);
+                return Http::response(['content' => ($query['identifier'] ?? '') === 'airtime'
+                    ? [['serviceID' => 'mtn', 'name' => 'MTN Airtime']]
+                    : [['serviceID' => 'mtn-data', 'name' => 'MTN Data']]]);
+            }
+            if ($path === '/api/service-variations') {
+                return Http::response(['content' => ['variations' => [[
+                    'variation_code' => 'mtn-1gb-30days',
+                    'name' => 'MTN 1GB 30 days',
+                    'variation_amount' => 300,
+                ]]]]);
+            }
+            return Http::response(['message' => 'unexpected request'], 404);
+        });
+
+        $catalogue = app(\\App\\Services\\Vtu\\VtpassCatalogService::class);
+        $first = $catalogue->fetchProducts();
+        $firstResult = $catalogue->applyProducts($first);
+        $second = $catalogue->fetchProducts();
+        $secondResult = $catalogue->applyProducts($second);
+
+        $this->assertSame(2, $firstResult['created']);
+        $this->assertSame(0, $firstResult['updated']);
+        $this->assertSame(0, $secondResult['created']);
+        $this->assertSame(2, $secondResult['updated']);
+        $this->assertSame(2, VtuProduct::query()->count());
+        $this->assertSame(1, VtuProduct::query()->where('service_type', 'data')->count());
+        $this->assertSame(1, VtuProduct::query()->where('service_type', 'airtime')->count());
+        $this->assertSame(30000, VtuProduct::query()->where('service_type', 'data')->value('price_minor'));
+        $this->assertDatabaseHas('vtu_products', ['is_active' => 0]);
+        $this->assertFalse((bool) VtuProduct::query()->where('service_type', 'data')->firstOrFail()->metadata['purchase_approved']);
+    }
+
     public function test_catalogue_import_includes_electricity_services_and_tv_bouquet_variations_inactive(): void
     {
         config([
