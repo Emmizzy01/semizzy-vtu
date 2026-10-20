@@ -518,6 +518,23 @@ class VtuOrderService
             return $order->fresh();
         }
 
+        // A lookup must not settle or resubmit an order using a different
+        // provider transaction reference. Preserve the recorded reference and
+        // leave the debit unresolved for review; a contradictory provider result
+        // is not evidence that this order succeeded or definitively failed.
+        $recordedReference = $order->provider_reference;
+        $lookupReference = $result['provider_reference'] ?? null;
+        if (is_string($recordedReference) && $recordedReference !== ''
+            && is_string($lookupReference) && $lookupReference !== ''
+            && ! hash_equals($recordedReference, $lookupReference)) {
+            return $this->markAwaitingReconciliation(
+                $order,
+                'provider_reference_mismatch',
+                ['status' => 'unknown', 'message_code' => 'provider_reference_mismatch'],
+                $attempt,
+            );
+        }
+
         // A provider may authorize same-key resubmission only with an explicit,
         // contract-tested signal that this transaction was never created.
         if (($result['safe_to_submit_same_key'] ?? false) === true
