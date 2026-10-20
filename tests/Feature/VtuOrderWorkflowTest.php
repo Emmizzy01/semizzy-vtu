@@ -1271,7 +1271,7 @@ class VtuOrderWorkflowTest extends TestCase
         $this->assertSame('provider_reference_mismatch', $reconciled->failure_code);
         $this->assertSame('expected-provider-reference', $reconciled->provider_reference);
         $this->assertSame(500, (int) $wallet->fresh()->available_balance_minor);
-        $this->assertDatabaseCount('wallet_transactions', 2, 'A mismatched lookup must neither refund nor post another debit.');
+        $this->assertDatabaseCount('wallet_transactions', 2);
         $this->assertSame(1, \\App\\Models\\VtuProviderAttempt::query()->where('vtu_order_id', $order->getKey())->count());
         Http::assertSentCount(2);
     }
