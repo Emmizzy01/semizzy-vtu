@@ -61,6 +61,7 @@ export default function DashboardLayout({ title, description, admin = false, chi
     { label: 'Education', href: '/services/education', icon: GraduationCap },
     { label: 'Refer & Earn', href: '/account/referrals', icon: Users },
     { label: 'Two-factor security', href: '/security/two-factor', icon: ShieldCheck },
+    { label: 'Passkeys & biometrics', href: '/security/passkeys', icon: ShieldCheck },
     { label: 'Privacy & data requests', href: '/privacy/requests', icon: ShieldCheck },
     { label: 'Transactions', href: (customerPreview ? '/customer/dashboard' : '/dashboard') + '#activity', icon: Activity, match: '#activity' },
   ];
