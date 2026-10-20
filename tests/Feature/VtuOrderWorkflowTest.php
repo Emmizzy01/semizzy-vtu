@@ -2127,7 +2127,7 @@ class VtuOrderWorkflowTest extends TestCase
             '08012345678',
             'recover-existing-order-key',
         );
-        $order->forceFill(['provider_reference' => 'internal-provider-reference-must-not-leak'])->save();
+        \\Illuminate\\Support\\Facades\\DB::table('vtu_orders')->where('id', $order->getKey())->update(['provider_reference' => 'internal-provider-reference-must-not-leak']);
 
         $recovery = $this->actingAs($user)->getJson('/wallet/vtu/orders/recover?idempotency_key=recover-existing-order-key')
             ->assertOk()
