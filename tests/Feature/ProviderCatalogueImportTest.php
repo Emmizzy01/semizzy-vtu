@@ -298,6 +298,83 @@ class ProviderCatalogueImportTest extends TestCase
     }
 
 
+    public function test_sogo_repeated_catalogue_import_is_idempotent_and_refreshes_only_provider_facts(): void
+    {
+        config([
+            'services.vtu.sogo.base_url' => 'https://sandbox.sogo.africa/v1',
+            'services.vtu.sogo.api_key' => 'sogo_sk_test_catalogue',
+        ]);
+        Http::fake([
+            'sandbox.sogo.africa/v1/bills/catalog*' => Http::response([
+                'data' => ['data' => ['providers' => [['slug' => 'mtn', 'name' => 'MTN']]]],
+            ]),
+            'sandbox.sogo.africa/v1/bills/data-plans*' => Http::response([
+                'data' => ['plans' => [[
+                    'variation_code' => 'mtn-sme-1gb', 'name' => 'MTN SME 1GB',
+                    'amount' => 285, 'type' => 'SME', 'validity' => '30 days',
+                ]]],
+            ]),
+        ]);
+
+        $service = app(ProviderCatalogueImportService::class);
+        $first = $service->import('sogo', 'data');
+        $product = VtuProduct::query()->where('provider_key', 'sogo')->firstOrFail();
+        $product->forceFill([
+            'price_minor' => 35000,
+            'is_active' => false,
+            'metadata' => array_merge($product->metadata ?? [], ['purchase_approved' => false]),
+        ])->save();
+
+        $second = $service->import('sogo', 'data');
+        $product->refresh();
+
+        $this->assertSame(1, $first['created']);
+        $this->assertSame(0, $second['created']);
+        $this->assertSame(1, $second['updated']);
+        $this->assertSame(1, VtuProduct::query()->where('provider_key', 'sogo')->count());
+        $this->assertSame(35000, $product->price_minor, 'Re-import must not overwrite the admin selling price.');
+        $this->assertFalse($product->is_active, 'Re-import must not enable customer sales.');
+        $this->assertFalse($product->metadata['purchase_approved']);
+        $this->assertSame(28500, $product->provider_cost_minor);
+        $this->assertSame('30 days', $product->validity);
+    }
+
+    public function test_gsubz_repeated_catalogue_import_is_idempotent_and_keeps_products_inactive(): void
+    {
+        config([
+            'services.vtu.gsubz.base_url' => 'https://api.gsubz.com',
+            'services.vtu.gsubz.api_key' => 'ap_catalogue_test_key',
+        ]);
+        Http::fake([
+            'api.gsubz.com/api/category/*' => Http::response([
+                'data' => [['id' => 'mtn_sme', 'name' => 'MTN SME Data']],
+            ]),
+            'api.gsubz.com/api/plans/*' => Http::response([
+                'data' => [[
+                    'value' => 'mtn-sme-1gb-30d',
+                    'name' => 'MTN SME 1GB 30 days',
+                    'api_price' => 250,
+                    'validity' => '30 days',
+                ]],
+            ]),
+        ]);
+
+        $service = app(ProviderCatalogueImportService::class);
+        $first = $service->import('gsubz', 'data');
+        $second = $service->import('gsubz', 'data');
+
+        $this->assertSame(1, $first['created']);
+        $this->assertSame(0, $second['created']);
+        $this->assertSame(1, $second['updated']);
+        $this->assertSame(1, VtuProduct::query()->where('provider_key', 'gsubz')->count());
+        $product = VtuProduct::query()->where('provider_key', 'gsubz')->firstOrFail();
+        $this->assertSame('mtn_sme-mtn-sme-1gb-30d', $product->provider_product_code);
+        $this->assertSame(25000, $product->provider_cost_minor);
+        $this->assertSame('30 days', $product->validity);
+        $this->assertFalse($product->is_active);
+        $this->assertFalse($product->metadata['purchase_approved']);
+    }
+
     public function test_airtime_catalogue_import_is_network_based_and_amount_entered_at_checkout(): void
     {
         config([
