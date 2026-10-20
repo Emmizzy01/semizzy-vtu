@@ -237,17 +237,25 @@ class PaymentFundingController extends Controller
             return redirect()->route('dashboard', ['funding' => 'unverified']);
         }
 
+        $intent = PaymentIntent::query()->where('reference', $reference)->first();
+        if ($intent === null || $intent->provider !== 'paystack') {
+            return redirect()->route('dashboard', ['funding' => 'pending']);
+        }
+
+        $intentMode = $intent->metadata['gateway_mode'] ?? null;
+        if (! in_array($intentMode, ['test', 'live'], true)) {
+            return redirect()->route('dashboard', ['funding' => 'pending']);
+        }
+
         try {
-            $verified = $paystack->verifyTransaction($reference);
+            $verified = $paystack->verifyTransaction($reference, $intentMode);
         } catch (LogicException $exception) {
             report($exception);
 
             return redirect()->route('dashboard', ['funding' => 'pending']);
         }
 
-        $intent = PaymentIntent::query()->where('reference', $reference)->first();
-        if ($intent === null || $intent->provider !== 'paystack'
-            || ($verified['status'] ?? null) !== 'success'
+        if (($verified['status'] ?? null) !== 'success'
             || ($verified['reference'] ?? null) !== $intent->reference
             || ! is_numeric($verified['id'] ?? null)
             || (int) ($verified['amount'] ?? -1) !== $intent->amount_minor
