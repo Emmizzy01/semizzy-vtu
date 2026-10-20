@@ -131,4 +131,34 @@ class LoginChallengeTest extends TestCase
         $this->assertGuest();
         $this->assertDatabaseCount('login_challenges', 0);
     }
+
+    public function test_account_suspended_after_password_step_cannot_finish_email_otp_login(): void
+    {
+        $user = User::query()->create([
+            'name' => 'Suspended During OTP Customer',
+            'email' => 'suspended-during-otp@example.test',
+            'password' => 'CorrectPassword1234',
+        ]);
+
+        $this->post('/login', [
+            'identifier' => $user->email,
+            'password' => 'CorrectPassword1234',
+        ])->assertRedirect('/login/verify');
+
+        $code = null;
+        Mail::assertSent(LoginOtpMail::class, function (LoginOtpMail $mail) use (&$code): bool {
+            $code = $mail->code;
+            return true;
+        });
+        $this->assertIsString($code);
+
+        $user->forceFill(['account_status' => 'suspended'])->save();
+
+        $this->post('/login/verify', ['code' => $code])
+            ->assertRedirect('/login')
+            ->assertSessionHasErrors('identifier');
+
+        $this->assertGuest();
+    }
+
 }
