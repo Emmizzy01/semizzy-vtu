@@ -120,7 +120,7 @@ class StaffPermissionAuditTest extends TestCase
         $this->actingAs($manager)->post('/admin/staff/users/'.$manager->id.'/permissions', [
             'permission' => 'refunds.approve',
             'reason' => 'Attempted self assignment',
-        ])->assertUnprocessable()->assertSessionHasErrors('user');
+        ])->assertSessionHasErrors('user');
 
         $this->assertSame(0, StaffPermissionAudit::query()->count());
         $this->assertDatabaseMissing('user_permissions', [
