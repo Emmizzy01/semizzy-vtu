@@ -65,10 +65,28 @@ class VtuOrderController extends Controller
                 if ($legacyAirtimeDenomination) {
                     return false;
                 }
-                $hasProviderService = is_string($metadata['provider_service_id'] ?? null)
-                    && $metadata['provider_service_id'] !== '';
-                $hasDataVariation = is_string($metadata['provider_variation_code'] ?? null)
-                    && $metadata['provider_variation_code'] !== '';
+                // Multi-provider imports store their identifiers under the provider-specific
+                // mapping rather than copying internal routing IDs into the public metadata.
+                // Recognise those verified mapping shapes here so imported offers are visible
+                // as separate customer options, while purchase() still enforces active/approval gates.
+                $provider = $product->provider_key;
+                $providerMapping = is_string($provider)
+                    ? data_get($metadata, 'provider_mappings.'.$provider, [])
+                    : [];
+                $hasProviderService = (is_string($metadata['provider_service_id'] ?? null)
+                        && trim($metadata['provider_service_id']) !== '')
+                    || (is_array($providerMapping) && collect([
+                        $providerMapping['network'] ?? null,
+                        $providerMapping['service_id'] ?? null,
+                        $providerMapping['product_id'] ?? null,
+                    ])->contains(fn ($value): bool => is_string($value) && trim($value) !== '');
+                $hasDataVariation = (is_string($metadata['provider_variation_code'] ?? null)
+                        && trim($metadata['provider_variation_code']) !== '')
+                    || (is_array($providerMapping) && collect([
+                        $providerMapping['variation_code'] ?? null,
+                        $providerMapping['plan_code'] ?? null,
+                        $providerMapping['product_id'] ?? null,
+                    ])->contains(fn ($value): bool => is_string($value) && trim($value) !== '');
 
                 return in_array($product->service_type, ['airtime', 'data'], true)
                     && $hasProviderService
