@@ -20,7 +20,7 @@ use Inertia\Response as InertiaResponse;
 
 class DashboardController extends Controller
 {
-    public function customer(Request $request): InertiaResponse|RedirectResponse
+    public function customer(Request $request, IntegrationSettings $settings): InertiaResponse|RedirectResponse
     {
         $user = $request->user();
         abort_unless($user, 401);
@@ -29,16 +29,16 @@ class DashboardController extends Controller
             return redirect()->route('admin.dashboard');
         }
 
-        return $this->renderCustomerDashboard($request);
+        return $this->renderCustomerDashboard($request, $settings);
     }
 
-    public function customerPreview(Request $request): InertiaResponse
+    public function customerPreview(Request $request, IntegrationSettings $settings): InertiaResponse
     {
         abort_unless($request->user(), 401);
 
         // Allows staff to inspect the customer interface for their own account.
         // This does not grant access to another customer's data.
-        return $this->renderCustomerDashboard($request);
+        return $this->renderCustomerDashboard($request, $settings);
     }
 
     public function admin(Request $request, IntegrationSettings $settings): InertiaResponse
@@ -187,7 +187,7 @@ class DashboardController extends Controller
         ]);
     }
 
-    private function renderCustomerDashboard(Request $request): InertiaResponse
+    private function renderCustomerDashboard(Request $request, IntegrationSettings $settings): InertiaResponse
     {
         $user = $request->user();
         abort_unless($user, 401);
@@ -265,6 +265,15 @@ class DashboardController extends Controller
             ->paginate(10, ['public_id', 'service_type', 'network', 'recipient', 'amount_minor', 'currency', 'status', 'created_at'], 'orders_page', $orderPage);
 
         return Inertia::render('Dashboard', [
+            'promotions' => [
+                'cashbackLineOne' => (string) $settings->get('homepage.cashback_line_one', 'Enjoy 10% cashback'),
+                'cashbackLineTwo' => (string) $settings->get('homepage.cashback_line_two', 'on data purchases'),
+                'cashbackSubtitle' => (string) $settings->get('homepage.cashback_subtitle', 'Limited time offer'),
+                'gadgetSaleTitle' => (string) $settings->get('homepage.gadget_sale_title', '🔥 Big Gadget Sale! Up to 50% OFF'),
+                'gadgetSaleSubtitle' => (string) $settings->get('homepage.gadget_sale_subtitle', 'iPhones, Samsung, Laptops'),
+                'referralTitle' => (string) $settings->get('homepage.referral_title', '💰 Refer & Earn ₦500 per friend!'),
+                'referralSubtitle' => (string) $settings->get('homepage.referral_subtitle', 'Invite friends to Semizzy'),
+            ],
             'customer' => [
                 'name' => (string) $user->name,
                 'type' => $user->user_type ?? 'customer',
