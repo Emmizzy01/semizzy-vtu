@@ -76,7 +76,7 @@ class DashboardRoutingTest extends TestCase
     {
         $customer = $this->account('customer@example.test');
         $customer->forceFill(['user_type' => 'reseller', 'user_level' => 'level_3'])->save();
-        $settings = app(\\App\\Services\\IntegrationSettings::class);
+        $settings = app(\App\Services\IntegrationSettings::class);
         $settings->set('homepage.cashback_line_one', 'Test cashback headline', null);
         $settings->set('homepage.cashback_line_two', 'for verified customers', null);
         $settings->set('homepage.cashback_subtitle', 'Admin-controlled subtitle', null);
