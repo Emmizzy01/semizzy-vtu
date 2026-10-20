@@ -17,7 +17,42 @@ type Provider = {
   purchaseHold: boolean;
 };
 
-const categories = [{ value: 'data', label: 'Data plans' }, { value: 'airtime', label: 'Airtime denominations' }];
+const categoriesByProvider: Record<string, { value: string; label: string }[]> = {
+  sogo: [
+    { value: 'all', label: 'All supported catalogues' },
+    { value: 'data', label: 'Data plans' },
+    { value: 'airtime', label: 'Airtime networks' },
+    { value: 'electricity', label: 'Electricity (catalogue only)' },
+    { value: 'cable_tv', label: 'Cable TV (catalogue only)' },
+    { value: 'education', label: 'Education (catalogue only)' },
+    { value: 'betting', label: 'Betting (catalogue only)' },
+    { value: 'epin', label: 'E-pins (catalogue only)' },
+    { value: 'esim', label: 'eSIM (catalogue only)' },
+  ],
+  gsubz: [
+    { value: 'all', label: 'All supported catalogues' },
+    { value: 'data', label: 'Data plans' },
+    { value: 'airtime', label: 'Airtime networks' },
+    { value: 'electricity', label: 'Electricity (catalogue only)' },
+    { value: 'cable_tv', label: 'Cable TV (catalogue only)' },
+    { value: 'education', label: 'Education (catalogue only)' },
+    { value: 'social-media', label: 'Social media (catalogue only)' },
+    { value: 'recharge-pin', label: 'Recharge pins (catalogue only)' },
+  ],
+  dataway: [
+    { value: 'all', label: 'All supported catalogues' },
+    { value: 'data', label: 'Data plans' },
+    { value: 'airtime', label: 'Airtime networks' },
+    { value: 'electricity', label: 'Electricity (catalogue only)' },
+    { value: 'cable', label: 'Cable TV (catalogue only)' },
+    { value: 'betting', label: 'Betting (catalogue only)' },
+    { value: 'education', label: 'Education (catalogue only)' },
+    { value: 'exam', label: 'Exams (catalogue only)' },
+    { value: 'internet', label: 'Internet (catalogue only)' },
+    { value: 'rechargepin', label: 'Recharge pins (catalogue only)' },
+    { value: 'airtime_cash', label: 'Airtime cash (catalogue only)' },
+  ],
+};
 
 export default function ApiProviders({ providers, failoverEnabled, routingEnabled, priority }: {
   providers: Provider[];
@@ -124,7 +159,7 @@ export default function ApiProviders({ providers, failoverEnabled, routingEnable
                   <div className="flex items-center gap-2 text-sm font-bold"><Download size={17} /> Import services / products</div>
                   <label className="block text-xs font-semibold text-[var(--muted)]">Category
                     <select value={category[provider.key] || 'data'} onChange={e => setCategory(old => ({ ...old, [provider.key]: e.target.value }))} className="mt-1 w-full rounded-xl border border-[var(--line)] bg-transparent px-3 py-2.5 text-sm text-[var(--foreground)]">
-                      {categories.map(item => <option key={item.value} value={item.value}>{item.label}</option>)}
+                      {(categoriesByProvider[provider.key] || categoriesByProvider.sogo).map(item => <option key={item.value} value={item.value}>{item.label}</option>)}
                     </select>
                   </label>
                   <label className="block text-xs font-semibold text-[var(--muted)]">Audit reason
