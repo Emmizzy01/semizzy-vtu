@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\IntegrationSetting;
 use App\Models\PaymentReconciliationCase;
 use App\Models\User;
 use App\Services\Payments\PaymentIntentService;
@@ -20,9 +21,11 @@ class PaymentReconciliationTest extends TestCase
         parent::setUp();
         config([
             'services.semizzy_payments.live_funding_enabled' => true,
-            'services.paystack.secret_key' => 'sk_test_reconciliation_secret',
+            'services.paystack.secret_key' => 'sk_live_reconciliation_secret',
             'services.payments.reconciliation_grace_minutes' => 5,
         ]);
+        IntegrationSetting::query()->create(['key' => 'paystack.mode', 'value' => 'live']);
+        IntegrationSetting::query()->create(['key' => 'paystack.secret_key', 'value' => 'sk_live_reconciliation_secret']);
     }
 
     private function pendingIntent(int $amount = 25000)
@@ -33,7 +36,7 @@ class PaymentReconciliationTest extends TestCase
             'password' => 'not-a-real-password',
         ]);
         $wallet = app(WalletAccountService::class)->openForUser($user);
-        $intent = app(PaymentIntentService::class)->create($wallet, $amount, 'paystack', 'test');
+        $intent = app(PaymentIntentService::class)->create($wallet, $amount, 'paystack', 'live');
         $intent->forceFill(['created_at' => now()->subMinutes(10), 'expires_at' => now()->addMinutes(20)])->save();
         return [$wallet, $intent];
     }
