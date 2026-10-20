@@ -17,15 +17,10 @@ class PaystackFundingWorkflowTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        // These mocked settlement tests explicitly exercise live-mode crediting.
-        config(['services.semizzy_payments.live_funding_enabled' => true]);
-    }
-
-    protected function setUp(): void
-    {
-        parent::setUp();
 
         config([
+            // Explicitly opt test fixtures into the live settlement branch; no real provider is called.
+            'services.semizzy_payments.live_funding_enabled' => true,
             'services.paystack.secret_key' => 'sk_test_semizzy_test_secret',
             'services.paystack.callback_url' => 'https://semizzy.test/wallet/funding/return',
         ]);
