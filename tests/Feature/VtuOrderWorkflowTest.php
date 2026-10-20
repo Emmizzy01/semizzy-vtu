@@ -2127,6 +2127,7 @@ class VtuOrderWorkflowTest extends TestCase
             '08012345678',
             'recover-existing-order-key',
         );
+        $order->forceFill(['provider_reference' => 'internal-provider-reference-must-not-leak'])->save();
 
         $recovery = $this->actingAs($user)->getJson('/wallet/vtu/orders/recover?idempotency_key=recover-existing-order-key')
             ->assertOk()
@@ -2139,12 +2140,16 @@ class VtuOrderWorkflowTest extends TestCase
         $this->assertArrayNotHasKey('provider', $recovery->json('data'));
         $this->assertArrayNotHasKey('provider_key', $recovery->json('data'));
         $this->assertArrayNotHasKey('provider_product_code', $recovery->json('data'));
+        $this->assertArrayNotHasKey('provider_reference', $recovery->json('data'));
+        $this->assertStringNotContainsString('internal-provider-reference-must-not-leak', $recovery->getContent());
 
         $this->actingAs($user)->getJson('/wallet/vtu/orders/'.$order->public_id)
             ->assertOk()
             ->assertJsonPath('data.product_code', $publicProductCode)
             ->assertJsonMissingPath('data.provider')
-            ->assertJsonMissingPath('data.provider_key');
+            ->assertJsonMissingPath('data.provider_key')
+            ->assertJsonMissingPath('data.provider_reference')
+            ->assertDontSee('internal-provider-reference-must-not-leak');
 
         $this->actingAs($user)->getJson('/wallet/vtu/orders/recover?idempotency_key=not-created-yet')
             ->assertNotFound()
