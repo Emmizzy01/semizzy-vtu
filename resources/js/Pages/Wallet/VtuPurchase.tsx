@@ -580,6 +580,7 @@ export default function VtuPurchase({ serviceType }: { serviceType: ServiceType 
                 </div>
 
                 {beneficiaries.length > 0 && (
+                  <>
                   <label className="block text-sm font-semibold">Saved beneficiaries
                     <select value={selectedBeneficiaryId} onChange={(event) => {
                       const saved = beneficiaries.find((item) => String(item.id) === event.target.value);
@@ -621,6 +622,7 @@ export default function VtuPurchase({ serviceType }: { serviceType: ServiceType 
                       Remove selected beneficiary
                     </button>
                   )}
+                  </>
                 )}
 
                 <label className="block text-sm font-semibold">
