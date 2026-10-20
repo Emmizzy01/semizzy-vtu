@@ -87,3 +87,13 @@ Still unverified: test that repeated bulk requests and concurrent duplicate keys
 - Laravel feature tests executed after these changes: no. Current GitHub integration reports no status checks or usable workflow runs for the commits, and the execution environment cannot fetch the repository checkout. These are added regression assertions, not verified passing results.
 - Still outstanding: payout-service duplicate-request/provider-submit-once test with a mocked provider; actual concurrent database tests for wallet transfers, payouts and batch-key creation; direct payout-record authorization/ownership test if a detail endpoint is introduced; full suite and frontend build.
 - No real provider requests or production financial transactions were sent. Keep live payouts and purchases gated until the relevant tests run successfully in the project test environment.
+
+
+### Payout idempotency regression coverage — 2026-10-20
+
+- Added `test_repeated_payout_request_debits_once_and_submits_to_provider_once` to `tests/Feature/BankPayoutSafetyTest.php` using a mocked Paystack client. It expects two identical calls to return the same payout, retain one payout record, debit the wallet only once, and call the provider transfer method exactly once.
+- Added `test_payout_idempotency_key_cannot_be_reused_for_different_amount` to prove a reused key with a changed amount raises `IdempotencyConflict` and does not permit another provider submission.
+- Corrected escaped fully-qualified class names in the payout-history ownership test in the same file.
+- Commit: `360f14393f80daab83a324c0882f9ede8375540f` on `main`. The GitHub status endpoint currently reports no status checks for this commit; this is not a test pass.
+- **Concurrency coverage remains open.** These are deterministic sequential idempotency regressions, not simultaneous multi-connection tests. The configured PHPUnit suite uses in-memory SQLite, which cannot establish production-like row-lock behavior. Add/run a disposable MariaDB integration test with independent connections/processes before claiming concurrent duplicate payout safety.
+- **Laravel test execution remains blocked/unverified in this environment.** No test command was executed against an installed checkout, and no CI run/result is available for the latest commit. Do not advance to the next security area or enable payouts/live financial operations until targeted tests and the full suite run successfully, including MariaDB concurrency coverage.
