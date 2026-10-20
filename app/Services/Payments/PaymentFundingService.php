@@ -79,20 +79,6 @@ class PaymentFundingService
                     throw new UnprocessableEntityHttpException('Payment reference was not found for this provider.');
                 }
 
-                if (in_array($intent->status, ['paid', 'test_paid'], true)) {
-                    if ($intent->provider_transaction_id !== $providerTransactionId) {
-                        throw new ConflictHttpException('Payment intent was already settled by another provider transaction.');
-                    }
-
-                    $duplicateOutcome = $intent->status === 'test_paid' ? 'test_succeeded' : 'duplicate_payment';
-                    $event->forceFill([
-                        'outcome' => $duplicateOutcome,
-                        'payment_intent_id' => $intent->id,
-                        'processed_at' => now(),
-                    ])->save();
-
-                    return ['outcome' => $duplicateOutcome, 'duplicate' => true];
-                }
 
                 // A provider-verified Paystack success must still be reconciled after checkout expiry.
                 // The intent reference, amount, currency, and provider transaction ID are checked above/below.
@@ -110,6 +96,20 @@ class PaymentFundingService
                     throw new ConflictHttpException('Payment amount or currency does not match the intent.');
                 }
 
+                if (in_array($intent->status, ['paid', 'test_paid'], true)) {
+                    if ($intent->provider_transaction_id !== $providerTransactionId) {
+                        throw new ConflictHttpException('Payment intent was already settled by another provider transaction.');
+                    }
+
+                    $duplicateOutcome = $intent->status === 'test_paid' ? 'test_succeeded' : 'duplicate_payment';
+                    $event->forceFill([
+                        'outcome' => $duplicateOutcome,
+                        'payment_intent_id' => $intent->id,
+                        'processed_at' => now(),
+                    ])->save();
+
+                    return ['outcome' => $duplicateOutcome, 'duplicate' => true];
+                }
                 // Test-mode successes are recorded for end-to-end verification, but must never
                 // become real production wallet funds. Only explicitly selected Live intents post to the ledger.
                 if (($intent->metadata['gateway_mode'] ?? null) === 'test') {
