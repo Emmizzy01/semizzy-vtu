@@ -62,5 +62,6 @@ jobs:
           php-version: '8.4'
           extensions: mbstring, bcmath, pdo_mysql, dom, curl, fileinfo, openssl, tokenizer, xml
           coverage: none
+      - run: mkdir -p bootstrap/cache storage/framework/cache storage/framework/sessions storage/framework/views storage/logs
       - run: composer install --no-interaction --prefer-dist --no-progress
       - run: php artisan test --testsuite=Feature --filter='BankPayoutSafetyTest|PeerWalletTransferTest|VtuBulkPurchaseBatchTest|BankPayoutMariaDbConcurrencyTest'
