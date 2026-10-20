@@ -384,7 +384,10 @@ class ProviderCatalogueImportService
         $result = [];
         foreach ($value as $key => $item) {
             if (! is_array($item)) continue;
-            if (isset($item['serviceID']) || isset($item['service_id'])) {
+            // Provider catalogues may use the documented serviceID/service_id keys,
+            // or a plain id in nested category payloads. The importer already accepts all
+            // three identifiers below; flattening must not discard id-only services first.
+            if (isset($item['serviceID']) || isset($item['service_id']) || isset($item['id'])) {
                 $result[] = $item;
             } elseif (array_is_list($item)) {
                 array_push($result, ...$this->flattenServices($item));
