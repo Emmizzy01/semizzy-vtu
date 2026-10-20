@@ -35,6 +35,8 @@ This register tracks implementation against `docs/SEMIZZY-BLUEPRINT.md` and the 
 | Biometric/passkey login | Foundation implemented in code; acceptance pending | Laravel's WebAuthn/passkeys server package and browser client added; passkey credential migration, authenticated management UI, recent-password confirmation, HTTPS RP/origin configuration, and login authorization checks are included. Disabled by default; Composer/npm dependency resolution, migrations, browser ceremony, and final tests remain outstanding. Passkey login is blocked when configured OTP or TOTP is required until those step-up challenges are integrated. |
 | Owner-requested service categories beyond current catalogue (government document registration, number verification, SMM, social accounts and betting platforms) | Needs blueprint-scope audit | Add real provider-backed flows where approved; do not expose fake purchases or pretend unsupported providers are live. |
 
+| Remaining blueprint gap audit | Open; no sign-off | Current prioritized gap list and recommended implementation order: `docs/phase-1-remaining-blueprint-gap-audit.md`. |
+
 ## Virtual-account release conditions
 
 - Provider-issued account state must be persisted and recoverable after ambiguous API timeouts.
