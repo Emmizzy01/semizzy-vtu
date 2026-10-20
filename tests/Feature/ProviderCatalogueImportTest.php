@@ -430,5 +430,54 @@ class ProviderCatalogueImportTest extends TestCase
         $this->assertFalse($product->metadata['purchase_approved']);
     }
 
+    public function test_catalogue_refresh_deactivates_previously_approved_product_when_it_becomes_catalog_only(): void
+    {
+        config([
+            'services.vtu.dataway.base_url' => 'https://dataway.ng/api/v1/merchant',
+            'services.vtu.dataway.api_key' => 'test-key',
+        ]);
+
+        $product = VtuProduct::query()->create([
+            'service_type' => 'electricity-bill',
+            'provider_key' => 'dataway',
+            'provider_product_code' => 'ikeja-electric',
+            'provider_cost_minor' => 10000,
+            'network' => 'ikeja-electric',
+            'code' => 'dataway-electricity-ikeja-electric',
+            'name' => 'Previously approved electricity product',
+            'price_minor' => 15000,
+            'currency' => 'NGN',
+            'is_active' => true,
+            'metadata' => [
+                'catalog_source' => 'dataway',
+                'purchase_approved' => true,
+                'purchase_supported' => true,
+                'catalog_only' => false,
+                'provider_mappings' => ['dataway' => ['product_id' => '42']],
+            ],
+        ]);
+
+        Http::fake([
+            'dataway.ng/*' => Http::response([
+                'count' => 1,
+                'data' => [[
+                    'id' => 88,
+                    'name' => 'Ikeja Electric',
+                    'slug' => 'ikeja-electric',
+                    'category' => 'electricity',
+                ]],
+            ]),
+        ]);
+
+        $result = app(ProviderCatalogueImportService::class)->import('dataway', 'electricity');
+        $product->refresh();
+
+        $this->assertSame(0, $result['created']);
+        $this->assertSame(1, $result['updated']);
+        $this->assertFalse($product->is_active);
+        $this->assertFalse($product->metadata['purchase_approved']);
+        $this->assertFalse($product->metadata['purchase_supported']);
+        $this->assertTrue($product->metadata['catalog_only']);
+    }
 
 }
