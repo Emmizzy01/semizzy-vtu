@@ -9,6 +9,7 @@ use DomainException;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use LogicException;
 use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
 
@@ -110,6 +111,13 @@ class PaymentFundingService
 
                     return ['outcome' => $duplicateOutcome, 'duplicate' => true];
                 }
+                // Live settlements remain fail-closed until the payment release gate is explicitly opened.
+                // Throwing rolls back the webhook event too, allowing safe reconciliation/retry later.
+                if (($intent->metadata['gateway_mode'] ?? null) === 'live'
+                    && ! config('services.semizzy_payments.live_funding_enabled', false)) {
+                    throw new LogicException('Live wallet funding settlement is disabled until payment safety checks pass.');
+                }
+
                 // Test-mode successes are recorded for end-to-end verification, but must never
                 // become real production wallet funds. Only explicitly selected Live intents post to the ledger.
                 if (($intent->metadata['gateway_mode'] ?? null) === 'test') {
