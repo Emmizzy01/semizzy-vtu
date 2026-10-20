@@ -164,7 +164,7 @@ class PaymentRefundReconciliationTest extends TestCase
         ])->save();
 
         $refund = PaymentRefund::query()->create([
-            'public_id' => (string) \\Illuminate\\Support\\Str::uuid(),
+            'public_id' => (string) \Illuminate\Support\Str::uuid(),
             'payment_intent_id' => $intent->id,
             'requested_by_user_id' => $user->id,
             'idempotency_key' => 'refund-reconcile-review-required',
