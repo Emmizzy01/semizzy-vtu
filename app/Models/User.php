@@ -35,6 +35,7 @@ class User extends Authenticatable
         'transaction_pin_failed_attempts',
         'transaction_pin_locked_until',
         'transaction_pin_changed_at',
+        'two_factor_secret',
     ];
 
     protected function casts(): array
@@ -46,6 +47,7 @@ class User extends Authenticatable
             'password' => 'hashed',
             'transaction_pin_locked_until' => 'datetime',
             'transaction_pin_changed_at' => 'datetime',
+            'two_factor_enabled_at' => 'datetime',
         ];
     }
 
