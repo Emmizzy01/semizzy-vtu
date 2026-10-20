@@ -48,7 +48,9 @@ class AppServiceProvider extends ServiceProvider
         Gate::define('staff.permissions.manage', fn (User $user): bool => UserPermission::query()
             ->where('user_id', $user->id)->where('permission', 'staff.permissions.manage')->exists());
 
+        // Global dashboard/theme controls belong to staff managers only. Refund approval
+        // remains a separate, narrow capability and must not imply platform administration.
         Gate::define('admin.dashboard', fn (User $user): bool => UserPermission::query()
-            ->where('user_id', $user->id)->whereIn('permission', ['staff.permissions.manage', 'refunds.approve'])->exists());
+            ->where('user_id', $user->id)->where('permission', 'staff.permissions.manage')->exists());
     }
 }
