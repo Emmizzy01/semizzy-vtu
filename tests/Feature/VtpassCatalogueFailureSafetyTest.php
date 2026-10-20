@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use App\Models\VtuProduct;
+use App\Services\Vtu\VtpassCatalogService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
@@ -109,7 +110,7 @@ class VtpassCatalogueFailureSafetyTest extends TestCase
             return Http::response(['message' => 'unexpected request'], 404);
         });
 
-        $catalogue = app(\\App\\Services\\Vtu\\VtpassCatalogService::class);
+        $catalogue = app(VtpassCatalogService::class);
         $first = $catalogue->fetchProducts();
         $firstResult = $catalogue->applyProducts($first);
         $second = $catalogue->fetchProducts();
