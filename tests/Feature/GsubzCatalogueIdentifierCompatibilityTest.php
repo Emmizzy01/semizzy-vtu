@@ -12,6 +12,34 @@ class GsubzCatalogueIdentifierCompatibilityTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_admin_catalogue_exposes_all_provider_readiness_states(): void
+    {
+        $admin = \\App\\Models\\User::factory()->create();
+        \\App\\Models\\UserPermission::query()->create([
+            'user_id' => $admin->id,
+            'permission' => 'staff.permissions.manage',
+            'granted_by_user_id' => $admin->id,
+        ]);
+
+        config([
+            'services.vtu.sogo.base_url' => 'https://sandbox.sogo.africa/v1',
+            'services.vtu.sogo.api_key' => 'sogo_sk_test_catalogue',
+            'services.vtu.gsubz.base_url' => 'https://api.gsubz.com',
+            'services.vtu.gsubz.api_key' => 'ap_catalogue_test_key',
+            'services.vtu.dataway.base_url' => 'https://dataway.ng/api/v1/merchant',
+            'services.vtu.dataway.api_key' => 'bp_live_catalogue_test_key',
+        ]);
+
+        $this->actingAs($admin)->get('/admin/vtu-products')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('Admin/VtuProducts/Index')
+                ->where('providerReadiness.sogo.configured', true)
+                ->where('providerReadiness.gsubz.configured', true)
+                ->where('providerReadiness.dataway.configured', true)
+                ->where('providerReadiness.sogo.environment', 'Sandbox'));
+    }
+
     public function test_nested_gsubz_service_with_plain_id_is_not_dropped_before_data_plan_import(): void
     {
         config([
@@ -52,6 +80,6 @@ class GsubzCatalogueIdentifierCompatibilityTest extends TestCase
 
         Http::assertSent(fn ($request) => str_contains($request->url(), '/api/category/'));
         Http::assertSent(fn ($request) => str_contains($request->url(), '/api/plans/')
-            && $request->hasQueryParameter('service', 'mtn_sme'));
+            && str_contains($request->url(), 'service=mtn_sme'));
     }
 }
