@@ -86,7 +86,31 @@ class PaymentFundingMariaDbConcurrencyTest extends TestCase
         @unlink($state);
     }
 
-    private function preparedFundingIntent(): array
+    public function test_concurrent_paystack_webhook_and_reconciliation_events_credit_once(): void
+    {
+        config(['services.semizzy_payments.live_funding_enabled' => true]);
+        [$wallet, $intent] = $this->preparedFundingIntent('paystack', 'live');
+        $state = $this->newStateFile();
+        $transactionId = 'tx_paystack_webhook_reconcile_race';
+
+        $results = $this->runWorkers([
+            [$state, 'evt_real_webhook_race', $intent->reference, $transactionId, '25000', 'paystack'],
+            [$state, 'paystack-reconcile-success-'.$transactionId, $intent->reference, $transactionId, '25000', 'paystack'],
+        ]);
+
+        $decoded = array_map(fn (array $result): array => json_decode($result['stdout'], true, flags: JSON_THROW_ON_ERROR), $results);
+        $this->assertCount(1, array_filter($decoded, fn (array $result): bool => $result['outcome'] === 'credited' && ! $result['duplicate']));
+        $this->assertCount(1, array_filter($decoded, fn (array $result): bool => $result['outcome'] === 'duplicate_payment' && $result['duplicate']));
+        $this->assertSame(25000, (int) $wallet->fresh()->balance_minor);
+        $this->assertSame('paid', $intent->fresh()->status);
+        $this->assertSame($transactionId, $intent->fresh()->provider_transaction_id);
+        $this->assertDatabaseCount('wallet_transactions', 1);
+        $this->assertDatabaseCount('wallet_ledger_entries', 1);
+        $this->assertDatabaseCount('payment_webhook_events', 2);
+        @unlink($state);
+    }
+
+    private function preparedFundingIntent(string $provider = 'semizzy', string $gatewayMode = 'test'): array
     {
         $user = User::query()->create([
             'name' => 'Payment Webhook Concurrency Customer',
@@ -95,7 +119,7 @@ class PaymentFundingMariaDbConcurrencyTest extends TestCase
         ]);
 
         $wallet = app(WalletAccountService::class)->openForUser($user);
-        $intent = app(PaymentIntentService::class)->create($wallet, 25000, 'semizzy');
+        $intent = app(PaymentIntentService::class)->create($wallet, 25000, $provider, $gatewayMode);
 
         return [$wallet->fresh(), $intent->fresh()];
     }
