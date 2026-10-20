@@ -1328,6 +1328,94 @@ class VtuOrderWorkflowTest extends TestCase
         Http::assertNotSent(fn ($request) => str_contains($request->url(), 'api.gsubz.com'));
     }
 
+    public function test_late_definitive_failure_from_old_provider_attempt_cannot_refund_newer_attempt(): void
+    {
+        config([
+            'services.vtu.multi_provider.enabled' => true,
+            'services.vtu.multi_provider.failover_enabled' => true,
+            'services.vtu.multi_provider.priority' => ['sogo', 'gsubz'],
+            'services.vtu.multi_provider.definitive_failure_providers' => ['sogo'],
+            'services.vtu.sogo.base_url' => 'https://api.sogo.africa/v1',
+            'services.vtu.sogo.api_key' => 'sogo-test-key',
+            'services.vtu.gsubz.base_url' => 'https://api.gsubz.com',
+            'services.vtu.gsubz.api_key' => 'gsubz-test-key',
+        ]);
+
+        $orderId = null;
+        $advanced = false;
+        Http::fake(function ($request) use (&$orderId, &$advanced) {
+            $path = (string) parse_url($request->url(), PHP_URL_PATH);
+
+            if (str_contains($request->url(), 'api.sogo.africa') && str_contains($path, '/bills/airtime')) {
+                return Http::response(['data' => ['status' => 'pending', 'reference' => 'SOGO-OLD-REF']], 200);
+            }
+
+            if (str_contains($request->url(), 'api.sogo.africa') && str_contains($path, '/transactions/')) {
+                if (! $advanced && $orderId !== null) {
+                    $advanced = true;
+                    $order = \App\Models\VtuOrder::query()->findOrFail($orderId);
+                    \Illuminate\Support\Facades\DB::table('vtu_orders')->where('id', $orderId)->update([
+                        'provider' => 'gsubz',
+                        'provider_reference' => 'GSUBZ-NEW-REF',
+                        'status' => 'processing',
+                        'updated_at' => now(),
+                    ]);
+                    \App\Models\VtuProviderAttempt::query()->create([
+                        'vtu_order_id' => $orderId,
+                        'attempt_number' => 2,
+                        'provider' => 'gsubz',
+                        'provider_reference' => 'GSUBZ-NEW-REF',
+                        'outcome' => 'reserved',
+                        'request_fingerprint' => hash('sha256', implode('|', [
+                            $order->public_id,
+                            'gsubz',
+                            $order->product_code,
+                            $order->recipient,
+                            (string) $order->amount_minor,
+                        ])),
+                        'started_at' => now(),
+                    ]);
+                }
+
+                return Http::response(['data' => ['status' => 'failed', 'reference' => 'SOGO-OLD-REF', 'definitive_failure' => true, 'message_code' => 'declined']], 200);
+            }
+
+            return Http::response(['status' => 'pending'], 200);
+        });
+
+        [$user, $wallet, $product] = $this->preparedCustomer(1000, 1500);
+        $product->forceFill(['metadata' => ['provider_mappings' => [
+            'sogo' => ['network' => 'mtn'],
+            'gsubz' => ['network' => 'mtn'],
+        ]]])->save();
+
+        $service = app(VtuOrderService::class);
+        $order = $service->purchase($user, $product->code, '08012345678', 'late-old-provider-success');
+        $orderId = $order->getKey();
+
+        $reconciled = $service->reconcile($order->fresh());
+
+        $this->assertTrue($advanced, 'The test must reserve the newer attempt while the older lookup is in flight.');
+        $this->assertSame('processing', $reconciled->status);
+        $this->assertSame('gsubz', $reconciled->provider);
+        $this->assertSame('GSUBZ-NEW-REF', $reconciled->provider_reference);
+        $this->assertDatabaseHas('vtu_provider_attempts', [
+            'vtu_order_id' => $orderId,
+            'attempt_number' => 1,
+            'provider' => 'sogo',
+            'outcome' => 'failed',
+        ]);
+        $this->assertDatabaseHas('vtu_provider_attempts', [
+            'vtu_order_id' => $orderId,
+            'attempt_number' => 2,
+            'provider' => 'gsubz',
+            'outcome' => 'reserved',
+        ]);
+        $this->assertSame(2, \App\Models\WalletTransaction::query()->count());
+        $this->assertSame(500, (int) $wallet->fresh()->available_balance_minor);
+        Http::assertNotSent(fn ($request) => str_contains($request->url(), 'api.gsubz.com'));
+    }
+
     public function test_reconciliation_with_a_different_provider_reference_stays_unresolved(): void
     {
         Http::fake(function ($request) {
