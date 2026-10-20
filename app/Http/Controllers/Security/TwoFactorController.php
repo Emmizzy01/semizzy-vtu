@@ -34,7 +34,10 @@ class TwoFactorController extends Controller
 
     public function enable(Request $request, TotpTwoFactorService $totp): RedirectResponse
     {
-        $data = $request->validate(['code' => ['required', 'string', 'max:32']]);
+        $data = $request->validate(['password' => ['required', 'string'], 'code' => ['required', 'string', 'max:32']]);
+        if (!Hash::check($data['password'], $request->user()->password)) {
+            return back()->withErrors(['password' => 'Your current password is incorrect.']);
+        }
         $secret = $request->session()->get('security.totp_setup_secret');
         if (!is_string($secret) || !$totp->verifySecret($secret, $data['code'])) {
             return back()->withErrors(['code' => 'The authenticator code is invalid. Check the device time and try again.']);
