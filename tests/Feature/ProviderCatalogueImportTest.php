@@ -298,6 +298,47 @@ class ProviderCatalogueImportTest extends TestCase
     }
 
 
+    public function test_dataway_repeated_catalogue_import_is_idempotent_and_preserves_operator_price(): void
+    {
+        config([
+            'services.vtu.dataway.base_url' => 'https://dataway.ng/api/v1/merchant',
+            'services.vtu.dataway.api_key' => 'dataway_test_key',
+        ]);
+        Http::fake([
+            'dataway.ng/*' => Http::response([
+                'data' => [[
+                    'name' => 'MTN Data',
+                    'slug' => 'mtn-data',
+                    'plans' => [[
+                        'id' => 42,
+                        'name' => 'MTN SME 1GB',
+                        'effective_total' => 270,
+                        'validity_days' => 30,
+                        'benefit_type' => 'SME',
+                    ]],
+                ]],
+            ]),
+        ]);
+
+        $service = app(ProviderCatalogueImportService::class);
+        $first = $service->import('dataway', 'data');
+        $product = VtuProduct::query()->where('provider_key', 'dataway')->firstOrFail();
+        $product->forceFill(['price_minor' => 34000])->save();
+        $second = $service->import('dataway', 'data');
+        $product->refresh();
+
+        $this->assertSame(1, $first['created']);
+        $this->assertSame(0, $second['created']);
+        $this->assertSame(1, $second['updated']);
+        $this->assertSame(1, VtuProduct::query()->where('provider_key', 'dataway')->count());
+        $this->assertSame(34000, $product->price_minor);
+        $this->assertSame(27000, $product->provider_cost_minor);
+        $this->assertSame('SME', $product->data_type);
+        $this->assertSame('30', $product->validity);
+        $this->assertFalse($product->is_active);
+        $this->assertFalse($product->metadata['purchase_approved']);
+    }
+
     public function test_customer_catalogue_hides_provider_identity_and_internal_mapping_fields(): void
     {
         $user = User::factory()->create();
