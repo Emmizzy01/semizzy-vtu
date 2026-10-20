@@ -15,18 +15,20 @@ class TwoFactorController extends Controller
     public function show(Request $request, TotpTwoFactorService $totp): Response
     {
         $user = $request->user();
-        $secret = $request->session()->get('security.totp_setup_secret');
-        if (!is_string($secret) || $secret === '') {
+        $enabled = $user->two_factor_enabled_at !== null;
+        $secret = $enabled ? null : $request->session()->get('security.totp_setup_secret');
+        if (!$enabled && (!is_string($secret) || $secret === '')) {
             $secret = $totp->newSecret();
             $request->session()->put('security.totp_setup_secret', $secret);
         }
+        $recoveryCodes = $enabled ? $request->session()->pull('security.totp_recovery_codes') : null;
 
         return Inertia::render('Security/TwoFactor', [
-            'enabled' => $user->two_factor_enabled_at !== null,
+            'enabled' => $enabled,
             'enabledAt' => $user->two_factor_enabled_at?->toIso8601String(),
-            'setupSecret' => $user->two_factor_enabled_at ? null : $secret,
-            'provisioningUri' => $user->two_factor_enabled_at ? null : $totp->provisioningUri($user, $secret),
-            'recoveryCodes' => $request->session()->get('security.totp_recovery_codes'),
+            'setupSecret' => $secret,
+            'provisioningUri' => is_string($secret) ? $totp->provisioningUri($user, $secret) : null,
+            'recoveryCodes' => $recoveryCodes,
         ]);
     }
 
