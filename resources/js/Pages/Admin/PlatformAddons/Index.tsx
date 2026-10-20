@@ -20,14 +20,16 @@ export default function PlatformAddons({ coreVersion, addons }: { coreVersion: s
     form.transform(data => ({
       ...data,
       dependencies: data.dependencies.split(',').map(value => value.trim()).filter(Boolean),
-    })).post('/admin/addons', { preserveScroll: true, onSuccess: () => form.reset('addon_key', 'name', 'description', 'dependencies') });
+    }));
+    form.post('/admin/addons', { preserveScroll: true, onSuccess: () => form.reset('addon_key', 'name', 'description', 'dependencies') });
   }
 
   function changeStatus(addon: Addon, enabled: boolean) {
     const reason = window.prompt(enabled ? 'Why are you enabling this registry entry?' : 'Why are you disabling this registry entry?');
     if (!reason || reason.trim().length < 8) return;
     toggle.setData({ enabled, reason: reason.trim() });
-    toggle.transform(() => ({ enabled, reason: reason.trim() })).put(`/admin/addons/${addon.id}/status`, { preserveScroll: true });
+    toggle.transform(() => ({ enabled, reason: reason.trim() }));
+    toggle.put(`/admin/addons/${addon.id}/status`, { preserveScroll: true });
   }
 
   return <>
