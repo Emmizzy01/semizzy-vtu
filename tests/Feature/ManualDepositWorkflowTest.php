@@ -327,4 +327,38 @@ class ManualDepositWorkflowTest extends TestCase
         $this->assertDatabaseCount('wallet_ledger_entries', 4);
     }
 
+
+    public function test_duplicate_evidence_cannot_be_approved_after_admin_views_receipt(): void
+    {
+        Storage::fake('local');
+        $customer = User::query()->create(['name' => 'Duplicate Evidence Customer', 'email' => 'duplicate-evidence-customer@example.test', 'password' => 'not-a-real-password']);
+        $admin = User::query()->create(['name' => 'Duplicate Evidence Admin', 'email' => 'duplicate-evidence-admin@example.test', 'password' => 'not-a-real-password']);
+        UserPermission::query()->create(['user_id' => $admin->id, 'permission' => 'staff.permissions.manage']);
+        $wallet = app(WalletAccountService::class)->openForUser($customer);
+        $path = UploadedFile::fake()->createWithContent('duplicate.pdf', '%PDF-1.4 duplicate receipt fixture %%EOF')->store('manual-deposits', 'local');
+        $deposit = ManualDeposit::query()->create([
+            'public_id' => 'd7c6a2a0-76d3-4a2e-9a12-0f0ad0e90002',
+            'user_id' => $customer->id,
+            'wallet_id' => $wallet->id,
+            'amount_minor' => 12500,
+            'transfer_reference' => 'DUPLICATE-APPROVAL-TRANSFER-001',
+            'evidence_path' => $path,
+            'evidence_sha256' => hash_file('sha256', Storage::disk('local')->path($path)),
+            'duplicate_evidence' => true,
+            'status' => 'pending',
+            'idempotency_key' => 'manual-deposit:duplicate-approval-001',
+        ]);
+
+        $this->actingAs($admin)->get('/admin/manual-deposits/'.$deposit->public_id.'/evidence')->assertOk();
+        $this->actingAs($admin)->post('/admin/manual-deposits/'.$deposit->public_id.'/review', [
+            'decision' => 'approve',
+            'reason' => 'Receipt hash matched earlier evidence',
+        ])->assertStatus(422);
+
+        $this->assertDatabaseHas('manual_deposits', ['id' => $deposit->id, 'status' => 'pending', 'duplicate_evidence' => 1]);
+        $this->assertSame(0, (int) $wallet->fresh()->balance_minor);
+        $this->assertDatabaseCount('wallet_transactions', 0);
+        $this->assertDatabaseCount('wallet_ledger_entries', 0);
+    }
+
 }
