@@ -26,8 +26,12 @@ export default function DashboardLayout({ title, description, admin = false, chi
   const { platform, auth, branding } = usePage<{ branding?: { logo_url?: string }; platform?: { name?: string; theme_mode?: 'light' | 'dark' }; auth?: { user?: { name?: string; email?: string; tier?: string; level?: string; user_level?: string; user_type?: string; avatar_url?: string | null; avatarUrl?: string | null } | null } }>().props;
   const currentUser = auth?.user;
   const userName = currentUser?.name?.trim() || 'Semizzy user';
-  const rawUserTier = currentUser?.tier || currentUser?.user_level || currentUser?.level || currentUser?.user_type || 'Customer';
-  const userTier = ({ level_1: 'Tier1', level_2: 'Tier2', level_3: 'Tier3', level_4: 'Tier4/Merchant', tier1: 'Tier1', tier2: 'Tier2', tier3: 'Tier3', tier4: 'Tier4/Merchant' } as Record<string, string>)[rawUserTier.toLowerCase()] || rawUserTier.replace(/_/g, ' ');
+  const rawUserType = currentUser?.user_type || 'Customer';
+  const userType = rawUserType.replace(/_/g, ' ').replace(/\\b\\w/g, character => character.toUpperCase());
+  const rawUserLevel = currentUser?.tier || currentUser?.user_level || currentUser?.level || '';
+  const userLevel = rawUserLevel
+    ? (({ level_1: 'Tier 1', level_2: 'Tier 2', level_3: 'Tier 3', level_4: 'Tier 4 / Merchant', tier1: 'Tier 1', tier2: 'Tier 2', tier3: 'Tier 3', tier4: 'Tier 4 / Merchant' } as Record<string, string>)[rawUserLevel.toLowerCase()] || rawUserLevel.replace(/_/g, ' '))
+    : 'Level not set';
   const avatarUrl = currentUser?.avatar_url || currentUser?.avatarUrl || null;
   const initials = userName.split(/\s+/).slice(0, 2).map(part => part[0]).join('').toUpperCase() || 'S';
   const platformName = platform?.name || 'SEMIZZY';
@@ -129,7 +133,7 @@ export default function DashboardLayout({ title, description, admin = false, chi
           <div className="flex items-center gap-2">
             {!admin && <a href="/profile" className="flex min-w-0 items-center gap-2 rounded-full px-2 py-1 hover:bg-gray-50 dark:hover:bg-slate-800">
               <span className="grid h-8 w-8 shrink-0 place-items-center overflow-hidden rounded-full bg-emerald-100 text-xs font-bold text-emerald-800">{avatarUrl ? <img src={avatarUrl} alt="" className="h-full w-full object-cover" /> : initials}</span>
-              <span className="hidden max-w-36 sm:block"><span className="block truncate text-xs font-bold">{userName}</span><span className="block truncate text-[10px] text-[#0f8a4f]">{userTier}</span></span>
+              <span className="hidden max-w-36 sm:block"><span className="block truncate text-xs font-bold">{userName}</span><span className="block truncate text-[10px] text-[#0f8a4f]">{userType} · {userLevel}</span></span>
             </a>}
             {admin && <form action="/admin/search" method="get" className="hidden md:block"><label className="flex h-9 items-center gap-2 rounded-lg border px-3 text-xs text-gray-500"><Search size={14}/><input name="q" minLength={2} maxLength={100} required placeholder="Search admin records" className="w-36 bg-transparent outline-none lg:w-52"/><button type="submit" className="font-bold text-[#0f8a4f]">Search</button></label></form>}
             <form method="post" action="/logout"><input type="hidden" name="_token" value={typeof document === 'undefined' ? '' : (document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ?? '')}/><button type="submit" aria-label="Sign out" className="grid h-9 w-9 place-items-center rounded-full text-gray-500 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-slate-800"><LogOut size={17}/></button></form>
