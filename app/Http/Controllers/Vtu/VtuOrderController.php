@@ -86,7 +86,7 @@ class VtuOrderController extends Controller
                         $providerMapping['variation_code'] ?? null,
                         $providerMapping['plan_code'] ?? null,
                         $providerMapping['product_id'] ?? null,
-                    ])->contains(fn ($value): bool => is_string($value) && trim($value) !== '');
+                    ])->contains(fn ($value): bool => is_string($value) && trim($value) !== ''));
 
                 return in_array($product->service_type, ['airtime', 'data'], true)
                     && $hasProviderService
