@@ -43,7 +43,7 @@ export default function CustomerDashboard({ wallet, transactions, orders = [], t
         <section aria-labelledby="dashboard-promo-heading" className="relative mt-6 flex min-h-[96px] items-center justify-between gap-3 overflow-hidden rounded-[16px] bg-gradient-to-r from-[#0a5c32] to-[#12a15a] p-4 text-white shadow-sm">
           <div className="relative z-10 min-w-0">
             <h2 id="dashboard-promo-heading" className="text-sm font-extrabold leading-5">{promotions ? `${promotions.cashbackLineOne || 'Enjoy 10% cashback'} ${promotions.cashbackLineTwo || 'on data purchases'}` : 'Enjoy 10% cashback on data purchases'}</h2>
-            <p className="mt-1 text-[11px] text-white/80"{promotions?.cashbackSubtitle || 'Limited time offer'}</p>
+            <p className="mt-1 text-[11px] text-white/80">{promotions?.cashbackSubtitle || 'Limited time offer'}</p>
           </div>
           <span aria-hidden="true" className="relative z-10 grid h-16 w-16 shrink-0 place-items-center rounded-full bg-white/20 text-3xl">👩‍💼</span>
           <span aria-hidden="true" className="pointer-events-none absolute -right-6 -top-8 h-28 w-28 rounded-full bg-white/10"/>
