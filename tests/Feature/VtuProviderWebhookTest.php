@@ -84,4 +84,36 @@ class VtuProviderWebhookTest extends TestCase
 
         $this->assertSame(1, VtuProviderWebhookEvent::query()->where('provider', 'dataway')->count());
     }
+
+    public function test_unmatched_verified_webhook_retries_after_backoff_without_being_marked_processed(): void
+    {
+        $event = VtuProviderWebhookEvent::query()->create([
+            'provider' => 'sogo',
+            'event_id' => 'evt-unmatched-retry',
+            'event_type' => 'transaction.completed',
+            'provider_reference' => 'SOGO-ORDER-NOT-PERSISTED-YET',
+            'payload' => [
+                'id' => 'evt-unmatched-retry',
+                'event' => 'transaction.completed',
+                'data' => ['reference' => 'SOGO-ORDER-NOT-PERSISTED-YET', 'status' => 'completed'],
+            ],
+            'payload_sha256' => hash('sha256', 'evt-unmatched-retry'),
+            'received_at' => now(),
+        ]);
+
+        $first = app(\\App\\Services\\Vtu\\VtuProviderWebhookService::class)->process();
+        $this->assertSame(1, $first['unmatched']);
+        $this->assertNull($event->fresh()->processed_at);
+        $this->assertStringContainsString('Waiting for the purchase response', $event->fresh()->processing_error);
+
+        $immediate = app(\\App\\Services\\Vtu\\VtuProviderWebhookService::class)->process();
+        $this->assertSame(0, $immediate['checked']);
+
+        $this->travel(6)->minutes();
+        $retried = app(\\App\\Services\\Vtu\\VtuProviderWebhookService::class)->process();
+
+        $this->assertSame(1, $retried['unmatched']);
+        $this->assertNull($event->fresh()->processed_at);
+    }
+
 }
