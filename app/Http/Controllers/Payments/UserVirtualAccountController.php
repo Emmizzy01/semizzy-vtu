@@ -31,6 +31,7 @@ class UserVirtualAccountController extends Controller
     {
         $data = $request->validate([
             'preferred_bank' => ['required', 'in:wema-bank,titan-paystack'],
+            'consent' => ['required', 'accepted'],
         ]);
 
         try {
