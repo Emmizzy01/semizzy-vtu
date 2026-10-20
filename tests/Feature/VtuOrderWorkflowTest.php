@@ -37,6 +37,7 @@ class VtuOrderWorkflowTest extends TestCase
 
         config([
             'services.vtu.name' => 'test_provider',
+            'services.vtu.driver' => 'test_provider',
             // Test-only provider contract explicitly identifies definitive non-delivery.
             'services.vtu.multi_provider.definitive_failure_providers' => ['test_provider'],
             'services.vtu.endpoint' => 'https://provider.example.test/api',
@@ -3444,20 +3445,13 @@ class VtuOrderWorkflowTest extends TestCase
 
         $product = VtuProduct::query()->create([
             'service_type' => 'airtime',
-            'network' => 'mtn',
+            'network' => 'test_network',
             'code' => 'test-airtime-'.uniqid(),
             'name' => 'Test Airtime',
             'price_minor' => $productPriceMinor,
             'face_value_minor' => $productPriceMinor,
             'currency' => 'NGN',
             'is_active' => true,
-            // General purchase/recovery tests use an explicitly approved test
-            // catalogue item. Tests for unapproved/legacy products create or
-            // override their own metadata and continue to exercise the block.
-            'metadata' => [
-                'catalog_source' => 'vtpass',
-                'purchase_approved' => true,
-            ],
         ]);
 
         return [$user, $wallet->fresh(), $product];
