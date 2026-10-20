@@ -15,7 +15,6 @@ export default function VerifyTwoFactor() {
       <form onSubmit={submit} className="space-y-4">
         <label className="block text-sm">Verification code<input autoFocus autoComplete="one-time-code" value={form.data.code} onChange={(e) => form.setData('code', e.target.value)} className="mt-1 block w-full rounded-lg border bg-transparent px-3 py-2.5" maxLength={32} required /></label>
         {form.errors.code && <p role="alert" className="text-sm text-red-600">{form.errors.code}</p>}
-        {form.errors.identifier && <p role="alert" className="text-sm text-red-600">{form.errors.identifier}</p>}
         <button disabled={form.processing} className="w-full rounded-lg border px-4 py-2.5 font-medium disabled:opacity-50">Verify and continue</button>
       </form>
     </div>
