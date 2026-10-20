@@ -271,7 +271,7 @@ class DashboardController extends Controller
                 'tier' => $user->tier ?? null,
                 'level' => $user->user_level ?? $user->level ?? 'level_1',
                 'avatarUrl' => $user->avatar_url ?? $user->profile_photo_url ?? null,
-                'kycStatus' => $user->kyc_status ?? null,
+                'kycStatus' => $user->kyc_status ?? 'unverified',
             ],
             'isAdminPreview' => $this->hasAdminAccess($user->id),
             'wallet' => $wallet ? [
