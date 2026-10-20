@@ -3,6 +3,8 @@
 namespace Tests\Feature;
 
 use App\Models\VtuProduct;
+use App\Models\User;
+use App\Models\UserPermission;
 use App\Services\Vtu\ProviderCatalogueImportService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
@@ -14,8 +16,8 @@ class GsubzCatalogueIdentifierCompatibilityTest extends TestCase
 
     public function test_admin_catalogue_exposes_all_provider_readiness_states(): void
     {
-        $admin = \\App\\Models\\User::factory()->create();
-        \\App\\Models\\UserPermission::query()->create([
+        $admin = User::factory()->create();
+        UserPermission::query()->create([
             'user_id' => $admin->id,
             'permission' => 'staff.permissions.manage',
             'granted_by_user_id' => $admin->id,
