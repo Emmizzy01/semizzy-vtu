@@ -22,6 +22,12 @@
 - Catalogue import is not proof of purchase readiness; the release process must separately verify account permissions, prices, product codes, recipient validation, submit responses, lookup, webhooks, and refund/reconciliation behavior.
 - `ProviderFailoverPolicy` requires a failed status plus an explicit definitive-failure signal and configured provider allowlisting; the global failover flag is currently hard-off.
 
+## Code-level gate audit (repository review)
+
+The current `tests/Unit/ProviderFailoverPolicyTest.php` covers unknown, pending, generic failed, and non-definitive results; it also asserts that failover stays off when the global flag is false and requires both an explicit definitive-failure result and provider allowlisting. `tests/Feature/ProviderCatalogueImportTest.php` covers inactive imports and malformed/partial catalogue response handling.
+
+These are repository-level protections, not proof of provider account readiness. The test source was inspected, but this audit did not execute a new test run on this documentation commit. Confirm CI on the exact release candidate before sign-off.
+
 ## Scheduler and queue evidence
 
 Repository schedule definitions include:
