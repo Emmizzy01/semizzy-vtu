@@ -9,6 +9,7 @@ use App\Services\Payments\PaymentFundingService;
 use App\Services\Payments\PaymentProviderExceptionService;
 use App\Services\Payments\PaymentRefundService;
 use App\Services\Payments\PaymentIntentService;
+use App\Services\Payments\VirtualAccountDepositService;
 use App\Services\Payments\PaystackClient;
 use App\Services\Payments\WebhookSignatureVerifier;
 use App\Services\Wallets\WalletAccountService;
