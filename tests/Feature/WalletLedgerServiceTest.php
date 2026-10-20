@@ -347,4 +347,60 @@ class WalletLedgerServiceTest extends TestCase
         $this->assertDatabaseCount('wallet_ledger_entries', 2);
     }
 
+
+    public function test_financial_recovery_retry_is_idempotent_and_changed_payload_is_rejected(): void
+    {
+        $user = User::query()->create([
+            'name' => 'Recovery Retry Customer',
+            'email' => 'recovery-retry@example.test',
+            'password' => 'not-a-real-password',
+        ]);
+        $wallet = app(WalletAccountService::class)->openForUser($user);
+        $service = app(WalletLedgerService::class);
+
+        $first = $service->post(
+            walletId: $wallet->id,
+            type: 'credit',
+            amountMinor: 500,
+            idempotencyKey: 'recovery-retry-key-001',
+            reference: 'verified-compensation-001',
+            description: 'Verified financial recovery',
+            metadata: ['case_id' => 'REC-001'],
+            isFinancialRecovery: true,
+        );
+        $retry = $service->post(
+            walletId: $wallet->id,
+            type: 'credit',
+            amountMinor: 500,
+            idempotencyKey: 'recovery-retry-key-001',
+            reference: 'verified-compensation-001',
+            description: 'Verified financial recovery',
+            metadata: ['case_id' => 'REC-001'],
+            isFinancialRecovery: true,
+        );
+
+        $this->assertSame($first->id, $retry->id);
+        $this->assertSame(500, (int) $wallet->fresh()->balance_minor);
+        $this->assertDatabaseCount('wallet_transactions', 1);
+        $this->assertDatabaseCount('wallet_ledger_entries', 1);
+
+        try {
+            $service->post(
+                walletId: $wallet->id,
+                type: 'credit',
+                amountMinor: 501,
+                idempotencyKey: 'recovery-retry-key-001',
+                reference: 'verified-compensation-001',
+                description: 'Verified financial recovery',
+                metadata: ['case_id' => 'REC-001'],
+                isFinancialRecovery: true,
+            );
+            $this->fail('A recovery key reused with a changed amount must be rejected.');
+        } catch (IdempotencyConflict) {
+            $this->assertSame(500, (int) $wallet->fresh()->balance_minor);
+            $this->assertDatabaseCount('wallet_transactions', 1);
+            $this->assertDatabaseCount('wallet_ledger_entries', 1);
+        }
+    }
+
 }
