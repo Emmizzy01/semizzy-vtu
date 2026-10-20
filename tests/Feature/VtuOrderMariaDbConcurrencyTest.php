@@ -587,6 +587,42 @@ class VtuOrderMariaDbConcurrencyTest extends TestCase
         @unlink($state);
     }
 
+    public function test_two_independent_webhook_deliveries_with_same_event_id_are_deduplicated(): void
+    {
+        $eventId = 'evt-intake-race-'.Str::uuid();
+        $body = json_encode([
+            'id' => $eventId,
+            'event' => 'transaction.completed',
+            'data' => ['reference' => 'SOGO-INTAKE-RACE-'.Str::uuid(), 'status' => 'completed'],
+        ], JSON_THROW_ON_ERROR);
+        $signature = 'sha256='.hash_hmac('sha256', $body, 'sogo-webhook-concurrency-secret');
+        $encodedBody = base64_encode($body);
+        $state = $this->newStateFile();
+
+        $results = $this->runWorkers([
+            ['receive-webhook', $state, $encodedBody, $signature],
+            ['receive-webhook', $state, $encodedBody, $signature],
+        ]);
+
+        $this->assertSame(2, $this->readState($state, 'webhook_receive_barrier'),
+            'Both independent HTTP-handler workers must race the same delivery.');
+        $responses = array_map(
+            fn (array $result): array => json_decode($result['stdout'], true, flags: JSON_THROW_ON_ERROR),
+            $results,
+        );
+        $this->assertSame([202, 202], array_column($responses, 'status'));
+        $duplicates = array_map(fn (array $response): bool => (bool) $response['body']['duplicate'], $responses);
+        sort($duplicates);
+        $this->assertSame([false, true], $duplicates,
+            'One request creates the event and the competing request must report a duplicate.');
+        $this->assertSame(1, VtuProviderWebhookEvent::query()
+            ->where('provider', 'sogo')
+            ->where('event_id', $eventId)
+            ->count());
+
+        @unlink($state);
+    }
+
     public function test_two_independent_webhook_workers_process_one_delivery_once(): void
     {
         [$user, $wallet, $product] = $this->preparedCustomer(1000, 1500);
