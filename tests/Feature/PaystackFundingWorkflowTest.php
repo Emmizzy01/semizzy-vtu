@@ -141,7 +141,7 @@ class PaystackFundingWorkflowTest extends TestCase
 
         Http::assertSent(function ($request): bool {
             return str_ends_with($request->url(), '/transaction/initialize')
-                && $request->hasHeader('Authorization', 'Bearer sk_live_semizzy_live_secret')
+                && $request->hasHeader('Authorization', 'Bearer sk_test_semizzy_test_secret')
                 && $request['amount'] === 25000
                 && $request['currency'] === 'NGN'
                 && $request['email'] === 'paystack@example.test'
@@ -210,7 +210,7 @@ class PaystackFundingWorkflowTest extends TestCase
         Http::assertSent(function ($request) use ($intent): bool {
             return str_contains($request->url(), '/transaction/verify/')
                 && str_ends_with($request->url(), rawurlencode($intent->reference))
-                && $request->hasHeader('Authorization', 'Bearer sk_test_semizzy_test_secret');
+                && $request->hasHeader('Authorization', 'Bearer sk_live_semizzy_live_secret');
         });
     }
 
@@ -522,7 +522,7 @@ class PaystackFundingWorkflowTest extends TestCase
 
         Http::assertSent(fn ($request): bool =>
             str_contains($request->url(), '/transaction/verify/')
-            && $request->hasHeader('Authorization', 'Bearer sk_test_semizzy_test_secret')
+            && $request->hasHeader('Authorization', 'Bearer sk_live_semizzy_live_secret')
         );
     }
 
