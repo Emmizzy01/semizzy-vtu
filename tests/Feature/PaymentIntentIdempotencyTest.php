@@ -74,6 +74,30 @@ class PaymentIntentIdempotencyTest extends TestCase
         $service->create($wallet->fresh(), 25000, 'paystack', 'live', 'funding-request-789');
     }
 
+    public function test_completed_retry_key_cannot_create_a_second_funding_intent(): void
+    {
+        $user = User::factory()->create();
+        $wallet = Wallet::query()->create([
+            'user_id' => $user->id,
+            'currency' => 'NGN',
+            'status' => 'active',
+            'balance_minor' => 0,
+            'available_balance_minor' => 0,
+        ]);
+        $service = app(PaymentIntentService::class);
+        $intent = $service->create($wallet, 25000, 'paystack', 'test', 'completed-funding-key');
+        $intent->forceFill(['status' => 'test_paid'])->save();
+
+        try {
+            $service->create($wallet->fresh(), 25000, 'paystack', 'test', 'completed-funding-key');
+            $this->fail('A completed retry key must not create a second checkout intent.');
+        } catch (InvalidArgumentException $exception) {
+            $this->assertStringContainsString('expired or completed attempt', $exception->getMessage());
+        }
+
+        $this->assertSame(1, PaymentIntent::query()->where('wallet_id', $wallet->id)->count());
+    }
+
     public function test_verified_webhook_retry_is_idempotent_and_rejects_amount_mismatch_after_settlement(): void
     {
         $user = User::factory()->create();
@@ -104,6 +128,11 @@ class PaymentIntentIdempotencyTest extends TestCase
         $this->assertSame('test_succeeded', $first['outcome']);
         $this->assertTrue($retry['duplicate']);
         $this->assertSame('test_paid', $intent->fresh()->status);
+
+        $differentEvent = $payload;
+        $differentEvent['id'] = 'paystack-charge-success-9003';
+        $differentEventRetry = $funding->processVerifiedEvent('paystack', $differentEvent);
+        $this->assertTrue($differentEventRetry['duplicate']);
 
         $mismatched = $payload;
         $mismatched['id'] = 'paystack-charge-success-9002';
