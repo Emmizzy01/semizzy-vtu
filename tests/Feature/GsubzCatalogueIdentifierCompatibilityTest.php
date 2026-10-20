@@ -42,6 +42,39 @@ class GsubzCatalogueIdentifierCompatibilityTest extends TestCase
                 ->where('providerReadiness.sogo.environment', 'Sandbox'));
     }
 
+    public function test_admin_catalogue_can_filter_imported_products_by_provider(): void
+    {
+        $admin = User::factory()->create();
+        UserPermission::query()->create([
+            'user_id' => $admin->id,
+            'permission' => 'staff.permissions.manage',
+            'granted_by_user_id' => $admin->id,
+        ]);
+
+        foreach (['vtpass', 'gsubz'] as $provider) {
+            VtuProduct::query()->create([
+                'service_type' => 'data',
+                'provider_key' => $provider,
+                'provider_product_code' => $provider.'-1gb',
+                'network' => 'mtn',
+                'code' => $provider.'-data-1gb',
+                'name' => strtoupper($provider).' 1GB',
+                'price_minor' => 30000,
+                'currency' => 'NGN',
+                'is_active' => false,
+                'metadata' => ['purchase_approved' => false],
+            ]);
+        }
+
+        $this->actingAs($admin)->get('/admin/vtu-products?provider_key=gsubz')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('Admin/VtuProducts/Index')
+                ->where('filters.provider_key', 'gsubz')
+                ->where('pagination.total', 1)
+                ->where('products.0.provider_key', 'gsubz'));
+    }
+
     public function test_nested_gsubz_service_with_plain_id_is_not_dropped_before_data_plan_import(): void
     {
         config([
