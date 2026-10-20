@@ -55,6 +55,18 @@ Checked commit `145042b4d640df4dc046c4d81cb701b247b25523` using the repository's
 
 No cPanel logs or provider account credentials/catalogue snapshots were available through the connected repository tools during this action. No credentials were requested in chat, no provider APIs were called with production credentials, no purchases were run, and no production data was changed. Runtime scheduler/queue execution and account-specific evidence remain **operator evidence required**.
 
+## Operating rule: production-ready build vs live deployment verification
+
+The platform is being developed for live-server operation. Missing cPanel runtime logs, live provider account permissions, and live catalogue exports are **deployment/onboarding verification items**, not automatically urgent code defects and not reasons to pause unrelated implementation work.
+
+- **Build-time responsibilities:** provide scheduler/queue configuration, health/monitoring hooks, safe retries, idempotent processing, provider adapters, catalogue import/validation, admin controls, and automated tests. Use sandbox, mocks, fixtures, and provider-approved non-financial references where appropriate.
+- **Deployment-time responsibilities:** after deployment and configuration, confirm scheduled commands and queue workers actually execute; verify provider live credentials, scopes, allowlists, service permissions, and live catalogue/mapping data.
+- **CI responsibility:** verify automated checks on the candidate code commit. A lack of status evidence means CI is unverified, not that application code necessarily failed.
+- **Financial safety:** do not create real purchases solely to prove recovery. Unknown or pending outcomes must not be blindly resubmitted; maintain idempotency, reconciliation and duplicate-debit protection.
+- **Activation responsibility:** code can be production-ready while a provider remains operationally unconfigured. Keep each provider's purchase gate closed until its live onboarding evidence and recovery contract are confirmed. Do not block unrelated work on account exports or cPanel logs that can only be collected after deployment.
+
+Track deployment checks as a **live rollout checklist**, separate from the **code implementation and CI backlog**. Do not label deployment evidence as a code defect unless evidence identifies a code/configuration defect.
+
 ## Evidence required before enabling a provider
 
 - [ ] Confirm the exact production base URL from the provider's current official documentation.
