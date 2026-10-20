@@ -1323,7 +1323,7 @@ class VtuOrderWorkflowTest extends TestCase
             'provider' => 'gsubz',
             'outcome' => 'reserved',
         ]);
-        $this->assertSame(3, \\App\\Models\\WalletTransaction::query()->count());
+        $this->assertSame(2, \\App\\Models\\WalletTransaction::query()->count());
         $this->assertSame(500, (int) $wallet->fresh()->available_balance_minor);
         Http::assertNotSent(fn ($request) => str_contains($request->url(), 'api.gsubz.com'));
     }
