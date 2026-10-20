@@ -2,6 +2,8 @@
 
 **State:** Open. This is an implementation audit, not sign-off or a test report. The source tree and owner-approved blueprint were reviewed after the passkey foundation batch. No theme changes or live financial/provider operations were performed.
 
+**Latest security follow-up (commit `e861f653ff7229faa60be7ecf505d3cf763edafa`):** passkey origin validation now rejects wildcard hosts, and `tests/Feature/PasskeyOriginAndConfirmationRegressionTest.php` adds regression coverage for wildcard-origin rejection, expired confirmation rejection, and recent confirmation acceptance. The tests have been committed but have **not** been executed in this environment; the commit has no reported status checks/workflow runs available through the current GitHub integration. Do not treat this as test-pass evidence or Phase 1 sign-off.
+
 ## Highest-priority remaining gaps
 
 | Priority | Blueprint capability | Current evidence / gap | Required next action before acceptance |
