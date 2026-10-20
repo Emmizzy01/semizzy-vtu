@@ -1450,7 +1450,7 @@ class VtuOrderWorkflowTest extends TestCase
         $this->assertSame('sogo', $order->provider);
 
         $oldReference = (string) $order->provider_reference;
-        \\Illuminate\\Support\\Facades\\DB::table('vtu_orders')
+        \Illuminate\Support\Facades\DB::table('vtu_orders')
             ->where('id', $order->getKey())
             ->update([
                 'provider' => 'gsubz',
