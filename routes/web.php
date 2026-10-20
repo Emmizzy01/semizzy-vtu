@@ -111,6 +111,8 @@ Route::middleware('auth')->group(function (): void {
     Route::get('/security/transaction-pin', [TransactionPinController::class, 'show'])->name('security.transaction-pin');
     Route::put('/security/transaction-pin', [TransactionPinController::class, 'update'])->middleware('throttle:5,1')->name('security.transaction-pin.update');
     Route::get('/wallet/transfer', fn () => Inertia::render('Wallet/Transfer'))->name('wallet.transfer');
+    Route::get('/wallet/virtual-accounts', [UserVirtualAccountController::class, 'index'])->name('wallet.virtual-accounts.index');
+    Route::post('/wallet/virtual-accounts', [UserVirtualAccountController::class, 'provision'])->middleware('throttle:3,1')->name('wallet.virtual-accounts.provision');
     Route::get('/wallet/transfers/history', [PeerWalletTransferController::class, 'index'])->middleware('throttle:30,1')->name('wallet.transfers.history');
     Route::post('/wallet/transfers', [PeerWalletTransferController::class, 'store'])->middleware('throttle:5,1')->name('wallet.transfers.store');
     Route::get('/wallet/bank-transfer', [BankPayoutController::class, 'page'])->name('wallet.bank-transfer');
