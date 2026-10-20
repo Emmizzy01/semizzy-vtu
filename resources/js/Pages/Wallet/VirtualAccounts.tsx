@@ -20,6 +20,7 @@ export default function VirtualAccounts({
   provisioningEnabled: boolean;
 }) {
   const [bank, setBank] = useState('wema-bank');
+  const [consent, setConsent] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
@@ -37,7 +38,7 @@ export default function VirtualAccounts({
           'Accept': 'application/json',
           'X-CSRF-TOKEN': document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content || '',
         },
-        body: JSON.stringify({ preferred_bank: bank }),
+        body: JSON.stringify({ preferred_bank: bank, consent }),
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.message || 'Virtual account could not be requested.');
@@ -111,10 +112,10 @@ export default function VirtualAccounts({
           )}
         </section>
 
-        <section className="rounded-2xl border p-5">
+        {accounts.length === 0 && <section className="rounded-2xl border p-5">
           <h2 className="font-semibold">Request a virtual account</h2>
           <p className="mt-1 text-sm text-[var(--muted-foreground)]">Provisioning stays unavailable until provider onboarding and verified deposit reconciliation are approved.</p>
-          <form onSubmit={provision} className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end">
+          <form onSubmit={provision} className="mt-4 flex flex-col gap-3">
             <label className="flex-1 text-sm font-medium">
               Preferred bank
               <select value={bank} onChange={(e) => setBank(e.target.value)} className="mt-2 block w-full rounded-lg border bg-transparent px-3 py-2.5" disabled={!provisioningEnabled || busy}>
@@ -122,13 +123,18 @@ export default function VirtualAccounts({
                 <option value="titan-paystack">Titan Paystack</option>
               </select>
             </label>
-            <button type="submit" disabled={!provisioningEnabled || busy} className="inline-flex items-center justify-center gap-2 rounded-lg border px-4 py-2.5 font-medium disabled:cursor-not-allowed disabled:opacity-50">
+            <label className="flex items-start gap-2 text-sm">
+              <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} disabled={!provisioningEnabled || busy} required className="mt-1" />
+              <span>I consent to Semizzy sharing the personal details required by the payment provider to request a dedicated virtual account.</span>
+            </label>
+            <button type="submit" disabled={!provisioningEnabled || busy || !consent} className="inline-flex items-center justify-center gap-2 rounded-lg border px-4 py-2.5 font-medium disabled:cursor-not-allowed disabled:opacity-50">
               {busy ? <RefreshCw className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Building2 className="h-4 w-4" aria-hidden="true" />}
               {busy ? 'Requesting…' : 'Request account'}
             </button>
           </form>
-          {!provisioningEnabled && <p className="mt-3 text-sm text-amber-700">Not enabled yet. This is intentional: do not enable until deposit webhook matching, account assignment limits, and reconciliation are verified.</p>}
-        </section>
+          {!provisioningEnabled && <p className="mt-3 text-sm text-amber-700">Not enabled yet. This is intentional: verified deposit webhook matching, provider account assignment, and reconciliation must be completed before provisioning is enabled.</p>}
+        </section>}
+        {accounts.length > 0 && <p className="rounded-xl border p-4 text-sm text-[var(--muted-foreground)]">One Paystack account is currently supported per customer. Additional banks/providers will be shown only when their separate account-provisioning and deposit-settlement integrations are implemented.</p>}
       </div>
     </DashboardLayout>
   );
