@@ -297,8 +297,8 @@ class PaystackClient
     public function createOrFetchCustomer(string $email, string $firstName, string $lastName, string $phone = ''): array
     {
         $phone = preg_replace('/[\\s()-]+/', '', trim($phone)) ?? '';
-        if (!filter_var($email, FILTER_VALIDATE_EMAIL) || !preg_match('/^\\+?\\d{10,15}$/', $phone)) {
-            throw new \\InvalidArgumentException('A valid customer email and phone number are required for virtual-account provisioning.');
+        if (! filter_var($email, FILTER_VALIDATE_EMAIL) || ! preg_match('/^\+?\d{10,15}$/', $phone)) {
+            throw new \InvalidArgumentException('A valid customer email and phone number are required for virtual-account provisioning.');
         }
 
         // Look up first so retries after a network timeout do not blindly create
