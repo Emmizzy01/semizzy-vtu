@@ -10,6 +10,7 @@ use App\Services\Payments\PaymentFundingService;
 use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use InvalidArgumentException;
+use LogicException;
 use Tests\TestCase;
 
 class PaymentIntentIdempotencyTest extends TestCase
@@ -127,7 +128,7 @@ class PaymentIntentIdempotencyTest extends TestCase
         ]);
         $intent = app(PaymentIntentService::class)->create($wallet, 25000, 'paystack', 'live', 'live-funding-gate-key');
 
-        $this->expectException(\\LogicException::class);
+        $this->expectException(LogicException::class);
         app(PaymentFundingService::class)->processVerifiedEvent('paystack', [
             'id' => 'paystack-live-charge-1001',
             'type' => 'payment.succeeded',
