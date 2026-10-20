@@ -96,7 +96,7 @@ class PeerWalletTransferTest extends TestCase
         $sender = $this->makeUser('HTTP Sender', 'http-sender@example.test', 'httpsender');
         $recipient = $this->makeUser('HTTP Recipient', 'http-recipient@example.test', 'httpreceiver');
         $sender->forceFill([
-            'transaction_pin_hash' => \\Illuminate\\Support\\Facades\\Hash::make('4928'),
+            'transaction_pin_hash' => \Illuminate\Support\Facades\Hash::make('4928'),
         ])->save();
 
         $this->actingAs($sender)->postJson('/wallet/transfers', [
