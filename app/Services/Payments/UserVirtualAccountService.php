@@ -21,106 +21,131 @@ class UserVirtualAccountService
         return UserVirtualAccount::query()
             ->where('user_id', $user->getKey())
             ->whereNull('disabled_at')
+            ->where('status', 'active')
             ->orderBy('id')
             ->get()
             ->all();
     }
 
-    public function provisionPaystackAccount(User $user, string $preferredBank = 'wema-bank'): UserVirtualAccount
+    public function provisionPaystackAccount(User $user, string $preferredBank = 'wema-bank', bool $consent = false): UserVirtualAccount
     {
         if (!config('services.semizzy_virtual_accounts.enabled', false)) {
             throw new LogicException('Dedicated virtual-account provisioning is disabled until provider onboarding and deposit reconciliation are verified.');
+        }
+        if (!$consent) {
+            throw new \InvalidArgumentException('Consent is required before sending customer details to the payment provider.');
         }
         if (!in_array($preferredBank, ['wema-bank', 'titan-paystack'], true)) {
             throw new \InvalidArgumentException('Choose a supported virtual-account bank.');
         }
 
-        $existing = UserVirtualAccount::query()
-            ->where('user_id', $user->getKey())
-            ->where('provider', 'paystack')
-            ->whereNull('disabled_at')
-            ->first();
-        if ($existing) {
-            return $existing;
-        }
-
         $gatewayMode = $this->paystack->mode();
-        // Paystack documents test-bank as the test-key DVA provider; never use a live bank slug in test mode.
         if ($gatewayMode === 'test') {
             $preferredBank = 'test-bank';
         }
 
-        $name = trim((string) ($user->name ?? ''));
-        $parts = preg_split('/\s+/', $name, 2) ?: [];
-        $firstName = (string) ($parts[0] ?? '');
-        $lastName = (string) ($parts[1] ?? '');
-        if ($firstName === '') {
-            $firstName = 'Semizzy';
-        }
-        if ($lastName === '') {
-            $lastName = 'Customer';
-        }
-
-        $customer = $this->paystack->createOrFetchCustomer(
-            (string) $user->email,
-            $firstName,
-            $lastName,
-            (string) ($user->phone ?? ''),
-        );
-        $customerCode = (string) $customer['customer_code'];
-
-        // Provider assignment can be asynchronous/ambiguous. The client fails closed
-        // on transport errors; callers must reconcile rather than auto-retry blindly.
-        $assigned = $this->paystack->assignDedicatedVirtualAccount($customerCode, $preferredBank);
-        $account = $assigned;
-        $bank = $account['bank'] ?? [];
-
-        try {
-            return DB::transaction(function () use ($user, $customerCode, $assigned, $account, $bank, $preferredBank): UserVirtualAccount {
-                $lockedExisting = UserVirtualAccount::query()
-                    ->where('user_id', $user->getKey())
-                    ->where('provider', 'paystack')
-                    ->whereNull('disabled_at')
-                    ->lockForUpdate()
-                    ->first();
-                if ($lockedExisting) {
-                    return $lockedExisting;
+        // Reserve one account slot per user/provider before any network call.
+        // A pending row survives timeouts so a later request can inspect provider state
+        // instead of blindly assigning another account.
+        $account = DB::transaction(function () use ($user, $preferredBank): UserVirtualAccount {
+            User::query()->whereKey($user->getKey())->lockForUpdate()->firstOrFail();
+            $existing = UserVirtualAccount::query()
+                ->where('user_id', $user->getKey())
+                ->where('provider', 'paystack')
+                ->whereNull('disabled_at')
+                ->lockForUpdate()
+                ->first();
+            if ($existing) {
+                if ($existing->status === 'active') {
+                    return $existing;
+                }
+                if ($existing->status !== 'provisioning') {
+                    throw new LogicException('Existing virtual-account state requires operator reconciliation.');
                 }
 
-                return UserVirtualAccount::query()->create([
-                    'public_id' => (string) Str::uuid(),
-                    'user_id' => $user->getKey(),
-                    'provider' => 'paystack',
+                return $existing;
+            }
+
+            return UserVirtualAccount::query()->create([
+                'public_id' => (string) Str::uuid(),
+                'user_id' => $user->getKey(),
+                'provider' => 'paystack',
+                'bank_code' => $preferredBank,
+                'currency' => 'NGN',
+                'status' => 'provisioning',
+                'consented_at' => now(),
+                'metadata' => ['integration_mode' => $gatewayMode],
+            ]);
+        }, attempts: 3);
+
+        if ($account->status === 'active') {
+            return $account;
+        }
+
+        try {
+            $customerCode = (string) $account->provider_customer_reference;
+            if ($customerCode === '') {
+                $name = trim((string) ($user->name ?? ''));
+                $parts = preg_split('/\s+/', $name, 2) ?: [];
+                $firstName = (string) ($parts[0] ?? 'Semizzy');
+                $lastName = (string) ($parts[1] ?? 'Customer');
+                if ($firstName === '') $firstName = 'Semizzy';
+                if ($lastName === '') $lastName = 'Customer';
+
+                $customer = $this->paystack->createOrFetchCustomer(
+                    (string) $user->email,
+                    $firstName,
+                    $lastName,
+                    (string) ($user->phone ?? ''),
+                );
+                $customerCode = (string) $customer['customer_code'];
+                $account->forceFill(['provider_customer_reference' => $customerCode])->save();
+            }
+
+            // Recover first: if a prior assignment succeeded but the response was lost,
+            // fetch the provider customer and reuse its assigned account.
+            $customerState = $this->paystack->fetchCustomer($customerCode);
+            $assigned = $customerState['dedicated_account'] ?? null;
+            if (!is_array($assigned) || !is_string($assigned['account_number'] ?? null)
+                || !preg_match('/^\d{10}$/', $assigned['account_number'])) {
+                $assigned = $this->paystack->assignDedicatedVirtualAccount($customerCode, $preferredBank);
+            }
+
+            $bank = is_array($assigned['bank'] ?? null) ? $assigned['bank'] : [];
+            if (!is_string($assigned['account_number'] ?? null)
+                || !preg_match('/^\d{10}$/', $assigned['account_number'])
+                || !is_string($assigned['account_name'] ?? null) || trim($assigned['account_name']) === ''
+                || !is_string($bank['name'] ?? null) || trim($bank['name']) === '') {
+                throw new LogicException('Provider account assignment is incomplete; keep the reservation pending and reconcile before retrying.');
+            }
+
+            return DB::transaction(function () use ($account, $user, $customerCode, $assigned, $bank, $preferredBank, $gatewayMode): UserVirtualAccount {
+                $locked = UserVirtualAccount::query()->whereKey($account->getKey())->lockForUpdate()->firstOrFail();
+                if ($locked->status === 'active') {
+                    return $locked;
+                }
+
+                $locked->forceFill([
                     'provider_customer_reference' => $customerCode,
-                    'provider_account_reference' => is_string($assigned['id'] ?? null) || is_int($assigned['id'] ?? null)
-                        ? (string) $assigned['id'] : null,
-                    'bank_code' => $preferredBank,
-                    'bank_name' => (string) ($bank['name'] ?? ''),
-                    'account_name' => (string) ($account['account_name'] ?? ''),
-                    'account_number' => (string) ($account['account_number'] ?? ''),
-                    'currency' => 'NGN',
+                    'provider_account_reference' => isset($assigned['id']) ? (string) $assigned['id'] : null,
+                    'bank_code' => (string) ($bank['slug'] ?? $preferredBank),
+                    'bank_name' => (string) $bank['name'],
+                    'account_name' => (string) $assigned['account_name'],
+                    'account_number' => (string) $assigned['account_number'],
+                    'currency' => (string) ($assigned['currency'] ?? 'NGN'),
                     'status' => 'active',
                     'verified_at' => now(),
                     'metadata' => [
                         'provider' => 'paystack',
-                        'assignment_status' => (bool) ($assigned['assigned'] ?? false) ? 'assigned' : 'pending',
+                        'assignment_status' => (bool) ($assigned['assigned'] ?? true) ? 'assigned' : 'pending',
                         'integration_mode' => $gatewayMode,
                     ],
-                ]);
+                ])->save();
+
+                return $locked->fresh();
             }, attempts: 3);
         } catch (QueryException $exception) {
-            // A uniqueness collision can occur if a concurrent request provisioned
-            // the same provider account. Return only an account belonging to this user.
-            $sameUser = UserVirtualAccount::query()
-                ->where('user_id', $user->getKey())
-                ->where('provider', 'paystack')
-                ->whereNull('disabled_at')
-                ->first();
-            if ($sameUser) {
-                return $sameUser;
-            }
-
-            throw new LogicException('Virtual-account details need provider reconciliation before retrying.', previous: $exception);
+            throw new LogicException('Virtual-account assignment may have succeeded; reconcile provider state before any retry.', previous: $exception);
         }
     }
 }
