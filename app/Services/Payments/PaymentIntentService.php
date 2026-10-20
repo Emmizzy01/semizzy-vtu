@@ -16,6 +16,10 @@ class PaymentIntentService
             throw new InvalidArgumentException('Funding amount must be between 100 and 500000000 minor units.');
         }
 
+        if (! in_array($gatewayMode, ['test', 'live'], true)) {
+            throw new InvalidArgumentException('Funding gateway mode must be test or live.');
+        }
+
         if ($wallet->status !== 'active' || $wallet->currency !== 'NGN') {
             throw new InvalidArgumentException('Only active NGN wallets can create funding intents.');
         }
