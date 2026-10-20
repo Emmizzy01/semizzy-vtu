@@ -81,22 +81,13 @@ class PaymentFundingService
                 }
 
 
-                // A provider-verified Paystack success must still be reconciled after checkout expiry.
-                // The intent reference, amount, currency, and provider transaction ID are checked above/below.
-                if ($intent->status !== 'pending' || ($provider !== 'paystack' && $intent->expires_at && $intent->expires_at->isPast())) {
-                    $event->forceFill([
-                        'outcome' => 'rejected',
-                        'payment_intent_id' => $intent->id,
-                        'processed_at' => now(),
-                    ])->save();
-
-                    return ['outcome' => 'rejected', 'duplicate' => false];
-                }
-
+                // Validate financial fields before any duplicate or terminal-status shortcut.
                 if ($intent->amount_minor !== $amount || $intent->currency !== strtoupper($currency)) {
                     throw new ConflictHttpException('Payment amount or currency does not match the intent.');
                 }
 
+                // Different event IDs can describe the same provider transaction. The intent row lock
+                // serializes them; only the original settlement may credit the wallet.
                 if (in_array($intent->status, ['paid', 'test_paid'], true)) {
                     if ($intent->provider_transaction_id !== $providerTransactionId) {
                         throw new ConflictHttpException('Payment intent was already settled by another provider transaction.');
@@ -111,6 +102,17 @@ class PaymentFundingService
 
                     return ['outcome' => $duplicateOutcome, 'duplicate' => true];
                 }
+
+                // A provider-verified Paystack success must still be reconciled after checkout expiry.
+                if ($intent->status !== 'pending' || ($provider !== 'paystack' && $intent->expires_at && $intent->expires_at->isPast())) {
+                    $event->forceFill([
+                        'outcome' => 'rejected',
+                        'payment_intent_id' => $intent->id,
+                        'processed_at' => now(),
+                    ])->save();
+
+                    return ['outcome' => 'rejected', 'duplicate' => false];
+                }
                 // Live settlements remain fail-closed until the payment release gate is explicitly opened.
                 // Throwing rolls back the webhook event too, allowing safe reconciliation/retry later.
                 if (($intent->metadata['gateway_mode'] ?? null) === 'live'
@@ -120,7 +122,7 @@ class PaymentFundingService
 
                 // Test-mode successes are recorded for end-to-end verification, but must never
                 // become real production wallet funds. Only explicitly selected Live intents post to the ledger.
-                if (($intent->metadata['gateway_mode'] ?? null) === 'test') {
+                if ($provider === 'paystack' && ($intent->metadata['gateway_mode'] ?? null) === 'test') {
                     $intent->forceFill([
                         'status' => 'test_paid',
                         'provider_transaction_id' => $providerTransactionId,
