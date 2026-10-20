@@ -522,7 +522,9 @@ class VtuOrderService
         // provider transaction reference. Preserve the recorded reference and
         // leave the debit unresolved for review; a contradictory provider result
         // is not evidence that this order succeeded or definitively failed.
-        $recordedReference = $order->provider_reference;
+        // Compare against the exact attempt's reference, not the order's
+        // current reference, which may already belong to a newer provider.
+        $recordedReference = $attempt->provider_reference;
         $lookupReference = $result['provider_reference'] ?? null;
         if (is_string($recordedReference) && $recordedReference !== ''
             && is_string($lookupReference) && $lookupReference !== ''
