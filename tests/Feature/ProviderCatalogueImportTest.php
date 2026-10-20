@@ -841,6 +841,9 @@ class ProviderCatalogueImportTest extends TestCase
             'services.vtu.dataway.api_key' => 'dataway_test_key',
         ]);
         Http::fake(function ($request) {
+            if (str_contains($request->url(), '/products/')) {
+                throw new ConnectionException('Connection timed out.');
+            }
             if (str_contains($request->url(), '/billers/')) {
                 return Http::response(['data' => [
                     [
@@ -852,9 +855,6 @@ class ProviderCatalogueImportTest extends TestCase
                     ],
                     ['name' => 'Airtel Data', 'slug' => 'airtel-data', 'category' => 'data'],
                 ]]);
-            }
-            if (str_contains($request->url(), '/products/')) {
-                throw new ConnectionException('Connection timed out.');
             }
             return Http::response(['message' => 'unexpected request'], 500);
         });
