@@ -93,6 +93,7 @@ export default function DashboardLayout({ title, description, admin = false, chi
     ] },
     { title: 'Platform control', items: [
       { label: 'API providers', href: '/admin/api-providers', icon: PlugZap },
+      { label: 'Add-on registry', href: '/admin/addons', icon: PlugZap },
       { label: 'Homepage editor', href: '/admin/platform-settings#homepage', icon: Globe },
       { label: 'Support page editor', href: '/admin/support-pages', icon: LifeBuoy },
       { label: 'Site control & settings', href: '/admin/platform-settings', icon: SlidersHorizontal },
