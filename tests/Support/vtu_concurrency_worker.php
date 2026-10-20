@@ -22,7 +22,7 @@ $app->make(Kernel::class)->bootstrap();
 
 $mode = $argv[1] ?? '';
 $statePath = $argv[2] ?? '';
-if ($statePath === '' || ! in_array($mode, ['purchase', 'reconcile', 'open-wallet', 'review-deposit', 'refund-webhook', 'submit-deposit', 'process-webhooks'], true)) {
+if ($statePath === '' || ! in_array($mode, ['purchase', 'reconcile', 'open-wallet', 'review-deposit', 'refund-webhook', 'submit-deposit', 'process-webhooks', 'receive-webhook'], true)) {
     fwrite(STDERR, "Invalid worker arguments.\n");
     exit(2);
 }
