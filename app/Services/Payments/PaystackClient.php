@@ -90,10 +90,10 @@ class PaystackClient
         return $response->json('data');
     }
 
-    public function verifyTransaction(string $reference): array
+    public function verifyTransaction(string $reference, ?string $requiredMode = null): array
     {
         try {
-            $response = Http::withToken($this->secretKey())
+            $response = Http::withToken($this->secretKey($requiredMode))
                 ->acceptJson()
                 ->timeout(15)
                 ->get('https://api.paystack.co/transaction/verify/'.rawurlencode($reference));
