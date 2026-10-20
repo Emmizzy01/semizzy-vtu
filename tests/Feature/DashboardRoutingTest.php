@@ -306,22 +306,23 @@ class DashboardRoutingTest extends TestCase
                 ->where('metrics.refundsNeedingAction', null));
     }
 
-    public function test_refund_only_admin_receives_only_the_metrics_allowed_by_their_capability(): void
+    public function test_refund_only_operator_can_review_refunds_without_global_dashboard_access(): void
     {
-        $admin = $this->account('refund-only-admin@example.test');
-        $this->grant($admin, 'refunds.approve');
+        $operator = $this->account('refund-only-admin@example.test');
+        $this->grant($operator, 'refunds.approve');
 
-        $this->actingAs($admin)
+        $this->actingAs($operator)
             ->get('/admin/dashboard')
+            ->assertForbidden();
+
+        $this->actingAs($operator)->get('/admin/refunds')->assertOk();
+        $this->actingAs($operator)->get('/admin/payment-refunds')->assertOk();
+
+        $this->actingAs($operator)
+            ->get('/dashboard')
             ->assertOk()
-            ->assertInertia(fn (Assert $page) => $page->component('Admin/Dashboard')
-                ->where('capabilities.manageStaff', false)
-                ->where('capabilities.approveRefunds', true)
-                ->where('metrics.users', null)
-                ->where('metrics.refundsNeedingAction', 0)
-                ->where('metrics.wallets', 0)
-                ->where('metrics.pendingFunding', 0)
-                ->where('metrics.unresolvedVtuOrders', 0));
+            ->assertInertia(fn (Assert $page) => $page->component('Dashboard')
+                ->where('isAdminPreview', false));
     }
 
     public function test_admin_can_preview_the_customer_dashboard_for_their_own_account(): void
@@ -432,21 +433,22 @@ class DashboardRoutingTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page->component('Dashboard'));
     }
 
-    public function test_login_fallback_routes_permissioned_staff_to_admin_dashboard(): void
+    public function test_login_fallback_keeps_refund_only_operator_on_customer_dashboard(): void
     {
-        $admin = $this->account('login-admin@example.test');
-        $this->grant($admin, 'refunds.approve');
+        $operator = $this->account('login-refund-operator@example.test');
+        $this->grant($operator, 'refunds.approve');
 
         $this->post('/login', [
-            'email' => $admin->email,
+            'email' => $operator->email,
             'password' => 'CorrectPassword1234',
         ])->assertRedirect('/dashboard');
 
-        $this->get('/dashboard')->assertRedirect('/admin/dashboard');
-        $this->get('/admin/dashboard')
+        $this->get('/dashboard')
             ->assertOk()
-            ->assertInertia(fn (Assert $page) => $page->component('Admin/Dashboard')
-                ->where('capabilities.approveRefunds', true));
+            ->assertInertia(fn (Assert $page) => $page->component('Dashboard')
+                ->where('isAdminPreview', false));
+        $this->get('/admin/dashboard')->assertForbidden();
+        $this->get('/admin/refunds')->assertOk();
     }
 
     public function test_registration_redirects_new_customer_to_dashboard(): void
