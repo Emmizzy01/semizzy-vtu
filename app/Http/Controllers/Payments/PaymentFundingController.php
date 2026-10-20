@@ -168,8 +168,15 @@ class PaymentFundingController extends Controller
                 throw new UnprocessableEntityHttpException('Paystack event has no payment reference.');
             }
 
+            $intent = PaymentIntent::query()->where('reference', $reference)->first();
+            $intentMode = $intent?->metadata['gateway_mode'] ?? null;
+            if ($intent === null || $intent->provider !== 'paystack'
+                || ! in_array($intentMode, ['test', 'live'], true)) {
+                return response()->json(['message' => 'Paystack transaction could not be verified.'], 503);
+            }
+
             try {
-                $verified = $paystack->verifyTransaction($reference);
+                $verified = $paystack->verifyTransaction($reference, $intentMode);
             } catch (LogicException $exception) {
                 report($exception);
 
