@@ -35,7 +35,7 @@ class UserVirtualAccountController extends Controller
         ]);
 
         try {
-            $account = $accounts->provisionPaystackAccount($request->user(), $data['preferred_bank']);
+            $account = $accounts->provisionPaystackAccount($request->user(), $data['preferred_bank'], (bool) $data['consent']);
         } catch (\InvalidArgumentException $exception) {
             return response()->json(['message' => $exception->getMessage()], 422);
         } catch (LogicException $exception) {
