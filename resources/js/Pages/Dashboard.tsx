@@ -11,8 +11,8 @@ function money(minor: number, currency = 'NGN') {
   return new Intl.NumberFormat('en-NG', { style: 'currency', currency, maximumFractionDigits: 2 }).format(minor / 100);
 }
 
-export default function CustomerDashboard({ wallet, transactions, orders = [], transactionPagination, orderPagination, isAdminPreview = false, customer }: {
-  wallet: Wallet; transactions: Transaction[]; orders?: ServiceOrder[]; transactionPagination?: Pagination; orderPagination?: Pagination; isAdminPreview?: boolean; customer?: { name?: string; type?: string; tier?: string | null; level?: string; avatarUrl?: string | null; kycStatus?: string };
+export default function CustomerDashboard({ wallet, transactions, orders = [], transactionPagination, orderPagination, isAdminPreview = false, customer, promotions }: {
+  wallet: Wallet; transactions: Transaction[]; orders?: ServiceOrder[]; transactionPagination?: Pagination; orderPagination?: Pagination; isAdminPreview?: boolean; customer?: { name?: string; type?: string; tier?: string | null; level?: string; avatarUrl?: string | null; kycStatus?: string }; promotions?: { cashbackLineOne?: string; cashbackLineTwo?: string; cashbackSubtitle?: string; gadgetSaleTitle?: string; gadgetSaleSubtitle?: string; referralTitle?: string; referralSubtitle?: string };
 }) {
   const [balanceVisible, setBalanceVisible] = useState(true);
   return (
@@ -42,8 +42,8 @@ export default function CustomerDashboard({ wallet, transactions, orders = [], t
 
         <section aria-labelledby="dashboard-promo-heading" className="relative mt-6 flex min-h-[96px] items-center justify-between gap-3 overflow-hidden rounded-[16px] bg-gradient-to-r from-[#0a5c32] to-[#12a15a] p-4 text-white shadow-sm">
           <div className="relative z-10 min-w-0">
-            <h2 id="dashboard-promo-heading" className="text-sm font-extrabold leading-5">Enjoy 10% cashback on data purchases</h2>
-            <p className="mt-1 text-[11px] text-white/80">Limited time offer</p>
+            <h2 id="dashboard-promo-heading" className="text-sm font-extrabold leading-5">{promotions ? `${promotions.cashbackLineOne || 'Enjoy 10% cashback'} ${promotions.cashbackLineTwo || 'on data purchases'}` : 'Enjoy 10% cashback on data purchases'}</h2>
+            <p className="mt-1 text-[11px] text-white/80"{promotions?.cashbackSubtitle || 'Limited time offer'}</p>
           </div>
           <span aria-hidden="true" className="relative z-10 grid h-16 w-16 shrink-0 place-items-center rounded-full bg-white/20 text-3xl">👩‍💼</span>
           <span aria-hidden="true" className="pointer-events-none absolute -right-6 -top-8 h-28 w-28 rounded-full bg-white/10"/>
@@ -64,7 +64,7 @@ export default function CustomerDashboard({ wallet, transactions, orders = [], t
         </section>
 
         <section aria-label="Gadget sale promotion" className="mt-6 flex items-center justify-between gap-3 rounded-[16px] bg-gradient-to-r from-[#0f8a4f] to-[#0a5c32] p-4 text-white shadow-sm">
-          <div className="min-w-0"><p className="text-[13px] font-extrabold">🔥 Big Gadget Sale! Up to 50% OFF</p><p className="mt-1 text-[11px] text-white/80">iPhones, Samsung, Laptops</p></div>
+          <div className="min-w-0"><p className="text-[13px] font-extrabold">{promotions?.gadgetSaleTitle || "🔥 Big Gadget Sale! Up to 50% OFF"}</p><p className="mt-1 text-[11px] text-white/80">{promotions?.gadgetSaleSubtitle || "iPhones, Samsung, Laptops"}</p></div>
           <a href="/services?category=gadgets" className="inline-flex min-h-9 shrink-0 items-center justify-center rounded-full bg-white dark:bg-slate-900 px-4 py-2 text-xs font-extrabold text-[#0a5c32] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white">Shop Now</a>
         </section>
 
@@ -81,7 +81,7 @@ export default function CustomerDashboard({ wallet, transactions, orders = [], t
         </section>
 
         <section aria-label="Referral promotion" className="mt-6 flex items-center justify-between gap-3 rounded-[16px] border border-amber-200 bg-[#fef3c7] p-4">
-          <div className="min-w-0"><p className="text-[13px] font-extrabold text-[#92400e]">💰 Refer &amp; Earn ₦500 per friend!</p><p className="mt-1 text-[11px] text-[#a16207]">Invite friends to Semizzy</p></div>
+          <div className="min-w-0"><p className="text-[13px] font-extrabold text-[#92400e]">{promotions?.referralTitle || "💰 Refer & Earn ₦500 per friend!"}</p><p className="mt-1 text-[11px] text-[#a16207]">{promotions?.referralSubtitle || "Invite friends to Semizzy"}</p></div>
           <a href="/account/referrals" className="inline-flex min-h-9 shrink-0 items-center justify-center rounded-full bg-[#111827] px-4 py-2 text-xs font-extrabold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-700">Refer Now</a>
         </section>
 
