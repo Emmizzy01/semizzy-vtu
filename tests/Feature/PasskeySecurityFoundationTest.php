@@ -17,6 +17,19 @@ class PasskeySecurityFoundationTest extends TestCase
         $this->get('/__test/passkeys-disabled')->assertNotFound();
     }
 
+    public function test_enabled_passkeys_reject_non_https_origins(): void
+    {
+        config([
+            'passkeys.enabled' => true,
+            'passkeys.relying_party_id' => 'semizzy.example.test',
+            'passkeys.allowed_origins' => ['http://semizzy.example.test'],
+            'app.key' => 'base64:'.base64_encode(str_repeat('a', 32)),
+        ]);
+        Route::middleware(EnsurePasskeysEnabled::class)->get('/__test/passkeys-http-origin', fn () => response('ok'));
+
+        $this->get('/__test/passkeys-http-origin')->assertStatus(503);
+    }
+
     public function test_passkey_management_requires_recent_password_confirmation(): void
     {
         Route::middleware(EnsureRecentPasskeyConfirmation::class)->get('/__test/passkeys-confirm', fn () => response('ok'));
