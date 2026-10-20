@@ -500,7 +500,6 @@ class VtuOrderController extends Controller
             'amount_minor' => $order->amount_minor,
             'currency' => $order->currency,
             'status' => $order->status,
-            'provider_reference' => $order->provider_reference,
             'failure_code' => $order->failure_code,
             'created_at' => $order->created_at?->toISOString(),
             'completed_at' => $order->completed_at?->toISOString(),
