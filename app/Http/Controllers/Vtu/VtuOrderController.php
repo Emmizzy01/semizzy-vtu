@@ -79,7 +79,7 @@ class VtuOrderController extends Controller
                         $providerMapping['network'] ?? null,
                         $providerMapping['service_id'] ?? null,
                         $providerMapping['product_id'] ?? null,
-                    ])->contains(fn ($value): bool => is_string($value) && trim($value) !== '');
+                    ])->contains(fn ($value): bool => is_string($value) && trim($value) !== ''));
                 $hasDataVariation = (is_string($metadata['provider_variation_code'] ?? null)
                         && trim($metadata['provider_variation_code']) !== '')
                     || (is_array($providerMapping) && collect([
