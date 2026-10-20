@@ -309,12 +309,13 @@ class PaystackClient
             throw new LogicException('Virtual-account customer lookup is unavailable; reconcile provider state before retrying.', previous: $exception);
         }
 
-        if ($lookup->successful() && $lookup->json('status') === true && is_array($lookup->json('data'))) {
-            foreach ($lookup->json('data') as $customer) {
-                if (is_array($customer) && strtolower((string) ($customer['email'] ?? '')) === strtolower($email)
-                    && is_string($customer['customer_code'] ?? null) && $customer['customer_code'] !== '') {
-                    return $customer;
-                }
+        if (!$lookup->successful() || $lookup->json('status') !== true || !is_array($lookup->json('data'))) {
+            throw new LogicException('Paystack customer lookup could not be confirmed; customer creation is paused to avoid duplicates.');
+        }
+        foreach ($lookup->json('data') as $customer) {
+            if (is_array($customer) && strtolower((string) ($customer['email'] ?? '')) === strtolower($email)
+                && is_string($customer['customer_code'] ?? null) && $customer['customer_code'] !== '') {
+                return $customer;
             }
         }
 
