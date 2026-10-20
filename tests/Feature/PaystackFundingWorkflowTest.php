@@ -549,4 +549,72 @@ class PaystackFundingWorkflowTest extends TestCase
     }
 
 
+
+    public function test_browser_return_stays_pending_if_paystack_mode_changes_after_checkout(): void
+    {
+        $user = User::query()->create([
+            'name' => 'Mode Switch Return Customer',
+            'email' => 'mode-switch-return@example.test',
+            'password' => 'not-a-real-password',
+        ]);
+        $wallet = app(WalletAccountService::class)->openForUser($user);
+        $intent = app(PaymentIntentService::class)->create($wallet, 15000, 'paystack', 'test');
+
+        // Simulate an administrator switching the active gateway after checkout.
+        IntegrationSetting::query()->create(['key' => 'paystack.mode', 'value' => 'live']);
+        IntegrationSetting::query()->create(['key' => 'paystack.secret_key', 'value' => 'sk_live_semizzy_live_secret']);
+        Http::fake();
+
+        $response = $this->actingAs($user)->get('/wallet/funding/return?reference='.$intent->reference);
+
+        $response->assertRedirect(route('dashboard', ['funding' => 'pending']));
+        Http::assertNothingSent();
+        $this->assertSame('pending', $intent->fresh()->status);
+        $this->assertSame(0, (int) $wallet->fresh()->balance_minor);
+        $this->assertDatabaseCount('wallet_transactions', 0);
+        $this->assertDatabaseCount('wallet_ledger_entries', 0);
+    }
+
+    public function test_paystack_webhook_cannot_settle_intent_after_gateway_mode_changes(): void
+    {
+        $user = User::query()->create([
+            'name' => 'Mode Switch Webhook Customer',
+            'email' => 'mode-switch-webhook@example.test',
+            'password' => 'not-a-real-password',
+        ]);
+        $wallet = app(WalletAccountService::class)->openForUser($user);
+        $intent = app(PaymentIntentService::class)->create($wallet, 12500, 'paystack', 'test');
+
+        // Keep the active key internally consistent, but switch away from the
+        // mode recorded on this pending intent. Verification must fail closed.
+        IntegrationSetting::query()->create(['key' => 'paystack.mode', 'value' => 'live']);
+        IntegrationSetting::query()->create(['key' => 'paystack.secret_key', 'value' => 'sk_live_semizzy_live_secret']);
+        Http::fake();
+
+        $payload = [
+            'event' => 'charge.success',
+            'data' => [
+                'id' => 445566,
+                'status' => 'success',
+                'reference' => $intent->reference,
+                'amount' => 12500,
+                'currency' => 'NGN',
+            ],
+        ];
+        $raw = json_encode($payload, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES);
+        $signature = hash_hmac('sha512', $raw, 'sk_live_semizzy_live_secret');
+
+        $response = $this->call('POST', '/api/payments/webhooks/paystack', [], [], [], [
+            'CONTENT_TYPE' => 'application/json',
+            'HTTP_X_PAYSTACK_SIGNATURE' => $signature,
+        ], $raw);
+
+        $response->assertStatus(503);
+        Http::assertNothingSent();
+        $this->assertSame('pending', $intent->fresh()->status);
+        $this->assertSame(0, (int) $wallet->fresh()->balance_minor);
+        $this->assertDatabaseCount('wallet_transactions', 0);
+        $this->assertDatabaseCount('wallet_ledger_entries', 0);
+    }
+
 }
