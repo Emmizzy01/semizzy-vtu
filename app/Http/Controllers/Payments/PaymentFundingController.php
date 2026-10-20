@@ -48,7 +48,28 @@ class PaymentFundingController extends Controller
 
         try {
             $gatewayMode = $paystack->mode();
-            $intent = $intents->create($wallet, (int) $validated['amount_minor'], 'paystack');
+            $clientIdempotencyKey = trim((string) $request->header('Idempotency-Key', ''));
+            if ($clientIdempotencyKey !== '' && (strlen($clientIdempotencyKey) > 200 || preg_match('/[\\r\\n]/', $clientIdempotencyKey))) {
+                throw ValidationException::withMessages(['amount_minor' => 'The funding retry key is invalid.']);
+            }
+            $intent = $intents->create(
+                $wallet,
+                (int) $validated['amount_minor'],
+                'paystack',
+                $gatewayMode,
+                $clientIdempotencyKey !== '' ? $clientIdempotencyKey : null,
+            );
+            if (is_string($intent->checkout_url) && $intent->checkout_url !== '') {
+                return response()->json(['data' => [
+                    'id' => $intent->public_id,
+                    'reference' => $intent->reference,
+                    'amount_minor' => $intent->amount_minor,
+                    'currency' => $intent->currency,
+                    'status' => $intent->status,
+                    'checkout_url' => $intent->checkout_url,
+                    'expires_at' => $intent->expires_at?->toISOString(),
+                ]], 200);
+            }
             $checkout = $paystack->initialize($intent, (string) $user->email);
         } catch (InvalidArgumentException $exception) {
             throw ValidationException::withMessages(['amount_minor' => $exception->getMessage()]);
@@ -60,10 +81,11 @@ class PaymentFundingController extends Controller
 
         $intent->forceFill([
             'checkout_url' => $checkout['authorization_url'],
-            'metadata' => [
+            'metadata' => array_merge($intent->metadata ?? [], [
+                // Preserve gateway mode and retry-key hash written before the provider call.
                 'gateway_mode' => $gatewayMode,
                 'paystack_access_code' => $checkout['access_code'] ?? null,
-            ],
+            ]),
         ])->save();
 
         return response()->json([
