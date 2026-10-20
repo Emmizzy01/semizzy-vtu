@@ -10,6 +10,7 @@ use App\Models\ManualDeposit;
 use App\Models\PlatformFeatureControl;
 use App\Models\VtuOrder;
 use App\Models\VtuProduct;
+use App\Models\VtuProviderWebhookEvent;
 use App\Services\Wallets\WalletAccountService;
 use App\Services\Wallets\WalletLedgerService;
 use Illuminate\Support\Facades\Artisan;
@@ -582,6 +583,79 @@ class VtuOrderMariaDbConcurrencyTest extends TestCase
         $this->assertSame(2, DB::table('wallet_transactions')->count(), 'Recovery must not debit or refund again.');
         $this->assertSame(1, $this->readState($state, 'submissions'), 'Recovery must never resubmit a purchase.');
         $this->assertSame(1, $this->readState($state, 'lookups'), 'Recovery must query provider state once.');
+
+        @unlink($state);
+    }
+
+    public function test_two_independent_webhook_workers_process_one_delivery_once(): void
+    {
+        [$user, $wallet, $product] = $this->preparedCustomer(1000, 1500);
+        $providerReference = 'SOGO-WEBHOOK-RACE-'.Str::uuid();
+        $order = VtuOrder::query()->create([
+            'public_id' => (string) Str::uuid(),
+            'user_id' => $user->getKey(),
+            'wallet_id' => $wallet->getKey(),
+            'vtu_product_id' => $product->getKey(),
+            'idempotency_key' => 'webhook-race:'.Str::uuid(),
+            'request_hash' => hash('sha256', $providerReference),
+            'service_type' => $product->service_type,
+            'network' => $product->network,
+            'product_code' => $product->code,
+            'recipient' => '08012345678',
+            'amount_minor' => $product->price_minor,
+            'currency' => 'NGN',
+            'status' => 'processing',
+            'provider' => 'sogo',
+            'provider_reference' => $providerReference,
+            'dispatch_started_at' => now()->subMinutes(2),
+        ]);
+
+        $debit = app(WalletLedgerService::class)->post(
+            walletId: (int) $wallet->getKey(),
+            type: 'debit',
+            amountMinor: (int) $product->price_minor,
+            idempotencyKey: 'vtu-purchase:'.$order->public_id,
+            reference: $order->public_id,
+            description: 'Concurrent webhook test purchase debit',
+            actorUserId: (int) $user->getKey(),
+            metadata: ['vtu_order_id' => $order->public_id],
+            correlationId: $order->public_id,
+        );
+        $order->forceFill(['wallet_transaction_id' => $debit->getKey()])->save();
+
+        $eventId = 'evt-concurrent-'.Str::uuid();
+        $event = VtuProviderWebhookEvent::query()->create([
+            'provider' => 'sogo',
+            'event_id' => $eventId,
+            'event_type' => 'transaction.completed',
+            'provider_reference' => $providerReference,
+            'payload' => [
+                'id' => $eventId,
+                'event' => 'transaction.completed',
+                'data' => ['reference' => $providerReference, 'status' => 'completed'],
+            ],
+            'payload_sha256' => hash('sha256', $eventId),
+            'received_at' => now(),
+        ]);
+
+        $state = $this->newStateFile();
+        $results = $this->runWorkers([
+            ['process-webhooks', $state],
+            ['process-webhooks', $state],
+        ]);
+
+        $this->assertSame(2, $this->readState($state, 'webhook_process_barrier'),
+            'Both independent PHP workers must reach the barrier before processing starts.');
+        $stats = array_map(fn (array $result): array => json_decode($result['stdout'], true, flags: JSON_THROW_ON_ERROR), $results);
+        $this->assertSame(1, array_sum(array_column($stats, 'processed')),
+            'Exactly one worker may process the same webhook delivery.');
+        $this->assertSame(1, $arrayChecked = array_sum(array_column($stats, 'checked')),
+            'The event must be claimed by only one worker.');
+        $this->assertNotNull($event->fresh()->processed_at);
+        $this->assertSame('successful', $order->fresh()->status);
+        $this->assertSame(500, (int) $wallet->fresh()->available_balance_minor);
+        $this->assertSame(2, DB::table('wallet_transactions')->count(),
+            'Opening credit and one purchase debit must remain; webhook replay must not duplicate ledger entries.');
 
         @unlink($state);
     }
