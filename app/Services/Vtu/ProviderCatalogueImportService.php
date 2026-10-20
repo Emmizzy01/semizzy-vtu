@@ -4,6 +4,7 @@ namespace App\Services\Vtu;
 
 use App\Models\VtuProduct;
 use App\Services\IntegrationSettings;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use LogicException;
 use RuntimeException;
@@ -35,8 +36,11 @@ class ProviderCatalogueImportService
             'dataway' => $this->dataway($category),
         };
 
-        $created = $updated = $skipped = 0;
-        foreach ($items as $item) {
+        // Fetch and validate the complete provider snapshot before entering the write transaction.
+        // This makes each category import all-or-nothing if any database write fails.
+        return DB::transaction(function () use ($items, $provider, $category): array {
+            $created = $updated = $skipped = 0;
+            foreach ($items as $item) {
             if (! is_array($item) || empty($item['code']) || empty($item['name']) || empty($item['network'])) {
                 $skipped++;
                 continue;
@@ -105,7 +109,8 @@ class ProviderCatalogueImportService
             }
         }
 
-        return compact('provider', 'category', 'created', 'updated', 'skipped');
+            return compact('provider', 'category', 'created', 'updated', 'skipped');
+        }, attempts: 3);
     }
 
     private function sogo(string $category): array
