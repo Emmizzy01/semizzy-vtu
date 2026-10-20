@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\IntegrationSettingsController;
+use App\Http\Controllers\Admin\PlatformAddonController;
 use App\Http\Controllers\Admin\StaffAccessController;
 use App\Http\Controllers\Admin\StorefrontCommissionController;
 use App\Http\Controllers\Admin\VtuOrderOperationsController;
