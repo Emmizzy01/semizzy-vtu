@@ -1450,11 +1450,13 @@ class VtuOrderWorkflowTest extends TestCase
         $this->assertSame('sogo', $order->provider);
 
         $oldReference = (string) $order->provider_reference;
-        $order->forceFill([
-            'provider' => 'gsubz',
-            'provider_reference' => 'GSUBZ-WEBHOOK-NEW-REF',
-            'status' => 'processing',
-        ])->save();
+        \\Illuminate\\Support\\Facades\\DB::table('vtu_orders')
+            ->where('id', $order->getKey())
+            ->update([
+                'provider' => 'gsubz',
+                'provider_reference' => 'GSUBZ-WEBHOOK-NEW-REF',
+                'status' => 'processing',
+            ]);
 
         $event = \App\Models\VtuProviderWebhookEvent::query()->create([
             'provider' => 'sogo',
