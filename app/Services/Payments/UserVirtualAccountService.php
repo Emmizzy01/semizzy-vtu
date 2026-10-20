@@ -38,11 +38,16 @@ class UserVirtualAccountService
         $existing = UserVirtualAccount::query()
             ->where('user_id', $user->getKey())
             ->where('provider', 'paystack')
-            ->where('bank_code', $preferredBank)
             ->whereNull('disabled_at')
             ->first();
         if ($existing) {
             return $existing;
+        }
+
+        $gatewayMode = $this->paystack->mode();
+        // Paystack documents test-bank as the test-key DVA provider; never use a live bank slug in test mode.
+        if ($gatewayMode === 'test') {
+            $preferredBank = 'test-bank';
         }
 
         $name = trim((string) ($user->name ?? ''));
@@ -75,7 +80,6 @@ class UserVirtualAccountService
                 $lockedExisting = UserVirtualAccount::query()
                     ->where('user_id', $user->getKey())
                     ->where('provider', 'paystack')
-                    ->where('bank_code', $preferredBank)
                     ->whereNull('disabled_at')
                     ->lockForUpdate()
                     ->first();
@@ -100,7 +104,7 @@ class UserVirtualAccountService
                     'metadata' => [
                         'provider' => 'paystack',
                         'assignment_status' => (string) ($assigned['assignment'] ?? 'active'),
-                        'integration_mode' => app(PaystackClient::class)->mode(),
+                        'integration_mode' => $gatewayMode,
                     ],
                 ]);
             }, attempts: 3);
@@ -110,7 +114,6 @@ class UserVirtualAccountService
             $sameUser = UserVirtualAccount::query()
                 ->where('user_id', $user->getKey())
                 ->where('provider', 'paystack')
-                ->where('bank_code', $preferredBank)
                 ->whereNull('disabled_at')
                 ->first();
             if ($sameUser) {
