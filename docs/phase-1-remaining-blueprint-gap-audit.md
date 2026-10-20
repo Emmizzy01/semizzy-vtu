@@ -97,3 +97,11 @@ Still unverified: test that repeated bulk requests and concurrent duplicate keys
 - Commit: `360f14393f80daab83a324c0882f9ede8375540f` on `main`. The GitHub status endpoint currently reports no status checks for this commit; this is not a test pass.
 - **Concurrency coverage remains open.** These are deterministic sequential idempotency regressions, not simultaneous multi-connection tests. The configured PHPUnit suite uses in-memory SQLite, which cannot establish production-like row-lock behavior. Add/run a disposable MariaDB integration test with independent connections/processes before claiming concurrent duplicate payout safety.
 - **Laravel test execution remains blocked/unverified in this environment.** No test command was executed against an installed checkout, and no CI run/result is available for the latest commit. Do not advance to the next security area or enable payouts/live financial operations until targeted tests and the full suite run successfully, including MariaDB concurrency coverage.
+
+
+## 2026-10-20 payout concurrency execution gate
+
+- Hardened `BankPayoutService::requestPayout` to re-check the user's idempotency key after acquiring the user's wallet row lock. This closes the stale-read race where two independent requests could both pass the first lookup before contending on the wallet lock; the second request now reuses the committed payout or raises an idempotency conflict before any debit.
+- Added `tests/Feature/BankPayoutMariaDbConcurrencyTest.php` plus `tests/Support/bank_payout_concurrency_worker.php`. The test requires a dedicated MariaDB database ending in `_test`, starts two independent PHP processes/connections, and asserts one payout row, one debit, one provider submission, and the expected final balance.
+- Added payout, peer-transfer, bulk-recovery, and MariaDB payout-race test files to `.github/workflows/laravel.yml` before the full Laravel suite.
+- Execution is pending in GitHub Actions as of this update. Do not treat this area as signed off until the focused MariaDB job, complete Laravel suite, and frontend build all finish successfully and their actual logs are reviewed. No live payout or purchase was initiated.
