@@ -293,6 +293,82 @@ class PaystackClient
         return $data;
     }
 
+    /** @return array<string, mixed> */
+    public function createOrFetchCustomer(string $email, string $firstName, string $lastName, string $phone = ''): array
+    {
+        if (! filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            throw new \\InvalidArgumentException('A valid customer email is required for virtual account provisioning.');
+        }
+
+        // Look up first so retries after a network timeout do not blindly create
+        // duplicate provider customer records.
+        try {
+            $lookup = Http::withToken($this->secretKey())->acceptJson()->timeout(15)
+                ->get('https://api.paystack.co/customer', ['email' => $email, 'perPage' => 100]);
+        } catch (ConnectionException $exception) {
+            throw new LogicException('Virtual-account customer lookup is unavailable; reconcile provider state before retrying.', previous: $exception);
+        }
+
+        if ($lookup->successful() && $lookup->json('status') === true && is_array($lookup->json('data'))) {
+            foreach ($lookup->json('data') as $customer) {
+                if (is_array($customer) && strtolower((string) ($customer['email'] ?? '')) === strtolower($email)
+                    && is_string($customer['customer_code'] ?? null) && $customer['customer_code'] !== '') {
+                    return $customer;
+                }
+            }
+        }
+
+        $payload = ['email' => $email, 'first_name' => mb_substr(trim($firstName), 0, 80), 'last_name' => mb_substr(trim($lastName), 0, 80)];
+        if ($phone !== '') {
+            $payload['phone'] = mb_substr(trim($phone), 0, 30);
+        }
+
+        try {
+            $response = Http::withToken($this->secretKey())->acceptJson()->asJson()->timeout(15)
+                ->post('https://api.paystack.co/customer', $payload);
+        } catch (ConnectionException $exception) {
+            throw new LogicException('Virtual-account customer creation result is unknown; reconcile provider state before retrying.', previous: $exception);
+        }
+
+        $data = $response->json('data');
+        if (!$response->successful() || $response->json('status') !== true || !is_array($data)
+            || !is_string($data['customer_code'] ?? null) || $data['customer_code'] === '') {
+            throw new LogicException('Paystack did not confirm virtual-account customer creation.');
+        }
+
+        return $data;
+    }
+
+    /** @return array<string, mixed> */
+    public function assignDedicatedVirtualAccount(string $customerCode, string $preferredBank): array
+    {
+        if ($customerCode === '' || !in_array($preferredBank, ['wema-bank', 'titan-paystack'], true)) {
+            throw new \\InvalidArgumentException('A verified customer and supported preferred bank are required.');
+        }
+
+        try {
+            $response = Http::withToken($this->secretKey())->acceptJson()->asJson()->timeout(20)
+                ->post('https://api.paystack.co/dedicated_account', [
+                    'customer' => $customerCode,
+                    'preferred_bank' => $preferredBank,
+                ]);
+        } catch (ConnectionException $exception) {
+            throw new LogicException('Virtual-account assignment result is unknown; reconcile provider state before retrying.', previous: $exception);
+        }
+
+        $data = $response->json('data');
+        $account = is_array($data) ? ($data['account'] ?? null) : null;
+        if (!$response->successful() || $response->json('status') !== true || !is_array($data)
+            || !is_array($account) || !is_string($account['account_number'] ?? null)
+            || !preg_match('/^\\d{10}$/', $account['account_number'])
+            || !is_string($account['account_name'] ?? null) || trim($account['account_name']) === ''
+            || !is_string($account['bank']['name'] ?? null) || trim($account['bank']['name']) === '') {
+            throw new LogicException('Paystack did not confirm a valid dedicated virtual account.');
+        }
+
+        return $data;
+    }
+
     public function verifyWebhookSignature(string $rawBody, string $signature): bool
     {
         $expected = hash_hmac('sha512', $rawBody, $this->secretKey());
