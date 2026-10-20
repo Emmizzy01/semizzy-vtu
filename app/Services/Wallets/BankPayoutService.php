@@ -170,6 +170,11 @@ class BankPayoutService
 
         $isNewRequest = false;
         $payout = DB::transaction(function () use ($user, $beneficiary, $amountMinor, $idempotencyKey, $requestHash, &$isNewRequest): BankPayout {
+            // Laravel may retry this closure after a deadlock. Reset the
+            // side-effect flag for every attempt so an aborted attempt can
+            // never cause a reused payout to be submitted to the provider.
+            $isNewRequest = false;
+
             $existing = BankPayout::query()->where('user_id', $user->id)->where('idempotency_key', $idempotencyKey)->first();
             if ($existing) {
                 if (! hash_equals($existing->request_hash, $requestHash)) {
