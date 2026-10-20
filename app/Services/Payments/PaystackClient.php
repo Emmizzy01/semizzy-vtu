@@ -296,8 +296,9 @@ class PaystackClient
     /** @return array<string, mixed> */
     public function createOrFetchCustomer(string $email, string $firstName, string $lastName, string $phone = ''): array
     {
-        if (! filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            throw new \\InvalidArgumentException('A valid customer email is required for virtual account provisioning.');
+        $phone = preg_replace('/[\\s()-]+/', '', trim($phone)) ?? '';
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL) || !preg_match('/^\\+?\\d{10,15}$/', $phone)) {
+            throw new \\InvalidArgumentException('A valid customer email and phone number are required for virtual-account provisioning.');
         }
 
         // Look up first so retries after a network timeout do not blindly create
@@ -320,9 +321,7 @@ class PaystackClient
         }
 
         $payload = ['email' => $email, 'first_name' => mb_substr(trim($firstName), 0, 80), 'last_name' => mb_substr(trim($lastName), 0, 80)];
-        if ($phone !== '') {
-            $payload['phone'] = mb_substr(trim($phone), 0, 30);
-        }
+        $payload['phone'] = mb_substr($phone, 0, 30);
 
         try {
             $response = Http::withToken($this->secretKey())->acceptJson()->asJson()->timeout(15)
