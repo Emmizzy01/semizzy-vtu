@@ -288,6 +288,56 @@ class TransactionPinSecurityTest extends TestCase
         $this->assertDatabaseHas('transaction_security_events', ['user_id' => $user->id, 'event_type' => 'pin_changed', 'outcome' => 'success']);
     }
 
+    public function test_existing_pin_change_requires_the_correct_current_pin_and_preserves_the_hash_on_failure(): void
+    {
+        $user = User::query()->create([
+            'name' => 'PIN Change Guard Customer',
+            'email' => 'pin-change-guard@example.test',
+            'password' => 'not-a-real-password',
+        ]);
+        $user->forceFill(['transaction_pin_hash' => Hash::make('4928')])->save();
+
+        $this->actingAs($user)->put('/security/transaction-pin', [
+            'current_pin' => '1111',
+            'pin' => '7359',
+            'pin_confirmation' => '7359',
+        ])->assertSessionHasErrors('current_pin');
+
+        $fresh = $user->fresh();
+        $this->assertTrue(Hash::check('4928', (string) $fresh->transaction_pin_hash));
+        $this->assertFalse(Hash::check('7359', (string) $fresh->transaction_pin_hash));
+        $this->assertSame(1, (int) $fresh->transaction_pin_failed_attempts);
+        $this->assertDatabaseHas('transaction_security_events', [
+            'user_id' => $user->id,
+            'event_type' => 'pin_verification',
+            'outcome' => 'failed',
+        ]);
+    }
+
+    public function test_active_pin_lockout_prevents_pin_change_even_with_the_correct_current_pin(): void
+    {
+        $user = User::query()->create([
+            'name' => 'PIN Change Lock Customer',
+            'email' => 'pin-change-lock@example.test',
+            'password' => 'not-a-real-password',
+        ]);
+        $user->forceFill([
+            'transaction_pin_hash' => Hash::make('4928'),
+            'transaction_pin_failed_attempts' => 5,
+            'transaction_pin_locked_until' => now()->addMinutes(10),
+        ])->save();
+
+        $this->actingAs($user)->put('/security/transaction-pin', [
+            'current_pin' => '4928',
+            'pin' => '7359',
+            'pin_confirmation' => '7359',
+        ])->assertSessionHasErrors('current_pin');
+
+        $fresh = $user->fresh();
+        $this->assertTrue(Hash::check('4928', (string) $fresh->transaction_pin_hash));
+        $this->assertSame(5, (int) $fresh->transaction_pin_failed_attempts);
+    }
+
     public function test_repeated_pin_and_simple_sequences_are_rejected(): void
     {
         $user = User::query()->create(['name' => 'PIN Customer', 'email' => 'pin-customer2@example.test', 'password' => 'not-a-real-password']);
