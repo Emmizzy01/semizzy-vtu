@@ -29,6 +29,53 @@ class TransactionPinService
         }, attempts: 3);
     }
 
+    public function change(User $user, string $newPin, ?string $currentPin): string
+    {
+        return DB::transaction(function () use ($user, $newPin, $currentPin): string {
+            // Verify the current PIN and replace it while holding the same user
+            // row lock. A verify-then-save sequence would allow two concurrent
+            // PIN-change requests to both validate the old PIN and race to win.
+            $locked = User::query()->whereKey($user->id)->lockForUpdate()->firstOrFail();
+
+            if ($locked->transaction_pin_locked_until && $locked->transaction_pin_locked_until->isFuture()) {
+                return 'locked';
+            }
+
+            $wasConfigured = (bool) $locked->transaction_pin_hash;
+            if ($wasConfigured) {
+                if ($currentPin === null || ! Hash::check($currentPin, (string) $locked->transaction_pin_hash)) {
+                    $attempts = (int) $locked->transaction_pin_failed_attempts + 1;
+                    $lockedUntil = $attempts >= 5 ? now()->addMinutes(15) : null;
+                    $locked->forceFill([
+                        'transaction_pin_failed_attempts' => $attempts,
+                        'transaction_pin_locked_until' => $lockedUntil,
+                    ])->save();
+                    $this->record($locked->id, 'pin_verification', $lockedUntil ? 'locked' : 'failed', [
+                        'attempts' => $attempts,
+                        'purpose' => 'pin_change',
+                    ]);
+
+                    return $lockedUntil ? 'locked' : 'invalid';
+                }
+
+                if (Hash::check($newPin, (string) $locked->transaction_pin_hash)) {
+                    return 'same';
+                }
+            }
+
+            $locked->forceFill([
+                'transaction_pin_hash' => Hash::make($newPin),
+                'transaction_pin_failed_attempts' => 0,
+                'transaction_pin_locked_until' => null,
+                'transaction_pin_changed_at' => now(),
+            ])->save();
+
+            $this->record($locked->id, $wasConfigured ? 'pin_changed' : 'pin_created', 'success', []);
+
+            return $wasConfigured ? 'changed' : 'created';
+        }, attempts: 3);
+    }
+
     public function record(?int $userId, string $event, string $outcome, array $context = []): void
     {
         DB::table('transaction_security_events')->insert([
