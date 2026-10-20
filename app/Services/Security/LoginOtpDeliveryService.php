@@ -1,10 +1,11 @@
 <?php
 
-namespace App\\Services\\Security;
+namespace App\Services\Security;
 
-use App\\Models\\User;
-use Illuminate\\Support\\Facades\\Http;
-use Illuminate\\Support\\Facades\\Mail;
+use App\Mail\LoginOtpMail;
+use App\Models\User;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Mail;
 use RuntimeException;
 
 class LoginOtpDeliveryService
@@ -21,7 +22,7 @@ class LoginOtpDeliveryService
                 throw new RuntimeException('This account has no email address for verification.');
             }
 
-            Mail::to($user->email)->send(new \\App\\Mail\\LoginOtpMail($code));
+            Mail::to($user->email)->send(new LoginOtpMail($code));
             return;
         }
 
