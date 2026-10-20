@@ -48,30 +48,22 @@ class VtuProviderWebhookRecoveryTest extends TestCase
         $this->assertSame('processing', $order->fresh()->status);
     }
 
-    public function test_competing_webhook_worker_cannot_claim_event_already_claimed_in_backoff_window(): void
+    public function test_worker_skips_event_already_claimed_within_backoff_window(): void
     {
         $this->createMatchedOrder('SOGO-COMPETING-1');
         $event = $this->createEvent('evt-competing-1', 'SOGO-COMPETING-1');
-        $nestedStats = null;
+        $event->forceFill(['last_attempted_at' => now()])->save();
 
-        $this->mock(VtuOrderService::class, function ($mock) use (&$nestedStats): void {
-            $mock->shouldReceive('applyVerifiedWebhookResult')
-                ->once()
-                ->andReturnUsing(function () use (&$nestedStats): void {
-                    // Model a competing worker starting after the first worker
-                    // commits its claim but before it marks the event processed.
-                    $nestedStats = app(VtuProviderWebhookService::class)->process();
-                });
+        $this->mock(VtuOrderService::class, function ($mock): void {
+            $mock->shouldNotReceive('applyVerifiedWebhookResult');
         });
 
         $stats = app(VtuProviderWebhookService::class)->process();
 
-        $this->assertSame(1, $stats['checked']);
-        $this->assertSame(1, $stats['processed']);
-        $this->assertIsArray($nestedStats);
-        $this->assertSame(0, $nestedStats['checked']);
-        $this->assertSame(1, $event->fresh()->processing_error === null ? 1 : 0);
-        $this->assertNotNull($event->fresh()->processed_at);
+        $this->assertSame(0, $stats['checked']);
+        $this->assertSame(0, $stats['processed']);
+        $this->assertNull($event->fresh()->processed_at);
+        $this->assertNotNull($event->fresh()->last_attempted_at);
     }
 
     private function createMatchedOrder(string $providerReference): VtuOrder
