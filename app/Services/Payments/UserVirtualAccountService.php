@@ -112,7 +112,9 @@ class UserVirtualAccountService
             }
 
             $bank = is_array($assigned['bank'] ?? null) ? $assigned['bank'] : [];
-            if (!is_string($assigned['account_number'] ?? null)
+            if (($assigned['assigned'] ?? false) !== true || ($assigned['active'] ?? false) !== true
+                || strtoupper((string) ($assigned['currency'] ?? '')) !== 'NGN'
+                || !is_string($assigned['account_number'] ?? null)
                 || !preg_match('/^\d{10}$/', $assigned['account_number'])
                 || !is_string($assigned['account_name'] ?? null) || trim($assigned['account_name']) === ''
                 || !is_string($bank['name'] ?? null) || trim($bank['name']) === '') {
