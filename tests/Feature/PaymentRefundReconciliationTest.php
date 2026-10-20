@@ -125,9 +125,10 @@ class PaymentRefundReconciliationTest extends TestCase
 
         // Only a fresh canonical provider lookup with matching details may resolve review.
         $refund->forceFill(['status_changed_at' => now()->subHour()])->save();
-        $recovered = app(PaymentRefundReconciliationService::class)->reconcile();
+        $recovered = app(\App\Services\Payments\PaymentRefundService::class)
+            ->reconcileProviderStatus($refund->public_id);
 
-        $this->assertSame(1, $recovered['reconciled']);
+        $this->assertSame('reconciled', $recovered['outcome']);
         $this->assertSame('succeeded', $refund->fresh()->status);
         $this->assertSame('processed', $refund->fresh()->provider_status);
         Http::assertSentCount(2);
