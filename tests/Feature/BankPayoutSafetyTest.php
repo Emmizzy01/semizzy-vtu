@@ -32,6 +32,35 @@ class BankPayoutSafetyTest extends TestCase
         $this->assertDatabaseCount('wallet_transactions', 0);
     }
 
+    public function test_http_payout_endpoint_rejects_wrong_pin_before_creating_payout(): void
+    {
+        $user = User::query()->create([
+            'name' => 'PIN Protected Payout User',
+            'email' => 'pin-protected-payout@example.test',
+            'password' => 'not-a-real-password',
+        ]);
+        $user->forceFill([
+            'transaction_pin_hash' => \\Illuminate\\Support\\Facades\\Hash::make('4928'),
+        ])->save();
+
+        $this->actingAs($user)->postJson('/wallet/bank-transfer', [
+            'beneficiary_id' => 999,
+            'amount_minor' => 25000,
+            'transaction_pin' => '1111',
+            'idempotency_key' => 'payout-wrong-pin-test-001',
+        ])->assertStatus(422)
+          ->assertJsonPath('message', 'Transaction PIN is incorrect.');
+
+        $this->assertDatabaseCount('bank_payouts', 0);
+        $this->assertDatabaseCount('wallets', 0);
+        $this->assertDatabaseCount('wallet_transactions', 0);
+        $this->assertDatabaseHas('transaction_security_events', [
+            'user_id' => $user->id,
+            'event_type' => 'pin_verification',
+            'outcome' => 'failed',
+        ]);
+    }
+
     public function test_bank_beneficiary_account_number_is_encrypted_at_rest(): void
     {
         $user = User::query()->create([
