@@ -143,6 +143,37 @@ class PaymentIntentIdempotencyTest extends TestCase
     }
 
 
+    public function test_legacy_paystack_intent_without_gateway_mode_is_blocked_when_live_gate_is_closed(): void
+    {
+        config(['services.semizzy_payments.live_funding_enabled' => false]);
+
+        $user = User::factory()->create();
+        $wallet = Wallet::query()->create([
+            'user_id' => $user->id,
+            'currency' => 'NGN',
+            'status' => 'active',
+            'balance_minor' => 0,
+            'available_balance_minor' => 0,
+        ]);
+        $intent = app(PaymentIntentService::class)->create($wallet, 25000, 'paystack', 'test', 'legacy-paystack-mode-key');
+        $metadata = $intent->metadata;
+        unset($metadata['gateway_mode']);
+        $intent->forceFill(['metadata' => $metadata])->save();
+
+        $this->expectException(LogicException::class);
+        app(PaymentFundingService::class)->processVerifiedEvent('paystack', [
+            'id' => 'paystack-legacy-mode-charge-1002',
+            'type' => 'payment.succeeded',
+            'data' => [
+                'reference' => $intent->reference,
+                'transaction_id' => '1002',
+                'status' => 'succeeded',
+                'amount_minor' => 25000,
+                'currency' => 'NGN',
+            ],
+        ]);
+    }
+
     public function test_live_funding_settlement_is_blocked_until_release_gate_is_open(): void
     {
         config(['services.semizzy_payments.live_funding_enabled' => false]);
