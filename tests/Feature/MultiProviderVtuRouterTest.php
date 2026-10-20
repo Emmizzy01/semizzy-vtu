@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\VtuOrder;
+use App\Models\VtuProviderAttempt;
 use App\Models\VtuProduct;
 use App\Services\Vtu\MultiProviderVtuRouter;
 use Illuminate\Support\Facades\Http;
@@ -60,6 +61,47 @@ class MultiProviderVtuRouterTest extends TestCase
         $result = app(MultiProviderVtuRouter::class)->lookup($order);
         $this->assertSame('success', $result['status']);
         Http::assertSent(fn ($request) => str_contains($request->url(), 'api.sogo.africa/v1/transactions/'));
+        Http::assertNotSent(fn ($request) => str_contains($request->url(), 'api.gsubz.com'));
+    }
+
+    public function test_stale_attempt_lookup_uses_that_attempts_provider_and_reference(): void
+    {
+        Http::fake([
+            'api.sogo.africa/*' => Http::response([
+                'data' => [
+                    'status' => 'completed',
+                    'reference' => 'SOGO-OLD-ATTEMPT-REF',
+                ],
+            ], 200),
+            'api.gsubz.com/*' => Http::response([
+                'status' => 'failed',
+                'reference' => 'GSUBZ-NEW-ATTEMPT-REF',
+            ], 200),
+        ]);
+
+        // The order has already advanced to GSubz attempt #2, but a late
+        // reconciliation worker is still handling the persisted Sogo attempt #1.
+        $order = new VtuOrder([
+            'public_id' => '550e8400-e29b-41d4-a716-446655440001',
+            'provider' => 'gsubz',
+            'provider_reference' => 'GSUBZ-NEW-ATTEMPT-REF',
+            'status' => 'processing',
+        ]);
+        $order->setAttribute('id', 77);
+
+        $olderAttempt = new VtuProviderAttempt([
+            'vtu_order_id' => 77,
+            'attempt_number' => 1,
+            'provider' => 'sogo',
+            'provider_reference' => 'SOGO-OLD-ATTEMPT-REF',
+            'outcome' => 'unknown',
+        ]);
+
+        $result = app(MultiProviderVtuRouter::class)->lookupAttempt($order, $olderAttempt);
+
+        $this->assertSame('success', $result['status']);
+        $this->assertSame('SOGO-OLD-ATTEMPT-REF', $result['provider_reference']);
+        Http::assertSent(fn ($request) => str_contains($request->url(), 'api.sogo.africa'));
         Http::assertNotSent(fn ($request) => str_contains($request->url(), 'api.gsubz.com'));
     }
 
