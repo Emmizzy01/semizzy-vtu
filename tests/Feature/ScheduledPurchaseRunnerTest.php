@@ -121,4 +121,39 @@ class ScheduledPurchaseRunnerTest extends TestCase
         $this->assertStringContainsString('Check the stable scheduled idempotency reference', (string) $schedule->last_error);
     }
 
+
+    public function test_provider_exception_pauses_schedule_and_never_replays_uncertain_purchase(): void
+    {
+        $user = User::query()->create([
+            'name' => 'Interrupted Scheduled User',
+            'email' => 'interrupted-scheduled@example.test',
+            'password' => 'not-a-real-password',
+        ]);
+        $schedule = ScheduledServicePurchase::query()->create([
+            'user_id' => $user->id,
+            'service_type' => 'data',
+            'product_code' => 'interrupted-plan',
+            'recipient' => '08012345678',
+            'frequency' => 'daily',
+            'next_run_at' => now()->subMinutes(2),
+            'status' => 'active',
+        ]);
+
+        $this->mock(VtuOrderService::class)
+            ->shouldReceive('purchase')
+            ->once()
+            ->andThrow(new \\RuntimeException('Simulated transport interruption after dispatch began.'));
+
+        $this->artisan('vtu:run-scheduled-purchases --limit=100')->assertExitCode(0);
+
+        $schedule->refresh();
+        $this->assertSame('paused', $schedule->status);
+        $this->assertSame('unknown', $schedule->last_result);
+        $this->assertStringContainsString('Review the order before resuming', (string) $schedule->last_error);
+
+        // A second scheduler tick must leave the paused schedule untouched.
+        $this->artisan('vtu:run-scheduled-purchases --limit=100')->assertExitCode(0);
+        $this->assertSame('paused', $schedule->fresh()->status);
+    }
+
 }
