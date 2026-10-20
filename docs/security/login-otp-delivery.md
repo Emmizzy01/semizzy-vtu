@@ -17,4 +17,4 @@ SMS and WhatsApp use a generic HTTPS JSON adapter configured with separate endpo
 
 ## Biometric/passkey status
 
-Device biometrics should be implemented using standards-based WebAuthn/passkeys. TOTP authenticator codes are not biometrics, and browser fingerprints are not authentication. The repository does not currently include a WebAuthn server verification library, so passkey registration/assertion must remain a tracked implementation gap until server-side challenge, origin/RP ID, credential signature, counter and recovery verification are added and tested.
+Device biometrics should be implemented using standards-based WebAuthn/passkeys. TOTP authenticator codes are not biometrics, and browser fingerprints are not authentication. The WebAuthn server package and browser client are now added in the passkey foundation. The feature remains disabled until dependency resolution, migration, HTTPS/RP/origin configuration, and end-to-end registration/assertion/recovery tests are verified. See docs/security/passkeys.md.
