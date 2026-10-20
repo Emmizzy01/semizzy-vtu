@@ -168,7 +168,11 @@ class PaymentRefundService
 
         try {
             $intent = $refund->paymentIntent()->firstOrFail();
-            $providerData = $this->paystack->refund($intent->reference, $refund->amount_minor, $refund->reason);
+            $gatewayMode = $intent->metadata['gateway_mode'] ?? null;
+            if (! in_array($gatewayMode, ['test', 'live'], true)) {
+                throw new LogicException('Refund is blocked because the original payment has no recorded gateway mode.');
+            }
+            $providerData = $this->paystack->refund($intent->reference, $refund->amount_minor, $refund->reason, $gatewayMode);
             $providerStatus = strtolower((string) ($providerData['status'] ?? 'pending'));
             $providerRef = $providerData['refund_reference'] ?? $providerData['id'] ?? null;
 
@@ -212,15 +216,22 @@ class PaymentRefundService
             return ['outcome' => 'mismatch', 'status' => 'review_required'];
         }
 
+        $intent = $refund->paymentIntent()->firstOrFail();
+        $gatewayMode = $intent->metadata['gateway_mode'] ?? null;
+        if (! in_array($gatewayMode, ['test', 'live'], true)) {
+            $this->markReviewRequired($refund->public_id, 'missing_original_gateway_mode');
+
+            return ['outcome' => 'mismatch', 'status' => 'review_required'];
+        }
+
         try {
-            $provider = $this->paystack->fetchRefund($providerRef);
+            $provider = $this->paystack->fetchRefund($providerRef, $gatewayMode);
         } catch (LogicException $exception) {
             report($exception);
 
             return ['outcome' => 'unavailable', 'status' => $refund->status];
         }
 
-        $intent = $refund->paymentIntent()->firstOrFail();
         $providerId = isset($provider['id']) && is_numeric($provider['id']) ? (string) $provider['id'] : null;
         $providerAmount = $provider['amount'] ?? null;
         $providerAmount = is_int($providerAmount)
