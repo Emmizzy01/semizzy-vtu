@@ -75,12 +75,16 @@ class DashboardRoutingTest extends TestCase
     public function test_regular_customer_sees_customer_dashboard(): void
     {
         $customer = $this->account('customer@example.test');
+        $customer->forceFill(['user_type' => 'reseller', 'user_level' => 'level_3'])->save();
 
         $this->actingAs($customer)
             ->get('/dashboard')
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page->component('Dashboard')
                 ->where('isAdminPreview', false)
+                ->where('customer.type', 'reseller')
+                ->where('customer.level', 'level_3')
+                ->where('customer.kycStatus', 'unverified')
                 ->has('transactions')
                 ->has('transactionPagination')
                 ->where('transactionFilters.status', 'all')
