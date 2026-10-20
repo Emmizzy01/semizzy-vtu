@@ -1482,6 +1482,66 @@ class VtuOrderWorkflowTest extends TestCase
         $this->assertSame(2, \App\Models\WalletTransaction::query()->count());
     }
 
+    public function test_signed_sogo_failed_and_refunded_webhooks_cannot_refund_without_definitive_failure_signal(): void
+    {
+        config([
+            'services.vtu.multi_provider.enabled' => true,
+            'services.vtu.multi_provider.failover_enabled' => true,
+            'services.vtu.multi_provider.priority' => ['sogo'],
+            'services.vtu.multi_provider.definitive_failure_providers' => ['sogo'],
+            'services.vtu.sogo.base_url' => 'https://api.sogo.africa/v1',
+            'services.vtu.sogo.api_key' => 'sogo-test-key',
+            'services.vtu.sogo.webhook_secret' => 'sogo-webhook-test-secret',
+        ]);
+        Http::fake([
+            'api.sogo.africa/*' => Http::response([
+                'data' => ['status' => 'pending', 'reference' => 'SOGO-REFUND-SAFETY-REF'],
+            ], 200),
+        ]);
+
+        [$user, $wallet, $product] = $this->preparedCustomer(1000, 1500);
+        $product->forceFill(['metadata' => ['provider_mappings' => [
+            'sogo' => ['network' => 'mtn'],
+        ]]])->save();
+
+        $order = app(VtuOrderService::class)->purchase(
+            $user,
+            $product->code,
+            '08012345678',
+            'signed-webhook-refund-safety',
+        );
+        $this->assertSame('sogo', $order->provider);
+        $this->assertSame(500, (int) $wallet->fresh()->available_balance_minor);
+
+        foreach (['transaction.failed', 'transaction.refunded'] as $index => $eventType) {
+            $eventId = 'evt-sogo-refund-safety-'.$index;
+            $payload = [
+                'id' => $eventId,
+                'event' => $eventType,
+                'data' => ['reference' => $order->provider_reference, 'status' => 'failed'],
+            ];
+            $body = json_encode($payload, JSON_THROW_ON_ERROR);
+            $signature = 'sha256='.hash_hmac('sha256', $body, 'sogo-webhook-test-secret');
+
+            $this->call('POST', '/api/vtu/webhooks/sogo', [], [], [], [
+                'CONTENT_TYPE' => 'application/json',
+                'HTTP_X_SOGO_SIGNATURE_256' => $signature,
+            ], $body)->assertStatus(202);
+
+            app(\App\Services\Vtu\VtuProviderWebhookService::class)->process();
+        }
+
+        $fresh = $order->fresh();
+        $this->assertSame('awaiting_reconciliation', $fresh->status);
+        $this->assertSame(500, (int) $wallet->fresh()->available_balance_minor);
+        $this->assertSame(2, \App\Models\WalletTransaction::query()->count());
+        $this->assertDatabaseMissing('wallet_transactions', [
+            'reference' => 'vtu-refund:'.$order->id,
+        ]);
+        $this->assertSame(2, \App\Models\VtuProviderWebhookEvent::query()
+            ->where('provider', 'sogo')->whereNotNull('processed_at')->count());
+    }
+
     public function test_reconciliation_with_a_different_provider_reference_stays_unresolved(): void
     {
         Http::fake(function ($request) {
