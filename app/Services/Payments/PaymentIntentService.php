@@ -24,9 +24,10 @@ class PaymentIntentService
             throw new InvalidArgumentException('Only active NGN wallets can create funding intents.');
         }
 
+        $intentGatewayMode = $provider === 'paystack' ? $gatewayMode : null;
         $ttl = max(5, min(120, (int) config('services.semizzy_payments.intent_ttl_minutes', 30)));
 
-        return DB::transaction(function () use ($wallet, $amountMinor, $provider, $gatewayMode, $idempotencyKey, $ttl): PaymentIntent {
+        return DB::transaction(function () use ($wallet, $amountMinor, $provider, $intentGatewayMode, $idempotencyKey, $ttl): PaymentIntent {
             // Serialize funding-intent creation per wallet so concurrent retries with the same
             // client key cannot create multiple checkout references.
             Wallet::query()->whereKey($wallet->id)->lockForUpdate()->firstOrFail();
@@ -44,7 +45,7 @@ class PaymentIntentService
                     if ($existing->amount_minor !== $amountMinor) {
                         throw new InvalidArgumentException('This funding retry key was already used with a different amount.');
                     }
-                    if (($existing->metadata['gateway_mode'] ?? null) !== $gatewayMode) {
+                    if (($existing->metadata['gateway_mode'] ?? null) !== $intentGatewayMode) {
                         throw new InvalidArgumentException('This funding retry key is already bound to a different gateway mode.');
                     }
                     if ($existing->status !== 'pending' || ($existing->expires_at && $existing->expires_at->isPast())) {
@@ -62,7 +63,7 @@ class PaymentIntentService
                 'amount_minor' => $amountMinor,
                 'status' => 'pending',
                 'metadata' => array_filter([
-                    'gateway_mode' => $gatewayMode,
+                    'gateway_mode' => $intentGatewayMode,
                     'client_idempotency_key_hash' => $keyHash,
                 ], static fn ($value) => $value !== null),
                 'expires_at' => now()->addMinutes($ttl),
