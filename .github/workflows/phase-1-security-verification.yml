@@ -1,0 +1,66 @@
+name: Phase 1 security verification
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  laravel-sqlite:
+    name: Laravel suite (SQLite)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mbstring, bcmath, pdo_sqlite, sqlite3, dom, curl, fileinfo, openssl, tokenizer, xml
+          coverage: none
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: composer install --no-interaction --prefer-dist --no-progress
+      - run: npm ci
+      - run: php artisan test
+      - run: npm run build
+
+  laravel-mariadb:
+    name: Laravel suite (MariaDB)
+    runs-on: ubuntu-latest
+    services:
+      mariadb:
+        image: mariadb:11.4
+        env:
+          MARIADB_ROOT_PASSWORD: root
+          MARIADB_DATABASE: semizzy_test
+          MARIADB_USER: semizzy
+          MARIADB_PASSWORD: semizzy_test_password
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+    env:
+      DB_CONNECTION: mysql
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+      DB_DATABASE: semizzy_test
+      DB_USERNAME: semizzy
+      DB_PASSWORD: semizzy_test_password
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mbstring, bcmath, pdo_mysql, dom, curl, fileinfo, openssl, tokenizer, xml
+          coverage: none
+      - run: composer install --no-interaction --prefer-dist --no-progress
+      - run: php artisan test --testsuite=Feature --filter='BankPayoutSafetyTest|PeerWalletTransferTest|VtuBulkPurchaseBatchTest'
