@@ -11,6 +11,7 @@ use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\Auth\LoginChallengeController;
 use App\Http\Controllers\Auth\TwoFactorChallengeController;
 use App\Http\Controllers\Security\TwoFactorController;
+use App\Http\Controllers\Security\PasskeyManagementController;
 use App\Http\Controllers\Auth\PasswordResetController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EducationServiceController;
@@ -122,6 +123,8 @@ Route::middleware('auth')->group(function (): void {
     Route::get('/security/transaction-pin', [TransactionPinController::class, 'show'])->name('security.transaction-pin');
     Route::put('/security/transaction-pin', [TransactionPinController::class, 'update'])->middleware('throttle:5,1')->name('security.transaction-pin.update');
     Route::get('/security/two-factor', [TwoFactorController::class, 'show'])->name('security.two-factor');
+    Route::get('/security/passkeys', [PasskeyManagementController::class, 'show'])->middleware('throttle:30,1')->name('security.passkeys');
+    Route::post('/security/passkeys/confirm', [PasskeyManagementController::class, 'confirm'])->middleware('throttle:5,1')->name('security.passkeys.confirm');
     Route::post('/security/two-factor/enable', [TwoFactorController::class, 'enable'])->middleware('throttle:5,1')->name('security.two-factor.enable');
     Route::post('/security/two-factor/disable', [TwoFactorController::class, 'disable'])->middleware('throttle:5,1')->name('security.two-factor.disable');
     Route::get('/wallet/transfer', fn () => Inertia::render('Wallet/Transfer'))->name('wallet.transfer');
