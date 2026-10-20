@@ -51,7 +51,7 @@ class GsubzCatalogueIdentifierCompatibilityTest extends TestCase
             'granted_by_user_id' => $admin->id,
         ]);
 
-        foreach (['vtpass', 'gsubz'] as $provider) {
+        foreach (['vtpass', 'sogo', 'gsubz', 'dataway'] as $provider) {
             VtuProduct::query()->create([
                 'service_type' => 'data',
                 'provider_key' => $provider,
@@ -66,13 +66,15 @@ class GsubzCatalogueIdentifierCompatibilityTest extends TestCase
             ]);
         }
 
-        $this->actingAs($admin)->get('/admin/vtu-products?provider_key=gsubz')
-            ->assertOk()
-            ->assertInertia(fn ($page) => $page
-                ->component('Admin/VtuProducts/Index')
-                ->where('filters.provider_key', 'gsubz')
-                ->where('pagination.total', 1)
-                ->where('products.0.provider_key', 'gsubz'));
+        foreach (['vtpass', 'sogo', 'gsubz', 'dataway'] as $provider) {
+            $this->actingAs($admin)->get('/admin/vtu-products?provider_key='.$provider)
+                ->assertOk()
+                ->assertInertia(fn ($page) => $page
+                    ->component('Admin/VtuProducts/Index')
+                    ->where('filters.provider_key', $provider)
+                    ->where('pagination.total', 1)
+                    ->where('products.0.provider_key', $provider));
+        }
     }
 
     public function test_nested_gsubz_service_with_plain_id_is_not_dropped_before_data_plan_import(): void
