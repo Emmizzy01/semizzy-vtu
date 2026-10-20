@@ -10,6 +10,8 @@ use App\Models\VtuOrder;
 use App\Models\VtuProduct;
 use App\Services\Vtu\VtuOrderService;
 use App\Services\Vtu\VtuProviderWebhookService;
+use App\Http\Controllers\Vtu\VtuProviderWebhookController;
+use App\Services\Vtu\ProviderWebhookSignature;
 use App\Services\Wallets\WalletAccountService;
 use App\Services\Vtu\VtuProvider;
 use Illuminate\Contracts\Console\Kernel;
@@ -38,6 +40,29 @@ $provider = new ConcurrentVtuTestProvider($statePath);
 $app->instance(VtuProvider::class, $provider);
 
 try {
+    if ($mode === 'receive-webhook') {
+        $body = base64_decode((string) ($argv[3] ?? ''), true);
+        $signature = (string) ($argv[4] ?? '');
+        if (! is_string($body) || $body === '') {
+            throw new RuntimeException('Missing webhook body.');
+        }
+        config(['services.vtu.sogo.webhook_secret' => 'sogo-webhook-concurrency-secret']);
+        $provider->arriveAndWait('webhook_receive_barrier', 2);
+        $request = Request::create('/api/vtu/webhooks/sogo', 'POST', [], [], [], [
+            'CONTENT_TYPE' => 'application/json',
+            'HTTP_X_SOGO_SIGNATURE_256' => $signature,
+        ], $body);
+        $response = app(VtuProviderWebhookController::class)(
+            $request,
+            'sogo',
+            app(ProviderWebhookSignature::class),
+        );
+        fwrite(STDOUT, json_encode([
+            'status' => $response->getStatusCode(),
+            'body' => $response->getData(true),
+        ], JSON_THROW_ON_ERROR)."\\n");
+        exit(0);
+    }
     if ($mode === 'process-webhooks') {
         $provider->arriveAndWait('webhook_process_barrier', 2);
         $stats = app(VtuProviderWebhookService::class)->process();
