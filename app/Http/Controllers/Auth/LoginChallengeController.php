@@ -16,7 +16,7 @@ class LoginChallengeController extends Controller
 {
     public function show(Request $request): Response|RedirectResponse
     {
-        if (! config('auth_security.email_otp_enabled', false)) {
+        if (! $this->loginOtpEnabled()) {
             return redirect()->route('login');
         }
 
@@ -24,7 +24,7 @@ class LoginChallengeController extends Controller
             return redirect()->route('login')->withErrors(['identifier' => 'Please sign in again to request a new code.']);
         }
 
-        return Inertia::render('Auth/VerifyLoginCode');
+        return Inertia::render('Auth/VerifyLoginCode', ['channel' => (string) config('auth_security.login_otp_channel', 'email')]);
     }
 
     public function verify(Request $request): RedirectResponse
@@ -98,4 +98,15 @@ class LoginChallengeController extends Controller
 
         return redirect()->intended('/dashboard');
     }
+
+    private function loginOtpEnabled(): bool
+    {
+        return match ((string) config('auth_security.login_otp_channel', 'email')) {
+            'email' => (bool) config('auth_security.email_otp_enabled', false),
+            'sms' => (bool) config('auth_security.sms_otp_enabled', false),
+            'whatsapp' => (bool) config('auth_security.whatsapp_otp_enabled', false),
+            default => false,
+        };
+    }
+
 }
