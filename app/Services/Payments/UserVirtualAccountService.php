@@ -96,7 +96,7 @@ class UserVirtualAccountService
                     (string) $user->email,
                     $firstName,
                     $lastName,
-                    (string) ($user->phone ?? ''),
+                    (string) ($user->mobile_number ?: $user->whatsapp_number ?: ''),
                 );
                 $customerCode = (string) $customer['customer_code'];
                 $account->forceFill(['provider_customer_reference' => $customerCode])->save();
