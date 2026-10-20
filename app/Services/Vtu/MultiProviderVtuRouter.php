@@ -66,7 +66,16 @@ class MultiProviderVtuRouter implements VtuProvider
             throw new LogicException('Provider attempt does not belong to this VTU order.');
         }
 
-        return $this->providerForAttempt($attempt->provider)->lookup($order);
+        // The order row points at the current dispatch target. A stale lookup
+        // must instead query the immutable provider identity recorded on this
+        // attempt, never the newer attempt's reference.
+        $attemptOrder = clone $order;
+        $attemptOrder->forceFill([
+            'provider' => $attempt->provider,
+            'provider_reference' => $attempt->provider_reference,
+        ]);
+
+        return $this->providerForAttempt($attempt->provider)->lookup($attemptOrder);
     }
 
     /** Submit only against the provider recorded on a persisted attempt. */
