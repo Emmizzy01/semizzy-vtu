@@ -355,8 +355,6 @@ class ProviderCatalogueImportTest extends TestCase
             'is_active' => false,
             'metadata' => [
                 'catalog_source' => 'gsubz',
-                'provider_service_id' => 'mtn_sme',
-                'provider_variation_code' => 'internal-mtn-sme-1gb',
                 'provider_mappings' => ['gsubz' => ['network' => 'mtn_sme', 'plan_code' => 'internal-mtn-sme-1gb']],
                 'purchase_approved' => false,
                 'validity' => '30 days',
