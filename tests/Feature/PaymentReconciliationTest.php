@@ -141,6 +141,11 @@ class PaymentReconciliationTest extends TestCase
         $this->assertSame(0, (int) $wallet->fresh()->balance_minor);
         $this->assertDatabaseCount('wallet_ledger_entries', 0);
         $this->assertDatabaseCount('wallet_transactions', 0);
+        $this->assertDatabaseHas('payment_reconciliation_cases', [
+            'reference' => $intent->reference,
+            'case_type' => 'verification_unavailable',
+            'status' => 'open',
+        ]);
     }
 
     public function test_reconciliation_rerun_after_success_does_not_credit_the_wallet_twice(): void
