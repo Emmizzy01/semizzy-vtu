@@ -29,7 +29,7 @@ class LoginChallengeController extends Controller
 
     public function verify(Request $request): RedirectResponse
     {
-        if (! config('auth_security.email_otp_enabled', false)) {
+        if (! $this->loginOtpEnabled()) {
             return redirect()->route('login');
         }
 
