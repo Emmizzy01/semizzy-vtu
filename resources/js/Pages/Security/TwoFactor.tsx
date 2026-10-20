@@ -23,7 +23,7 @@ export default function TwoFactor({ enabled, enabledAt, setupSecret, provisionin
     disableForm.post('/security/two-factor/disable', { preserveScroll: true, onSuccess: () => disableForm.reset() });
   };
 
-  return <DashboardLayout>
+  return <DashboardLayout title="Two-factor security" description="Manage authenticator-based sign-in protection and recovery codes.">
     <Head title="Two-factor security" />
     <div className="mx-auto w-full max-w-3xl space-y-6 px-4 py-6">
       <div>
