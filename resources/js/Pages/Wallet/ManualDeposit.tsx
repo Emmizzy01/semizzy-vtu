@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { Head, router } from '@inertiajs/react';
 import DashboardLayout from '../../Components/DashboardLayout';
-import { Building2, Clock3, Upload } from 'lucide-react';
+import { Building2, Clock3, Upload, CreditCard, RefreshCw } from 'lucide-react';
 
 type Deposit = { id: string; amount_minor: number; reference: string; status: string; created_at: string | null; reviewed_at: string | null; review_reason: string | null };
 type Instructions = { bank_name: string; account_name: string; account_number: string; instructions: string; enabled: boolean };
@@ -14,6 +14,70 @@ export default function ManualDeposit({ instructions, deposits }: { instructions
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState(new URLSearchParams(typeof window === 'undefined' ? '' : window.location.search).get('status') || '');
+  const [onlineAmount, setOnlineAmount] = useState('1000');
+  const [checkoutBusy, setCheckoutBusy] = useState(false);
+  const [checkoutError, setCheckoutError] = useState('');
+  const [checkoutNotice, setCheckoutNotice] = useState('');
+  const [fundingAttemptKey, setFundingAttemptKey] = useState(() => {
+    if (typeof window === 'undefined') return '';
+    try { return window.sessionStorage.getItem('semizzy-paystack-funding-attempt') || ''; } catch { return ''; }
+  });
+
+  const beginOnlineFunding = async (event: FormEvent) => {
+    event.preventDefault();
+    setCheckoutError('');
+    setCheckoutNotice('');
+    const parsed = Number(onlineAmount);
+    if (!Number.isFinite(parsed) || parsed < 100 || parsed > 5000000) {
+      setCheckoutError('Enter an amount between ₦100 and ₦5,000,000.');
+      return;
+    }
+
+    // Reuse the same key after network retries and page reloads in this tab.
+    let key = fundingAttemptKey;
+    if (!key) {
+      key = typeof window !== 'undefined' && typeof window.crypto?.randomUUID === 'function'
+        ? window.crypto.randomUUID()
+        : `fund-${Date.now()}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`;
+      setFundingAttemptKey(key);
+      try { window.sessionStorage.setItem('semizzy-paystack-funding-attempt', key); } catch { /* non-fatal */ }
+    }
+
+    setCheckoutBusy(true);
+    try {
+      const csrf = document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content || '';
+      const response = await fetch('/wallet/funding-intents', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          'X-CSRF-TOKEN': csrf,
+          'Idempotency-Key': key,
+        },
+        body: JSON.stringify({ amount_minor: Math.round(parsed * 100) }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      const checkoutUrl = payload?.data?.checkout_url;
+      if (!response.ok || typeof checkoutUrl !== 'string' || checkoutUrl === '') {
+        throw new Error(typeof payload?.message === 'string' ? payload.message : 'Checkout could not be started. Retry this same attempt; do not submit another deposit.');
+      }
+      try { window.sessionStorage.removeItem('semizzy-paystack-funding-attempt'); } catch { /* non-fatal */ }
+      setFundingAttemptKey('');
+      window.location.assign(checkoutUrl);
+    } catch (error) {
+      setCheckoutError(error instanceof Error ? error.message : 'Checkout could not be started. Retry the same attempt.');
+    } finally {
+      setCheckoutBusy(false);
+    }
+  };
+
+  const startNewOnlineAttempt = () => {
+    try { window.sessionStorage.removeItem('semizzy-paystack-funding-attempt'); } catch { /* non-fatal */ }
+    setFundingAttemptKey('');
+    setCheckoutError('');
+    setCheckoutNotice('A new funding attempt will use a new retry key.');
+  };
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
@@ -34,6 +98,19 @@ export default function ManualDeposit({ instructions, deposits }: { instructions
     <div className="mx-auto max-w-4xl space-y-6">
       {notice && <div role="status" className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm">{notice}</div>}
       {error && <div role="alert" className="rounded-xl border border-rose-500/30 p-4 text-sm text-rose-700 dark:text-rose-300">{error}</div>}
+      <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-950">
+        <div className="mb-4 flex items-center gap-3"><CreditCard className="text-emerald-600" /><div><h2 className="font-semibold">Online card / bank checkout</h2><p className="text-sm text-slate-500">Start a Paystack checkout. If the request times out, retry without creating a second funding intent.</p></div></div>
+        {checkoutError && <div role="alert" className="mb-3 rounded-xl border border-rose-500/30 p-3 text-sm text-rose-700 dark:text-rose-300">{checkoutError}</div>}
+        {checkoutNotice && <div role="status" className="mb-3 rounded-xl bg-emerald-500/10 p-3 text-sm">{checkoutNotice}</div>}
+        <form onSubmit={beginOnlineFunding} className="space-y-3">
+          <label className="block text-sm font-medium">Amount (NGN)<input className="mt-1 w-full rounded-xl border border-slate-300 bg-transparent p-3 dark:border-slate-700" inputMode="decimal" value={onlineAmount} onChange={e => { setOnlineAmount(e.target.value); }} required /></label>
+          <div className="flex flex-wrap gap-2">
+            <button disabled={checkoutBusy} className="inline-flex items-center gap-2 rounded-xl bg-emerald-700 px-4 py-3 font-semibold text-white disabled:opacity-50"><CreditCard size={17} />{checkoutBusy ? 'Preparing checkout…' : 'Continue to Paystack'}</button>
+            {fundingAttemptKey && <button type="button" disabled={checkoutBusy} onClick={startNewOnlineAttempt} className="inline-flex items-center gap-2 rounded-xl border border-slate-300 px-4 py-3 text-sm font-semibold dark:border-slate-700"><RefreshCw size={16} />Start a new attempt</button>}
+          </div>
+          <p className="text-xs leading-5 text-slate-500">The retry key is reused automatically after network errors. Use “Start a new attempt” only when you intentionally want a separate funding checkout. Your wallet is credited only after server-side provider verification.</p>
+        </form>
+      </section>
       <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-950">
         <div className="mb-4 flex items-center gap-3"><Building2 className="text-emerald-600" /><div><h2 className="font-semibold">Bank transfer instructions</h2><p className="text-sm text-slate-500">Use these details and keep your transfer receipt.</p></div></div>
         {!instructions.enabled ? <p className="rounded-xl bg-amber-500/10 p-4 text-sm">Manual deposits are temporarily unavailable. Please use another available funding method.</p> : <>
