@@ -247,8 +247,7 @@ class DashboardController extends Controller
                     ->orWhere('service_type', 'like', $term)
                     ->orWhere('recipient', 'like', $term)
                     ->orWhere('status', 'like', $term)
-                    ->orWhere('public_id', 'like', $term)
-                    ->orWhere('provider_reference', 'like', $term);
+                    ->orWhere('public_id', 'like', $term);
             });
         }
 
