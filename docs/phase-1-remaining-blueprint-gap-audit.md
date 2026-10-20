@@ -65,3 +65,12 @@ This review is source inspection only; it is not runtime or concurrency-test evi
 - Runtime feature tests and concurrency tests: **not executed here**; no pass claim.
 - Production transactions/provider calls: **not performed**.
 - Phase 1: **not signed off**. Keep live provider purchases, live payouts, and other live financial operations gated until test evidence and provider reconciliation contracts are verified.
+
+### VTU single/bulk purchase endpoint review
+
+Source inspection of VtuOrderController confirms:
+- Single purchase requires an authenticated user, configured transaction PIN, supplied four-digit PIN, a non-empty idempotency key, service feature checks, and server-side order-service validation. PIN verification has a 15-minute lock after five failed attempts.
+- Bulk purchase requires a transaction PIN and a batch key, accepts 10–100 items, limits current bulk eligibility to active NGN airtime/data products, resolves customer selections to internal product codes server-side, derives stable per-item idempotency keys, hashes the batch request, handles the user+batch-key uniqueness race, and dispatches a batch job only after persisting the batch and items.
+- Bulk retry with the same key and same request returns the existing batch; reuse with different request details returns conflict. A separate recovery/status endpoint exists, but ownership and status behavior still require execution tests.
+
+Still unverified: test that repeated bulk requests and concurrent duplicate keys never create duplicate batch records, duplicate wallet debits, or duplicate provider submissions; partial failures remain item-scoped and recoverable; a batch status/recovery request cannot read another user's batch; inactive products and altered prices cannot bypass server-side checks; and the worker never retries an unknown provider outcome blindly. The runtime test suite was not executable through the current environment, so none of these are marked passed.
