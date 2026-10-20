@@ -298,6 +298,48 @@ class ProviderCatalogueImportTest extends TestCase
     }
 
 
+    public function test_customer_catalogue_hides_provider_identity_and_internal_mapping_fields(): void
+    {
+        $user = User::factory()->create();
+        VtuProduct::query()->create([
+            'service_type' => 'data',
+            'provider_key' => 'gsubz',
+            'provider_product_code' => 'internal-mtn-sme-1gb',
+            'provider_cost_minor' => 25000,
+            'network' => 'mtn',
+            'code' => 'gsubz-data-internal-mtn-sme-1gb',
+            'name' => 'MTN SME 1GB — 30 days',
+            'price_minor' => 30000,
+            'currency' => 'NGN',
+            'is_active' => false,
+            'metadata' => [
+                'catalog_source' => 'gsubz',
+                'provider_service_id' => 'mtn_sme',
+                'provider_variation_code' => 'internal-mtn-sme-1gb',
+                'provider_mappings' => ['gsubz' => ['network' => 'mtn_sme', 'plan_code' => 'internal-mtn-sme-1gb']],
+                'purchase_approved' => false,
+                'validity' => '30 days',
+                'data_type' => 'SME',
+            ],
+        ]);
+
+        $response = $this->actingAs($user)->getJson('/wallet/vtu/products?service_type=data');
+
+        $response->assertOk()
+            ->assertJsonPath('data.0.name', 'MTN SME 1GB — 30 days')
+            ->assertJsonPath('data.0.metadata.validity', '30 days')
+            ->assertJsonPath('data.0.metadata.data_type', 'SME')
+            ->assertJsonMissingPath('data.0.provider_key')
+            ->assertJsonMissingPath('data.0.provider_product_code')
+            ->assertJsonMissingPath('data.0.provider_cost_minor')
+            ->assertJsonMissingPath('data.0.metadata.catalog_source')
+            ->assertJsonMissingPath('data.0.metadata.provider_service_id')
+            ->assertJsonMissingPath('data.0.metadata.provider_variation_code')
+            ->assertJsonMissingPath('data.0.metadata.provider_mappings');
+        $this->assertStringNotContainsString('internal-mtn-sme-1gb', $response->getContent());
+        $this->assertStringNotContainsString('gsubz', strtolower($response->getContent()));
+    }
+
     public function test_sogo_repeated_catalogue_import_is_idempotent_and_refreshes_only_provider_facts(): void
     {
         config([
