@@ -43,7 +43,7 @@ class PaymentReconciliationService
                     try {
                         $intentMode = $intent->metadata['gateway_mode'] ?? null;
                         if (! in_array($intentMode, ['test', 'live'], true)) {
-                            throw new \\LogicException('Funding intent has no valid recorded gateway mode.');
+                            throw new \LogicException('Funding intent has no valid recorded gateway mode.');
                         }
                         $transaction = $this->paystack->verifyTransaction($intent->reference, $intentMode);
                     } catch (Throwable $exception) {
