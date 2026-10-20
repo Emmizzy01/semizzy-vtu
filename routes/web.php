@@ -6,6 +6,8 @@ use App\Http\Controllers\Admin\StorefrontCommissionController;
 use App\Http\Controllers\Admin\VtuOrderOperationsController;
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\Auth\LoginChallengeController;
+use App\Http\Controllers\Auth\TwoFactorChallengeController;
+use App\Http\Controllers\Security\TwoFactorController;
 use App\Http\Controllers\Auth\PasswordResetController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EducationServiceController;
@@ -70,6 +72,8 @@ Route::middleware('guest')->group(function (): void {
     Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:5,1')->name('login.store');
     Route::get('/login/verify', [LoginChallengeController::class, 'show'])->middleware('throttle:10,1')->name('login.challenge');
     Route::post('/login/verify', [LoginChallengeController::class, 'verify'])->middleware('throttle:10,1')->name('login.challenge.verify');
+    Route::get('/login/two-factor', [TwoFactorChallengeController::class, 'show'])->middleware('throttle:10,1')->name('login.two-factor');
+    Route::post('/login/two-factor', [TwoFactorChallengeController::class, 'verify'])->middleware('throttle:5,1')->name('login.two-factor.verify');
     Route::get('/register', [AuthController::class, 'registerForm'])->name('register');
     Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:3,1')->name('register.store');
     Route::get('/forgot-password', [PasswordResetController::class, 'requestForm'])->name('password.request');
@@ -111,6 +115,9 @@ Route::middleware('auth')->group(function (): void {
     Route::post('/service-requests/vtu-website', [VtuWebsiteRequestController::class, 'store'])->middleware('throttle:5,1')->name('vtu-website-requests.store');
     Route::get('/security/transaction-pin', [TransactionPinController::class, 'show'])->name('security.transaction-pin');
     Route::put('/security/transaction-pin', [TransactionPinController::class, 'update'])->middleware('throttle:5,1')->name('security.transaction-pin.update');
+    Route::get('/security/two-factor', [TwoFactorController::class, 'show'])->name('security.two-factor');
+    Route::post('/security/two-factor/enable', [TwoFactorController::class, 'enable'])->middleware('throttle:5,1')->name('security.two-factor.enable');
+    Route::post('/security/two-factor/disable', [TwoFactorController::class, 'disable'])->middleware('throttle:5,1')->name('security.two-factor.disable');
     Route::get('/wallet/transfer', fn () => Inertia::render('Wallet/Transfer'))->name('wallet.transfer');
     Route::get('/wallet/virtual-accounts', [UserVirtualAccountController::class, 'index'])->name('wallet.virtual-accounts.index');
     Route::post('/wallet/virtual-accounts', [UserVirtualAccountController::class, 'provision'])->middleware('throttle:3,1')->name('wallet.virtual-accounts.provision');
