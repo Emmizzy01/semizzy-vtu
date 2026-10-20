@@ -258,6 +258,7 @@ class PaymentRefundService
             $providerStatus,
             $providerRef,
             ['last_reconciled_at' => now()->toISOString(), 'reconciliation_source' => 'paystack_fetch_refund'],
+            allowReviewResolution: true,
         );
 
         return ['outcome' => 'reconciled', 'status' => $updated->status];
@@ -380,9 +381,14 @@ class PaymentRefundService
     /**
      * @param array<string, mixed> $metadata
      */
-    private function applyStatus(string $publicId, string $providerStatus, ?string $providerRef, array $metadata = []): PaymentRefund
-    {
-        return DB::transaction(function () use ($publicId, $providerStatus, $providerRef, $metadata): PaymentRefund {
+    private function applyStatus(
+        string $publicId,
+        string $providerStatus,
+        ?string $providerRef,
+        array $metadata = [],
+        bool $allowReviewResolution = false,
+    ): PaymentRefund {
+        return DB::transaction(function () use ($publicId, $providerStatus, $providerRef, $metadata, $allowReviewResolution): PaymentRefund {
             $refund = PaymentRefund::query()->where('public_id', $publicId)->lockForUpdate()->firstOrFail();
             $normalized = match ($providerStatus) {
                 'processed', 'success', 'succeeded' => 'succeeded',
@@ -393,6 +399,13 @@ class PaymentRefundService
             };
 
             if (in_array($refund->status, ['succeeded', 'failed'], true)) {
+                return $refund;
+            }
+
+            // Enforce review_required under the same row lock as status changes. The
+            // earlier webhook check alone cannot prevent a concurrent stale event from
+            // downgrading a review decision after its initial read.
+            if ($refund->status === 'review_required' && ! $allowReviewResolution && $normalized !== 'review_required') {
                 return $refund;
             }
 
