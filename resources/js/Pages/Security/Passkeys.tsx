@@ -66,7 +66,7 @@ export default function PasskeysPage({ enabled, credentials, recentlyConfirmed }
         </section>
         <section className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-950">
           <h2 className="font-semibold">Add a passkey</h2>
-          <p className="mt-1 text-sm text-slate-500">Your device creates a public/private key pair. The private key stays with your authenticator; Semizzy stores the public credential needed to verify sign-in.</p>
+          <p className="mt-1 text-sm text-slate-500">Your device creates a public/private key pair. The private key stays with your authenticator; Semizzy stores the public credential needed to verify sign-in. If separate OTP or TOTP is enabled on your account, use password sign-in until the passkey step-up handoff is completed.</p>
           <label className="mt-4 block text-sm font-medium">Device label<input value={name} onChange={event => setName(event.target.value)} maxLength={120} placeholder="e.g. My Android phone" className="mt-1 w-full rounded-xl border bg-transparent p-3 dark:border-slate-700" /></label>
           <button type="button" onClick={registerPasskey} disabled={!confirmed || !name.trim() || busy} className="mt-3 rounded-xl bg-emerald-700 px-4 py-3 font-semibold text-white disabled:opacity-50">{busy ? 'Waiting for your device…' : 'Register this device'}</button>
         </section>
