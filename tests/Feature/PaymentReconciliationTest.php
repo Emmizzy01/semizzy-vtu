@@ -164,4 +164,42 @@ class PaymentReconciliationTest extends TestCase
         $this->assertDatabaseCount('wallet_transactions', 1);
         $this->assertDatabaseCount('wallet_ledger_entries', 1);
     }
+
+    public function test_repeated_mismatched_success_refreshes_one_case_without_reopening_resolved_review(): void
+    {
+        [$wallet, $intent] = $this->pendingIntent();
+        Http::fake(['api.paystack.co/transaction/verify/*' => Http::response([
+            'status' => true,
+            'data' => [
+                'id' => 54326,
+                'status' => 'success',
+                'reference' => $intent->reference,
+                'amount' => 99999,
+                'currency' => 'NGN',
+            ],
+        ], 200)]);
+
+        $service = app(PaymentReconciliationService::class);
+        $first = $service->reconcile();
+        $case = PaymentReconciliationCase::query()
+            ->where('reference', $intent->reference)
+            ->where('case_type', 'successful_payment_mismatch')
+            ->firstOrFail();
+
+        $this->assertSame(1, $first['exceptions']);
+        $case->forceFill(['status' => 'resolved'])->save();
+
+        // Simulate a later scheduled retry after an operator has reviewed the case.
+        $intent->forceFill(['updated_at' => now()->subMinutes(10)])->save();
+        $second = $service->reconcile();
+
+        $this->assertSame(1, $second['exceptions']);
+        $this->assertDatabaseCount('payment_reconciliation_cases', 1);
+        $this->assertSame('resolved', $case->fresh()->status);
+        $this->assertSame('pending', $intent->fresh()->status);
+        $this->assertSame(0, (int) $wallet->fresh()->balance_minor);
+        $this->assertDatabaseCount('wallet_transactions', 0);
+        $this->assertDatabaseCount('wallet_ledger_entries', 0);
+    }
+
 }
