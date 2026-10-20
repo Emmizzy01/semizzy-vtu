@@ -555,7 +555,7 @@ class ProviderCatalogueImportTest extends TestCase
         try {
             app(ProviderCatalogueImportService::class)->import('dataway', 'data');
             $this->fail('A missing data field must not be treated as a valid empty catalogue.');
-        } catch (\\RuntimeException $exception) {
+        } catch (\RuntimeException $exception) {
             $this->assertStringContainsString('invalid biller catalogue', strtolower($exception->getMessage()));
         }
 
