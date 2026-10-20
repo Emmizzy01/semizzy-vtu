@@ -29,7 +29,7 @@ export default function PasskeysPage({ enabled, credentials, recentlyConfirmed }
       await Passkeys.register({ name: name.trim() });
       setMessage('Passkey registration completed.');
       setName('');
-      router.reload({ preserveScroll: true });
+      router.reload();
     } catch {
       setError('Passkey registration did not complete. Check that this browser supports passkeys and the server is correctly configured.');
     } finally {
