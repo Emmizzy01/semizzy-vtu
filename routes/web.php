@@ -207,7 +207,10 @@ Route::middleware(['auth', 'can:staff.permissions.manage'])->prefix('admin')->na
     Route::put('/vtu-website-requests/{websiteRequest}/status', [VtuWebsiteRequestController::class, 'updateStatus'])->middleware('throttle:10,1')->name('vtu-website-requests.status');
     Route::post('/support/{ticket}/reply', [SupportTicketOperationsController::class, 'reply'])->middleware('throttle:10,1')->name('support.reply');
     Route::put('/support/{ticket}/status', [SupportTicketOperationsController::class, 'updateStatus'])->middleware('throttle:20,1')->name('support.status');
-    Route::get('/addons', [PlatformAddonController::class, 'index'])->middleware('throttle:30,1')->name('addons.index');\n    Route::post('/addons', [PlatformAddonController::class, 'store'])->middleware('throttle:10,1')->name('addons.store');\n    Route::put('/addons/{addon}/status', [PlatformAddonController::class, 'toggle'])->middleware('throttle:10,1')->name('addons.status');\n    Route::get('/feature-controls', [FeatureControlController::class, 'index'])->name('feature-controls.index');
+    Route::get('/addons', [PlatformAddonController::class, 'index'])->middleware('throttle:30,1')->name('addons.index');
+    Route::post('/addons', [PlatformAddonController::class, 'store'])->middleware('throttle:10,1')->name('addons.store');
+    Route::put('/addons/{addon}/status', [PlatformAddonController::class, 'toggle'])->middleware('throttle:10,1')->name('addons.status');
+    Route::get('/feature-controls', [FeatureControlController::class, 'index'])->name('feature-controls.index');
     Route::put('/feature-controls/{featureKey}', [FeatureControlController::class, 'update'])->middleware('throttle:20,1')->name('feature-controls.update');
     Route::get('/security-events', [SecurityEventsController::class, 'index'])->middleware('throttle:30,1')->name('security-events');
     Route::get('/user-levels', [UserLevelPolicyController::class, 'index'])->name('user-levels.index');
