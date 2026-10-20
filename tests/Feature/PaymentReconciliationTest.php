@@ -18,13 +18,8 @@ class PaymentReconciliationTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        config(['services.semizzy_payments.live_funding_enabled' => true]);
-    }
-
-    protected function setUp(): void
-    {
-        parent::setUp();
         config([
+            'services.semizzy_payments.live_funding_enabled' => true,
             'services.paystack.secret_key' => 'sk_test_reconciliation_secret',
             'services.payments.reconciliation_grace_minutes' => 5,
         ]);
