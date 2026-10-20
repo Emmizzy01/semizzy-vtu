@@ -21,23 +21,24 @@ export default function Governance({ privacyRequests, retentionPolicies, inciden
     if (!status || !['in_review', 'approved', 'rejected', 'fulfilled'].includes(status)) return;
     const note = window.prompt('Required review note (at least 8 characters)');
     if (!note || note.trim().length < 8) return;
-    reviewForm.transform(() => ({ status, review_note: note.trim() })).put(`/admin/privacy-requests/${item.id}`, { preserveScroll: true });
+    reviewForm.transform(() => ({ status, review_note: note.trim() }));
+    reviewForm.put(`/admin/privacy-requests/${item.id}`, { preserveScroll: true });
   }
   function editPolicy(policy: Policy) {
     const days = window.prompt('Retention period in days (configuration only; no automatic deletion)', String(policy.days));
     if (!days || !/^\d+$/.test(days) || Number(days) < 1 || Number(days) > 36500) return;
     const reason = window.prompt('Reason for this policy change (at least 8 characters)');
     if (!reason || reason.trim().length < 8) return;
-    policyForm.transform(() => ({ retention_days: Number(days), enabled: false, requires_legal_review: true, notes: policy.notes ?? '', reason: reason.trim() }))
-      .put(`/admin/retention-policies/${policy.id}`, { preserveScroll: true });
+    policyForm.transform(() => ({ retention_days: Number(days), enabled: false, requires_legal_review: true, notes: policy.notes ?? '', reason: reason.trim() }));
+    policyForm.put(`/admin/retention-policies/${policy.id}`, { preserveScroll: true });
   }
   function changeIncident(incident: Incident) {
     const status = window.prompt('Status: open, investigating, contained, resolved, closed', incident.status);
     if (!status || !['open', 'investigating', 'contained', 'resolved', 'closed'].includes(status)) return;
     const notes = window.prompt('Required incident timeline / resolution note');
     if (!notes || notes.trim().length < 8) return;
-    incidentUpdate.transform(() => ({ status, resolution_notes: notes.trim() }))
-      .put(`/admin/security-incidents/${incident.id}`, { preserveScroll: true });
+    incidentUpdate.transform(() => ({ status, resolution_notes: notes.trim() }));
+    incidentUpdate.put(`/admin/security-incidents/${incident.id}`, { preserveScroll: true });
   }
 
   return <>
