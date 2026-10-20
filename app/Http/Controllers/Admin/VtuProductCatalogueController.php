@@ -24,10 +24,12 @@ class VtuProductCatalogueController extends Controller
             'search' => ['nullable', 'string', 'max:100'],
             'service_type' => ['nullable', 'string', 'max:24', 'regex:/^(all|[a-z0-9][a-z0-9-]*)$/i'],
             'status' => ['nullable', Rule::in(['all', 'active', 'inactive'])],
+            'provider_key' => ['nullable', Rule::in(['all', 'vtpass', 'sogo', 'gsubz', 'dataway', 'manual'])],
         ]);
         $search = trim((string) ($filters['search'] ?? ''));
         $type = (string) ($filters['service_type'] ?? 'all');
         $status = (string) ($filters['status'] ?? 'all');
+        $providerKey = (string) ($filters['provider_key'] ?? 'all');
 
         $products = VtuProduct::query()
             ->when($search !== '', fn ($query) => $query->where(fn ($nested) => $nested
@@ -35,6 +37,7 @@ class VtuProductCatalogueController extends Controller
                 ->orWhere('code', 'like', '%'.$search.'%')
                 ->orWhere('network', 'like', '%'.$search.'%')))
             ->when($type !== 'all', fn ($query) => $query->where('service_type', $type))
+            ->when($providerKey !== 'all', fn ($query) => $query->where('provider_key', $providerKey))
             ->when($status === 'active', fn ($query) => $query->where('is_active', true))
             ->when($status === 'inactive', fn ($query) => $query->where('is_active', false))
             ->orderBy('service_type')->orderBy('network')->orderBy('price_minor')
@@ -53,7 +56,7 @@ class VtuProductCatalogueController extends Controller
                 'metadata' => $product->metadata ?? [],
             ])->values(),
             'pagination' => ['currentPage' => $products->currentPage(), 'lastPage' => $products->lastPage(), 'total' => $products->total()],
-            'filters' => ['search' => $search, 'service_type' => $type, 'status' => $status],
+            'filters' => ['search' => $search, 'service_type' => $type, 'status' => $status, 'provider_key' => $providerKey],
             'networks' => ['MTN', 'Airtel', 'Glo', '9mobile', 'Lebara'],
             'providerReadiness' => collect(['sogo' => 'Sogo Africa', 'gsubz' => 'GSUBZ', 'dataway' => 'Dataway'])
                 ->mapWithKeys(function (string $name, string $provider) use ($settings): array {
