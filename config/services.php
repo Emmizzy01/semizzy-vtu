@@ -94,7 +94,7 @@ return [
     ],
     'semizzy_virtual_accounts' => [
         // Disabled until provider onboarding and verified deposit-credit reconciliation are approved.
-        'enabled' => (bool) env('SEMIZZY_VIRTUAL_ACCOUNTS_ENABLED', false),
+        'enabled' => false,
     ],
     'semizzy_payments' => [
         'webhook_secrets' => [
