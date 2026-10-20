@@ -33,7 +33,7 @@ class PaymentReconciliationTest extends TestCase
             'password' => 'not-a-real-password',
         ]);
         $wallet = app(WalletAccountService::class)->openForUser($user);
-        $intent = app(PaymentIntentService::class)->create($wallet, $amount, 'paystack', 'live');
+        $intent = app(PaymentIntentService::class)->create($wallet, $amount, 'paystack', 'test');
         $intent->forceFill(['created_at' => now()->subMinutes(10), 'expires_at' => now()->addMinutes(20)])->save();
         return [$wallet, $intent];
     }
