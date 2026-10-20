@@ -18,6 +18,10 @@ use App\Services\Vtu\VtuProvider;
 use App\Services\Vtu\VtuProviderClient;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
+use Laravel\Passkeys\Passkeys;
+use Laravel\Passkeys\Contracts\PasskeyUser;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -42,6 +46,26 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        Passkeys::authorizeLoginUsing(function (Request $request, PasskeyUser $passkeyUser): bool {
+            if (! $passkeyUser instanceof User || $passkeyUser->account_status !== 'active') {
+                throw ValidationException::withMessages(['credential' => 'Passkey sign-in could not be completed.']);
+            }
+
+            // Never let passwordless sign-in bypass a separately configured OTP/TOTP step-up.
+            $otpChannel = (string) config('auth_security.login_otp_channel', 'email');
+            $otpRequired = match ($otpChannel) {
+                'email' => (bool) config('auth_security.email_otp_enabled', false),
+                'sms' => (bool) config('auth_security.sms_otp_enabled', false),
+                'whatsapp' => (bool) config('auth_security.whatsapp_otp_enabled', false),
+                default => false,
+            };
+            if ($otpRequired || $passkeyUser->two_factor_enabled_at) {
+                throw ValidationException::withMessages(['credential' => 'Use password sign-in to complete your additional verification steps.']);
+            }
+
+            return true;
+        });
+
         Gate::define('refunds.approve', fn (User $user): bool => UserPermission::query()
             ->where('user_id', $user->id)->where('permission', 'refunds.approve')->exists());
 
