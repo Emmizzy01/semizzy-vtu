@@ -49,9 +49,9 @@ class ManualDepositWorkflowTest extends TestCase
         app(WalletAccountService::class)->openForUser($customer);
         app(IntegrationSettings::class)->set('manual_deposit.enabled', '1', $customer->id);
 
-        $submission = \\Mockery::mock(\\App\\Services\\Payments\\ManualDepositSubmissionService::class);
-        $submission->shouldReceive('submit')->once()->andThrow(new \\RuntimeException('Simulated database submission failure'));
-        $this->app->instance(\\App\\Services\\Payments\\ManualDepositSubmissionService::class, $submission);
+        $submission = \Mockery::mock(\App\Services\Payments\ManualDepositSubmissionService::class);
+        $submission->shouldReceive('submit')->once()->andThrow(new \RuntimeException('Simulated database submission failure'));
+        $this->app->instance(\App\Services\Payments\ManualDepositSubmissionService::class, $submission);
 
         $this->withoutExceptionHandling();
         try {
@@ -61,7 +61,7 @@ class ManualDepositWorkflowTest extends TestCase
                 'evidence' => UploadedFile::fake()->image('receipt.png'),
             ]);
             $this->fail('Expected the submission failure to be rethrown.');
-        } catch (\\RuntimeException $exception) {
+        } catch (\RuntimeException $exception) {
             $this->assertSame('Simulated database submission failure', $exception->getMessage());
         }
 
