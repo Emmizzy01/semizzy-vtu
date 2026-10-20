@@ -92,6 +92,10 @@ return [
         'refund_stale_minutes' => (int) env('PAYMENTS_REFUND_STALE_MINUTES', 15),
         'alert_webhook_url' => env('PAYMENTS_ALERT_WEBHOOK_URL'),
     ],
+    'semizzy_virtual_accounts' => [
+        // Disabled until provider onboarding and verified deposit-credit reconciliation are approved.
+        'enabled' => (bool) env('SEMIZZY_VIRTUAL_ACCOUNTS_ENABLED', false),
+    ],
     'semizzy_payments' => [
         'webhook_secrets' => [
             'semizzy' => env('SEMIZZY_WEBHOOK_SECRET'),
