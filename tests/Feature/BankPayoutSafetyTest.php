@@ -184,4 +184,76 @@ class BankPayoutSafetyTest extends TestCase
             ->assertOk()->assertJsonPath('meta.total', 1);
         $this->assertDatabaseCount('bank_payouts', 2);
     }
+
+    public function test_repeated_payout_request_debits_once_and_submits_to_provider_once(): void
+    {
+        $user = User::query()->create([
+            'name' => 'Idempotent Payout User',
+            'email' => 'idempotent-payout@example.test',
+            'password' => 'not-a-real-password',
+        ]);
+        $beneficiary = \App\Models\BankBeneficiary::query()->create([
+            'user_id' => $user->id, 'bank_code' => '999', 'bank_name' => 'Idempotency Test Bank',
+            'account_number' => '0123456789', 'account_number_last4' => '6789',
+            'account_name' => $user->name, 'provider_recipient_code' => 'RCP_idempotent_payout',
+            'verification_status' => 'verified', 'verified_at' => now(),
+        ]);
+        app(\App\Services\IntegrationSettings::class)->set('paystack.transfers_enabled', '1', $user->id);
+        $wallet = app(\App\Services\Wallets\WalletAccountService::class)->openForUser($user);
+        app(\App\Services\Wallets\WalletLedgerService::class)->post($wallet->id, 'credit', 50000, 'payout-idempotency-seed-001');
+
+        $paystack = \Mockery::mock(\App\Services\Payments\PaystackClient::class);
+        $paystack->shouldReceive('mode')->once()->andReturn('test');
+        $paystack->shouldReceive('initiateBankTransfer')->once()->andReturnUsing(
+            static fn (int $amount, string $recipient, string $reference, string $reason): array => [
+                'reference' => $reference, 'transfer_code' => 'TRF_payout_idempotency_once', 'status' => 'pending',
+            ]
+        );
+        $this->app->instance(\App\Services\Payments\PaystackClient::class, $paystack);
+
+        $service = app(BankPayoutService::class);
+        $first = $service->requestPayout($user, $beneficiary->id, 12500, 'payout-idempotency-once-001');
+        $again = $service->requestPayout($user, $beneficiary->id, 12500, 'payout-idempotency-once-001');
+
+        $this->assertSame($first->id, $again->id);
+        $this->assertSame('provider_pending', $again->status);
+        $this->assertSame(37500, (int) $wallet->fresh()->balance_minor);
+        $this->assertDatabaseCount('bank_payouts', 1);
+        $this->assertDatabaseCount('wallet_transactions', 2);
+        $this->assertDatabaseCount('wallet_ledger_entries', 2);
+    }
+
+    public function test_payout_idempotency_key_cannot_be_reused_for_different_amount(): void
+    {
+        $user = User::query()->create([
+            'name' => 'Payout Conflict User',
+            'email' => 'payout-conflict@example.test',
+            'password' => 'not-a-real-password',
+        ]);
+        $beneficiary = \App\Models\BankBeneficiary::query()->create([
+            'user_id' => $user->id, 'bank_code' => '999', 'bank_name' => 'Conflict Test Bank',
+            'account_number' => '0123456789', 'account_number_last4' => '6789',
+            'account_name' => $user->name, 'provider_recipient_code' => 'RCP_payout_conflict',
+            'verification_status' => 'verified', 'verified_at' => now(),
+        ]);
+        app(\App\Services\IntegrationSettings::class)->set('paystack.transfers_enabled', '1', $user->id);
+        $wallet = app(\App\Services\Wallets\WalletAccountService::class)->openForUser($user);
+        app(\App\Services\Wallets\WalletLedgerService::class)->post($wallet->id, 'credit', 50000, 'payout-conflict-seed-001');
+
+        $paystack = \Mockery::mock(\App\Services\Payments\PaystackClient::class);
+        $paystack->shouldReceive('mode')->once()->andReturn('test');
+        $paystack->shouldReceive('initiateBankTransfer')->once()->andReturnUsing(
+            static fn (int $amount, string $recipient, string $reference, string $reason): array => [
+                'reference' => $reference, 'transfer_code' => 'TRF_payout_conflict_once', 'status' => 'pending',
+            ]
+        );
+        $this->app->instance(\App\Services\Payments\PaystackClient::class, $paystack);
+
+        $service = app(BankPayoutService::class);
+        $service->requestPayout($user, $beneficiary->id, 12500, 'payout-conflict-key-001');
+
+        $this->expectException(\App\Exceptions\Wallet\IdempotencyConflict::class);
+        $service->requestPayout($user, $beneficiary->id, 13000, 'payout-conflict-key-001');
+    }
+
 }
