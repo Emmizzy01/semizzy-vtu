@@ -145,7 +145,7 @@ class PaystackFundingWorkflowTest extends TestCase
             'password' => 'not-a-real-password',
         ]);
         $wallet = app(WalletAccountService::class)->openForUser($user);
-        $intent = app(PaymentIntentService::class)->create($wallet, 12500, 'paystack', 'live');
+        $intent = app(PaymentIntentService::class)->create($wallet, 12500, 'paystack', 'test');
 
         Http::fake([
             'api.paystack.co/transaction/verify/*' => function ($request) use ($intent) {
@@ -223,7 +223,7 @@ class PaystackFundingWorkflowTest extends TestCase
             'password' => 'not-a-real-password',
         ]);
         $wallet = app(WalletAccountService::class)->openForUser($user);
-        $intent = app(PaymentIntentService::class)->create($wallet, 12500, 'paystack', 'live');
+        $intent = app(PaymentIntentService::class)->create($wallet, 12500, 'paystack', 'test');
 
         Http::fake([
             'api.paystack.co/transaction/verify/*' => Http::response([
@@ -317,7 +317,7 @@ class PaystackFundingWorkflowTest extends TestCase
             'password' => 'not-a-real-password',
         ]);
         $wallet = app(WalletAccountService::class)->openForUser($user);
-        $intent = app(PaymentIntentService::class)->create($wallet, 12500, 'paystack', 'live');
+        $intent = app(PaymentIntentService::class)->create($wallet, 12500, 'paystack', 'test');
 
         Http::fake([
             'api.paystack.co/transaction/verify/*' => Http::response([
@@ -367,7 +367,7 @@ class PaystackFundingWorkflowTest extends TestCase
             'password' => 'not-a-real-password',
         ]);
         $wallet = app(WalletAccountService::class)->openForUser($user);
-        $intent = app(PaymentIntentService::class)->create($wallet, 12500, 'paystack', 'live');
+        $intent = app(PaymentIntentService::class)->create($wallet, 12500, 'paystack', 'test');
 
         Http::fake([
             'api.paystack.co/transaction/verify/*' => Http::response([
@@ -414,7 +414,7 @@ class PaystackFundingWorkflowTest extends TestCase
             'password' => 'not-a-real-password',
         ]);
         $wallet = app(WalletAccountService::class)->openForUser($user);
-        $intent = app(PaymentIntentService::class)->create($wallet, 12500, 'paystack', 'live');
+        $intent = app(PaymentIntentService::class)->create($wallet, 12500, 'paystack', 'test');
 
         Http::fake([
             'api.paystack.co/transaction/verify/*' => Http::response([
@@ -481,7 +481,7 @@ class PaystackFundingWorkflowTest extends TestCase
             'password' => 'not-a-real-password',
         ]);
         $wallet = app(WalletAccountService::class)->openForUser($user);
-        $intent = app(PaymentIntentService::class)->create($wallet, 15000, 'paystack', 'live');
+        $intent = app(PaymentIntentService::class)->create($wallet, 15000, 'paystack', 'test');
 
         Http::fake([
             'api.paystack.co/transaction/verify/*' => Http::response([
@@ -519,7 +519,7 @@ class PaystackFundingWorkflowTest extends TestCase
             'password' => 'not-a-real-password',
         ]);
         $wallet = app(WalletAccountService::class)->openForUser($user);
-        $intent = app(PaymentIntentService::class)->create($wallet, 15000, 'paystack', 'live');
+        $intent = app(PaymentIntentService::class)->create($wallet, 15000, 'paystack', 'test');
         $intent->forceFill(['expires_at' => now()->subMinute()])->save();
 
         Http::fake([
