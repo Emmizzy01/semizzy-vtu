@@ -343,7 +343,7 @@ class PaystackClient
     public function fetchCustomer(string $customerCode): array
     {
         if ($customerCode === '' || strlen($customerCode) > 150) {
-            throw new \\InvalidArgumentException('Paystack customer reference is invalid.');
+            throw new \InvalidArgumentException('Paystack customer reference is invalid.');
         }
 
         try {
@@ -368,7 +368,7 @@ class PaystackClient
         $mode = $this->mode();
         $allowedBanks = $mode === 'test' ? ['test-bank'] : ['wema-bank', 'titan-paystack'];
         if ($customerCode === '' || !in_array($preferredBank, $allowedBanks, true)) {
-            throw new \\InvalidArgumentException('A verified customer and bank supported by the selected Paystack mode are required.');
+            throw new \InvalidArgumentException('A verified customer and bank supported by the selected Paystack mode are required.');
         }
 
         try {
