@@ -9,6 +9,7 @@ use Tests\TestCase;
 
 class PasskeyOriginAndConfirmationRegressionTest extends TestCase
 {
+    use RefreshDatabase;
     public function test_enabled_passkeys_reject_wildcard_origins(): void
     {
         config([
