@@ -26,6 +26,18 @@ class PaystackFundingWorkflowTest extends TestCase
         ]);
     }
 
+    private function useLivePaystackMode(string $secret = 'sk_live_semizzy_live_secret'): void
+    {
+        IntegrationSetting::query()->updateOrCreate(
+            ['key' => 'paystack.mode'],
+            ['value' => 'live'],
+        );
+        IntegrationSetting::query()->updateOrCreate(
+            ['key' => 'paystack.secret_key'],
+            ['value' => $secret],
+        );
+    }
+
     public function test_live_mode_rejects_test_credentials_before_any_provider_request(): void
     {
         config(['app.env' => 'production']);
@@ -145,7 +157,8 @@ class PaystackFundingWorkflowTest extends TestCase
             'password' => 'not-a-real-password',
         ]);
         $wallet = app(WalletAccountService::class)->openForUser($user);
-        $intent = app(PaymentIntentService::class)->create($wallet, 12500, 'paystack', 'test');
+        $this->useLivePaystackMode();
+        $intent = app(PaymentIntentService::class)->create($wallet, 12500, 'paystack', 'live');
 
         Http::fake([
             'api.paystack.co/transaction/verify/*' => function ($request) use ($intent) {
@@ -173,7 +186,7 @@ class PaystackFundingWorkflowTest extends TestCase
             ],
         ];
         $raw = json_encode($payload, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES);
-        $signature = hash_hmac('sha512', $raw, 'sk_test_semizzy_test_secret');
+        $signature = hash_hmac('sha512', $raw, 'sk_live_semizzy_live_secret');
 
         $send = function () use ($raw, $signature) {
             return $this->call('POST', '/api/payments/webhooks/paystack', [], [], [], [
@@ -308,8 +321,10 @@ class PaystackFundingWorkflowTest extends TestCase
     {
         IntegrationSetting::query()->create([
             'key' => 'paystack.secret_key',
-            'value' => 'sk_test_database_webhook_secret',
+            'value' => 'sk_live_database_webhook_secret',
         ]);
+
+        IntegrationSetting::query()->updateOrCreate(['key' => 'paystack.mode'], ['value' => 'live']);
 
         $user = User::query()->create([
             'name' => 'Database Webhook Customer',
@@ -317,7 +332,7 @@ class PaystackFundingWorkflowTest extends TestCase
             'password' => 'not-a-real-password',
         ]);
         $wallet = app(WalletAccountService::class)->openForUser($user);
-        $intent = app(PaymentIntentService::class)->create($wallet, 12500, 'paystack', 'test');
+        $intent = app(PaymentIntentService::class)->create($wallet, 12500, 'paystack', 'live');
 
         Http::fake([
             'api.paystack.co/transaction/verify/*' => Http::response([
@@ -343,7 +358,7 @@ class PaystackFundingWorkflowTest extends TestCase
             ],
         ];
         $raw = json_encode($payload, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES);
-        $signature = hash_hmac('sha512', $raw, 'sk_test_database_webhook_secret');
+        $signature = hash_hmac('sha512', $raw, 'sk_live_database_webhook_secret');
 
         $response = $this->call('POST', '/api/payments/webhooks/paystack', [], [], [], [
             'CONTENT_TYPE' => 'application/json',
@@ -481,7 +496,8 @@ class PaystackFundingWorkflowTest extends TestCase
             'password' => 'not-a-real-password',
         ]);
         $wallet = app(WalletAccountService::class)->openForUser($user);
-        $intent = app(PaymentIntentService::class)->create($wallet, 15000, 'paystack', 'test');
+        $this->useLivePaystackMode();
+        $intent = app(PaymentIntentService::class)->create($wallet, 15000, 'paystack', 'live');
 
         Http::fake([
             'api.paystack.co/transaction/verify/*' => Http::response([
@@ -519,7 +535,8 @@ class PaystackFundingWorkflowTest extends TestCase
             'password' => 'not-a-real-password',
         ]);
         $wallet = app(WalletAccountService::class)->openForUser($user);
-        $intent = app(PaymentIntentService::class)->create($wallet, 15000, 'paystack', 'test');
+        $this->useLivePaystackMode();
+        $intent = app(PaymentIntentService::class)->create($wallet, 15000, 'paystack', 'live');
         $intent->forceFill(['expires_at' => now()->subMinute()])->save();
 
         Http::fake([
