@@ -73,16 +73,27 @@ class PaymentRefundReconciliationTest extends TestCase
     public function test_provider_amount_mismatch_never_marks_refund_succeeded(): void
     {
         Http::fake([
-            'api.paystack.co/refund/123457' => Http::response([
-                'status' => true,
-                'data' => [
-                    'id' => 123457,
-                    'transaction' => 987655,
-                    'amount' => 9999,
-                    'currency' => 'NGN',
-                    'status' => 'processed',
-                ],
-            ], 200),
+            'api.paystack.co/refund/123457' => Http::sequence()
+                ->push([
+                    'status' => true,
+                    'data' => [
+                        'id' => 123457,
+                        'transaction' => 987655,
+                        'amount' => 9999,
+                        'currency' => 'NGN',
+                        'status' => 'processed',
+                    ],
+                ], 200)
+                ->push([
+                    'status' => true,
+                    'data' => [
+                        'id' => 123457,
+                        'transaction' => 987655,
+                        'amount' => 2500,
+                        'currency' => 'NGN',
+                        'status' => 'processed',
+                    ],
+                ], 200),
         ]);
         config(['services.paystack.secret_key' => 'sk_test_refund_reconcile']);
 
@@ -115,6 +126,15 @@ class PaymentRefundReconciliationTest extends TestCase
         $this->assertSame(1, $stats['mismatched']);
         $this->assertSame('review_required', $refund->fresh()->status);
         $this->assertNotSame('succeeded', $refund->fresh()->status);
+
+        // Only a fresh canonical provider lookup with matching details may resolve review.
+        $refund->forceFill(['status_changed_at' => now()->subHour()])->save();
+        $recovered = app(PaymentRefundReconciliationService::class)->reconcile();
+
+        $this->assertSame(1, $recovered['reconciled']);
+        $this->assertSame('succeeded', $refund->fresh()->status);
+        $this->assertSame('processed', $refund->fresh()->provider_status);
+        Http::assertSentCount(2);
     }
 
     public function test_unavailable_provider_refund_lookup_keeps_refund_pending_for_retry(): void
