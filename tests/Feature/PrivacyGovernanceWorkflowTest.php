@@ -135,16 +135,22 @@ class PrivacyGovernanceWorkflowTest extends TestCase
         ]);
     }
 
-    public function test_privacy_deletion_request_cannot_be_marked_fulfilled_without_manual_fulfilment_path(): void
+    public function test_sensitive_privacy_requests_cannot_be_marked_fulfilled_without_their_fulfilment_path(): void
     {
         $admin = $this->admin();
-        $request = PrivacyRequest::query()->create(['user_id' => User::factory()->create()->id, 'request_type' => 'deletion', 'status' => 'approved']);
+        foreach (['deletion', 'correction', 'export'] as $type) {
+            $privacyRequest = PrivacyRequest::query()->create([
+                'user_id' => User::factory()->create()->id,
+                'request_type' => $type,
+                'status' => 'approved',
+            ]);
 
-        $this->actingAs($admin)->from('/admin/governance')->put('/admin/privacy-requests/'.$request->id, [
-            'status' => 'fulfilled',
-            'review_note' => 'Deletion workflow has been completed and verified.',
-        ])->assertRedirect('/admin/governance')->assertSessionHasErrors('status');
+            $this->actingAs($admin)->from('/admin/governance')->put('/admin/privacy-requests/'.$privacyRequest->id, [
+                'status' => 'fulfilled',
+                'review_note' => 'Requested work has been completed and verified.',
+            ])->assertRedirect('/admin/governance')->assertSessionHasErrors('status');
 
-        $this->assertDatabaseHas('privacy_requests', ['id' => $request->id, 'status' => 'approved']);
+            $this->assertDatabaseHas('privacy_requests', ['id' => $privacyRequest->id, 'status' => 'approved']);
+        }
     }
 }
