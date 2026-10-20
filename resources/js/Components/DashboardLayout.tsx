@@ -61,6 +61,7 @@ export default function DashboardLayout({ title, description, admin = false, chi
     { label: 'Education', href: '/services/education', icon: GraduationCap },
     { label: 'Refer & Earn', href: '/account/referrals', icon: Users },
     { label: 'Two-factor security', href: '/security/two-factor', icon: ShieldCheck },
+    { label: 'Privacy & data requests', href: '/privacy/requests', icon: ShieldCheck },
     { label: 'Transactions', href: (customerPreview ? '/customer/dashboard' : '/dashboard') + '#activity', icon: Activity, match: '#activity' },
   ];
   const customerFooter: NavItem[] = [
@@ -99,6 +100,7 @@ export default function DashboardLayout({ title, description, admin = false, chi
       { label: 'Site control & settings', href: '/admin/platform-settings', icon: SlidersHorizontal },
       { label: 'Feature controls', href: '/admin/feature-controls', icon: SlidersHorizontal },
       { label: 'Security activity', href: '/admin/security-events', icon: ShieldCheck },
+      { label: 'Privacy, retention & incidents', href: '/admin/governance', icon: ShieldCheck },
       { label: 'Staff & permissions', href: '/admin/staff', icon: Users },
       { label: 'Permission audit history', href: '/admin/staff/permission-audits', icon: Activity },
     ] },
