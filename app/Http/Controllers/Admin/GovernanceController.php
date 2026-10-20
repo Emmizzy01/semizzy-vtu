@@ -74,8 +74,8 @@ class GovernanceController extends Controller
             if ($data['status'] === 'fulfilled' && !in_array($item->status, ['approved', 'in_review'], true)) {
                 throw ValidationException::withMessages(['status' => 'Review and approve the request before marking it fulfilled.']);
             }
-            if ($data['status'] === 'fulfilled' && in_array($item->request_type, ['deletion', 'correction'], true)) {
-                throw ValidationException::withMessages(['status' => 'This request requires its approved fulfilment procedure; the workflow cannot declare it fulfilled automatically.']);
+            if ($data['status'] === 'fulfilled' && in_array($item->request_type, ['deletion', 'correction', 'export'], true)) {
+                throw ValidationException::withMessages(['status' => 'This request requires its approved fulfilment procedure or a complete data-portability export; the workflow cannot declare it fulfilled automatically.']);
             }
             $old = $item->status;
             $item->forceFill([
