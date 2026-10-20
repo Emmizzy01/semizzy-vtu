@@ -443,4 +443,34 @@ class PaymentRefundWorkflowTest extends TestCase
         Http::assertSentCount(1);
     }
 
+
+    public function test_refund_request_idempotency_returns_same_request_and_rejects_changed_payload(): void
+    {
+        $customer = User::query()->create([
+            'name' => 'Refund Idempotency Customer',
+            'email' => 'refund-idempotency-customer@example.test',
+            'password' => 'test-password',
+        ]);
+        $intent = $this->paidIntent($customer, 10000);
+        $payload = [
+            'payment_intent_id' => $intent->public_id,
+            'amount_minor' => 2500,
+            'reason' => 'Idempotent refund request',
+            'idempotency_key' => 'refund-idempotency-key-'.$customer->id,
+        ];
+
+        $first = $this->actingAs($customer)->postJson('/wallet/refund-requests', $payload)->assertCreated();
+        $replay = $this->actingAs($customer)->postJson('/wallet/refund-requests', $payload)->assertCreated();
+
+        $this->assertSame($first->json('data.id'), $replay->json('data.id'));
+        $this->assertDatabaseCount('payment_refunds', 1);
+
+        $changed = $payload;
+        $changed['amount_minor'] = 3000;
+        $this->actingAs($customer)->postJson('/wallet/refund-requests', $changed)->assertStatus(409);
+        $this->assertDatabaseCount('payment_refunds', 1);
+        $this->assertSame(10000, (int) $intent->wallet()->first()->fresh()->balance_minor);
+        Http::assertNothingSent();
+    }
+
 }
