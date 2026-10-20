@@ -72,7 +72,7 @@ class UserVirtualAccountService
         // Provider assignment can be asynchronous/ambiguous. The client fails closed
         // on transport errors; callers must reconcile rather than auto-retry blindly.
         $assigned = $this->paystack->assignDedicatedVirtualAccount($customerCode, $preferredBank);
-        $account = $assigned['account'];
+        $account = $assigned;
         $bank = $account['bank'] ?? [];
 
         try {
@@ -103,7 +103,7 @@ class UserVirtualAccountService
                     'verified_at' => now(),
                     'metadata' => [
                         'provider' => 'paystack',
-                        'assignment_status' => (string) ($assigned['assignment'] ?? 'active'),
+                        'assignment_status' => (bool) ($assigned['assigned'] ?? false) ? 'assigned' : 'pending',
                         'integration_mode' => $gatewayMode,
                     ],
                 ]);
