@@ -77,7 +77,7 @@ return [
                 'secret_key' => env('EDUCATION_VTPASS_SECRET_KEY'),
             ],
             'dataway' => [
-                'enabled' => false,
+                'enabled' => (bool) env('SEMIZZY_VIRTUAL_ACCOUNTS_ENABLED', false),
                 'base_url' => env('EDUCATION_DATAWAY_BASE_URL'),
                 'api_key' => env('EDUCATION_DATAWAY_API_KEY'),
             ],
