@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use App\Models\VtuOrder;
 use App\Models\VtuProduct;
 use App\Services\Vtu\VtuOrderService;
+use App\Services\Vtu\VtuProviderWebhookService;
 use App\Services\Wallets\WalletAccountService;
 use App\Services\Vtu\VtuProvider;
 use Illuminate\Contracts\Console\Kernel;
@@ -37,6 +38,12 @@ $provider = new ConcurrentVtuTestProvider($statePath);
 $app->instance(VtuProvider::class, $provider);
 
 try {
+    if ($mode === 'process-webhooks') {
+        $provider->arriveAndWait('webhook_process_barrier', 2);
+        $stats = app(VtuProviderWebhookService::class)->process();
+        fwrite(STDOUT, json_encode($stats, JSON_THROW_ON_ERROR)."\n");
+        exit(0);
+    }
     if ($mode === 'refund-webhook') {
         $refund = PaymentRefund::query()->findOrFail((int) ($argv[3] ?? 0));
         $intent = $refund->paymentIntent()->firstOrFail();
