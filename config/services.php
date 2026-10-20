@@ -1,6 +1,17 @@
 <?php
 
 return [
+    // Generic HTTPS JSON delivery contract only; do not enable until a real provider's API contract is reviewed.
+    'login_otp' => [
+        'sms' => [
+            'endpoint' => env('AUTH_LOGIN_SMS_OTP_ENDPOINT'),
+            'token' => env('AUTH_LOGIN_SMS_OTP_TOKEN'),
+        ],
+        'whatsapp' => [
+            'endpoint' => env('AUTH_LOGIN_WHATSAPP_OTP_ENDPOINT'),
+            'token' => env('AUTH_LOGIN_WHATSAPP_OTP_TOKEN'),
+        ],
+    ],
     // Keep each provider's secret separate; never commit secret values.
     'vtu' => [
         'driver' => env('VTU_PROVIDER_DRIVER', 'vtpass'),
