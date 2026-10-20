@@ -145,9 +145,7 @@ class PaymentReconciliationService
             'paystack', $intent->reference, $type, $transactionId ?? 'no-transaction-id',
         ]));
 
-        $case = PaymentReconciliationCase::query()->firstOrNew(['case_key' => $key]);
-        $isNew = ! $case->exists;
-        $case->fill([
+        $attributes = [
             'provider' => 'paystack',
             'reference' => $intent->reference,
             'payment_intent_id' => $intent->id,
@@ -160,10 +158,21 @@ class PaymentReconciliationService
             'observed_currency' => is_string($transaction['currency'] ?? null) ? strtoupper($transaction['currency']) : null,
             'details' => $details,
             'last_checked_at' => now(),
-        ]);
-        if ($isNew) {
-            $case->status = 'open';
+        ];
+
+        // firstOrCreate uses create-or-first semantics: if concurrent workers race
+        // on the unique case_key index, the loser reloads the winner instead of
+        // failing the whole scheduled reconciliation batch. Updating an existing
+        // case deliberately leaves its operational status untouched, so a reviewed
+        // or resolved case cannot be silently reopened by a retry.
+        $case = PaymentReconciliationCase::query()->firstOrCreate(
+            ['case_key' => $key],
+            $attributes + ['status' => 'open'],
+        );
+
+        if (! $case->wasRecentlyCreated) {
+            $case->fill($attributes);
+            $case->save();
         }
-        $case->save();
     }
 }
