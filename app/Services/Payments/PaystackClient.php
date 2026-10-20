@@ -357,12 +357,11 @@ class PaystackClient
         }
 
         $data = $response->json('data');
-        $account = is_array($data) ? ($data['account'] ?? null) : null;
         if (!$response->successful() || $response->json('status') !== true || !is_array($data)
-            || !is_array($account) || !is_string($account['account_number'] ?? null)
-            || !preg_match('/^\\d{10}$/', $account['account_number'])
-            || !is_string($account['account_name'] ?? null) || trim($account['account_name']) === ''
-            || !is_string($account['bank']['name'] ?? null) || trim($account['bank']['name']) === '') {
+            || !is_string($data['account_number'] ?? null)
+            || !preg_match('/^\\d{10}$/', $data['account_number'])
+            || !is_string($data['account_name'] ?? null) || trim($data['account_name']) === ''
+            || !is_string($data['bank']['name'] ?? null) || trim($data['bank']['name']) === '') {
             throw new LogicException('Paystack did not confirm a valid dedicated virtual account.');
         }
 
