@@ -38,3 +38,30 @@
 3. Perform the endpoint-by-endpoint PIN/idempotency/permission audit for all wallet-affecting actions.
 4. Continue the real-provider service gap inventory (government document registration, number verification, SMM, social accounts, betting) and implement only reviewed contracts.
 5. Run the planned PHP, concurrency, frontend typecheck/build and real-browser acceptance sweep after the implementation sweep is complete.
+
+
+## Endpoint security review — wallet writes (2026-10-20)
+
+This review is source inspection only; it is not runtime or concurrency-test evidence.
+
+### Controls observed in current source
+
+- Peer wallet transfer route is authenticated by the surrounding customer route group and rate-limited to 5 requests/minute. The controller requires a four-digit transaction PIN and an idempotency key. The service rejects self-transfer, binds an idempotency key to a request hash, posts sender debit and recipient credit in one database transaction, and locks both wallet rows in deterministic ID order. The ledger checks available balance under a wallet row lock and records posted/rejected audit events.
+- Bank payout submission is authenticated and rate-limited to 5 requests/minute. The controller requires a four-digit PIN and idempotency key. The service verifies beneficiary ownership/status, checks the admin payout feature toggle, debits via the wallet ledger inside a transaction, returns an existing idempotent payout without resubmitting it, and marks an uncertain provider result for reconciliation rather than blindly retrying.
+- Refund request handling locks the customer and payment-intent rows, confirms the paid intent belongs to the requester, limits total reserved refunds to the original payment amount, and binds the idempotency key to the request details. Refund approval is permission-gated at the route and the service rejects self-approval.
+- Wallet ledger posts use a wallet row lock, request-hash idempotency, active-wallet checks, insufficient-funds enforcement, and an audit event in the same transaction.
+
+### Remaining gaps / verification blockers
+
+1. These controller/service paths have not been executed in the current environment. Add or run tests proving concurrent duplicate P2P transfer and payout requests create exactly one debit and one business record; key reuse with changed amount/beneficiary is rejected; insufficient balance creates no debit; and unknown provider outcome is reconciliation-only with no automatic second submission.
+2. TransactionPinController::update currently permits initial PIN setup for an authenticated account without checking a current PIN (because none exists), and subsequent changes use current PIN but not an additional recent-password confirmation. Decide and implement an explicit step-up policy for first-time setup and PIN changes, with audit logging and tests; do not silently change the customer flow without matching the security UX.
+3. BankPayoutService::addBeneficiary calls the provider to create a recipient before checking whether the returned provider recipient code is already associated with another Semizzy user. This can create an orphaned provider recipient on a rejected cross-account association. Add a safe recovery/cleanup policy or a preflight provider-recipient deduplication mechanism and tests, without exposing full bank account data.
+4. PIN verification and the financial operation are separate transactions: PIN lock state is updated before the wallet transaction starts. Keep reviewing race conditions across PIN verification, user/session state, and financial writes; document the accepted policy and test the relevant concurrency boundary.
+5. Route-level throttling and feature gates are useful but do not replace authorization/ownership checks inside services. Continue the endpoint inventory for VTU single/bulk orders, scheduled purchases, manual-deposit review/approval, funding webhooks, refund approval, virtual-account provisioning, credential/security changes, and all admin funding actions.
+
+### Acceptance status
+
+- Source inspection: completed for the P2P transfer controller/service, bank payout controller/service, wallet ledger, PIN service, and refund controller/service.
+- Runtime feature tests and concurrency tests: **not executed here**; no pass claim.
+- Production transactions/provider calls: **not performed**.
+- Phase 1: **not signed off**. Keep live provider purchases, live payouts, and other live financial operations gated until test evidence and provider reconciliation contracts are verified.
