@@ -3451,6 +3451,13 @@ class VtuOrderWorkflowTest extends TestCase
             'face_value_minor' => $productPriceMinor,
             'currency' => 'NGN',
             'is_active' => true,
+            // General purchase/recovery tests use an explicitly approved test
+            // catalogue item. Tests for unapproved/legacy products create or
+            // override their own metadata and continue to exercise the block.
+            'metadata' => [
+                'catalog_source' => 'vtpass',
+                'purchase_approved' => true,
+            ],
         ]);
 
         return [$user, $wallet->fresh(), $product];
