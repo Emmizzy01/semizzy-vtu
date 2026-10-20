@@ -15,11 +15,7 @@ class LoginChallengeService
 {
     public function start(Request $request, User $user, bool $remember): void
     {
-        $mailer = (string) config('mail.default');
-        if (in_array($mailer, ['log', 'array'], true)) {
-            throw new RuntimeException('Email OTP requires a real configured mail transport.');
-        }
-
+        $channel = (string) config('auth_security.login_otp_channel', 'email');
         $id = (string) Str::uuid();
         $code = (string) random_int(100000, 999999);
         $ttl = max(1, min(30, (int) config('auth_security.email_otp_ttl_minutes', 10)));
