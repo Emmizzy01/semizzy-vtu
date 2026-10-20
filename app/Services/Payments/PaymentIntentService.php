@@ -33,13 +33,15 @@ class PaymentIntentService
                 $existing = PaymentIntent::query()
                     ->where('wallet_id', $wallet->id)
                     ->where('provider', $provider)
-                    ->where('amount_minor', $amountMinor)
                     ->where('status', 'pending')
                     ->where('expires_at', '>', now())
                     ->where('metadata->client_idempotency_key_hash', $keyHash)
                     ->lockForUpdate()
                     ->first();
                 if ($existing !== null) {
+                    if ($existing->amount_minor !== $amountMinor) {
+                        throw new InvalidArgumentException('This funding retry key was already used with a different amount.');
+                    }
                     if (($existing->metadata['gateway_mode'] ?? null) !== $gatewayMode) {
                         throw new InvalidArgumentException('This funding retry key is already bound to a different gateway mode.');
                     }
