@@ -117,4 +117,23 @@ class PeerWalletTransferTest extends TestCase
         ]);
     }
 
+
+    public function test_transfer_history_is_scoped_to_the_authenticated_user(): void
+    {
+        $sender = $this->makeUser('History Sender', 'history-sender@example.test', 'historysender');
+        $recipient = $this->makeUser('History Recipient', 'history-recipient@example.test', 'historyrecipient');
+        $outsider = $this->makeUser('History Outsider', 'history-outsider@example.test', 'historyoutsider');
+        $wallets = app(WalletAccountService::class);
+        $senderWallet = $wallets->openForUser($sender);
+        $recipientWallet = $wallets->openForUser($recipient);
+        app(WalletLedgerService::class)->post($senderWallet->id, 'credit', 5000, 'history-transfer-seed-001');
+        app(PeerWalletTransferService::class)->transfer($sender, 'historyrecipient', 1000, 'history-transfer-key-001');
+
+        $this->actingAs($outsider)->getJson('/wallet/transfers/history')
+            ->assertOk()->assertJsonPath('meta.total', 0)->assertJsonCount(0, 'data');
+        $this->actingAs($sender)->getJson('/wallet/transfers/history')
+            ->assertOk()->assertJsonPath('meta.total', 1)->assertJsonPath('data.0.direction', 'sent');
+        $this->actingAs($recipient)->getJson('/wallet/transfers/history')
+            ->assertOk()->assertJsonPath('meta.total', 1)->assertJsonPath('data.0.direction', 'received');
+    }
 }
