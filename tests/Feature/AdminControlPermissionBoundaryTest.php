@@ -40,6 +40,11 @@ class AdminControlPermissionBoundaryTest extends TestCase
         $this->actingAs($user)->get('/admin/platform-settings')->assertForbidden();
         $this->actingAs($user)->get('/admin/staff')->assertForbidden();
         $this->actingAs($user)->put('/admin/platform-theme', [])->assertForbidden();
+        $this->actingAs($user)->put('/admin/platform-settings', [])->assertForbidden();
+        $this->actingAs($user)->put('/admin/manual-deposits/settings', [])->assertForbidden();
+        $this->actingAs($user)->put('/admin/feature-controls/service.manual_deposit', [])->assertForbidden();
+        $this->actingAs($user)->put('/admin/payment-gateway', [])->assertForbidden();
+        $this->actingAs($user)->put('/admin/api-providers', [])->assertForbidden();
     }
 
     public function test_refund_approver_can_review_refunds_but_not_global_admin_controls(): void
@@ -55,6 +60,12 @@ class AdminControlPermissionBoundaryTest extends TestCase
         $this->actingAs($operator)->get('/admin/feature-controls')->assertForbidden();
         $this->actingAs($operator)->get('/admin/platform-settings')->assertForbidden();
         $this->actingAs($operator)->get('/admin/staff')->assertForbidden();
+        $this->actingAs($operator)->put('/admin/platform-settings', [])->assertForbidden();
+        $this->actingAs($operator)->put('/admin/manual-deposits/settings', [])->assertForbidden();
+        $this->actingAs($operator)->put('/admin/feature-controls/service.manual_deposit', [])->assertForbidden();
+        $this->actingAs($operator)->put('/admin/payment-gateway', [])->assertForbidden();
+        $this->actingAs($operator)->put('/admin/api-providers', [])->assertForbidden();
+        $this->actingAs($operator)->get('/admin/payment-refunds')->assertOk();
     }
 
     public function test_staff_manager_can_access_admin_controls_without_implicitly_becoming_refund_approver(): void
