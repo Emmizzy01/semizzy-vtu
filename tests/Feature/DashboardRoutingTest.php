@@ -76,6 +76,14 @@ class DashboardRoutingTest extends TestCase
     {
         $customer = $this->account('customer@example.test');
         $customer->forceFill(['user_type' => 'reseller', 'user_level' => 'level_3'])->save();
+        $settings = app(\\App\\Services\\IntegrationSettings::class);
+        $settings->set('homepage.cashback_line_one', 'Test cashback headline', null);
+        $settings->set('homepage.cashback_line_two', 'for verified customers', null);
+        $settings->set('homepage.cashback_subtitle', 'Admin-controlled subtitle', null);
+        $settings->set('homepage.gadget_sale_title', 'Test gadget sale', null);
+        $settings->set('homepage.gadget_sale_subtitle', 'Admin-controlled gadgets', null);
+        $settings->set('homepage.referral_title', 'Test referral headline', null);
+        $settings->set('homepage.referral_subtitle', 'Admin-controlled referrals', null);
 
         $this->actingAs($customer)
             ->get('/dashboard')
@@ -85,6 +93,13 @@ class DashboardRoutingTest extends TestCase
                 ->where('customer.type', 'reseller')
                 ->where('customer.level', 'level_3')
                 ->where('customer.kycStatus', 'unverified')
+                ->where('promotions.cashbackLineOne', 'Test cashback headline')
+                ->where('promotions.cashbackLineTwo', 'for verified customers')
+                ->where('promotions.cashbackSubtitle', 'Admin-controlled subtitle')
+                ->where('promotions.gadgetSaleTitle', 'Test gadget sale')
+                ->where('promotions.gadgetSaleSubtitle', 'Admin-controlled gadgets')
+                ->where('promotions.referralTitle', 'Test referral headline')
+                ->where('promotions.referralSubtitle', 'Admin-controlled referrals')
                 ->has('transactions')
                 ->has('transactionPagination')
                 ->where('transactionFilters.status', 'all')
