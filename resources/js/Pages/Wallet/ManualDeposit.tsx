@@ -62,8 +62,8 @@ export default function ManualDeposit({ instructions, deposits }: { instructions
       if (!response.ok || typeof checkoutUrl !== 'string' || checkoutUrl === '') {
         throw new Error(typeof payload?.message === 'string' ? payload.message : 'Checkout could not be started. Retry this same attempt; do not submit another deposit.');
       }
-      try { window.sessionStorage.removeItem('semizzy-paystack-funding-attempt'); } catch { /* non-fatal */ }
-      setFundingAttemptKey('');
+      // Keep the key until the user explicitly starts a different attempt. If the
+      // browser fails to navigate, a retry must still resolve to this same intent.
       window.location.assign(checkoutUrl);
     } catch (error) {
       setCheckoutError(error instanceof Error ? error.message : 'Checkout could not be started. Retry the same attempt.');
