@@ -10,7 +10,7 @@ use LogicException;
 
 class PaystackClient
 {
-    private function secretKey(): string
+    private function secretKey(?string $requiredMode = null): string
     {
         $key = (string) app(IntegrationSettings::class)->get('paystack.secret_key', config('services.paystack.secret_key', ''));
 
@@ -33,6 +33,10 @@ class PaystackClient
             throw new LogicException('The selected Paystack mode does not match the configured secret key. Choose the matching mode and key before processing payments.');
         }
 
+        if ($requiredMode !== null && $mode !== $requiredMode) {
+            throw new LogicException('The funding intent gateway mode no longer matches the active Paystack configuration. Retry only after reconciling the existing intent.');
+        }
+
         return $key;
     }
 
@@ -48,8 +52,13 @@ class PaystackClient
 
     public function initialize(PaymentIntent $intent, string $email): array
     {
+        $intentMode = $intent->metadata['gateway_mode'] ?? null;
+        if (! in_array($intentMode, ['test', 'live'], true)) {
+            throw new LogicException('Funding intent has no valid gateway mode; checkout initialization is blocked.');
+        }
+
         try {
-            $response = Http::withToken($this->secretKey())
+            $response = Http::withToken($this->secretKey($intentMode))
                 ->acceptJson()
                 ->asJson()
                 ->timeout(15)
