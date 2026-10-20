@@ -90,4 +90,31 @@ class PeerWalletTransferTest extends TestCase
             $this->assertDatabaseCount('wallet_transfers', 0);
         }
     }
+
+    public function test_http_transfer_endpoint_rejects_wrong_pin_before_creating_transfer(): void
+    {
+        $sender = $this->makeUser('HTTP Sender', 'http-sender@example.test', 'httpsender');
+        $recipient = $this->makeUser('HTTP Recipient', 'http-recipient@example.test', 'httpreceiver');
+        $sender->forceFill([
+            'transaction_pin_hash' => \\Illuminate\\Support\\Facades\\Hash::make('4928'),
+        ])->save();
+
+        $this->actingAs($sender)->postJson('/wallet/transfers', [
+            'recipient' => 'httpreceiver',
+            'amount_minor' => 2500,
+            'transaction_pin' => '1111',
+            'idempotency_key' => 'http-transfer-wrong-pin-001',
+        ])->assertStatus(422)
+          ->assertJsonPath('message', 'Transaction PIN is incorrect.');
+
+        $this->assertDatabaseCount('wallet_transfers', 0);
+        $this->assertDatabaseCount('wallet_ledger_entries', 0);
+        $this->assertDatabaseCount('wallet_transactions', 0);
+        $this->assertDatabaseHas('transaction_security_events', [
+            'user_id' => $sender->id,
+            'event_type' => 'pin_verification',
+            'outcome' => 'failed',
+        ]);
+    }
+
 }
