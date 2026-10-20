@@ -24,7 +24,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-          cache: npm
       - run: composer install --no-interaction --prefer-dist --no-progress
       - run: npm install --no-audit --no-fund
       - run: php artisan test
@@ -63,4 +62,4 @@ jobs:
           extensions: mbstring, bcmath, pdo_mysql, dom, curl, fileinfo, openssl, tokenizer, xml
           coverage: none
       - run: composer install --no-interaction --prefer-dist --no-progress
-      - run: php artisan test --testsuite=Feature --filter='BankPayoutSafetyTest|PeerWalletTransferTest|VtuBulkPurchaseBatchTest'
+      - run: php artisan test --testsuite=Feature --filter='BankPayoutSafetyTest|PeerWalletTransferTest|VtuBulkPurchaseBatchTest|BankPayoutMariaDbConcurrencyTest'
