@@ -602,4 +602,99 @@ class ProviderCatalogueImportTest extends TestCase
         $this->assertTrue($product->metadata['purchase_approved']);
     }
 
+
+    public function test_sogo_catalogue_missing_providers_field_aborts_without_mutating_existing_product(): void
+    {
+        config([
+            'services.vtu.sogo.base_url' => 'https://sandbox.sogo.africa/v1',
+            'services.vtu.sogo.api_key' => 'sogo_test_key',
+        ]);
+
+        $product = VtuProduct::query()->create([
+            'service_type' => 'data',
+            'provider_key' => 'sogo',
+            'provider_product_code' => 'existing-plan',
+            'provider_cost_minor' => 27000,
+            'network' => 'mtn',
+            'code' => 'sogo-data-existing-plan',
+            'name' => 'Reviewed plan',
+            'price_minor' => 32000,
+            'currency' => 'NGN',
+            'is_active' => false,
+            'metadata' => ['purchase_approved' => false],
+        ]);
+
+        Http::fake([
+            'sandbox.sogo.africa/v1/bills/catalog*' => Http::response([
+                'data' => ['data' => ['message' => 'success but providers omitted']],
+            ]),
+        ]);
+
+        try {
+            app(ProviderCatalogueImportService::class)->import('sogo', 'data');
+            $this->fail('Missing Sogo providers must not be treated as an empty catalogue.');
+        } catch (\RuntimeException $exception) {
+            $this->assertStringContainsString('invalid bill catalogue', strtolower($exception->getMessage()));
+        }
+
+        $product->refresh();
+        $this->assertSame(1, VtuProduct::query()->count());
+        $this->assertSame(27000, $product->provider_cost_minor);
+        $this->assertSame(32000, $product->price_minor);
+        $this->assertFalse($product->is_active);
+        $this->assertFalse($product->metadata['purchase_approved']);
+    }
+
+    public function test_gsubz_catalogue_missing_data_field_aborts_without_creating_products(): void
+    {
+        config([
+            'services.vtu.gsubz.base_url' => 'https://api.gsubz.com',
+            'services.vtu.gsubz.api_key' => 'gsubz_test_key',
+        ]);
+
+        Http::fake([
+            'api.gsubz.com/*' => Http::response(['message' => 'success but data omitted']),
+        ]);
+
+        try {
+            app(ProviderCatalogueImportService::class)->import('gsubz', 'data');
+            $this->fail('Missing GSUBZ data must not be treated as an empty catalogue.');
+        } catch (\RuntimeException $exception) {
+            $this->assertStringContainsString('invalid service catalogue', strtolower($exception->getMessage()));
+        }
+
+        $this->assertSame(0, VtuProduct::query()->count());
+    }
+
+    public function test_dataway_nested_product_response_missing_data_field_aborts_without_creating_products(): void
+    {
+        config([
+            'services.vtu.dataway.base_url' => 'https://dataway.ng/api/v1/merchant',
+            'services.vtu.dataway.api_key' => 'dataway_test_key',
+        ]);
+
+        Http::fake(function ($request) {
+            if (str_contains($request->url(), '/billers/')) {
+                return Http::response(['message' => 'success but product data omitted']);
+            }
+
+            return Http::response([
+                'data' => [[
+                    'name' => 'MTN Data',
+                    'slug' => 'mtn-data',
+                    'category' => 'data',
+                ]],
+            ]);
+        });
+
+        try {
+            app(ProviderCatalogueImportService::class)->import('dataway', 'data');
+            $this->fail('Missing nested Dataway product data must abort the import.');
+        } catch (\RuntimeException $exception) {
+            $this->assertStringContainsString('invalid product catalogue', strtolower($exception->getMessage()));
+        }
+
+        $this->assertSame(0, VtuProduct::query()->count());
+    }
+
 }

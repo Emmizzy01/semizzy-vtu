@@ -118,8 +118,12 @@ class ProviderCatalogueImportService
         $response = $http->get('bills/catalog');
         if (! $response->successful()) throw new RuntimeException('Sogo catalogue request failed.');
         $body = $response->json();
-        $providers = data_get($body, 'data.'.$category.'.providers', []);
-        if (! is_array($providers)) throw new RuntimeException('Sogo returned an invalid bill catalogue.');
+        $providerCatalogue = data_get($body, 'data.'.$category);
+        if (! is_array($providerCatalogue) || ! array_key_exists('providers', $providerCatalogue) || ! is_array($providerCatalogue['providers'])) {
+            throw new RuntimeException('Sogo returned an invalid bill catalogue.');
+        }
+        // An explicit providers: [] is a valid empty snapshot; a missing field is malformed.
+        $providers = $providerCatalogue['providers'];
 
         $items = [];
         foreach ($providers as $network) {
@@ -148,7 +152,13 @@ class ProviderCatalogueImportService
             $plansResponse = $http->get($planEndpoint, [$queryKey => $network['slug']]);
             if (! $plansResponse->successful()) throw new RuntimeException('Sogo '.$category.' catalogue failed; no import was applied.');
             $body = $plansResponse->json();
-            $plans = data_get($body, 'data.plans', data_get($body, 'data.packages', data_get($body, 'data', [])));
+            $planData = is_array($body) ? ($body['data'] ?? null) : null;
+            if (! is_array($planData)) {
+                throw new RuntimeException('Sogo returned an invalid '.$category.' plan catalogue.');
+            }
+            $plans = array_key_exists('plans', $planData)
+                ? $planData['plans']
+                : (array_key_exists('packages', $planData) ? $planData['packages'] : $planData);
             if (! is_array($plans)) throw new RuntimeException('Sogo returned an invalid '.$category.' plan catalogue.');
             foreach ($plans as $plan) {
                 if (! is_array($plan)) continue;
@@ -177,7 +187,9 @@ class ProviderCatalogueImportService
         $response = $http->get('api/category/');
         if (! $response->successful()) throw new RuntimeException('GSUBZ service catalogue request failed.');
         $body = $response->json();
-        $services = data_get($body, 'data', $body);
+        $services = is_array($body) && array_key_exists('data', $body)
+            ? $body['data']
+            : (is_array($body) && array_is_list($body) ? $body : null);
         if (! is_array($services)) throw new RuntimeException('GSUBZ returned an invalid service catalogue.');
 
         $items = [];
@@ -207,7 +219,10 @@ class ProviderCatalogueImportService
             if (in_array($category, ['data', 'cable_tv', 'social-media'], true)) {
                 $plansResponse = $http->get('api/plans/', ['service' => $id]);
                 if (! $plansResponse->successful()) throw new RuntimeException('GSUBZ '.$category.' plan catalogue failed; no import was applied.');
-                $plans = data_get($plansResponse->json(), 'data', $plansResponse->json());
+                $planBody = $plansResponse->json();
+                $plans = is_array($planBody) && array_key_exists('data', $planBody)
+                    ? $planBody['data']
+                    : (is_array($planBody) && array_is_list($planBody) ? $planBody : null);
                 if (! is_array($plans)) throw new RuntimeException('GSUBZ returned an invalid plan catalogue.');
                 foreach ($plans as $plan) {
                     if (! is_array($plan)) continue;
@@ -264,7 +279,10 @@ class ProviderCatalogueImportService
             if (! is_array($plans)) {
                 $productsResponse = $http->get('billers/'.rawurlencode($slug).'/products/');
                 if (! $productsResponse->successful()) throw new RuntimeException('Dataway product catalogue failed; no import was applied.');
-                $plans = data_get($productsResponse->json(), 'data', []);
+                $productsBody = $productsResponse->json();
+                $plans = is_array($productsBody) && array_key_exists('data', $productsBody)
+                    ? $productsBody['data']
+                    : (is_array($productsBody) && array_is_list($productsBody) ? $productsBody : null);
             }
             if (! is_array($plans)) throw new RuntimeException('Dataway returned an invalid product catalogue.');
             $mappedPlans = 0;
