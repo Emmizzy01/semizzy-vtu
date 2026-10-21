@@ -87,6 +87,45 @@ class PlatformSettingsController extends Controller
             'airtime_data_enabled' => 'service.airtime_data.enabled', 'manual_deposit_enabled' => 'manual_deposit.enabled',
         ];
         DB::transaction(function () use ($request, $settings, $data, $map): void {
+            // The global settings form also changes feature-control records. Apply
+            // the same dependency rules as the dedicated feature-control screen so
+            // this second entry point cannot leave enabled features without their
+            // required dependencies.
+            $featureFieldMap = [
+                'airtime_data_enabled' => 'service.airtime_data',
+                'manual_deposit_enabled' => 'service.manual_deposit',
+            ];
+            $features = PlatformFeatureControl::query()->lockForUpdate()->get()->keyBy('feature_key');
+            $desiredFeatureStates = [];
+            foreach ($featureFieldMap as $field => $featureKey) {
+                if (array_key_exists($field, $data)) {
+                    $desiredFeatureStates[$featureKey] = (bool) $data[$field];
+                }
+            }
+            foreach ($desiredFeatureStates as $featureKey => $enabled) {
+                $feature = $features->get($featureKey);
+                if (! $feature) {
+                    continue;
+                }
+                if ($enabled) {
+                    foreach (($feature->dependencies ?? []) as $dependency) {
+                        $dependencyEnabled = array_key_exists($dependency, $desiredFeatureStates)
+                            ? $desiredFeatureStates[$dependency]
+                            : (bool) ($features->get($dependency)?->is_enabled ?? false);
+                        abort_if(! $dependencyEnabled, 422, 'Enable required dependency '.$dependency.' before enabling '.$feature->label.'.');
+                    }
+                } else {
+                    $dependents = $features->filter(function (PlatformFeatureControl $candidate) use ($featureKey, $features, $desiredFeatureStates): bool {
+                        if (! in_array($featureKey, $candidate->dependencies ?? [], true)) {
+                            return false;
+                        }
+                        $willBeEnabled = $desiredFeatureStates[$candidate->feature_key] ?? (bool) $candidate->is_enabled;
+                        return $willBeEnabled;
+                    });
+                    abort_if($dependents->isNotEmpty(), 422, 'Disable dependent features first: '.$dependents->pluck('feature_key')->implode(', '));
+                }
+            }
+
             foreach ($map as $field => $key) {
                 $fallback = match ($field) {
                     'site_name' => config('app.name', 'Semizzy'),
