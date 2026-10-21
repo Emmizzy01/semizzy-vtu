@@ -198,4 +198,45 @@ class ScheduledPurchaseRunnerTest extends TestCase
         $this->assertSame('paused', $schedule->fresh()->status);
     }
 
+
+    public function test_overlapping_scheduler_tick_cannot_submit_the_same_processing_schedule_twice(): void
+    {
+        $user = User::query()->create([
+            'name' => 'Overlapping Scheduled Runner',
+            'email' => 'overlapping-scheduled-runner@example.test',
+            'password' => 'not-a-real-password',
+        ]);
+        $schedule = ScheduledServicePurchase::query()->create([
+            'user_id' => $user->id,
+            'service_type' => 'data',
+            'product_code' => 'overlapping-runner-plan',
+            'recipient' => '08012345678',
+            'frequency' => 'daily',
+            'next_run_at' => now()->subMinutes(2),
+            'status' => 'active',
+        ]);
+
+        $order = new VtuOrder();
+        $order->forceFill(['public_id' => 'overlapping-runner-order', 'status' => 'successful']);
+
+        $this->mock(VtuOrderService::class)
+            ->shouldReceive('purchase')
+            ->once()
+            ->andReturnUsing(function () use ($order) {
+                // Simulate a second scheduler tick while the first worker is
+                // waiting on the provider. The processing claim must exclude it.
+                $this->artisan('vtu:run-scheduled-purchases --limit=100')->assertExitCode(0);
+
+                return $order;
+            });
+
+        $this->artisan('vtu:run-scheduled-purchases --limit=100')->assertExitCode(0);
+
+        $schedule->refresh();
+        $this->assertSame('active', $schedule->status);
+        $this->assertSame('overlapping-runner-order', $schedule->last_order_public_id);
+        $this->assertSame('successful', $schedule->last_result);
+        $this->assertSame(1, VtuOrder::query()->where('public_id', 'overlapping-runner-order')->count());
+    }
+
 }
