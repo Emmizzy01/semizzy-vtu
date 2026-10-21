@@ -66,7 +66,7 @@ class VtpassProviderClientTest extends TestCase
         try {
             app(VtpassProviderClient::class)->submit($order);
             $this->fail('An order must not submit a payload for a service type different from its catalogue product.');
-        } catch (\\LogicException $exception) {
+        } catch (\LogicException $exception) {
             $this->assertStringContainsString('does not match its catalogue product', $exception->getMessage());
         }
 
