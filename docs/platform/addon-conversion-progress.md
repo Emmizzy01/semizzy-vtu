@@ -188,3 +188,7 @@ This is a bounded first map, not the final endpoint inventory: webhook/callback 
 - Added `docs/platform/addon-lifecycle-contract.md` with the contract, current webhook/worker inventory, and remaining route/job audit work.
 
 **Important boundary:** policy is deliberately not yet wired into routes, jobs or provider resolution. No service was migrated in this checkpoint. This avoids blocking webhooks/reconciliation or falsely declaring a registry row operational before the complete endpoint map and CI results are available. New tests must be confirmed by GitHub Actions before the policy can be treated as verified.
+
+- Follow-up queue audit found one job class, `ProcessVtuBulkPurchaseBatch` (3 attempts, 60-second timeout), which atomically claims batch items and quarantines uncertain/stale work as unknown for reconciliation. No app/Events or app/Listeners directories were present in the current recursive tree; a mail notification and OTP mailable exist, but queue dispatch/configuration still needs trace validation.
+- Route-group middleware has been mapped at source level: guest auth flows are throttled, customer service routes inherit the authenticated web group, admin routes inherit authentication plus staff permission, and refund approval remains separately permissioned. No addon admission middleware is currently wired in `bootstrap/app.php`.
+- The lifecycle policy has unit tests committed, but it is not yet verified. Current Actions state must be checked on the latest commit; no source-only test result is claimed.
