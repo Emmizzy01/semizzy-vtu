@@ -144,3 +144,33 @@ These tests characterize routing and middleware only; they do not prove controll
 3. Complete call-site tracing for every job dispatch and mail delivery, plus payment webhook event replay/payload-conflict behavior, manual-deposit approval double-credit protection, refund reconciliation, VTU order idempotency and recovery endpoint permissions.
 4. Add/adjust tests where source inspection alone does not prove the behavior. Never trigger a real transaction to test these properties.
 5. Keep lifecycle admission unwired and do not migrate a service until the route contracts and required CI gates pass.
+
+
+## Financial recovery evidence update — 2026-10-21
+
+### CI status rechecked
+
+- Commit `5263b324e6df3b184dd8063db849728197164461`: the Laravel/frontend workflow completed successfully on PHP 8.3 and PHP 8.4; its frontend-build job passed. The security verification and asset-build workflows for that commit also completed successfully.
+- Current audit commit `64f2cdb92cc146ff5a044811af60097302877977`: security verification passed on both SQLite and MariaDB; the asset build/publish workflow passed; the Laravel/frontend workflow's frontend and PHP 8.4 jobs passed at the latest check. PHP 8.3 was still in progress. This is not a full CI sign-off until that remaining job completes successfully.
+
+### Existing regression tests confirmed by source inspection
+
+- `tests/Feature/ManualDepositWorkflowTest.php` includes a replay check: after an admin approves a deposit, a second approval returns HTTP 409 and wallet balance, wallet ledger entries, and wallet transactions remain unchanged. It also checks that duplicate receipt evidence is flagged and cannot be approved.
+- `tests/Feature/PaymentRefundWorkflowTest.php` includes an approval replay check: a second approval returns HTTP 409, the wallet is reserved only once, and the provider refund endpoint is called only once.
+- `tests/Feature/PaymentRefundReconciliationTest.php` checks canonical Paystack refund reconciliation, mismatch handling, and that mismatched provider amount data does not immediately mark a refund succeeded.
+- These are existing test definitions, not a claim that every test has independently been run outside CI. The latest PHP 8.3 run remains the outstanding gate for the current commit.
+
+### Additional recovery findings
+
+- Manual-deposit review locks the deposit row and accepts only `pending` or `review_required` states. Approval posts a wallet credit using the deposit's stable idempotency key and persists the credited transaction ID in the same database transaction. A duplicate-evidence deposit is blocked from approval in this path.
+- Refund approval locks the refund and payment intent, posts a wallet debit with the stable key `refund-reserve:<refund-public-id>`, and only permits the initial requested or balance-blocked states. Once processing starts, replaying the approval does not call the provider again. Provider/network ambiguity preserves the reservation and moves the refund to review-required for canonical reconciliation rather than blindly resubmitting.
+- Refund reconciliation compares provider refund ID, amount, currency and original payment transaction ID before applying provider status. Provider lookup failure is treated as unavailable evidence, not proof of failure or success.
+- These code paths have targeted regression tests already present; remaining work is to verify their current-commit CI results and extend coverage where the dispatch-origin or recovery inventory still lacks a direct assertion.
+
+### Next acceptance gate
+
+1. Recheck PHP 8.3 on commit `64f2cdb...`; inspect and fix any failure before treating the route-characterization change as accepted.
+2. Finish a repository-wide dispatch-origin inventory for jobs, notifications, mailables, and command-triggered work, documenting exact call sites and whether each path is synchronous or queued.
+3. Add missing assertions for payment webhook duplicate event IDs/payload conflicts and VTU order idempotency/recovery permissions only where existing tests do not already cover them.
+4. Update this document with the final CI run URLs and test evidence.
+5. Keep addon lifecycle admission unwired until these gates are closed. No live transactions, production data changes, or provider purchase activation are part of this audit.
