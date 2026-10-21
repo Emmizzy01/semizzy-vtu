@@ -30,14 +30,14 @@ class PeerWalletTransferMariaDbConcurrencyTest extends TestCase
             'name' => 'Concurrent Transfer Sender',
             'email' => 'concurrent-transfer-sender@example.test',
             'password' => 'not-a-real-password',
-            'username' => 'concurrent_sender',
         ]);
+        $sender->forceFill(['username' => 'concurrent_sender'])->save();
         $recipient = User::query()->create([
             'name' => 'Concurrent Transfer Recipient',
             'email' => 'concurrent-transfer-recipient@example.test',
             'password' => 'not-a-real-password',
-            'username' => 'concurrent_recipient',
         ]);
+        $recipient->forceFill(['username' => 'concurrent_recipient'])->save();
 
         $wallets = app(WalletAccountService::class);
         $senderWallet = $wallets->openForUser($sender);
