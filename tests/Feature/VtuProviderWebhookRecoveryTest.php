@@ -97,7 +97,7 @@ class VtuProviderWebhookRecoveryTest extends TestCase
         $this->mock(VtuOrderService::class, function ($mock) use (&$nestedStats): void {
             $mock->shouldReceive('applyVerifiedWebhookResult')
                 ->once()
-                ->andReturnUsing(function (): void {
+                ->andReturnUsing(function () use (&$nestedStats): void {
                     // Simulate another scheduler/queue worker entering while the
                     // first worker is processing the event it has already claimed.
                     $nestedStats = app(VtuProviderWebhookService::class)->process();
