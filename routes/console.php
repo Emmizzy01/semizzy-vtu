@@ -273,7 +273,7 @@ Artisan::command('vtu:run-scheduled-purchases {--limit=100}', function (VtuOrder
             } else {
                 $paused++;
             }
-        } catch (\\Throwable $exception) {
+        } catch (\Throwable $exception) {
             report($exception);
             // Fail closed. Preserve any pause made by recovery or an operator.
             DB::transaction(function () use ($schedule): void {
