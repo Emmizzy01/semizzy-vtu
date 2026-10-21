@@ -90,6 +90,12 @@ class VtpassProviderClient implements VtuProvider, BillerVerificationProvider
         if (! $product instanceof VtuProduct) {
             throw new LogicException('VTpass order product metadata is unavailable.');
         }
+        // An order's stored service type is part of its immutable purchase intent.
+        // Never build a provider payload from a service type that disagrees with the
+        // catalogue product used to validate approval and provider-specific fields.
+        if ($order->service_type !== $product->service_type) {
+            throw new LogicException('VTpass order service type does not match its catalogue product.');
+        }
         $this->assertProductConfigured($product);
 
         $details = is_array($order->service_details) ? $order->service_details : [];
