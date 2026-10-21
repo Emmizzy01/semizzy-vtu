@@ -178,7 +178,7 @@ class PeerWalletTransferTest extends TestCase
         $sender = $this->makeUser('Conflict HTTP Sender', 'conflict-http-sender@example.test', 'conflicthttpsender');
         $recipient = $this->makeUser('Conflict HTTP Recipient', 'conflict-http-recipient@example.test', 'conflicthttprecipient');
         $sender->forceFill([
-            'transaction_pin_hash' => \\Illuminate\\Support\\Facades\\Hash::make('4928'),
+            'transaction_pin_hash' => \Illuminate\Support\Facades\Hash::make('4928'),
         ])->save();
 
         $wallets = app(WalletAccountService::class);
