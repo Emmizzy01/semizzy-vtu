@@ -267,7 +267,7 @@ class TransactionPinSecurityTest extends TestCase
     {
         $user = User::query()->create(['name' => 'PIN Customer', 'email' => 'pin-customer@example.test', 'password' => 'not-a-real-password']);
         $this->actingAs($user)->get('/security/transaction-pin')->assertOk();
-        $this->actingAs($user)->put('/security/transaction-pin', ['pin' => '4928', 'pin_confirmation' => '4928'])->assertRedirect();
+        $this->actingAs($user)->put('/security/transaction-pin', ['password' => 'not-a-real-password', 'pin' => '4928', 'pin_confirmation' => '4928'])->assertRedirect();
         $this->assertNotNull($user->fresh()->transaction_pin_hash);
         $this->assertTrue(Hash::check('4928', $user->fresh()->transaction_pin_hash));
         $this->assertDatabaseHas('transaction_security_events', ['user_id' => $user->id, 'event_type' => 'pin_created', 'outcome' => 'success']);
@@ -279,6 +279,7 @@ class TransactionPinSecurityTest extends TestCase
         $user->forceFill(['transaction_pin_hash' => Hash::make('492815')])->save();
 
         $this->actingAs($user)->put('/security/transaction-pin', [
+            'password' => 'not-a-real-password',
             'current_pin' => '492815',
             'pin' => '7359',
             'pin_confirmation' => '7359',
@@ -298,6 +299,7 @@ class TransactionPinSecurityTest extends TestCase
         $user->forceFill(['transaction_pin_hash' => Hash::make('4928')])->save();
 
         $this->actingAs($user)->put('/security/transaction-pin', [
+            'password' => 'not-a-real-password',
             'current_pin' => '1111',
             'pin' => '7359',
             'pin_confirmation' => '7359',
@@ -328,6 +330,7 @@ class TransactionPinSecurityTest extends TestCase
         ])->save();
 
         $this->actingAs($user)->put('/security/transaction-pin', [
+            'password' => 'not-a-real-password',
             'current_pin' => '4928',
             'pin' => '7359',
             'pin_confirmation' => '7359',
@@ -341,8 +344,8 @@ class TransactionPinSecurityTest extends TestCase
     public function test_repeated_pin_and_simple_sequences_are_rejected(): void
     {
         $user = User::query()->create(['name' => 'PIN Customer', 'email' => 'pin-customer2@example.test', 'password' => 'not-a-real-password']);
-        $this->actingAs($user)->put('/security/transaction-pin', ['pin' => '1111', 'pin_confirmation' => '1111'])->assertSessionHasErrors('pin');
-        $this->actingAs($user)->put('/security/transaction-pin', ['pin' => '1234', 'pin_confirmation' => '1234'])->assertSessionHasErrors('pin');
+        $this->actingAs($user)->put('/security/transaction-pin', ['password' => 'not-a-real-password', 'pin' => '1111', 'pin_confirmation' => '1111'])->assertSessionHasErrors('pin');
+        $this->actingAs($user)->put('/security/transaction-pin', ['password' => 'not-a-real-password', 'pin' => '1234', 'pin_confirmation' => '1234'])->assertSessionHasErrors('pin');
     }
 
     public function test_five_failed_verifications_lock_the_pin_for_fifteen_minutes(): void
