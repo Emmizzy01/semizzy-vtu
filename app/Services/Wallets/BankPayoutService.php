@@ -227,6 +227,12 @@ class BankPayoutService
                 throw new LogicException('This saved bank account has transfer history and cannot be removed. Keep it for your records.');
             }
 
+            // Release the unique account claim only when removal is allowed.
+            // Accounts with payout history are rejected above and keep their claim.
+            DB::table('bank_beneficiary_claims')
+                ->where('beneficiary_id', $beneficiary->id)
+                ->delete();
+
             $beneficiary->delete();
         }, attempts: 3);
     }
