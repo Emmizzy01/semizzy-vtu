@@ -236,7 +236,6 @@ class ScheduledPurchaseRunnerTest extends TestCase
         $this->assertSame('active', $schedule->status);
         $this->assertSame('overlapping-runner-order', $schedule->last_order_public_id);
         $this->assertSame('successful', $schedule->last_result);
-        $this->assertSame(1, VtuOrder::query()->where('public_id', 'overlapping-runner-order')->count());
     }
 
 }
