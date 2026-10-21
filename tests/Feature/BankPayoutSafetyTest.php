@@ -399,4 +399,57 @@ class BankPayoutSafetyTest extends TestCase
         $paystack->shouldHaveReceived('fetchBankTransfer')->once();
     }
 
+
+    public function test_active_transaction_pin_lockout_blocks_payout_before_any_debit_or_provider_request(): void
+    {
+        $user = User::query()->create([
+            'name' => 'Locked PIN Payout User',
+            'email' => 'locked-pin-payout@example.test',
+            'password' => 'not-a-real-password',
+            'transaction_pin_hash' => \Illuminate\Support\Facades\Hash::make('4928'),
+            'transaction_pin_failed_attempts' => 5,
+            'transaction_pin_locked_until' => now()->addMinutes(10),
+        ]);
+        $beneficiary = \App\Models\BankBeneficiary::query()->create([
+            'user_id' => $user->id,
+            'bank_code' => '999',
+            'bank_name' => 'Locked PIN Test Bank',
+            'account_number' => '0123456789',
+            'account_number_last4' => '6789',
+            'account_name' => $user->name,
+            'provider_recipient_code' => 'RCP_locked_pin_payout',
+            'verification_status' => 'verified',
+            'verified_at' => now(),
+        ]);
+        app(\App\Services\IntegrationSettings::class)->set('paystack.transfers_enabled', '1', $user->id);
+        $wallet = app(\App\Services\Wallets\WalletAccountService::class)->openForUser($user, 'NGN');
+        app(\App\Services\Wallets\WalletLedgerService::class)->post(
+            walletId: $wallet->id,
+            type: 'credit',
+            amountMinor: 50000,
+            idempotencyKey: 'locked-pin-payout-opening-credit',
+        );
+
+        $paystack = \Mockery::mock(\App\Services\Payments\PaystackClient::class);
+        $paystack->shouldNotReceive('initiateBankTransfer');
+        $this->app->instance(\App\Services\Payments\PaystackClient::class, $paystack);
+
+        $this->actingAs($user)->postJson('/wallet/bank-transfer', [
+            'beneficiary_id' => $beneficiary->id,
+            'amount_minor' => 12500,
+            'transaction_pin' => '4928',
+            'idempotency_key' => 'locked-pin-payout-attempt-001',
+        ])->assertStatus(422)
+          ->assertJsonPath('message', 'Transaction PIN is temporarily locked. Try again later.');
+
+        $this->assertSame(50000, (int) $wallet->fresh()->balance_minor);
+        $this->assertDatabaseCount('bank_payouts', 0);
+        $this->assertDatabaseCount('wallet_transactions', 1);
+        $this->assertDatabaseHas('transaction_security_events', [
+            'user_id' => $user->id,
+            'event_type' => 'pin_verification',
+            'outcome' => 'locked',
+        ]);
+    }
+
 }
