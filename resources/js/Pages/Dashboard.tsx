@@ -65,19 +65,19 @@ export default function CustomerDashboard({ wallet, transactions, orders = [], t
 
         <section aria-label="Gadget sale promotion" className="mt-6 flex items-center justify-between gap-3 rounded-[16px] bg-gradient-to-r from-[#0f8a4f] to-[#0a5c32] p-4 text-white shadow-sm">
           <div className="min-w-0"><p className="text-[13px] font-extrabold">{promotions?.gadgetSaleTitle || "🔥 Big Gadget Sale! Up to 50% OFF"}</p><p className="mt-1 text-[11px] text-white/80">{promotions?.gadgetSaleSubtitle || "iPhones, Samsung, Laptops"}</p></div>
-          <a href="/services?category=gadgets" className="inline-flex min-h-9 shrink-0 items-center justify-center rounded-full bg-white dark:bg-slate-900 px-4 py-2 text-xs font-extrabold text-[#0a5c32] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white">Shop Now</a>
+          <a href="/services/coming-soon/gadget-catalogue" className="inline-flex min-h-9 shrink-0 items-center justify-center rounded-full bg-white dark:bg-slate-900 px-4 py-2 text-xs font-extrabold text-[#0a5c32] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white">Shop Now</a>
         </section>
 
         <section aria-labelledby="dashboard-gadgets-heading" className="mt-6">
-          <div className="mb-3 flex items-center justify-between gap-3"><h2 id="dashboard-gadgets-heading" className="font-extrabold text-[15px]">Shop Gadgets</h2><a href="/services?category=gadgets" className="text-xs font-extrabold text-[#0f8a4f]">See All →</a></div>
+          <div className="mb-3 flex items-center justify-between gap-3"><h2 id="dashboard-gadgets-heading" className="font-extrabold text-[15px]">Shop Gadgets</h2><a href="/services/coming-soon/gadget-catalogue" className="text-xs font-extrabold text-[#0f8a4f]">See All →</a></div>
           <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-            {[{title:'iPhone 14',price:'₦850,000',icon:<Smartphone size={27}/>},{title:'Samsung S23',price:'₦720,000',icon:<Smartphone size={27}/>},{title:'Oraimo 20k',price:'₦15,000',icon:<BatteryCharging size={27}/>},{title:'JBL Headset',price:'₦28,000',icon:<Headphones size={27}/>},{title:'MacBook Air M2',price:'₦1,200,000',icon:<Laptop size={27}/>},{title:'HP Laptop',price:'₦450,000',icon:<Laptop size={27}/>},{title:'Smart Watch',price:'₦35,000',icon:<Watch size={27}/>},{title:'AirPods Pro',price:'₦95,000',icon:<Headphones size={27}/>}].map(item=><a key={item.title} href="/services?category=gadgets" className="min-w-0 rounded-xl border bg-white p-3 shadow-sm transition hover:shadow-md dark:border-white/10 dark:bg-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)]">
+            {[{title:'iPhone 14',icon:<Smartphone size={27}/>},{title:'Samsung S23',icon:<Smartphone size={27}/>},{title:'Oraimo 20k',icon:<BatteryCharging size={27}/>},{title:'JBL Headset',icon:<Headphones size={27}/>},{title:'MacBook Air M2',icon:<Laptop size={27}/>},{title:'HP Laptop',icon:<Laptop size={27}/>},{title:'Smart Watch',icon:<Watch size={27}/>},{title:'AirPods Pro',icon:<Headphones size={27}/>}].map(item=><a key={item.title} href="/services/coming-soon/gadget-catalogue" className="min-w-0 rounded-xl border bg-white p-3 shadow-sm transition hover:shadow-md dark:border-white/10 dark:bg-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)]">
               <span aria-hidden="true" className="grid h-[80px] place-items-center rounded-lg bg-gray-100 text-[var(--brand)] dark:bg-slate-800">{item.icon}</span>
               <span className="mt-2 block text-[11px] font-extrabold">{item.title}</span>
               <span className="mt-1 block text-[12px] font-extrabold text-[#0f8a4f]">{item.price}</span>
             </a>)}
           </div>
-          <p className="mt-3 text-[10px] leading-4 text-[var(--muted)]">Prototype catalogue preview. Confirm live stock and pricing when the gadget catalogue is enabled.</p>
+          <p className="mt-3 text-[10px] leading-4 text-[var(--muted)]">Sample product cards only. Live inventory, checkout, and verified pricing are not available yet.</p>
         </section>
 
         <section aria-label="Referral promotion" className="mt-6 flex items-center justify-between gap-3 rounded-[16px] border border-amber-200 bg-[#fef3c7] p-4">
