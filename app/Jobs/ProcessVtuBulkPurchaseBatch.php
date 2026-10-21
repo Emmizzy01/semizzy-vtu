@@ -106,21 +106,21 @@ class ProcessVtuBulkPurchaseBatch implements ShouldQueue
                 );
                 $orderStatus = (string) $order->status;
                 $final = in_array($orderStatus, ['successful', 'failed', 'cancelled'], true);
-                $item->update([
+                $this->finalizeClaimedItem($item->id, [
                     'status' => $final ? $orderStatus : 'unknown',
                     'order_public_id' => $order->public_id,
                     'result_message' => $final ? null : 'Provider order status is '.$orderStatus.'. Reconcile the existing order before any retry.',
                     'completed_at' => now(),
                 ]);
             } catch (InvalidArgumentException|InsufficientWalletFunds|ConflictHttpException $exception) {
-                $item->update([
+                $this->finalizeClaimedItem($item->id, [
                     'status' => 'rejected',
                     'result_message' => mb_substr($exception->getMessage(), 0, 1000),
                     'completed_at' => now(),
                 ]);
             } catch (LogicException $exception) {
                 report($exception);
-                $item->update([
+                $this->finalizeClaimedItem($item->id, [
                     'status' => 'unavailable',
                     'result_message' => 'The service is not configured. No further attempt was made.',
                     'completed_at' => now(),
@@ -129,7 +129,7 @@ class ProcessVtuBulkPurchaseBatch implements ShouldQueue
                 // Never automatically resubmit an item after an unclassified error:
                 // the provider may have received it. Reconcile the stable order key.
                 report($exception);
-                $item->update([
+                $this->finalizeClaimedItem($item->id, [
                     'status' => 'unknown',
                     'result_message' => 'Outcome is uncertain. Reconcile the existing idempotency reference before any retry.',
                     'completed_at' => now(),
@@ -188,4 +188,25 @@ class ProcessVtuBulkPurchaseBatch implements ShouldQueue
             'completed_at' => $unfinished ? null : now(),
         ]);
     }
+    /**
+     * Finalize only an item still owned in the processing state. The stale-claim
+     * recovery path can mark an abandoned item unknown while a slow worker returns;
+     * that worker must not overwrite the quarantine or make the item look settled.
+     *
+     * @param array<string, mixed> $attributes
+     */
+    private function finalizeClaimedItem(int $itemId, array $attributes): bool
+    {
+        return DB::transaction(function () use ($itemId, $attributes): bool {
+            $item = VtuBulkPurchaseItem::query()->whereKey($itemId)->lockForUpdate()->first();
+            if (!$item || $item->status !== 'processing') {
+                return false;
+            }
+
+            $item->update($attributes);
+
+            return true;
+        }, attempts: 3);
+    }
+
 }
