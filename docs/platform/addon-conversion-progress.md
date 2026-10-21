@@ -119,3 +119,32 @@ All phases begin as open until their acceptance criteria are evidenced.
 ## Acceptance reminder
 
 No phase or requirement may be marked complete because a menu item, registry row, route, table or disabled placeholder exists. Completion requires the relevant implementation, authorization, UI integration, failure behavior, tests and documentation. No theme changes, production data resets, unrelated deletions, or unauthorized live transactions are permitted.
+
+
+## Phase 1/2 — Additional verified source findings (2026-10-21)
+
+### Addon registry behavior confirmed from source
+
+- `PlatformAddonRegistry` validates core-version compatibility, dependencies, self-dependency, dependency cycles, duplicate core-owned keys, and dependency enable/disable order.
+- `PlatformAddonController` exposes manifest registration and status toggles under the existing admin permissions group. Status changes are recorded in `platform_setting_audits`.
+- `resources/js/Pages/Admin/PlatformAddons/Index.tsx` explicitly describes the page as a registry-only surface and retains the existing `DashboardLayout`.
+- `docs/platform/addon-registry.md` explicitly states that status changes do not dynamically load code and that runtime module loading, automatic addon migrations and package installation are not implemented.
+- `AppServiceProvider::register()` centrally binds VTU and education provider implementations. This is a migration candidate only after service dependency tracing.
+- `routes/web.php` registers VTU, education, streaming subscription, and VTU website request controllers directly. Existing routes and contracts must remain stable during migration.
+- `PlatformFeatureControl` is a separate Core feature rollout mechanism. It has owner/dependency/implemented fields, but it is not a substitute for service-addon runtime registration. Do not merge the two registries blindly; define the relationship explicitly.
+- The platform feature-control migration includes a disabled, not-implemented `service.websites` row describing website builder/domain workflows. This conflicts with the owner's later explicit removal of website builder and domains/hosting. Preserve historical migration files; do not enable this row or reintroduce removed scope. Keep the separately approved VTU website request workflow distinct.
+- The service implementation inventory already includes VTU, education, streaming subscriptions and VTU website requests. The owner blueprint also names additional categories that require coverage verification; an unimplemented category must remain accurately marked unavailable rather than be presented as operational.
+
+### Current architectural conclusion
+
+The present implementation is a **registry foundation, not yet a complete service-addon architecture**. The next implementation must connect a deterministic, reviewed service manifest/registration layer to actual service availability while preserving the existing route/controller contracts and the separate Core feature-control mechanism.
+
+Before implementing runtime activation, finish a route-by-route inventory of customer endpoints, admin endpoints, webhooks, queue jobs, scheduled jobs, reconciliation/monitoring workers, and accepted transaction recovery paths. Disabling a service must prevent new operations but must not block webhook receipt, refunds, reconciliation, status checks, or recovery for already accepted operations.
+
+### Phase 1/2 evidence still outstanding
+
+- Complete blueprint requirement register, including all service categories, account types/levels, security controls, admin controls, money movement, provider contracts, privacy/retention/incident workflows, and deployment-only checks.
+- Full endpoint-to-service ownership map, including route names, middleware, jobs, events, model/table ownership, and feature flags.
+- Testable definition of addon enabled/disabled behavior for each service.
+- Theme screenshot/visual comparison baseline.
+- Final CI result for documentation commit `05dbf401c00210d8f96067c429ef8c1868a1f735`.
