@@ -86,6 +86,13 @@ class MultiProviderVtuRouter implements VtuProvider
             throw new LogicException('Provider attempt does not match the order dispatch target.');
         }
 
+        // Only an explicitly reserved second attempt or a locked, contract-approved
+        // same-key recovery claim may submit. Unknown/failed/pending historical
+        // attempts are lookup-only and must never become dispatchable by accident.
+        if (! in_array($attempt->outcome, ['reserved', 'recovery_dispatching'], true)) {
+            throw new LogicException('Provider attempt is not in an authorized dispatch state.');
+        }
+
         return $this->providerForAttempt($attempt->provider)->submit($order);
     }
 
