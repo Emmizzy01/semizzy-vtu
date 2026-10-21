@@ -148,7 +148,7 @@ class ScheduledPurchaseRunnerTest extends TestCase
             ->andReturnUsing(function () use ($schedule, $order) {
                 // Simulate stale-claim recovery or an operator pausing the schedule
                 // while the external provider request is still in flight.
-                \Illuminate\\Support\\Facades\\DB::table('scheduled_service_purchases')
+                \Illuminate\Support\Facades\DB::table('scheduled_service_purchases')
                     ->where('id', $schedule->id)
                     ->update(['status' => 'paused']);
 
