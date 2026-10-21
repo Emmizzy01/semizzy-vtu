@@ -607,7 +607,7 @@ class VtuBulkPurchaseBatchTest extends TestCase
     {
         $user = User::factory()->create();
         $batch = VtuBulkPurchaseBatch::query()->create([
-            'public_id' => (string) \\Illuminate\\Support\\Str::uuid(),
+            'public_id' => (string) \Illuminate\Support\Str::uuid(),
             'user_id' => $user->id,
             'batch_key' => 'bulk-late-worker-quarantine-key',
             'request_hash' => hash('sha256', 'late-worker-quarantine'),
