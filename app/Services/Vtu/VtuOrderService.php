@@ -742,6 +742,46 @@ class VtuOrderService
             return $this->markAwaitingReconciliation($order, 'provider_attempt_recovery_unavailable', [], $attempt);
         }
 
+        // Atomically consume the reserved dispatch right before network I/O.
+        // A duplicate worker can no longer submit the same reserved attempt
+        // while the first worker is still in flight.
+        $claimedAttempt = DB::transaction(function () use ($order, $attempt): ?VtuProviderAttempt {
+            $lockedOrder = VtuOrder::query()->whereKey($order->getKey())->lockForUpdate()->firstOrFail();
+            if (! in_array($lockedOrder->status, [
+                VtuOrderStatus::Processing->value,
+                VtuOrderStatus::AwaitingReconciliation->value,
+            ], true) || (string) $lockedOrder->provider !== (string) $attempt->provider) {
+                return null;
+            }
+
+            $lockedAttempt = VtuProviderAttempt::query()
+                ->whereKey($attempt->getKey())
+                ->where('vtu_order_id', $lockedOrder->getKey())
+                ->lockForUpdate()
+                ->first();
+            $latestAttemptNumber = (int) VtuProviderAttempt::query()
+                ->where('vtu_order_id', $lockedOrder->getKey())
+                ->max('attempt_number');
+
+            if ($lockedAttempt === null
+                || $lockedAttempt->outcome !== 'reserved'
+                || (int) $lockedAttempt->attempt_number !== $latestAttemptNumber
+                || (string) $lockedAttempt->provider !== (string) $lockedOrder->provider) {
+                return null;
+            }
+
+            $lockedAttempt->forceFill(['outcome' => 'recovery_dispatching'])->save();
+
+            return $lockedAttempt;
+        }, attempts: 3);
+
+        if ($claimedAttempt === null) {
+            return $order->fresh();
+        }
+
+        $attempt = $claimedAttempt;
+        $order = $order->fresh();
+
         try {
             $result = $this->provider->submitAttempt($order, $attempt);
         } catch (Throwable $exception) {
