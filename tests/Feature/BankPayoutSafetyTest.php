@@ -185,6 +185,53 @@ class BankPayoutSafetyTest extends TestCase
         $this->assertDatabaseCount('bank_payouts', 2);
     }
 
+    public function test_duplicate_bank_account_is_reused_for_owner_and_rejected_for_another_user_before_provider_recipient_creation(): void
+    {
+        $owner = User::query()->create([
+            'name' => 'Duplicate Account Owner',
+            'email' => 'duplicate-account-owner@example.test',
+            'password' => 'not-a-real-password',
+        ]);
+        $other = User::query()->create([
+            'name' => 'Duplicate Account Other',
+            'email' => 'duplicate-account-other@example.test',
+            'password' => 'not-a-real-password',
+        ]);
+
+        $saved = \\App\\Models\\BankBeneficiary::query()->create([
+            'user_id' => $owner->id,
+            'bank_code' => '999',
+            'bank_name' => 'Duplicate Test Bank',
+            'account_number' => '0123456789',
+            'account_number_last4' => '6789',
+            'account_name' => $owner->name,
+            'provider_recipient_code' => 'RCP_duplicate_account_existing',
+            'verification_status' => 'verified',
+            'verified_at' => now(),
+        ]);
+
+        $paystack = \\Mockery::mock(\\App\\Services\\Payments\\PaystackClient::class);
+        $paystack->shouldReceive('listNigerianBanks')->twice()->andReturn([
+            ['name' => 'Duplicate Test Bank', 'code' => '999'],
+        ]);
+        $paystack->shouldNotReceive('resolveNigerianAccount');
+        $paystack->shouldNotReceive('createTransferRecipient');
+        $this->app->instance(\\App\\Services\\Payments\\PaystackClient::class, $paystack);
+
+        $service = app(BankPayoutService::class);
+        $reused = $service->addBeneficiary($owner, '999', '0123456789');
+        $this->assertSame($saved->id, $reused->id);
+
+        try {
+            $service->addBeneficiary($other, '999', '0123456789');
+            $this->fail('A saved bank account must not be attached to a second Semizzy account.');
+        } catch (LogicException $exception) {
+            $this->assertStringContainsString('already associated with another Semizzy account', $exception->getMessage());
+        }
+
+        $this->assertDatabaseCount('bank_beneficiaries', 1);
+    }
+
     public function test_repeated_payout_request_debits_once_and_submits_to_provider_once(): void
     {
         $user = User::query()->create([
