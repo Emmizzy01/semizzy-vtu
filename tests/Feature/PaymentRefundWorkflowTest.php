@@ -575,6 +575,10 @@ class PaymentRefundWorkflowTest extends TestCase
             'reason' => 'Transport exception recovery',
             'idempotency_key' => 'refund-transport-exception-'.$customer->id,
         ])->assertCreated();
+        $client = \\Mockery::mock(\\App\\Services\\Payments\\PaystackClient::class);
+        $client->shouldReceive('refund')->once()->andThrow(new \\RuntimeException('Connection lost after refund request dispatch.'));
+        app()->instance(\\App\\Services\\Payments\\PaystackClient::class, $client);
+
         $url = '/admin/payment-refunds/'.$request->json('data.id').'/approve';
 
         $this->actingAs($approver)->postJson($url)
@@ -590,7 +594,6 @@ class PaymentRefundWorkflowTest extends TestCase
         $this->assertSame(7500, (int) $intent->wallet()->first()->fresh()->balance_minor);
         $this->assertDatabaseCount('wallet_transactions', 2);
         $this->assertDatabaseCount('wallet_ledger_entries', 2);
-        Http::assertSentCount(1);
     }
 
 }
