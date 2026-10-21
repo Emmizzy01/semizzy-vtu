@@ -72,9 +72,10 @@ class RouteContractCharacterizationTest extends TestCase
 
     public function test_vtu_purchase_route_remains_authenticated_and_rate_limited(): void
     {
-        $route = $this->namedRoute('vtu.purchase');
+        $route = $this->namedRoute('wallet.vtu.orders.create');
         $this->assertContains('POST', $route->methods());
         $this->assertContains('auth', $route->gatherMiddleware());
         $this->assertContains('throttle:60,1', $route->gatherMiddleware());
+        $this->assertContains('throttle:10,1', $route->gatherMiddleware());
     }
 }
