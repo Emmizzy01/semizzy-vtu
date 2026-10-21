@@ -311,20 +311,20 @@ class BankPayoutSafetyTest extends TestCase
             'email' => 'unknown-payout-outcome@example.test',
             'password' => 'not-a-real-password',
         ]);
-        $beneficiary = \\App\\Models\\BankBeneficiary::query()->create([
+        $beneficiary = \App\Models\BankBeneficiary::query()->create([
             'user_id' => $user->id, 'bank_code' => '999', 'bank_name' => 'Unknown Outcome Bank',
             'account_number' => '0123456789', 'account_number_last4' => '6789',
             'account_name' => $user->name, 'provider_recipient_code' => 'RCP_unknown_outcome',
             'verification_status' => 'verified', 'verified_at' => now(),
         ]);
-        app(\\App\\Services\\IntegrationSettings::class)->set('paystack.transfers_enabled', '1', $user->id);
-        $wallet = app(\\App\\Services\\Wallets\\WalletAccountService::class)->openForUser($user);
-        app(\\App\\Services\\Wallets\\WalletLedgerService::class)->post($wallet->id, 'credit', 50000, 'unknown-payout-seed-001');
+        app(\App\Services\IntegrationSettings::class)->set('paystack.transfers_enabled', '1', $user->id);
+        $wallet = app(\App\Services\Wallets\WalletAccountService::class)->openForUser($user);
+        app(\App\Services\Wallets\WalletLedgerService::class)->post($wallet->id, 'credit', 50000, 'unknown-payout-seed-001');
 
-        $paystack = \\Mockery::mock(\\App\\Services\\Payments\\PaystackClient::class);
+        $paystack = \Mockery::mock(\App\Services\Payments\PaystackClient::class);
         $paystack->shouldReceive('mode')->once()->andReturn('test');
-        $paystack->shouldReceive('initiateBankTransfer')->once()->andThrow(new \\RuntimeException('Connection lost after request dispatch'));
-        $this->app->instance(\\App\\Services\\Payments\\PaystackClient::class, $paystack);
+        $paystack->shouldReceive('initiateBankTransfer')->once()->andThrow(new \RuntimeException('Connection lost after request dispatch'));
+        $this->app->instance(\App\Services\Payments\PaystackClient::class, $paystack);
 
         $service = app(BankPayoutService::class);
         $first = $service->requestPayout($user, $beneficiary->id, 12500, 'payout-unknown-outcome-001');
