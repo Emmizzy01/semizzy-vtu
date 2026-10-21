@@ -49,26 +49,25 @@ class PeerWalletTransferMariaDbConcurrencyTest extends TestCase
             idempotencyKey: 'concurrent-p2p-seed-001',
         );
 
-        // Hold both wallet locks until both workers have had time to pass the
-        // initial idempotency lookup. They must recheck after the locks release.
-        DB::beginTransaction();
-        Wallet::query()
-            ->whereIn('id', [$senderWallet->id, $recipientWallet->id])
-            ->orderBy('id')
-            ->lockForUpdate()
-            ->get();
+        // Fork only after disconnecting the parent's PDO. Forking while a
+        // transaction is open duplicates the MySQL socket into each worker;
+        // a child can then send COM_QUIT on the shared connection and kill the
+        // parent's transaction. Workers reconnect independently below.
+        DB::disconnect();
 
         $children = [];
         for ($worker = 0; $worker < 2; $worker++) {
             $pid = pcntl_fork();
 
             if ($pid === -1) {
-                DB::rollBack();
                 $this->fail('Unable to start a concurrent wallet transfer worker.');
             }
 
             if ($pid === 0) {
                 try {
+                    // Let the parent acquire the wallet locks before either
+                    // request enters the service. Each worker opens a fresh PDO.
+                    usleep(250_000);
                     DB::purge();
                     app(PeerWalletTransferService::class)->transfer(
                         User::query()->findOrFail($sender->id),
@@ -77,13 +76,21 @@ class PeerWalletTransferMariaDbConcurrencyTest extends TestCase
                         'concurrent-p2p-same-key-001',
                     );
                     exit(0);
-                } catch (\Throwable) {
+                } catch (\\Throwable) {
                     exit(20);
                 }
             }
 
             $children[] = $pid;
         }
+
+        // Acquire locks after fork so workers do not inherit this PDO/socket.
+        DB::beginTransaction();
+        Wallet::query()
+            ->whereIn('id', [$senderWallet->id, $recipientWallet->id])
+            ->orderBy('id')
+            ->lockForUpdate()
+            ->get();
 
         usleep(1_000_000);
         DB::commit();
