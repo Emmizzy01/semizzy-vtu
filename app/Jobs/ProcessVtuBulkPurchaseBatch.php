@@ -31,16 +31,31 @@ class ProcessVtuBulkPurchaseBatch implements ShouldQueue
 
     public function handle(VtuOrderService $orders): void
     {
-        $batch = VtuBulkPurchaseBatch::query()->find($this->batchId);
-        if (!$batch || in_array($batch->status, ['completed', 'partial', 'failed'], true)) {
+        // Claim the batch under a row lock. A duplicate/stale delivery may have
+        // read an active status before another worker completed the batch; it must
+        // re-check the terminal state after acquiring the lock before changing it.
+        $batch = DB::transaction(function (): ?VtuBulkPurchaseBatch {
+            $locked = VtuBulkPurchaseBatch::query()
+                ->whereKey($this->batchId)
+                ->lockForUpdate()
+                ->first();
+
+            if (!$locked || in_array($locked->status, ['completed', 'partial', 'failed'], true)) {
+                return null;
+            }
+
+            $locked->update([
+                'status' => 'processing',
+                'started_at' => $locked->started_at ?? now(),
+                'last_error' => null,
+            ]);
+
+            return $locked->fresh();
+        }, attempts: 3);
+
+        if (!$batch) {
             return;
         }
-
-        VtuBulkPurchaseBatch::query()->whereKey($batch->id)->update([
-            'status' => 'processing',
-            'started_at' => $batch->started_at ?? now(),
-            'last_error' => null,
-        ]);
 
         // Quarantine stale in-flight items separately; never resubmit them.
         // Fresh processing items may belong to another worker and must not occupy
@@ -172,21 +187,31 @@ class ProcessVtuBulkPurchaseBatch implements ShouldQueue
 
     private function refreshBatchStatus(int $batchId): void
     {
-        $batch = VtuBulkPurchaseBatch::query()->find($batchId);
-        if (!$batch) return;
+        // Serialize status aggregation with batch claims so a stale duplicate
+        // delivery cannot overwrite a terminal batch status after completion.
+        DB::transaction(function () use ($batchId): void {
+            $batch = VtuBulkPurchaseBatch::query()
+                ->whereKey($batchId)
+                ->lockForUpdate()
+                ->first();
 
-        $statuses = VtuBulkPurchaseItem::query()->where('batch_id', $batchId)
-            ->pluck('status');
-        $unfinished = $statuses->contains(fn (string $status): bool => in_array($status, ['pending', 'processing'], true));
-        $hasSuccess = $statuses->contains(fn (string $status): bool => $status === 'successful');
-        $hasIssue = $statuses->contains(fn (string $status): bool => in_array($status, ['failed', 'cancelled', 'rejected', 'unavailable'], true));
-        $hasUnknown = $statuses->contains(fn (string $status): bool => $status === 'unknown');
-        $status = $unfinished ? 'processing' : (($hasUnknown || ($hasSuccess && $hasIssue)) ? 'partial' : ($hasSuccess ? 'completed' : 'failed'));
+            if (!$batch) {
+                return;
+            }
 
-        $batch->update([
-            'status' => $status,
-            'completed_at' => $unfinished ? null : now(),
-        ]);
+            $statuses = VtuBulkPurchaseItem::query()->where('batch_id', $batchId)
+                ->pluck('status');
+            $unfinished = $statuses->contains(fn (string $status): bool => in_array($status, ['pending', 'processing'], true));
+            $hasSuccess = $statuses->contains(fn (string $status): bool => $status === 'successful');
+            $hasIssue = $statuses->contains(fn (string $status): bool => in_array($status, ['failed', 'cancelled', 'rejected', 'unavailable'], true));
+            $hasUnknown = $statuses->contains(fn (string $status): bool => $status === 'unknown');
+            $status = $unfinished ? 'processing' : (($hasUnknown || ($hasSuccess && $hasIssue)) ? 'partial' : ($hasSuccess ? 'completed' : 'failed'));
+
+            $batch->update([
+                'status' => $status,
+                'completed_at' => $unfinished ? null : now(),
+            ]);
+        }, attempts: 3);
     }
     /**
      * Finalize only an item still owned in the processing state. The stale-claim
