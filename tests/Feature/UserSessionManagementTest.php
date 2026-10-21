@@ -94,10 +94,15 @@ class UserSessionManagementTest extends TestCase
             'ip_address' => '192.0.2.10', 'user_agent' => 'Test other device', 'last_activity' => now(),
             'revoked_at' => null, 'created_at' => now(), 'updated_at' => now(),
         ]);
-        $this->put('/profile/password', [
+        $this->withSession([
+            'passkeys.password_confirmed_at' => now()->timestamp,
+            'passkeys.password_confirmed_password_hash' => hash('sha256', (string) $user->password),
+        ])->put('/profile/password', [
             'current_password' => 'CorrectPassword1234', 'password' => 'DifferentPassword5678',
             'password_confirmation' => 'DifferentPassword5678',
         ])->assertRedirect();
+        $this->assertSessionMissing('passkeys.password_confirmed_at');
+        $this->assertSessionMissing('passkeys.password_confirmed_password_hash');
         $this->assertAuthenticatedAs($user);
         $this->assertNotNull(DB::table('user_sessions')->where('session_hash', $otherHash)->value('revoked_at'));
         $this->assertDatabaseMissing('login_challenges', ['user_id' => $user->id]);
