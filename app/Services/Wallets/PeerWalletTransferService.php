@@ -45,7 +45,8 @@ class PeerWalletTransferService
             'currency' => 'NGN',
         ], JSON_THROW_ON_ERROR));
 
-        return DB::transaction(function () use ($sender, $recipient, $amountMinor, $idempotencyKey, $requestHash): WalletTransfer {
+        try {
+            return DB::transaction(function () use ($sender, $recipient, $amountMinor, $idempotencyKey, $requestHash): WalletTransfer {
             $existing = WalletTransfer::query()
                 ->where('sender_user_id', $sender->id)
                 ->where('idempotency_key', $idempotencyKey)
@@ -117,6 +118,34 @@ class PeerWalletTransferService
                 'recipient_transaction_id' => $recipientTransaction->id,
                 'description' => 'P2P wallet transfer',
             ]);
-        }, attempts: 3);
+            }, attempts: 3);
+        } catch (\\Illuminate\\Database\\QueryException $exception) {
+            // Different recipient wallet locks do not serialize requests that reuse
+            // the same sender idempotency key. The unique index remains the final
+            // guard; after its transaction rolls back, resolve that race as a replay
+            // or a deterministic payload conflict instead of leaking a 500 response.
+            $sqlState = $exception->errorInfo[0] ?? null;
+            $driverCode = (int) ($exception->errorInfo[1] ?? 0);
+
+            if (! in_array($sqlState, ['23000', '23505'], true)
+                || ! in_array($driverCode, [1062, 19], true)) {
+                throw $exception;
+            }
+
+            $existing = WalletTransfer::query()
+                ->where('sender_user_id', $sender->id)
+                ->where('idempotency_key', $idempotencyKey)
+                ->first();
+
+            if ($existing === null) {
+                throw $exception;
+            }
+
+            if (! hash_equals($existing->request_hash, $requestHash)) {
+                throw new IdempotencyConflict('This transfer key was already used for a different request.');
+            }
+
+            return $existing;
+        }
     }
 }
