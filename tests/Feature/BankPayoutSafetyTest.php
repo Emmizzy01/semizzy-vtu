@@ -406,10 +406,12 @@ class BankPayoutSafetyTest extends TestCase
             'name' => 'Locked PIN Payout User',
             'email' => 'locked-pin-payout@example.test',
             'password' => 'not-a-real-password',
-            'transaction_pin_hash' => \Illuminate\Support\Facades\Hash::make('4928'),
+        ]);
+        $user->forceFill([
+            'transaction_pin_hash' => \\Illuminate\\Support\\Facades\\Hash::make('4928'),
             'transaction_pin_failed_attempts' => 5,
             'transaction_pin_locked_until' => now()->addMinutes(10),
-        ]);
+        ])->save();
         $beneficiary = \App\Models\BankBeneficiary::query()->create([
             'user_id' => $user->id,
             'bank_code' => '999',
