@@ -1293,15 +1293,15 @@ class VtuOrderWorkflowTest extends TestCase
             'attempt-owner-second-order',
         );
 
-        $firstAttempt = \\App\\Models\\VtuProviderAttempt::query()
+        $firstAttempt = \App\Models\VtuProviderAttempt::query()
             ->where('vtu_order_id', $firstOrder->getKey())
             ->firstOrFail();
-        $router = app(\\App\\Services\\Vtu\\MultiProviderVtuRouter::class);
+        $router = app(\App\Services\Vtu\MultiProviderVtuRouter::class);
 
         try {
             $router->lookupAttempt($secondOrder, $firstAttempt);
             $this->fail('An attempt belonging to another order must not be looked up.');
-        } catch (\\LogicException $exception) {
+        } catch (\LogicException $exception) {
             $this->assertStringContainsString('does not belong', $exception->getMessage());
         }
 
@@ -1310,7 +1310,7 @@ class VtuOrderWorkflowTest extends TestCase
         try {
             $router->submitAttempt($firstOrder, $firstAttempt);
             $this->fail('An attempt whose provider differs from the order dispatch target must not be submitted.');
-        } catch (\\LogicException $exception) {
+        } catch (\LogicException $exception) {
             $this->assertStringContainsString('does not match the order dispatch target', $exception->getMessage());
         }
 
