@@ -21,6 +21,7 @@ use Illuminate\Support\Str;
 use InvalidArgumentException;
 use LogicException;
 use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
+use Throwable;
 
 class VtuOrderService
 {
