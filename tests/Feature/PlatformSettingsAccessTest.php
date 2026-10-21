@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\PlatformSettingAudit;
+use App\Models\PlatformFeatureControl;
 use App\Models\User;
 use App\Models\UserPermission;
 use App\Services\IntegrationSettings;
@@ -112,7 +113,7 @@ class PlatformSettingsAccessTest extends TestCase
         $admin = User::query()->create(['name' => 'Dependency Settings Admin', 'email' => 'dependency-settings-admin@example.test', 'password' => 'not-a-real-password']);
         UserPermission::query()->create(['user_id' => $admin->id, 'permission' => 'staff.permissions.manage']);
 
-        \\App\\Models\\PlatformFeatureControl::query()->create([
+        PlatformFeatureControl::query()->create([
             'feature_key' => 'test.settings_dependent',
             'label' => 'Settings dependent',
             'category' => 'test',
