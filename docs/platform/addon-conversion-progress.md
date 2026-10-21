@@ -163,3 +163,10 @@ Additional source inventory evidence from the current `main` tree:
 - The inventory confirms why service disablement cannot be a global route kill switch: accepted orders may still need provider webhooks, reconciliation, refund, audit or safe recovery. New-request admission and existing-operation recovery need separate policies.
 
 **Bulk action result:** requirement register and initial route/provider/domain inventory documented. This closes a documentation checkpoint only; Phase 1/2 remain open until the route-to-owner matrix includes exact route middleware/names and background entry points, and a deterministic lifecycle contract is implemented and tested. No application code, migration, UI/theme, production data, live provider or financial behavior was changed in this bulk action.
+
+
+## Bulk Action — route and recovery ownership map (2026-10-21)
+
+Created `docs/platform/addon-route-recovery-map.md` with current customer/admin route-to-owner mappings for education, streaming subscriptions, VTU website requests, VTU, manual deposits, funding/refunds, virtual accounts, transfers, payouts, scheduled purchases, provider catalogues and addon administration. It records the direct provider bindings and background recovery paths that must be considered alongside HTTP routes.
+
+This is a bounded first map, not the final endpoint inventory: webhook/callback routes, all route-group middleware, every console schedule/listener/job, and endpoint-by-endpoint permission/idempotency/ledger mapping remain open. No runtime gating was added before those boundaries can be tested.
