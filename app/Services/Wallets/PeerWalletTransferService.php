@@ -119,7 +119,7 @@ class PeerWalletTransferService
                 'description' => 'P2P wallet transfer',
             ]);
             }, attempts: 3);
-        } catch (\\Illuminate\\Database\\QueryException $exception) {
+        } catch (\Illuminate\Database\QueryException $exception) {
             // Different recipient wallet locks do not serialize requests that reuse
             // the same sender idempotency key. The unique index remains the final
             // guard; after its transaction rolls back, resolve that race as a replay
