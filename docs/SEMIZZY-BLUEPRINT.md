@@ -2,7 +2,7 @@
 
 **Canonical repository:** https://github.com/Emmizzy01/semizzy-vtu  
 **Canonical branch:** `main` only. Do not create or use feature branches.  
-**Status:** Living specification; a capability is not complete until its backend, authorization, UI, tests, and deployment notes are verified.
+**Status:** Living specification; a capability is development-complete when its implementation, authorization, UI, failure handling, automated tests, and documentation are verified. Checks that require the live server are recorded separately for execution during deployment and do not block unrelated development.
 
 ## 1. Product direction
 
@@ -35,6 +35,33 @@ The following user-facing money and service workflows are part of the active cor
 - **Scheduled purchases across supported services:** allow users to schedule one-time future or recurring daily/weekly/monthly purchases where the underlying service has a verified purchase handler. Require transaction PIN at schedule creation, persist schedule state, run through the same service coordinator, wallet ledger, provider verification, idempotency and reconciliation path as immediate purchases, and show/cancel schedules. Never charge for a schedule merely because its time arrived; revalidate product, pricing, recipient and available wallet funds. Pause schedules when an outcome is pending/unknown, avoid catch-up bursts after downtime, and add service-specific handlers before claiming coverage for any category.
 
 These are core wallet, account and service capabilities, not a reason to delay the Unified Marketplace phase. Implementation must proceed in coherent batches with migrations, backend authorization, customer UI, tests, and operator/deployment notes. Provider-backed money movement remains disabled until the relevant provider contract, credentials, reconciliation and tests are verified. Never run live transactions as a substitute for automated tests.
+
+## 1B. Development versus deployment-stage acceptance — binding rule
+
+**Live-server-only work is deferred to deployment; it is not incomplete development work.** The team must continue building and verifying all work that can be completed in the repository, CI, local/test environments, or provider sandbox without waiting for cPanel/live-server access.
+
+During development, complete and verify:
+- Application code, user/admin UI, permissions, persistence, failure handling, and safe state transitions.
+- Automated tests, regression tests, static/security checks, frontend builds, CI, and sandbox/mock-based provider tests.
+- Provider timeout/unknown-outcome recovery and reconciliation logic, migration review, configuration documentation, and deployment instructions.
+- A clear deployment checklist for checks that genuinely require the deployed environment.
+
+Defer the following to deployment/live-environment verification when they cannot be established safely elsewhere:
+- Actual cPanel/PHP runtime, production environment configuration, file permissions, deployed assets/routes, scheduler/queue behavior, and production smoke checks.
+- Real-browser passkey registration/login over HTTPS and real SMS/WhatsApp delivery to authorised devices.
+- Production credentials/provider-account verification, provider contract checks that require provider support or an authorised live account, and any authorised live end-to-end checks.
+- Live database migration execution and production-only operational checks.
+
+Track these under **Deployment checklist — execute during deployment**, not as incomplete development tasks. A deployment-only item must never be marked as passed before it is run, but its deferred status must not block unrelated code implementation or CI completion.
+
+This distinction does not waive safety controls. Provider purchases, payouts, refunds, and other live financial actions remain disabled until their specific safety, provider-contract, recovery, reconciliation, and authorisation gates are satisfied. Do not trigger live transactions merely to prove a workflow. Do not reset production data or perform risky live-server changes to clear a checklist item.
+
+When reporting progress, separate:
+1. **Development status:** code, tests, builds, CI, and repository-verifiable work.
+2. **Deployment checklist:** live-only steps intentionally deferred until deployment.
+3. **Activation gates:** checks that must pass before a specific live-money or provider capability is enabled.
+
+Never describe a deployment-deferred check as a development failure. Never describe it as verified until it has actually been executed.
 
 ## 2. Accounts, user types, and levels
 
@@ -205,4 +232,4 @@ Keep the theme choice accessible and persistent. Global default is controlled by
 
 ## 12. Delivery discipline
 
-Implement in small, meaningful multi-file batches directly on `main`. Before each batch, inspect relevant code and tests; after each batch, run the available focused tests and frontend checks. Record what changed, test results, remaining gaps, and commit SHA. Do not claim completion for unchecked work. Update this blueprint when scope or decisions change.
+Implement in meaningful consolidated batches directly on `main`. Before each batch, inspect relevant code and tests; after each batch, run available focused tests, security checks, and frontend/CI checks. Record what changed, actual test results, commit SHA, development gaps, and deployment-deferred checks in separate categories. Do not claim completion for unchecked work, but do not classify live-server-only tasks as incomplete development or pause unrelated implementation for them. Update this blueprint when scope or decisions change.
