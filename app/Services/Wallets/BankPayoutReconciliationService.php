@@ -48,7 +48,9 @@ class BankPayoutReconciliationService
 
         try {
             $verified = $this->paystack->fetchBankTransfer($transferCode);
-        } catch (LogicException $exception) {
+        } catch (\Throwable $exception) {
+            // Any unexpected failure leaves the provider outcome unconfirmed.
+            // Preserve the reservation and require reconciliation; never infer failure.
             report($exception);
             $payout->forceFill([
                 'status' => 'reconciliation_required',
