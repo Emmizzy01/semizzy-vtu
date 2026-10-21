@@ -629,7 +629,7 @@ class VtuBulkPurchaseBatchTest extends TestCase
         ]);
 
         $job = new ProcessVtuBulkPurchaseBatch((int) $batch->id);
-        $method = new \\ReflectionMethod($job, 'finalizeClaimedItem');
+        $method = new \ReflectionMethod($job, 'finalizeClaimedItem');
         $updated = $method->invoke($job, (int) $item->id, [
             'status' => 'successful',
             'result_message' => null,
