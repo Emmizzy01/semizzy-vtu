@@ -64,6 +64,24 @@ class PeerWalletTransferService
             sort($walletIds);
             Wallet::query()->whereIn('id', $walletIds)->orderBy('id')->lockForUpdate()->get();
 
+            // The first idempotency lookup can race: two requests may both see
+            // no transfer before either acquires the wallet locks. Recheck after
+            // the sender/recipient wallets are serialized, before any ledger
+            // debit or credit is posted.
+            $existing = WalletTransfer::query()
+                ->where('sender_user_id', $sender->id)
+                ->where('idempotency_key', $idempotencyKey)
+                ->lockForUpdate()
+                ->first();
+
+            if ($existing !== null) {
+                if (! hash_equals($existing->request_hash, $requestHash)) {
+                    throw new IdempotencyConflict('This transfer key was already used for a different request.');
+                }
+
+                return $existing;
+            }
+
             $transferId = (string) Str::uuid();
             $senderTransaction = $this->ledger->post(
                 walletId: $senderWallet->id,
