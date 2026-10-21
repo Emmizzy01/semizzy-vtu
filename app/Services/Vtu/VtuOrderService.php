@@ -329,7 +329,7 @@ class VtuOrderService
 
         try {
             $result = $this->provider->submit($order);
-        } catch (ConnectionException|LogicException $exception) {
+        } catch (Throwable $exception) {
             report($exception);
             $attempt->forceFill([
                 'outcome' => 'unknown',
@@ -513,7 +513,7 @@ class VtuOrderService
                 }
                 $result = $this->provider->lookup($order);
             }
-        } catch (ConnectionException|LogicException $exception) {
+        } catch (Throwable $exception) {
             report($exception);
             return $order->fresh();
         }
@@ -552,7 +552,7 @@ class VtuOrderService
                 $attempt = $attempt->fresh();
                 try {
                     $result = $this->provider->submitAttempt($dispatchOrder, $attempt);
-                } catch (ConnectionException|LogicException $exception) {
+                } catch (Throwable $exception) {
                     report($exception);
                     $this->recordReconciledAttemptOutcome($dispatchOrder, $attempt, ['status' => 'unknown']);
                     return $this->markAwaitingReconciliation($dispatchOrder, 'provider_result_unknown', [], $attempt);
@@ -743,7 +743,7 @@ class VtuOrderService
 
         try {
             $result = $this->provider->submitAttempt($order, $attempt);
-        } catch (ConnectionException|LogicException $exception) {
+        } catch (Throwable $exception) {
             report($exception);
             $this->recordReconciledAttemptOutcome($order, $attempt, ['status' => 'unknown']);
             return $this->markAwaitingReconciliation($order, 'provider_result_unknown', [], $attempt);
