@@ -649,6 +649,37 @@ class VtuOrderWorkflowTest extends TestCase
         Http::assertSentCount(1);
     }
 
+    public function test_unexpected_provider_exception_quarantines_order_and_duplicate_does_not_resubmit(): void
+    {
+        $submissions = 0;
+        Http::fake(function ($request) use (&$submissions) {
+            if ($request->method() === 'POST') {
+                $submissions++;
+                throw new \RuntimeException('Unexpected adapter failure after dispatch began.');
+            }
+
+            return Http::response(['status' => 'unknown'], 503);
+        });
+
+        [$user, $wallet, $product] = $this->preparedCustomer(1000, 1500);
+        $service = app(VtuOrderService::class);
+
+        $first = $service->purchase($user, $product->code, '08012345678', 'runtime-provider-failure-001');
+        $duplicate = $service->purchase($user, $product->code, '08012345678', 'runtime-provider-failure-001');
+
+        $this->assertSame('awaiting_reconciliation', $first->status);
+        $this->assertSame($first->getKey(), $duplicate->getKey());
+        $this->assertSame(1, $submissions, 'An unclassified provider exception must not cause duplicate submission.');
+        $this->assertSame(500, (int) $wallet->fresh()->available_balance_minor);
+        $this->assertDatabaseCount('vtu_orders', 1);
+        $this->assertDatabaseCount('wallet_transactions', 2);
+        $this->assertDatabaseHas('vtu_provider_attempts', [
+            'vtu_order_id' => $first->getKey(),
+            'outcome' => 'unknown',
+            'failure_code' => 'provider_result_unknown',
+        ]);
+    }
+
     public function test_sogo_not_found_recovery_resubmits_same_attempt_identity_without_second_debit(): void
     {
         config([
