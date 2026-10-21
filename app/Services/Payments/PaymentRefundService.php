@@ -227,7 +227,9 @@ class PaymentRefundService
 
         try {
             $provider = $this->paystack->fetchRefund($providerRef, $gatewayMode);
-        } catch (LogicException $exception) {
+        } catch (\Throwable $exception) {
+            // A failed lookup is not evidence that the provider refund failed.
+            // Preserve the current state and let a later reconciliation retry safely.
             report($exception);
 
             return ['outcome' => 'unavailable', 'status' => $refund->status];
