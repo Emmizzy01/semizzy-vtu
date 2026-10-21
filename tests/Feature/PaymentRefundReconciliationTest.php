@@ -134,6 +134,69 @@ class PaymentRefundReconciliationTest extends TestCase
         Http::assertSentCount(2);
     }
 
+    public function test_mismatch_result_does_not_report_review_required_after_concurrent_terminal_settlement(): void
+    {
+        config(['services.paystack.secret_key' => 'sk_test_refund_reconcile']);
+
+        $user = User::query()->create([
+            'name' => 'Refund Concurrent Settlement Customer',
+            'email' => 'refund-concurrent-settlement@example.test',
+            'password' => 'test-password',
+        ]);
+        $wallet = app(WalletAccountService::class)->openForUser($user);
+        $intent = app(PaymentIntentService::class)->create($wallet, 10000, 'paystack');
+        $intent->forceFill([
+            'status' => 'paid',
+            'provider_transaction_id' => '987658',
+            'paid_at' => now(),
+            'metadata' => ['gateway_mode' => 'test'],
+        ])->save();
+
+        $refund = PaymentRefund::query()->create([
+            'public_id' => (string) \\Illuminate\\Support\\Str::uuid(),
+            'payment_intent_id' => $intent->id,
+            'requested_by_user_id' => $user->id,
+            'idempotency_key' => 'refund-concurrent-terminal-reconciliation',
+            'amount_minor' => 2500,
+            'reason' => 'Concurrent settlement reconciliation test',
+            'status' => 'provider_pending',
+            'provider_refund_reference' => '123458',
+            'provider_status' => 'pending',
+            'metadata' => ['currency' => 'NGN'],
+            'created_at' => now()->subHour(),
+            'updated_at' => now()->subHour(),
+            'status_changed_at' => now()->subHour(),
+        ]);
+
+        Http::fake(function ($request) use ($refund) {
+            if (! str_ends_with($request->url(), '/refund/123458')) {
+                return Http::response(['status' => false, 'message' => 'Unexpected test request'], 404);
+            }
+
+            // Simulate another verified worker settling the refund while this
+            // reconciliation request is in flight.
+            $refund->forceFill(['status' => 'succeeded', 'settled_at' => now()])->save();
+
+            return Http::response([
+                'status' => true,
+                'data' => [
+                    'id' => 123458,
+                    'transaction' => 987658,
+                    'amount' => 9999,
+                    'currency' => 'NGN',
+                    'status' => 'processed',
+                ],
+            ], 200);
+        });
+
+        $result = app(\\App\\Services\\Payments\\PaymentRefundService::class)
+            ->reconcileProviderStatus($refund->public_id);
+
+        $this->assertSame('skipped', $result['outcome']);
+        $this->assertSame('succeeded', $result['status']);
+        $this->assertSame('succeeded', $refund->fresh()->status);
+    }
+
     public function test_stale_review_required_refund_is_reconciled_by_scheduled_reconciliation(): void
     {
         Http::fake([
