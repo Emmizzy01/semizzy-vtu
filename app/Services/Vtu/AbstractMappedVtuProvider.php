@@ -60,7 +60,8 @@ abstract class AbstractMappedVtuProvider implements VtuProvider
     {
         $key = $this->providerKey();
 
-        return Http::baseUrl(rtrim($this->baseUrl(), '/').'/')
+        return Http::withOptions(['allow_redirects' => false])
+            ->baseUrl(rtrim($this->baseUrl(), '/').'/')
             ->withToken($this->apiKey())
             ->acceptJson()
             ->asJson()
