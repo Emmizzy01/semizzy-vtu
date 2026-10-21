@@ -365,6 +365,19 @@ class VtpassProviderClientTest extends TestCase
         $this->assertSame('016', $result['message_code']);
     }
 
+    public function test_documented_vtpass_not_processed_code_maps_to_definitive_failure(): void
+    {
+        Http::fake(fn () => Http::response([
+            'code' => '091',
+            'response_description' => 'TRANSACTION NOT PROCESSED',
+        ], 200));
+
+        $result = app(VtpassProviderClient::class)->lookup($this->order('airtime', 'mtn'));
+
+        $this->assertSame('failed', $result['status']);
+        $this->assertSame('091', $result['message_code']);
+    }
+
     public function test_invalid_request_id_during_requery_remains_pending_not_failed(): void
     {
         Http::fake(fn () => Http::response([
