@@ -277,7 +277,7 @@ class BankPayoutSafetyTest extends TestCase
             'email' => 'reversed-payout@example.test',
             'password' => 'not-a-real-password',
         ]);
-        $beneficiary = \\App\\Models\\BankBeneficiary::query()->create([
+        $beneficiary = \App\Models\BankBeneficiary::query()->create([
             'user_id' => $user->id,
             'bank_code' => '999',
             'bank_name' => 'Reversal Test Bank',
@@ -288,11 +288,11 @@ class BankPayoutSafetyTest extends TestCase
             'verification_status' => 'verified',
             'verified_at' => now(),
         ]);
-        app(\\App\\Services\\IntegrationSettings::class)->set('paystack.transfers_enabled', '1', $user->id);
-        $wallet = app(\\App\\Services\\Wallets\\WalletAccountService::class)->openForUser($user);
-        app(\\App\\Services\\Wallets\\WalletLedgerService::class)->post($wallet->id, 'credit', 50000, 'reversal-payout-seed-001');
+        app(\App\Services\IntegrationSettings::class)->set('paystack.transfers_enabled', '1', $user->id);
+        $wallet = app(\App\Services\Wallets\WalletAccountService::class)->openForUser($user);
+        app(\App\Services\Wallets\WalletLedgerService::class)->post($wallet->id, 'credit', 50000, 'reversal-payout-seed-001');
 
-        $paystack = \\Mockery::mock(\\App\\Services\\Payments\\PaystackClient::class);
+        $paystack = \Mockery::mock(\App\Services\Payments\PaystackClient::class);
         $paystack->shouldReceive('mode')->once()->andReturn('test');
         $paystack->shouldReceive('initiateBankTransfer')->once()->andReturnUsing(
             static fn (int $amount, string $recipient, string $reference, string $reason): array => [
@@ -301,7 +301,7 @@ class BankPayoutSafetyTest extends TestCase
                 'status' => 'pending',
             ]
         );
-        $this->app->instance(\\App\\Services\\Payments\\PaystackClient::class, $paystack);
+        $this->app->instance(\App\Services\Payments\PaystackClient::class, $paystack);
         $payout = app(BankPayoutService::class)->requestPayout(
             $user, $beneficiary->id, 12500, 'reversal-payout-request-001'
         );
@@ -313,7 +313,7 @@ class BankPayoutSafetyTest extends TestCase
             'status' => 'reversed',
         ]);
 
-        $service = app(\\App\\Services\\Wallets\\BankPayoutReconciliationService::class);
+        $service = app(\App\Services\Wallets\BankPayoutReconciliationService::class);
         $payload = ['data' => [
             'reference' => $payout->provider_reference,
             'transfer_code' => 'TRF_reversal_test_001',
