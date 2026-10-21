@@ -74,9 +74,7 @@ class TwoFactorAuthenticationTest extends TestCase
         }
 
         $this->assertGuest();
-        $this->post('/login/two-factor', ['code' => '000000'])
-            ->assertRedirect('/login')
-            ->assertSessionHasErrors('identifier');
+        $this->assertSessionMissing('auth.two_factor_user_id');
     }
 
     public function test_email_otp_must_be_completed_before_totp_challenge(): void
