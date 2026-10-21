@@ -79,3 +79,22 @@ Source is routes/console.php (Laravel 11/12 style console route registration; ap
 - Review all scheduler declarations, console commands, event listeners, queued notifications and cleanup/retention jobs.
 - Add tests that assert webhook/reconciliation behavior remains callable after an addon is disabled and that new purchase endpoints deny admission.
 - Run AddonLifecyclePolicyTest in CI and verify all existing workflows. Passing tests must be confirmed from Actions rather than assumed.
+
+
+## Queue/job audit addendum
+
+The current tracked application has one class under app/Jobs: ProcessVtuBulkPurchaseBatch. It declares tries=3 and timeout=60, claims pending items under row lock, records uncertain outcomes as unknown, and its failed handler quarantines stale processing items for reconciliation instead of blindly resubmitting. It redispatches only when pending items remain. This behavior must remain available for already accepted batches even if the VTU addon is disabled.
+
+The tracked app also contains a queued-capable workspace invitation notification, but the current notification's delivery channel is mail; dispatch origin and whether queueing is configured must be checked before any lifecycle change. LoginOtpMail is a Mailable, not itself a queued job. No app/Events or app/Listeners directories were found in the recursive source tree, and no app/Console/Kernel.php exists; console commands and schedules are declared in routes/console.php.
+
+The queue worker is a generic database queue drain. Do not put a global addon check around queue execution: the queue includes Core-owned work as well as service work. Any addon gate belongs at the handler's new-operation admission boundary; accepted work must continue through the Core recovery policy.
+
+### Current route-group middleware boundary
+
+- routes/web.php guest routes include throttles for login, login challenges, OTP/TOTP verification, registration and password reset.
+- The main authenticated web group covers account/profile/security, KYC/tier actions, wallet transfers/payouts, service purchase, scheduled purchases and customer service requests. Per-route throttles apply to mutations and sensitive reads.
+- The admin prefix group inherits auth and can:staff.permissions.manage; refund approval routes use can:refunds.approve separately. Admin mutations generally carry explicit throttles.
+- routes/api.php contains only the two webhook route declarations identified above. bootstrap/app.php appends EnsurePlatformAvailable to API requests and appends HandleInertiaRequests, EnsurePlatformAvailable, EnsureAccountIsActive and TrackUserSession to web requests.
+- No addon-specific admission middleware is currently registered in bootstrap/app.php or attached to service routes.
+
+This audit is source-based; it does not yet prove all dispatched notification paths, queue backend settings, database uniqueness constraints, or every route's effective runtime middleware. Those remain acceptance checks.
