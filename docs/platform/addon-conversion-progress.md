@@ -148,3 +148,18 @@ Before implementing runtime activation, finish a route-by-route inventory of cus
 - Testable definition of addon enabled/disabled behavior for each service.
 - Theme screenshot/visual comparison baseline.
 - Final CI result for documentation commit `05dbf401c00210d8f96067c429ef8c1868a1f735`.
+
+
+## Bulk Action — blueprint requirement register and source inventory (2026-10-21)
+
+Created `docs/platform/addon-requirement-register.md` as the working reconciliation register for Core ownership, all explicitly approved service categories, removed scope, cross-cutting safety requirements, source evidence and phase gates. Requirements are conservatively classified as found/partial/open; no requirement is marked verified solely because a route, UI, table or test file exists.
+
+Additional source inventory evidence from the current `main` tree:
+
+- Repository tree contains 587 tracked blobs at the inspected commit; the tree API reported no truncation.
+- Customer/admin route declarations confirm direct service-controller wiring for education, streaming subscriptions, VTU website requests and VTU order operations, while Core route groups also expose wallet transfers, bank payouts, manual deposits, payment funding/refund flows and scheduled purchases.
+- `AppServiceProvider::register()` constructs the multi-provider VTU router and binds four education adapters directly. These bindings must be replaced only through a tested compatibility-preserving service registration seam, not by moving files in bulk.
+- Dedicated models/jobs/tests exist for VTU bulk batches/items, scheduled purchases, VTU orders/provider attempts/webhooks, education orders/provider attempts, streaming catalogue, manual deposits, payment intents/refunds/reconciliation, wallet ledger/transfers and payouts.
+- The inventory confirms why service disablement cannot be a global route kill switch: accepted orders may still need provider webhooks, reconciliation, refund, audit or safe recovery. New-request admission and existing-operation recovery need separate policies.
+
+**Bulk action result:** requirement register and initial route/provider/domain inventory documented. This closes a documentation checkpoint only; Phase 1/2 remain open until the route-to-owner matrix includes exact route middleware/names and background entry points, and a deterministic lifecycle contract is implemented and tested. No application code, migration, UI/theme, production data, live provider or financial behavior was changed in this bulk action.
