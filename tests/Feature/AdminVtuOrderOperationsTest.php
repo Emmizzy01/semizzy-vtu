@@ -27,8 +27,14 @@ class AdminVtuOrderOperationsTest extends TestCase
         $refundAdmin = $this->user('vtu-queue-refund-admin@example.test');
         UserPermission::query()->create(['user_id' => $refundAdmin->id, 'permission' => 'refunds.approve']);
 
+        $orderPublicId = (string) Str::uuid();
+
         $this->actingAs($customer)->get('/admin/vtu-orders')->assertForbidden();
+        $this->actingAs($customer)->post('/admin/vtu-orders/'.$orderPublicId.'/reconcile')->assertForbidden();
+
+        // Refund approval permission must not grant access to VTU operations.
         $this->actingAs($refundAdmin)->get('/admin/vtu-orders')->assertForbidden();
+        $this->actingAs($refundAdmin)->post('/admin/vtu-orders/'.$orderPublicId.'/reconcile')->assertForbidden();
     }
 
     public function test_authorized_platform_admin_can_search_and_filter_read_only_order_queue(): void
