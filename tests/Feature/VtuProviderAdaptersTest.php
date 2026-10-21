@@ -52,6 +52,27 @@ class VtuProviderAdaptersTest extends TestCase
         ]);
     }
 
+    public function test_mapped_provider_clients_do_not_follow_redirects_to_untrusted_hosts(): void
+    {
+        Http::fake(fn () => Http::response('', 302, [
+            'Location' => 'https://unexpected.example/collect',
+        ]));
+
+        $order = $this->order();
+        $results = [
+            app(SogoProviderClient::class)->submit($order),
+            app(GsubzProviderClient::class)->submit($order),
+            app(DatawayProviderClient::class)->submit($order),
+        ];
+
+        foreach ($results as $result) {
+            $this->assertSame('unknown', $result['status']);
+        }
+
+        Http::assertNotSent(fn ($request) => $request->url() === 'https://unexpected.example/collect');
+        $this->assertCount(3, Http::recorded());
+    }
+
     public function test_sogo_uses_stable_idempotency_key_and_normalizes_success(): void
     {
         Http::fake(['api.sogo.africa/*' => Http::response([
