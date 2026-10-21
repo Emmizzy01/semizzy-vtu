@@ -13,7 +13,14 @@ class TransactionPinService
         return DB::transaction(function () use ($user, $pin): string {
             $locked = User::query()->whereKey($user->id)->lockForUpdate()->firstOrFail();
             if (! $locked->transaction_pin_hash) return 'not_configured';
-            if ($locked->transaction_pin_locked_until && $locked->transaction_pin_locked_until->isFuture()) return 'locked';
+            if ($locked->transaction_pin_locked_until && $locked->transaction_pin_locked_until->isFuture()) {
+                $this->record($locked->id, 'pin_verification', 'locked', [
+                    'reason' => 'active_lockout',
+                    'locked_until' => $locked->transaction_pin_locked_until->toISOString(),
+                ]);
+
+                return 'locked';
+            }
 
             if (Hash::check($pin, $locked->transaction_pin_hash)) {
                 $locked->forceFill(['transaction_pin_failed_attempts' => 0, 'transaction_pin_locked_until' => null])->save();
