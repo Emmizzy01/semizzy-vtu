@@ -270,6 +270,69 @@ class BankPayoutSafetyTest extends TestCase
         $this->assertDatabaseCount('wallet_ledger_entries', 2);
     }
 
+    public function test_verified_reversal_after_success_refunds_wallet_once(): void
+    {
+        $user = User::query()->create([
+            'name' => 'Reversed Payout User',
+            'email' => 'reversed-payout@example.test',
+            'password' => 'not-a-real-password',
+        ]);
+        $beneficiary = \\App\\Models\\BankBeneficiary::query()->create([
+            'user_id' => $user->id,
+            'bank_code' => '999',
+            'bank_name' => 'Reversal Test Bank',
+            'account_number' => '0123456789',
+            'account_number_last4' => '6789',
+            'account_name' => $user->name,
+            'provider_recipient_code' => 'RCP_reversal_test',
+            'verification_status' => 'verified',
+            'verified_at' => now(),
+        ]);
+        app(\\App\\Services\\IntegrationSettings::class)->set('paystack.transfers_enabled', '1', $user->id);
+        $wallet = app(\\App\\Services\\Wallets\\WalletAccountService::class)->openForUser($user);
+        app(\\App\\Services\\Wallets\\WalletLedgerService::class)->post($wallet->id, 'credit', 50000, 'reversal-payout-seed-001');
+
+        $paystack = \\Mockery::mock(\\App\\Services\\Payments\\PaystackClient::class);
+        $paystack->shouldReceive('mode')->once()->andReturn('test');
+        $paystack->shouldReceive('initiateBankTransfer')->once()->andReturnUsing(
+            static fn (int $amount, string $recipient, string $reference, string $reason): array => [
+                'reference' => $reference,
+                'transfer_code' => 'TRF_reversal_test_001',
+                'status' => 'pending',
+            ]
+        );
+        $this->app->instance(\\App\\Services\\Payments\\PaystackClient::class, $paystack);
+        $payout = app(BankPayoutService::class)->requestPayout(
+            $user, $beneficiary->id, 12500, 'reversal-payout-request-001'
+        );
+        $payout->forceFill(['status' => 'succeeded'])->save();
+
+        $paystack->shouldReceive('fetchBankTransfer')->once()->with('TRF_reversal_test_001')->andReturn([
+            'reference' => $payout->provider_reference,
+            'transfer_code' => 'TRF_reversal_test_001',
+            'status' => 'reversed',
+        ]);
+
+        $service = app(\\App\\Services\\Wallets\\BankPayoutReconciliationService::class);
+        $payload = ['data' => [
+            'reference' => $payout->provider_reference,
+            'transfer_code' => 'TRF_reversal_test_001',
+        ]];
+        $result = $service->applyPaystackEvent('transfer.reversed', $payload);
+        $duplicate = $service->applyPaystackEvent('transfer.reversed', $payload);
+
+        $this->assertSame('failed_refunded', $result['outcome']);
+        $this->assertFalse($result['duplicate']);
+        $this->assertSame('failed_refunded', $duplicate['outcome']);
+        $this->assertTrue($duplicate['duplicate']);
+        $this->assertSame(50000, (int) $wallet->fresh()->balance_minor);
+        $this->assertSame('failed_refunded', $payout->fresh()->status);
+        $this->assertDatabaseCount('wallet_transactions', 3);
+        $this->assertDatabaseCount('wallet_ledger_entries', 3);
+        $paystack->shouldHaveReceived('fetchBankTransfer')->once();
+    }
+
+
     public function test_payout_idempotency_key_cannot_be_reused_for_different_amount(): void
     {
         $user = User::query()->create([
