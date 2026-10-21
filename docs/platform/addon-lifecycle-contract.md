@@ -98,3 +98,49 @@ The queue worker is a generic database queue drain. Do not put a global addon ch
 - No addon-specific admission middleware is currently registered in bootstrap/app.php or attached to service routes.
 
 This audit is source-based; it does not yet prove all dispatched notification paths, queue backend settings, database uniqueness constraints, or every route's effective runtime middleware. Those remain acceptance checks.
+
+
+## Route characterization and dispatch-origin audit — 2026-10-21
+
+**Latest reviewed commit:** `5263b324e6df3b184dd8063db849728197164461`  
+**Characterization test:** `tests/Feature/RouteContractCharacterizationTest.php`  
+**Verification state:** The newest workflow runs are still in progress. Do not treat this audit as signed off until the current commit's PHP 8.3/8.4, MariaDB, security and asset-build jobs complete successfully.
+
+### Characterized route contracts
+
+The new route characterization test records these existing contracts without issuing live provider requests or changing route behavior:
+
+- `payments.webhooks.receive`: POST `api/payments/webhooks/{provider}`, rate limited at 60/minute.
+- `vtu.provider-webhooks.receive`: POST `api/vtu/webhooks/{provider}`, rate limited at 60/minute and constrained to the Sogo/Dataway provider allowlist.
+- `login.store`: POST `login`, guest-only and rate limited at 5/minute.
+- `wallet.manual-deposits.submit`: authenticated POST `wallet/manual-deposits`, rate limited at 5/minute.
+- `admin.manual-deposits.review`: authenticated, staff-permission-gated POST, rate limited at 10/minute.
+- `admin.payment-refunds.approve`: authenticated POST guarded by `can:refunds.approve`, rate limited at 20/minute.
+- `wallet.vtu.orders.create`: authenticated POST purchase route; inherited 60/minute group throttle plus 10/minute route throttle.
+
+These tests characterize routing and middleware only; they do not prove controller-level financial invariants, signed callback acceptance, or real provider behavior. Webhook routes must remain outside customer authentication and any addon new-operation admission middleware so callbacks for accepted operations can be recorded and reconciled.
+
+### Queue and notification dispatch findings
+
+- The only tracked class under `app/Jobs` is `ProcessVtuBulkPurchaseBatch`. It is dispatched for bulk processing and self-dispatches while pending items remain. It claims only pending items under a row lock; uncertain outcomes become `unknown`; stale in-flight items are quarantined after 30 minutes; its failure handler does not blindly resubmit an item.
+- The scheduled-purchase command in `routes/console.php` invokes `VtuOrderService::purchase` using a stable key derived from schedule ID and due timestamp. Stale processing schedules are paused for manual reconciliation, not automatically replayed. Scheduler overlap prevention is declared for the command.
+- Database queue configuration defaults to `database`; `after_commit` is false and `retry_after` defaults to 90 seconds. This must be considered when evaluating transactions that dispatch work before commit and worker timeout/retry windows. Do not change these global settings without a separate compatibility review.
+- `BusinessWorkspaceController::invite` calls `$target->notify(new WorkspaceInvitationNotification(...))`. The notification uses the mail channel and the `Queueable` trait, but does **not** implement `ShouldQueue`; the trait alone does not make it a queued notification. Do not classify this as a confirmed queued dispatch.
+- `LoginOtpMail` is a Mailable, not a job by itself. Its actual dispatch/delivery path must be judged at its call sites.
+- The scheduled database queue worker is a generic Core worker. It must not be blocked by addon state, because its queue can contain Core financial/recovery work.
+
+### Callback and idempotency observations
+
+- Payment webhook intake normalizes and validates event structure, stores a payload hash and unique provider/event identity, locks the payment intent while applying a settlement, and checks amount/currency before settled-status shortcuts. A second event ID for the same provider transaction is serialized by the intent lock; a different transaction ID against an already settled intent is treated as a conflict.
+- VTU webhook intake accepts only the configured Sogo/Dataway providers, validates provider-specific signatures over the raw body, enforces a payload size bound, stores a payload hash, and returns conflict when an existing event ID is reused with a different payload.
+- VTU webhook processing claims eligible events under a row lock and a five-minute backoff window. Unmatched provider references remain pending with an explanatory processing error; transient failures remain eligible for retry after backoff; unsupported event/status combinations are marked ignored.
+- Payment reconciliation treats provider unavailability as unresolved evidence, records a review case, and does not infer payment success from an exception. Provider success must match the recorded reference, amount, currency and transaction identifier before settlement.
+- Manual-deposit submission creates a unique public ID and an internal idempotency reference, records an audit entry, and atomically claims a unique evidence fingerprint. Duplicate evidence is flagged rather than silently treated as a new trusted receipt. This is not, by itself, proof that approval is idempotent; the existing approval workflow and ledger assertions still require focused regression evidence.
+
+### Remaining audit gates
+
+1. Wait for all workflows on commit `5263b324e6df3b184dd8063db849728197164461` to finish. Current observed status: frontend build in the Laravel workflow passed; PHP 8.3, PHP 8.4, asset publishing and MariaDB security verification were still running at last inspection.
+2. If the characterization test or any CI job fails, inspect the failing step, fix the actual cause on `main`, and rerun the affected workflow before continuing.
+3. Complete call-site tracing for every job dispatch and mail delivery, plus payment webhook event replay/payload-conflict behavior, manual-deposit approval double-credit protection, refund reconciliation, VTU order idempotency and recovery endpoint permissions.
+4. Add/adjust tests where source inspection alone does not prove the behavior. Never trigger a real transaction to test these properties.
+5. Keep lifecycle admission unwired and do not migrate a service until the route contracts and required CI gates pass.
