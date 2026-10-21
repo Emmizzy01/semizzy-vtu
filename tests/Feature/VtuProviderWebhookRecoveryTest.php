@@ -115,6 +115,64 @@ class VtuProviderWebhookRecoveryTest extends TestCase
         $this->assertNotNull($event->fresh()->processed_at);
     }
 
+    public function test_webhook_processing_retries_after_worker_failure_and_backoff(): void
+    {
+        $this->createMatchedOrder('SOGO-RETRY-AFTER-CRASH-1');
+        $event = $this->createEvent('evt-retry-after-crash-1', 'SOGO-RETRY-AFTER-CRASH-1');
+        $calls = 0;
+
+        $this->mock(VtuOrderService::class, function ($mock) use (&$calls): void {
+            $mock->shouldReceive('applyVerifiedWebhookResult')
+                ->twice()
+                ->andReturnUsing(function (VtuOrder $order) use (&$calls): VtuOrder {
+                    $calls++;
+                    if ($calls === 1) {
+                        throw new RuntimeException('Simulated worker crash before event acknowledgement.');
+                    }
+
+                    return $order;
+                });
+        });
+
+        try {
+            $first = app(VtuProviderWebhookService::class)->process();
+            $this->assertSame(0, $first['processed']);
+            $this->assertNull($event->fresh()->processed_at);
+            $this->assertNotNull($event->fresh()->last_attempted_at);
+
+            // Model a worker restart after the documented five-minute retry backoff.
+            \\Illuminate\\Support\\Carbon::setTestNow(now()->addMinutes(6));
+            $second = app(VtuProviderWebhookService::class)->process();
+
+            $this->assertSame(1, $second['checked']);
+            $this->assertSame(1, $second['processed']);
+            $this->assertNotNull($event->fresh()->processed_at);
+            $this->assertNull($event->fresh()->processing_error);
+        } finally {
+            \\Illuminate\\Support\\Carbon::setTestNow();
+        }
+    }
+
+    public function test_processed_webhook_duplicate_delivery_is_not_applied_twice(): void
+    {
+        $this->createMatchedOrder('SOGO-DUPLICATE-DELIVERY-1');
+        $event = $this->createEvent('evt-duplicate-delivery-1', 'SOGO-DUPLICATE-DELIVERY-1');
+
+        $this->mock(VtuOrderService::class, function ($mock): void {
+            $mock->shouldReceive('applyVerifiedWebhookResult')->once()->andReturnUsing(
+                fn (VtuOrder $order): VtuOrder => $order,
+            );
+        });
+
+        $first = app(VtuProviderWebhookService::class)->process();
+        $second = app(VtuProviderWebhookService::class)->process();
+
+        $this->assertSame(1, $first['processed']);
+        $this->assertSame(0, $second['checked']);
+        $this->assertSame(0, $second['processed']);
+        $this->assertNotNull($event->fresh()->processed_at);
+    }
+
     private function createMatchedOrder(string $providerReference): VtuOrder
     {
         $user = User::factory()->create();
