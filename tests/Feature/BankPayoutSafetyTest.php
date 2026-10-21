@@ -32,6 +32,62 @@ class BankPayoutSafetyTest extends TestCase
         $this->assertDatabaseCount('wallet_transactions', 0);
     }
 
+    public function test_stale_queued_payout_is_quarantined_without_provider_retry_or_refund(): void
+    {
+        $user = User::query()->create([
+            'name' => 'Stale Queued Payout User',
+            'email' => 'stale-queued-payout@example.test',
+            'password' => 'not-a-real-password',
+        ]);
+        $beneficiary = \\App\\Models\\BankBeneficiary::query()->create([
+            'user_id' => $user->id,
+            'bank_code' => '999',
+            'bank_name' => 'Recovery Test Bank',
+            'account_number' => '0123456789',
+            'account_number_last4' => '6789',
+            'account_name' => $user->name,
+            'provider_recipient_code' => 'RCP_stale_queued_test',
+            'verification_status' => 'verified',
+            'verified_at' => now(),
+        ]);
+
+        $makePayout = function (string $suffix, string $status, $createdAt) use ($user, $beneficiary) {
+            return \\App\\Models\\BankPayout::query()->create([
+                'public_id' => (string) \\Illuminate\\Support\\Str::uuid(),
+                'user_id' => $user->id,
+                'bank_beneficiary_id' => $beneficiary->id,
+                'currency' => 'NGN',
+                'amount_minor' => 10000,
+                'fee_minor' => 0,
+                'status' => $status,
+                'idempotency_key' => 'stale-queued-'.$suffix,
+                'request_hash' => hash('sha256', $suffix),
+                'provider_reference' => 'semizzy_stale_queued_'.$suffix,
+                'wallet_transaction_id' => null,
+                'metadata' => ['provider' => 'paystack'],
+                'created_at' => $createdAt,
+                'updated_at' => $createdAt,
+            ]);
+        };
+
+        $stale = $makePayout('old', 'queued', now()->subHour());
+        $recent = $makePayout('recent', 'queued', now()->subMinutes(5));
+        $pending = $makePayout('provider-pending', 'provider_pending', now()->subHour());
+
+        $exitCode = \\Illuminate\\Support\\Facades\\Artisan::call('bank-payouts:quarantine-stale-queued', [
+            '--minutes' => 30,
+            '--limit' => 100,
+        ]);
+
+        $this->assertSame(0, $exitCode);
+        $this->assertSame('reconciliation_required', $stale->fresh()->status);
+        $this->assertStringContainsString('before any manual retry', $stale->fresh()->failure_reason);
+        $this->assertSame('stale_queued_quarantined', $stale->fresh()->metadata['recovery_action']);
+        $this->assertSame('queued', $recent->fresh()->status);
+        $this->assertSame('provider_pending', $pending->fresh()->status);
+        $this->assertDatabaseCount('wallet_transactions', 0);
+    }
+
     public function test_http_payout_endpoint_rejects_wrong_pin_before_creating_payout(): void
     {
         $user = User::query()->create([
