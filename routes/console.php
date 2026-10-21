@@ -317,7 +317,7 @@ Artisan::command('bank-payouts:quarantine-stale-queued {--minutes=30} {--limit=1
     // A crash after the payout debit commits but before the provider request
     // starts leaves a durable queued row. Quarantine it for review; never
     // dispatch or refund automatically because request delivery is uncertain.
-    $ids = \\App\\Models\\BankPayout::query()
+    $ids = \App\Models\BankPayout::query()
         ->where('status', 'queued')
         ->where('created_at', '<=', now()->subMinutes($minutes))
         ->orderBy('created_at')
@@ -327,7 +327,7 @@ Artisan::command('bank-payouts:quarantine-stale-queued {--minutes=30} {--limit=1
     $quarantined = 0;
     foreach ($ids as $id) {
         $changed = DB::transaction(function () use ($id, $minutes): bool {
-            $payout = \\App\\Models\\BankPayout::query()->whereKey($id)->lockForUpdate()->first();
+            $payout = \App\Models\BankPayout::query()->whereKey($id)->lockForUpdate()->first();
             if (! $payout || $payout->status !== 'queued'
                 || $payout->created_at->greaterThan(now()->subMinutes($minutes))) {
                 return false;
