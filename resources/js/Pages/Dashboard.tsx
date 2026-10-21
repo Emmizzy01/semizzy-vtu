@@ -74,7 +74,7 @@ export default function CustomerDashboard({ wallet, transactions, orders = [], t
             {[{title:'iPhone 14',icon:<Smartphone size={27}/>},{title:'Samsung S23',icon:<Smartphone size={27}/>},{title:'Oraimo 20k',icon:<BatteryCharging size={27}/>},{title:'JBL Headset',icon:<Headphones size={27}/>},{title:'MacBook Air M2',icon:<Laptop size={27}/>},{title:'HP Laptop',icon:<Laptop size={27}/>},{title:'Smart Watch',icon:<Watch size={27}/>},{title:'AirPods Pro',icon:<Headphones size={27}/>}].map(item=><a key={item.title} href="/services/coming-soon/gadget-catalogue" className="min-w-0 rounded-xl border bg-white p-3 shadow-sm transition hover:shadow-md dark:border-white/10 dark:bg-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)]">
               <span aria-hidden="true" className="grid h-[80px] place-items-center rounded-lg bg-gray-100 text-[var(--brand)] dark:bg-slate-800">{item.icon}</span>
               <span className="mt-2 block text-[11px] font-extrabold">{item.title}</span>
-              <span className="mt-1 block text-[12px] font-extrabold text-[#0f8a4f]">{item.price}</span>
+              <span className="mt-1 block text-[12px] font-extrabold text-[#0f8a4f]">Catalogue preview</span>
             </a>)}
           </div>
           <p className="mt-3 text-[10px] leading-4 text-[var(--muted)]">Sample product cards only. Live inventory, checkout, and verified pricing are not available yet.</p>
