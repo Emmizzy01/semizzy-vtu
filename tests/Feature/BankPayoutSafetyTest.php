@@ -198,7 +198,7 @@ class BankPayoutSafetyTest extends TestCase
             'password' => 'not-a-real-password',
         ]);
 
-        $saved = \\App\\Models\\BankBeneficiary::query()->create([
+        $saved = \App\Models\BankBeneficiary::query()->create([
             'user_id' => $owner->id,
             'bank_code' => '999',
             'bank_name' => 'Duplicate Test Bank',
@@ -210,13 +210,13 @@ class BankPayoutSafetyTest extends TestCase
             'verified_at' => now(),
         ]);
 
-        $paystack = \\Mockery::mock(\\App\\Services\\Payments\\PaystackClient::class);
+        $paystack = \Mockery::mock(\App\Services\Payments\PaystackClient::class);
         $paystack->shouldReceive('listNigerianBanks')->twice()->andReturn([
             ['name' => 'Duplicate Test Bank', 'code' => '999'],
         ]);
         $paystack->shouldNotReceive('resolveNigerianAccount');
         $paystack->shouldNotReceive('createTransferRecipient');
-        $this->app->instance(\\App\\Services\\Payments\\PaystackClient::class, $paystack);
+        $this->app->instance(\App\Services\Payments\PaystackClient::class, $paystack);
 
         $service = app(BankPayoutService::class);
         $reused = $service->addBeneficiary($owner, '999', '0123456789');
