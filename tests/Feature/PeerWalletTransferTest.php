@@ -136,4 +136,40 @@ class PeerWalletTransferTest extends TestCase
         $this->actingAs($recipient)->getJson('/wallet/transfers/history')
             ->assertOk()->assertJsonPath('meta.total', 1)->assertJsonPath('data.0.direction', 'received');
     }
+
+    public function test_active_transaction_pin_lockout_blocks_wallet_transfer_before_any_debit_or_credit(): void
+    {
+        $sender = $this->makeUser('Locked PIN Sender', 'locked-pin-sender@example.test', 'lockedpinsender');
+        $recipient = $this->makeUser('Locked PIN Recipient', 'locked-pin-recipient@example.test', 'lockedpinrecipient');
+        $sender->forceFill([
+            'transaction_pin_hash' => \\Illuminate\\Support\\Facades\\Hash::make('4928'),
+            'transaction_pin_failed_attempts' => 5,
+            'transaction_pin_locked_until' => now()->addMinutes(10),
+        ])->save();
+
+        $wallets = app(WalletAccountService::class);
+        $senderWallet = $wallets->openForUser($sender);
+        $recipientWallet = $wallets->openForUser($recipient);
+        app(WalletLedgerService::class)->post($senderWallet->id, 'credit', 50000, 'locked-p2p-opening-credit-001');
+
+        $this->actingAs($sender)->postJson('/wallet/transfers', [
+            'recipient' => 'lockedpinrecipient',
+            'amount_minor' => 12500,
+            'transaction_pin' => '4928',
+            'idempotency_key' => 'locked-p2p-attempt-001',
+        ])->assertStatus(422)
+          ->assertJsonPath('message', 'Transaction PIN is temporarily locked. Try again later.');
+
+        $this->assertSame(50000, (int) $senderWallet->fresh()->balance_minor);
+        $this->assertSame(0, (int) $recipientWallet->fresh()->balance_minor);
+        $this->assertDatabaseCount('wallet_transfers', 0);
+        $this->assertDatabaseCount('wallet_transactions', 1);
+        $this->assertDatabaseCount('wallet_ledger_entries', 1);
+        $this->assertDatabaseHas('transaction_security_events', [
+            'user_id' => $sender->id,
+            'event_type' => 'pin_verification',
+            'outcome' => 'locked',
+        ]);
+    }
+
 }
