@@ -552,10 +552,6 @@ class PaymentRefundWorkflowTest extends TestCase
 
     public function test_unexpected_transport_exception_marks_refund_for_review_without_resubmitting(): void
     {
-        Http::fake(function () {
-            throw new \RuntimeException('Connection lost after refund request dispatch.');
-        });
-
         $customer = User::query()->create([
             'name' => 'Refund Transport Customer',
             'email' => 'refund-transport-customer@example.test',
@@ -575,12 +571,12 @@ class PaymentRefundWorkflowTest extends TestCase
             'reason' => 'Transport exception recovery',
             'idempotency_key' => 'refund-transport-exception-'.$customer->id,
         ])->assertCreated();
-        $client = \\Mockery::mock(\\App\\Services\\Payments\\PaystackClient::class);
-        $client->shouldReceive('refund')->once()->andThrow(new \\RuntimeException('Connection lost after refund request dispatch.'));
-        app()->instance(\\App\\Services\\Payments\\PaystackClient::class, $client);
+
+        $client = \Mockery::mock(\App\Services\Payments\PaystackClient::class);
+        $client->shouldReceive('refund')->once()->andThrow(new \RuntimeException('Connection lost after refund request dispatch.'));
+        app()->instance(\App\Services\Payments\PaystackClient::class, $client);
 
         $url = '/admin/payment-refunds/'.$request->json('data.id').'/approve';
-
         $this->actingAs($approver)->postJson($url)
             ->assertStatus(409)
             ->assertJsonPath('data.status', 'review_required');
