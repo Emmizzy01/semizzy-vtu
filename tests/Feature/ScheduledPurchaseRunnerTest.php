@@ -122,6 +122,48 @@ class ScheduledPurchaseRunnerTest extends TestCase
     }
 
 
+    public function test_runner_does_not_reactivate_schedule_paused_during_provider_request(): void
+    {
+        $user = User::query()->create([
+            'name' => 'Paused During Provider Call',
+            'email' => 'paused-during-provider@example.test',
+            'password' => 'not-a-real-password',
+        ]);
+        $schedule = ScheduledServicePurchase::query()->create([
+            'user_id' => $user->id,
+            'service_type' => 'data',
+            'product_code' => 'paused-during-provider-plan',
+            'recipient' => '08012345678',
+            'frequency' => 'daily',
+            'next_run_at' => now()->subMinutes(2),
+            'status' => 'active',
+        ]);
+
+        $order = new VtuOrder();
+        $order->forceFill(['public_id' => 'order-finished-after-pause', 'status' => 'successful']);
+
+        $this->mock(VtuOrderService::class)
+            ->shouldReceive('purchase')
+            ->once()
+            ->andReturnUsing(function () use ($schedule, $order) {
+                // Simulate stale-claim recovery or an operator pausing the schedule
+                // while the external provider request is still in flight.
+                \Illuminate\\Support\\Facades\\DB::table('scheduled_service_purchases')
+                    ->where('id', $schedule->id)
+                    ->update(['status' => 'paused']);
+
+                return $order;
+            });
+
+        $this->artisan('vtu:run-scheduled-purchases --limit=100')->assertExitCode(0);
+
+        $schedule->refresh();
+        $this->assertSame('paused', $schedule->status);
+        $this->assertSame('order-finished-after-pause', $schedule->last_order_public_id);
+        $this->assertSame('successful', $schedule->last_result);
+        $this->assertStringContainsString('after this schedule was paused', (string) $schedule->last_error);
+    }
+
     public function test_provider_exception_pauses_schedule_and_never_replays_uncertain_purchase(): void
     {
         $user = User::query()->create([
