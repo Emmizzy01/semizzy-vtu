@@ -2,7 +2,7 @@
 
 **State:** Open. This is an implementation audit, not sign-off or a test report. The source tree and owner-approved blueprint were reviewed after the passkey foundation batch. No theme changes or live financial/provider operations were performed.
 
-**Latest security follow-up (commit `e861f653ff7229faa60be7ecf505d3cf763edafa`):** passkey origin validation now rejects wildcard hosts, and `tests/Feature/PasskeyOriginAndConfirmationRegressionTest.php` adds regression coverage for wildcard-origin rejection, expired confirmation rejection, and recent confirmation acceptance. The tests have been committed but have **not** been executed in this environment; the commit has no reported status checks/workflow runs available through the current GitHub integration. Do not treat this as test-pass evidence or Phase 1 sign-off.
+**Current security/authentication verification (2026-10-21):** the earlier passkey origin and confirmation regressions now run in CI, alongside verified-mobile login, SMS destination verification, TOTP atomicity/challenge expiry, credential-change invalidation, PIN and session checks. On commit bcd29ccd10fc81a0c744011861e05f75dfbd83f8, PHP 8.3 and PHP 8.4 each passed the full suite (612 tests, 4,421 assertions), the frontend build passed, and the Phase 1 workflow passed (SQLite: 587 passed, 25 skipped; MariaDB focused suite: 63 passed). The expanded MariaDB authentication/session suite on commit e10da6038de3e374b1743efbe7c581c274accef6 passed 103 tests (671 assertions). Evidence: [Phase 1 security verification](https://github.com/Emmizzy01/semizzy-vtu/actions/runs/39550576102), [PHP 8.3/8.4 checks](https://github.com/Emmizzy01/semizzy-vtu/actions/runs/39550284048). These are automated test results, not production provider or real-browser passkey evidence; overall Phase 1 remains open.
 
 ## Highest-priority remaining gaps
 
@@ -42,7 +42,7 @@
 
 ## Endpoint security review — wallet writes (2026-10-20)
 
-This review is source inspection only; it is not runtime or concurrency-test evidence.
+This review began as source inspection on 2026-10-20. Newer CI runs now provide runtime regression evidence for several of these paths; the broad endpoint inventory and remaining acceptance gaps below are still open.
 
 ### Controls observed in current source
 
@@ -62,7 +62,7 @@ This review is source inspection only; it is not runtime or concurrency-test evi
 ### Acceptance status
 
 - Source inspection: completed for the P2P transfer controller/service, bank payout controller/service, wallet ledger, PIN service, and refund controller/service.
-- Runtime feature tests and concurrency tests: **not executed here**; no pass claim.
+- Runtime feature and concurrency regressions: executed in GitHub Actions; see the current verification snapshot at the top of this document. Broad endpoint-by-endpoint acceptance remains open.
 - Production transactions/provider calls: **not performed**.
 - Phase 1: **not signed off**. Keep live provider purchases, live payouts, and other live financial operations gated until test evidence and provider reconciliation contracts are verified.
 
@@ -73,7 +73,7 @@ Source inspection of VtuOrderController confirms:
 - Bulk purchase requires a transaction PIN and a batch key, accepts 10–100 items, limits current bulk eligibility to active NGN airtime/data products, resolves customer selections to internal product codes server-side, derives stable per-item idempotency keys, hashes the batch request, handles the user+batch-key uniqueness race, and dispatches a batch job only after persisting the batch and items.
 - Bulk retry with the same key and same request returns the existing batch; reuse with different request details returns conflict. A separate recovery/status endpoint exists, but ownership and status behavior still require execution tests.
 
-Still unverified: test that repeated bulk requests and concurrent duplicate keys never create duplicate batch records, duplicate wallet debits, or duplicate provider submissions; partial failures remain item-scoped and recoverable; a batch status/recovery request cannot read another user's batch; inactive products and altered prices cannot bypass server-side checks; and the worker never retries an unknown provider outcome blindly. The runtime test suite was not executable through the current environment, so none of these are marked passed.
+Still unverified: test that repeated bulk requests and concurrent duplicate keys never create duplicate batch records, duplicate wallet debits, or duplicate provider submissions; partial failures remain item-scoped and recoverable; a batch status/recovery request cannot read another user's batch; inactive products and altered prices cannot bypass server-side checks; and the worker never retries an unknown provider outcome blindly. The latest full-suite and focused MariaDB workflows now execute these regression tests; see the current verification snapshot above. Remaining live-provider contract and unknown-outcome recovery acceptance is still open.
 
 ### Regression coverage added — account isolation
 
@@ -94,7 +94,7 @@ Still unverified: test that repeated bulk requests and concurrent duplicate keys
 - Added `test_repeated_payout_request_debits_once_and_submits_to_provider_once` to `tests/Feature/BankPayoutSafetyTest.php` using a mocked Paystack client. It expects two identical calls to return the same payout, retain one payout record, debit the wallet only once, and call the provider transfer method exactly once.
 - Added `test_payout_idempotency_key_cannot_be_reused_for_different_amount` to prove a reused key with a changed amount raises `IdempotencyConflict` and does not permit another provider submission.
 - Corrected escaped fully-qualified class names in the payout-history ownership test in the same file.
-- Commit: `360f14393f80daab83a324c0882f9ede8375540f` on `main`. The GitHub status endpoint currently reports no status checks for this commit; this is not a test pass.
+- The payout idempotency regressions are included in the current Phase 1 and full-suite workflows. Latest evidence is linked in the current verification snapshot at the top of this document.
 - **Concurrency coverage remains open.** These are deterministic sequential idempotency regressions, not simultaneous multi-connection tests. The configured PHPUnit suite uses in-memory SQLite, which cannot establish production-like row-lock behavior. Add/run a disposable MariaDB integration test with independent connections/processes before claiming concurrent duplicate payout safety.
 - **Laravel test execution remains blocked/unverified in this environment.** No test command was executed against an installed checkout, and no CI run/result is available for the latest commit. Do not advance to the next security area or enable payouts/live financial operations until targeted tests and the full suite run successfully, including MariaDB concurrency coverage.
 
