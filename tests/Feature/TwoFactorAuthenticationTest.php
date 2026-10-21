@@ -139,12 +139,7 @@ class TwoFactorAuthenticationTest extends TestCase
         $this->assertNotNull($user->fresh()->two_factor_enabled_at);
         $this->assertDatabaseCount('user_two_factor_recovery_codes', 10);
 
-        $recoveryCode = app(TotpTwoFactorService::class)->verifyUserCode($user->fresh(), $this->totpCode($secret))
-            ? null
-            : (string) \Illuminate\Support\Facades\DB::table('user_two_factor_recovery_codes')
-                ->where('user_id', $user->id)->whereNull('used_at')->value('id');
-        // Fetch a plaintext recovery code through a fresh enable flow is not possible;
-        // use a valid TOTP to verify the disable endpoint's second factor.
+        // A valid authenticator code is accepted as the second factor for disablement.
         $this->actingAs($user)->post('/security/two-factor/disable', [
             'password' => 'WrongPassword1234',
             'code' => $this->totpCode($secret),
