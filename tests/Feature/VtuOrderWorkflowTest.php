@@ -1272,6 +1272,53 @@ class VtuOrderWorkflowTest extends TestCase
         Http::assertSentCount(2);
     }
 
+    public function test_provider_attempt_router_rejects_cross_order_and_wrong_provider_attempts(): void
+    {
+        Http::fake(['*' => Http::response(['status' => 'pending'], 200)]);
+
+        [$firstUser, , $firstProduct] = $this->preparedCustomer(1000, 1500);
+        [$secondUser, , $secondProduct] = $this->preparedCustomer(1000, 1500);
+
+        $service = app(VtuOrderService::class);
+        $firstOrder = $service->purchase(
+            $firstUser,
+            $firstProduct->code,
+            '08012345678',
+            'attempt-owner-first-order',
+        );
+        $secondOrder = $service->purchase(
+            $secondUser,
+            $secondProduct->code,
+            '08012345678',
+            'attempt-owner-second-order',
+        );
+
+        $firstAttempt = \\App\\Models\\VtuProviderAttempt::query()
+            ->where('vtu_order_id', $firstOrder->getKey())
+            ->firstOrFail();
+        $router = app(\\App\\Services\\Vtu\\MultiProviderVtuRouter::class);
+
+        try {
+            $router->lookupAttempt($secondOrder, $firstAttempt);
+            $this->fail('An attempt belonging to another order must not be looked up.');
+        } catch (\\LogicException $exception) {
+            $this->assertStringContainsString('does not belong', $exception->getMessage());
+        }
+
+        $firstAttempt->forceFill(['provider' => 'sogo'])->save();
+
+        try {
+            $router->submitAttempt($firstOrder, $firstAttempt);
+            $this->fail('An attempt whose provider differs from the order dispatch target must not be submitted.');
+        } catch (\\LogicException $exception) {
+            $this->assertStringContainsString('does not match the order dispatch target', $exception->getMessage());
+        }
+
+        $this->assertSame(500, (int) $firstOrder->wallet->fresh()->available_balance_minor);
+        $this->assertSame(500, (int) $secondOrder->wallet->fresh()->available_balance_minor);
+        Http::assertSentCount(2);
+    }
+
     public function test_late_success_from_old_provider_attempt_cannot_settle_newer_attempt(): void
     {
         config([
