@@ -306,6 +306,55 @@ Schedule::command('queue:work database --stop-when-empty --timeout=60 --max-time
     ->everyMinute()
     ->withoutOverlapping();
 
+Artisan::command('bank-payouts:quarantine-stale-queued {--minutes=30} {--limit=100}', function () {
+    $minutes = (int) $this->option('minutes');
+    $limit = (int) $this->option('limit');
+    if ($minutes < 5 || $minutes > 1440 || $limit < 1 || $limit > 500) {
+        $this->error('Minutes must be 5–1440 and limit must be 1–500.');
+        return 1;
+    }
+
+    // A crash after the payout debit commits but before the provider request
+    // starts leaves a durable queued row. Quarantine it for review; never
+    // dispatch or refund automatically because request delivery is uncertain.
+    $ids = \\App\\Models\\BankPayout::query()
+        ->where('status', 'queued')
+        ->where('created_at', '<=', now()->subMinutes($minutes))
+        ->orderBy('created_at')
+        ->limit($limit)
+        ->pluck('id');
+
+    $quarantined = 0;
+    foreach ($ids as $id) {
+        $changed = DB::transaction(function () use ($id, $minutes): bool {
+            $payout = \\App\\Models\\BankPayout::query()->whereKey($id)->lockForUpdate()->first();
+            if (! $payout || $payout->status !== 'queued'
+                || $payout->created_at->greaterThan(now()->subMinutes($minutes))) {
+                return false;
+            }
+
+            $metadata = $payout->metadata ?? [];
+            $metadata['recovery_action'] = 'stale_queued_quarantined';
+            $metadata['recovery_checked_at'] = now()->toIso8601String();
+            $payout->forceFill([
+                'status' => 'reconciliation_required',
+                'failure_reason' => 'Payout remained queued beyond the dispatch window. Verify provider state before any manual retry; no automatic resubmission or refund was performed.',
+                'metadata' => $metadata,
+            ])->save();
+
+            return true;
+        }, attempts: 3);
+        if ($changed) $quarantined++;
+    }
+
+    $this->table(['Stale candidates', 'Quarantined'], [[$ids->count(), $quarantined]]);
+    return 0;
+})->purpose('Quarantine payouts stranded before provider dispatch without resubmitting or refunding them');
+
+Schedule::command('bank-payouts:quarantine-stale-queued --minutes=30 --limit=100')
+    ->everyFiveMinutes()
+    ->withoutOverlapping();
+
 Artisan::command('payments:reconcile-paystack {--limit=100}', function (PaymentReconciliationService $reconciliation) {
     $limit = (int) $this->option('limit');
     if ($limit < 1 || $limit > 500) {
