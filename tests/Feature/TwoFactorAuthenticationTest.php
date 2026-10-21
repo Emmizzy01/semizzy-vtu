@@ -20,6 +20,7 @@ class TwoFactorAuthenticationTest extends TestCase
             'auth_security.email_otp_enabled' => false,
             'auth_security.sms_otp_enabled' => false,
             'auth_security.whatsapp_otp_enabled' => false,
+            'mail.default' => 'smtp',
         ]);
     }
 
