@@ -142,7 +142,7 @@ class PeerWalletTransferTest extends TestCase
         $sender = $this->makeUser('Locked PIN Sender', 'locked-pin-sender@example.test', 'lockedpinsender');
         $recipient = $this->makeUser('Locked PIN Recipient', 'locked-pin-recipient@example.test', 'lockedpinrecipient');
         $sender->forceFill([
-            'transaction_pin_hash' => \\Illuminate\\Support\\Facades\\Hash::make('4928'),
+            'transaction_pin_hash' => \Illuminate\Support\Facades\Hash::make('4928'),
             'transaction_pin_failed_attempts' => 5,
             'transaction_pin_locked_until' => now()->addMinutes(10),
         ])->save();
