@@ -66,17 +66,16 @@ class TwoFactorAuthenticationTest extends TestCase
 
         // Seed four prior failures directly so this regression tests the
         // session challenge limit independently of the shared IP throttle.
-        $this->withSession([
+        $response = $this->withSession([
             'auth.two_factor_user_id' => (int) $user->id,
             'auth.two_factor_remember' => false,
             'auth.two_factor_attempts' => 4,
-        ])->from('/login/two-factor')->post('/login/two-factor', ['code' => '000000'])
-            ->assertRedirect('/login')
-            ->assertSessionHasErrors('identifier');
+        ])->from('/login/two-factor')->post('/login/two-factor', ['code' => '000000']);
+        $response->assertRedirect('/login')->assertSessionHasErrors('identifier');
 
         $this->assertGuest();
-        $this->assertSessionMissing('auth.two_factor_user_id');
-        $this->assertSessionMissing('auth.two_factor_attempts');
+        $response->assertSessionMissing('auth.two_factor_user_id');
+        $response->assertSessionMissing('auth.two_factor_attempts');
     }
 
     public function test_expired_totp_login_challenge_is_rejected_and_cleared(): void
@@ -88,18 +87,17 @@ class TwoFactorAuthenticationTest extends TestCase
         ]);
         app(TotpTwoFactorService::class)->enable($user, 'JBSWY3DPEHPK3PXP');
 
-        $this->withSession([
+        $response = $this->withSession([
             'auth.two_factor_user_id' => (int) $user->id,
             'auth.two_factor_remember' => false,
             'auth.two_factor_attempts' => 0,
             'auth.two_factor_started_at' => now()->subMinutes(6)->timestamp,
-        ])->from('/login/two-factor')->post('/login/two-factor', ['code' => '000000'])
-            ->assertRedirect('/login')
-            ->assertSessionHasErrors('identifier');
+        ])->from('/login/two-factor')->post('/login/two-factor', ['code' => '000000']);
+        $response->assertRedirect('/login')->assertSessionHasErrors('identifier');
 
         $this->assertGuest();
-        $this->assertSessionMissing('auth.two_factor_user_id');
-        $this->assertSessionMissing('auth.two_factor_started_at');
+        $response->assertSessionMissing('auth.two_factor_user_id');
+        $response->assertSessionMissing('auth.two_factor_started_at');
     }
 
     public function test_email_otp_must_be_completed_before_totp_challenge(): void
