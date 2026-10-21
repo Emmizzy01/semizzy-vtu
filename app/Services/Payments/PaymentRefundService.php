@@ -212,17 +212,23 @@ class PaymentRefundService
 
         $providerRef = $refund->provider_refund_reference;
         if (! is_string($providerRef) || ! ctype_digit($providerRef)) {
-            $this->markReviewRequired($refund->public_id, 'missing_provider_refund_id_for_reconciliation');
+            $review = $this->markReviewRequired($refund->public_id, 'missing_provider_refund_id_for_reconciliation');
 
-            return ['outcome' => 'mismatch', 'status' => 'review_required'];
+            return [
+                'outcome' => in_array($review->status, ['succeeded', 'failed'], true) ? 'skipped' : 'mismatch',
+                'status' => $review->status,
+            ];
         }
 
         $intent = $refund->paymentIntent()->firstOrFail();
         $gatewayMode = $intent->metadata['gateway_mode'] ?? null;
         if (! in_array($gatewayMode, ['test', 'live'], true)) {
-            $this->markReviewRequired($refund->public_id, 'missing_original_gateway_mode');
+            $review = $this->markReviewRequired($refund->public_id, 'missing_original_gateway_mode');
 
-            return ['outcome' => 'mismatch', 'status' => 'review_required'];
+            return [
+                'outcome' => in_array($review->status, ['succeeded', 'failed'], true) ? 'skipped' : 'mismatch',
+                'status' => $review->status,
+            ];
         }
 
         try {
@@ -249,9 +255,12 @@ class PaymentRefundService
             || $providerCurrency !== $intent->currency
             || $intent->provider_transaction_id === null
             || $providerTransaction !== (string) $intent->provider_transaction_id) {
-            $this->markReviewRequired($refund->public_id, 'provider_reconciliation_data_mismatch');
+            $review = $this->markReviewRequired($refund->public_id, 'provider_reconciliation_data_mismatch');
 
-            return ['outcome' => 'mismatch', 'status' => 'review_required'];
+            return [
+                'outcome' => in_array($review->status, ['succeeded', 'failed'], true) ? 'skipped' : 'mismatch',
+                'status' => $review->status,
+            ];
         }
 
         $providerStatus = is_string($provider['status'] ?? null)
