@@ -145,6 +145,75 @@ jobs:
           QUEUE_CONNECTION: sync
           MAIL_MAILER: array
 
+  mariadb-error-123-diagnostic:
+    name: MariaDB error 123 diagnostic (${{ matrix.snapshot-isolation }})
+    strategy:
+      fail-fast: false
+      matrix:
+        snapshot-isolation: ['default', 'OFF']
+    runs-on: ubuntu-latest
+    env:
+      APP_ENV: testing
+      APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+      DB_CONNECTION: mysql
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+      DB_DATABASE: semizzy_test
+      DB_USERNAME: root
+      DB_PASSWORD: root
+      CACHE_STORE: array
+      SESSION_DRIVER: array
+      QUEUE_CONNECTION: sync
+      MAIL_MAILER: array
+    services:
+      mysql:
+        image: mariadb:11
+        env:
+          MARIADB_ROOT_PASSWORD: root
+          MARIADB_DATABASE: semizzy_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mbstring, pdo_mysql, bcmath, curl, dom, fileinfo, intl, json, openssl, pcntl, tokenizer, xml
+          coverage: none
+      - name: Prepare writable Laravel runtime directories
+        run: mkdir -p bootstrap/cache storage/framework/cache storage/framework/sessions storage/framework/views storage/logs
+      - uses: ramsey/composer-install@v3
+      - name: Prepare test environment
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+      - name: Record MariaDB version and snapshot isolation mode
+        run: |
+          container_id="$(docker ps --filter 'ancestor=mariadb:11' --format '{{.ID}}' | head -n 1)"
+          test -n "$container_id"
+          docker exec "$container_id" mariadb -uroot -proot -e "SELECT VERSION(); SHOW VARIABLES LIKE 'innodb_snapshot_isolation';"
+          if [ "${{ matrix.snapshot-isolation }}" = "OFF" ]; then
+            docker exec "$container_id" mariadb -uroot -proot -e "SET GLOBAL innodb_snapshot_isolation=OFF;"
+          fi
+          docker exec "$container_id" mariadb -uroot -proot -e "SHOW VARIABLES LIKE 'innodb_snapshot_isolation';"
+      - name: Run isolated financial concurrency regressions
+        run: php artisan test tests/Feature/BankPayoutMariaDbConcurrencyTest.php tests/Feature/PaymentRefundMariaDbConcurrencyTest.php tests/Feature/PeerWalletTransferMariaDbConcurrencyTest.php
+      - name: Report MariaDB error 123 occurrences without suppressing them
+        if: always()
+        run: |
+          container_id="$(docker ps --filter 'ancestor=mariadb:11' --format '{{.ID}}' | head -n 1)"
+          if [ -z "$container_id" ]; then
+            echo "MariaDB service container was not available for log collection."
+            exit 0
+          fi
+          docker logs "$container_id" 2>&1 | grep -F "Got error 123 when reading table" || true
+          count="$(docker logs "$container_id" 2>&1 | grep -Fc "Got error 123 when reading table" || true)"
+          echo "MARIADB_ERROR_123_COUNT=$count"
   frontend-build:
     runs-on: ubuntu-latest
     steps:
