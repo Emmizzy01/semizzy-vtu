@@ -205,22 +205,27 @@ jobs:
         run: |
           container_id="$(docker ps --filter 'ancestor=mariadb:11' --format '{{.ID}}' | head -n 1)"
           test -n "$container_id"
-          for test_file in \
-            tests/Feature/BankPayoutMariaDbConcurrencyTest.php \
-            tests/Feature/PaymentRefundMariaDbConcurrencyTest.php \
-            tests/Feature/PeerWalletTransferMariaDbConcurrencyTest.php; do
+          # Disposable CI database only: capture queries to identify the connection
+          # that emitted error 123. Never enable general logging on production.
+          docker exec "$container_id" mariadb -uroot -proot -e "SET GLOBAL log_output='TABLE'; SET GLOBAL general_log=ON;"
+          for test_file in tests/Feature/BankPayoutMariaDbConcurrencyTest.php tests/Feature/PaymentRefundMariaDbConcurrencyTest.php tests/Feature/PeerWalletTransferMariaDbConcurrencyTest.php; do
             before="$(docker logs "$container_id" 2>&1 | grep -Fc "Got error 123 when reading table" || true)"
             set +e
             php artisan test "$test_file"
             test_status=$?
             set -e
             after="$(docker logs "$container_id" 2>&1 | grep -Fc "Got error 123 when reading table" || true)"
-            delta=$((after - before))
-            echo "MARIADB_ERROR_123_DELTA[$test_file]=$delta"
-            if [ "$test_status" -ne 0 ]; then
-              exit "$test_status"
-            fi
+            echo "MARIADB_ERROR_123_DELTA[$test_file]=$((after - before))"
+            if [ "$test_status" -ne 0 ]; then exit "$test_status"; fi
           done
+          echo "SQL statements for connections that emitted error 123:"
+          thread_ids="$(docker logs "$container_id" 2>&1 | awk '/Got error 123 when reading table/ { for (i=1;i<=NF;i++) if ($i ~ /^[0-9]+$/) { print $i; break } }' | sort -u | paste -sd, -)"
+          if [ -n "$thread_ids" ]; then
+            docker exec "$container_id" mariadb -uroot -proot -e "SELECT event_time, thread_id, command_type, LEFT(argument, 500) AS statement FROM mysql.general_log WHERE thread_id IN ($thread_ids) ORDER BY event_time DESC LIMIT 100;"
+          else
+            echo "No error-123 connection IDs could be extracted from the server log."
+          fi
+          docker exec "$container_id" mariadb -uroot -proot -e "SET GLOBAL general_log=OFF;"
       - name: Report MariaDB error 123 occurrences without suppressing them
         if: always()
         run: |
