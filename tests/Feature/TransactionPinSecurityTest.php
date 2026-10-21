@@ -341,6 +341,28 @@ class TransactionPinSecurityTest extends TestCase
         $this->assertSame(5, (int) $fresh->transaction_pin_failed_attempts);
     }
 
+    public function test_wrong_login_password_cannot_create_or_change_transaction_pin(): void
+    {
+        $user = User::query()->create([
+            'name' => 'PIN Step-Up Customer',
+            'email' => 'pin-step-up@example.test',
+            'password' => 'not-a-real-password',
+        ]);
+
+        $this->actingAs($user)->put('/security/transaction-pin', [
+            'password' => 'wrong-login-password',
+            'pin' => '7359',
+            'pin_confirmation' => '7359',
+        ])->assertSessionHasErrors('password');
+
+        $this->assertNull($user->fresh()->transaction_pin_hash);
+        $this->assertDatabaseHas('transaction_security_events', [
+            'user_id' => $user->id,
+            'event_type' => 'pin_step_up',
+            'outcome' => 'failed',
+        ]);
+    }
+
     public function test_repeated_pin_and_simple_sequences_are_rejected(): void
     {
         $user = User::query()->create(['name' => 'PIN Customer', 'email' => 'pin-customer2@example.test', 'password' => 'not-a-real-password']);
