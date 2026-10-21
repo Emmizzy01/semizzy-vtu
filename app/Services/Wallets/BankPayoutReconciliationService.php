@@ -39,12 +39,10 @@ class BankPayoutReconciliationService
 
         $transferCode = $data['transfer_code'] ?? $payout->provider_transfer_code;
         if (! is_string($transferCode) || $transferCode === '') {
-            $payout->forceFill([
-                'status' => 'reconciliation_required',
-                'failure_reason' => 'Transfer webhook did not contain a usable provider transfer code.',
-            ])->save();
-
-            return ['outcome' => 'reconciliation_required', 'duplicate' => false];
+            return $this->markReconciliationRequired(
+                $payout->id,
+                'Transfer webhook did not contain a usable provider transfer code.',
+            );
         }
 
         try {
@@ -53,32 +51,32 @@ class BankPayoutReconciliationService
             // Any unexpected failure leaves the provider outcome unconfirmed.
             // Preserve the reservation and require reconciliation; never infer failure.
             report($exception);
-            $payout->forceFill([
-                'status' => 'reconciliation_required',
-                'failure_reason' => 'Provider status could not be verified; funds remain reserved for reconciliation.',
-            ])->save();
-
-            return ['outcome' => 'reconciliation_required', 'duplicate' => false];
+            return $this->markReconciliationRequired(
+                $payout->id,
+                'Provider status could not be verified; funds remain reserved for reconciliation.',
+            );
         }
 
         if (($verified['reference'] ?? null) !== $payout->provider_reference
             || (string) ($verified['transfer_code'] ?? $transferCode) !== $transferCode) {
-            $payout->forceFill([
-                'status' => 'reconciliation_required',
-                'failure_reason' => 'Verified provider transfer did not match the payout reference.',
-            ])->save();
-
-            return ['outcome' => 'reconciliation_required', 'duplicate' => false];
+            return $this->markReconciliationRequired(
+                $payout->id,
+                'Verified provider transfer did not match the payout reference.',
+            );
         }
 
         $providerStatus = strtolower((string) ($verified['status'] ?? 'unknown'));
         if ($eventType === 'transfer.success' && $providerStatus !== 'success') {
-            $payout->forceFill(['status' => 'reconciliation_required', 'failure_reason' => 'Transfer-success webhook did not match verified provider status.'])->save();
-            return ['outcome' => 'reconciliation_required', 'duplicate' => false];
+            return $this->markReconciliationRequired(
+                $payout->id,
+                'Transfer-success webhook did not match verified provider status.',
+            );
         }
         if (in_array($eventType, ['transfer.failed', 'transfer.reversed'], true) && ! in_array($providerStatus, ['failed', 'reversed'], true)) {
-            $payout->forceFill(['status' => 'reconciliation_required', 'failure_reason' => 'Transfer-failure webhook did not match a verified failed provider status.'])->save();
-            return ['outcome' => 'reconciliation_required', 'duplicate' => false];
+            return $this->markReconciliationRequired(
+                $payout->id,
+                'Transfer-failure webhook did not match a verified failed provider status.',
+            );
         }
 
         return DB::transaction(function () use ($payout, $providerStatus, $transferCode, $eventType): array {
@@ -133,4 +131,30 @@ class BankPayoutReconciliationService
             return ['outcome' => 'failed_refunded', 'duplicate' => false];
         }, attempts: 3);
     }
+    /**
+     * Mark uncertain provider outcomes under a row lock so a stale webhook cannot
+     * overwrite a concurrently confirmed payout result.
+     *
+     * @return array{outcome: string, duplicate: bool}
+     */
+    private function markReconciliationRequired(int $payoutId, string $reason): array
+    {
+        return DB::transaction(function () use ($payoutId, $reason): array {
+            $locked = BankPayout::query()->whereKey($payoutId)->lockForUpdate()->firstOrFail();
+
+            // A concurrent canonical event may have settled this payout while the
+            // provider lookup was in flight. Do not downgrade a terminal result.
+            if (in_array($locked->status, ['succeeded', 'failed_refunded'], true)) {
+                return ['outcome' => $locked->status, 'duplicate' => true];
+            }
+
+            $locked->forceFill([
+                'status' => 'reconciliation_required',
+                'failure_reason' => $reason,
+            ])->save();
+
+            return ['outcome' => 'reconciliation_required', 'duplicate' => false];
+        }, attempts: 3);
+    }
+
 }
