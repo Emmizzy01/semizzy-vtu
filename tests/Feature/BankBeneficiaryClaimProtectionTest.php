@@ -96,7 +96,7 @@ class BankBeneficiaryClaimProtectionTest extends TestCase
             'password' => 'not-a-real-password',
         ]);
 
-        $paystack = \\Mockery::mock(\\App\\Services\\Payments\\PaystackClient::class);
+        $paystack = \Mockery::mock(\App\Services\Payments\PaystackClient::class);
         $paystack->shouldReceive('listNigerianBanks')->twice()->andReturn([
             ['name' => 'Example Test Bank', 'code' => '999'],
         ]);
@@ -107,14 +107,14 @@ class BankBeneficiaryClaimProtectionTest extends TestCase
         $paystack->shouldReceive('createTransferRecipient')
             ->once()
             ->with('Unknown Recipient Owner', '0123456789', '999')
-            ->andThrow(new \\LogicException('Bank recipient registration result is unknown; verify provider state before retrying.'));
-        $this->app->instance(\\App\\Services\\Payments\\PaystackClient::class, $paystack);
+            ->andThrow(new \LogicException('Bank recipient registration result is unknown; verify provider state before retrying.'));
+        $this->app->instance(\App\Services\Payments\PaystackClient::class, $paystack);
 
         try {
-            app(\\App\\Services\\Wallets\\BankPayoutService::class)
+            app(\App\Services\Wallets\BankPayoutService::class)
                 ->addBeneficiary($user, '999', '0123456789');
             $this->fail('An unknown recipient result must not be treated as a confirmed success.');
-        } catch (\\LogicException $exception) {
+        } catch (\LogicException $exception) {
             $this->assertStringContainsString('result is unknown', $exception->getMessage());
         }
 
@@ -127,10 +127,10 @@ class BankBeneficiaryClaimProtectionTest extends TestCase
         ]);
 
         try {
-            app(\\App\\Services\\Wallets\\BankPayoutService::class)
+            app(\App\Services\Wallets\BankPayoutService::class)
                 ->addBeneficiary($user, '999', '0123456789');
             $this->fail('A retry must be blocked while the provider creation outcome is unknown.');
-        } catch (\\LogicException $exception) {
+        } catch (\LogicException $exception) {
             $this->assertStringContainsString('already being verified', $exception->getMessage());
         }
 
