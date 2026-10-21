@@ -4,10 +4,13 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use App\Models\UserPermission;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class AdminDirectUrlAuthorizationTest extends TestCase
 {
+    use RefreshDatabase;
+
     public function test_admin_urls_redirect_guests_to_login(): void
     {
         $this->get('/admin/dashboard')->assertRedirect('/login');
