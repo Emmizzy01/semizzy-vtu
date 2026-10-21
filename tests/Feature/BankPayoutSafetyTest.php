@@ -525,7 +525,7 @@ class BankPayoutSafetyTest extends TestCase
             'email' => 'concurrent-payout-settlement@example.test',
             'password' => 'not-a-real-password',
         ]);
-        $beneficiary = \\App\\Models\\BankBeneficiary::query()->create([
+        $beneficiary = \App\Models\BankBeneficiary::query()->create([
             'user_id' => $user->id,
             'bank_code' => '999',
             'bank_name' => 'Concurrent Settlement Bank',
@@ -536,8 +536,8 @@ class BankPayoutSafetyTest extends TestCase
             'verification_status' => 'verified',
             'verified_at' => now(),
         ]);
-        $payout = \\App\\Models\\BankPayout::query()->create([
-            'public_id' => (string) \\Illuminate\\Support\\Str::uuid(),
+        $payout = \App\Models\BankPayout::query()->create([
+            'public_id' => (string) \Illuminate\Support\Str::uuid(),
             'user_id' => $user->id,
             'bank_beneficiary_id' => $beneficiary->id,
             'currency' => 'NGN',
@@ -552,7 +552,7 @@ class BankPayoutSafetyTest extends TestCase
             'metadata' => ['gateway_mode' => 'test'],
         ]);
 
-        $paystack = \\Mockery::mock(\\App\\Services\\Payments\\PaystackClient::class);
+        $paystack = \Mockery::mock(\App\Services\Payments\PaystackClient::class);
         $paystack->shouldReceive('fetchBankTransfer')
             ->once()
             ->with('TRF_concurrent_settlement')
@@ -560,11 +560,11 @@ class BankPayoutSafetyTest extends TestCase
                 // Simulate another verified webhook winning while this lookup is in flight.
                 $payout->forceFill(['status' => 'succeeded'])->save();
 
-                throw new \\RuntimeException('Stale webhook lookup lost its connection.');
+                throw new \RuntimeException('Stale webhook lookup lost its connection.');
             });
-        $this->app->instance(\\App\\Services\\Payments\\PaystackClient::class, $paystack);
+        $this->app->instance(\App\Services\Payments\PaystackClient::class, $paystack);
 
-        $result = app(\\App\\Services\\Wallets\\BankPayoutReconciliationService::class)
+        $result = app(\App\Services\Wallets\BankPayoutReconciliationService::class)
             ->applyPaystackEvent('transfer.failed', [
                 'data' => [
                     'reference' => 'semizzy_concurrent_settlement_001',
