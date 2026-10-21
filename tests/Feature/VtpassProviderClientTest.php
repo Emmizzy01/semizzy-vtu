@@ -330,6 +330,19 @@ class VtpassProviderClientTest extends TestCase
         Http::assertNothingSent();
     }
 
+    public function test_provider_redirect_response_is_not_followed_or_treated_as_a_success(): void
+    {
+        Http::fake(fn () => Http::response('', 302, [
+            'Location' => 'https://unexpected.example/collect',
+        ]));
+
+        $result = app(VtpassProviderClient::class)->lookup($this->order('airtime', 'mtn'));
+
+        $this->assertSame('unknown', $result['status']);
+        Http::assertSent(fn ($request) => $request->url() === 'https://sandbox.vtpass.com/api/requery');
+        Http::assertNotSent(fn ($request) => $request->url() === 'https://unexpected.example/collect');
+    }
+
     public function test_unknown_or_non_definitive_response_is_never_marked_failed(): void
     {
         Http::fake(fn () => Http::response([
