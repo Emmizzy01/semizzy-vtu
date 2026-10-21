@@ -107,4 +107,52 @@ class PlatformSettingsAccessTest extends TestCase
         $this->actingAs($customer)->get('/dashboard')->assertStatus(503)->assertInertia(fn ($page) => $page->component('Maintenance'));
         $this->actingAs($admin)->get('/admin/platform-settings')->assertOk();
     }
+    public function test_global_settings_cannot_disable_a_feature_with_an_enabled_dependent(): void
+    {
+        $admin = User::query()->create(['name' => 'Dependency Settings Admin', 'email' => 'dependency-settings-admin@example.test', 'password' => 'not-a-real-password']);
+        UserPermission::query()->create(['user_id' => $admin->id, 'permission' => 'staff.permissions.manage']);
+
+        \\App\\Models\\PlatformFeatureControl::query()->create([
+            'feature_key' => 'test.settings_dependent',
+            'label' => 'Settings dependent',
+            'category' => 'test',
+            'owner' => 'test-suite',
+            'description' => 'Ensures global settings preserve feature dependency rules',
+            'dependencies' => ['service.airtime_data'],
+            'default_enabled' => true,
+            'is_enabled' => true,
+            'is_core' => false,
+            'is_implemented' => true,
+        ]);
+
+        $this->actingAs($admin)->put('/admin/platform-settings', [
+            'site_name' => 'Semizzy',
+            'support_email' => 'support@example.test',
+            'support_phone' => '+2348000000000',
+            'theme_skin' => 'modern-green',
+            'maintenance_mode' => false,
+            'airtime_data_enabled' => false,
+            'manual_deposit_enabled' => false,
+            'homepage_browser_title' => 'Semizzy VTU - Single File Dashboard',
+            'homepage_cashback_line_one' => 'Enjoy 10% cashback',
+            'homepage_cashback_line_two' => 'on data purchases',
+            'homepage_cashback_subtitle' => 'Limited time offer',
+            'homepage_gadget_sale_title' => 'Big Gadget Sale',
+            'homepage_gadget_sale_subtitle' => 'Phones and laptops',
+            'homepage_referral_title' => 'Refer and Earn',
+            'homepage_referral_subtitle' => 'Invite friends to Semizzy',
+            'reason' => 'Attempt to disable a required dependency',
+        ])->assertStatus(422);
+
+        $this->assertSame('1', (string) app(IntegrationSettings::class)->get('service.airtime_data.enabled', '1'));
+        $this->assertDatabaseHas('platform_feature_controls', [
+            'feature_key' => 'service.airtime_data',
+            'is_enabled' => 1,
+        ]);
+        $this->assertDatabaseHas('platform_feature_controls', [
+            'feature_key' => 'test.settings_dependent',
+            'is_enabled' => 1,
+        ]);
+    }
+
 }
