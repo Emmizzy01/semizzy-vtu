@@ -141,6 +141,34 @@ class ScheduledServicePurchaseTest extends TestCase
         ]);
     }
 
+    public function test_processing_schedule_cannot_be_cancelled_while_outcome_is_unknown(): void
+    {
+        $user = User::query()->create([
+            'name' => 'Processing Schedule Owner',
+            'email' => 'processing-schedule-owner@example.test',
+            'password' => 'not-a-real-password',
+        ]);
+        $schedule = ScheduledServicePurchase::query()->create([
+            'user_id' => $user->id,
+            'service_type' => 'data',
+            'product_code' => 'processing-plan',
+            'recipient' => '08012345678',
+            'frequency' => 'daily',
+            'next_run_at' => now()->subMinute(),
+            'status' => 'processing',
+        ]);
+
+        $this->actingAs($user)
+            ->deleteJson('/wallet/scheduled-purchases/'.$schedule->id)
+            ->assertStatus(409)
+            ->assertJsonPath('message', 'This scheduled purchase is processing and cannot be cancelled until its outcome is recorded.');
+
+        $this->assertDatabaseHas('scheduled_service_purchases', [
+            'id' => $schedule->id,
+            'status' => 'processing',
+        ]);
+    }
+
     public function test_schedule_is_owner_scoped(): void
     {
         $owner = User::query()->create(['name' => 'Owner', 'email' => 'schedule-owner@example.test', 'password' => 'not-a-real-password']);
