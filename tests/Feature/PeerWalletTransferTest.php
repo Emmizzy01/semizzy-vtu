@@ -172,4 +172,37 @@ class PeerWalletTransferTest extends TestCase
         ]);
     }
 
+
+    public function test_http_transfer_idempotency_conflict_returns_409_without_second_debit_or_credit(): void
+    {
+        $sender = $this->makeUser('Conflict HTTP Sender', 'conflict-http-sender@example.test', 'conflicthttpsender');
+        $recipient = $this->makeUser('Conflict HTTP Recipient', 'conflict-http-recipient@example.test', 'conflicthttprecipient');
+        $sender->forceFill([
+            'transaction_pin_hash' => \\Illuminate\\Support\\Facades\\Hash::make('4928'),
+        ])->save();
+
+        $wallets = app(WalletAccountService::class);
+        $senderWallet = $wallets->openForUser($sender);
+        $recipientWallet = $wallets->openForUser($recipient);
+        app(WalletLedgerService::class)->post($senderWallet->id, 'credit', 50000, 'p2p-http-conflict-seed-001');
+
+        $payload = [
+            'recipient' => 'conflicthttprecipient',
+            'amount_minor' => 10000,
+            'transaction_pin' => '4928',
+            'idempotency_key' => 'p2p-http-conflict-key-001',
+        ];
+
+        $this->actingAs($sender)->postJson('/wallet/transfers', $payload)->assertCreated();
+        $this->postJson('/wallet/transfers', array_merge($payload, ['amount_minor' => 11000]))
+            ->assertStatus(409)
+            ->assertJsonPath('message', 'This transfer key was already used for a different request.');
+
+        $this->assertSame(40000, (int) $senderWallet->fresh()->balance_minor);
+        $this->assertSame(10000, (int) $recipientWallet->fresh()->balance_minor);
+        $this->assertDatabaseCount('wallet_transfers', 1);
+        $this->assertDatabaseCount('wallet_transactions', 3);
+        $this->assertDatabaseCount('wallet_ledger_entries', 3);
+    }
+
 }
