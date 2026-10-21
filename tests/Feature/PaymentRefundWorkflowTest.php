@@ -646,4 +646,40 @@ class PaymentRefundWorkflowTest extends TestCase
         $this->assertDatabaseCount('wallet_ledger_entries', 2);
     }
 
+
+    public function test_refund_queue_requires_refund_approval_permission_and_does_not_inherit_general_staff_access(): void
+    {
+        $customer = User::query()->create([
+            'name' => 'Refund Queue Customer',
+            'email' => 'refund-queue-customer@example.test',
+            'password' => 'test-password',
+        ]);
+        $generalStaff = User::query()->create([
+            'name' => 'General Staff',
+            'email' => 'refund-queue-general-staff@example.test',
+            'password' => 'test-password',
+        ]);
+        UserPermission::query()->create([
+            'user_id' => $generalStaff->id,
+            'permission' => 'staff.permissions.manage',
+        ]);
+        $refundApprover = User::query()->create([
+            'name' => 'Refund Queue Approver',
+            'email' => 'refund-queue-approver@example.test',
+            'password' => 'test-password',
+        ]);
+        UserPermission::query()->create([
+            'user_id' => $refundApprover->id,
+            'permission' => 'refunds.approve',
+        ]);
+
+        $this->actingAs($customer)->get('/admin/payment-refunds')->assertForbidden();
+        $this->actingAs($generalStaff)->get('/admin/payment-refunds')->assertForbidden();
+        $this->actingAs($generalStaff)->get('/admin/refunds')->assertForbidden();
+
+        $this->actingAs($refundApprover)->getJson('/admin/payment-refunds')
+            ->assertOk()
+            ->assertJsonPath('meta.total', 0);
+    }
+
 }
