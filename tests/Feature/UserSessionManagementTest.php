@@ -77,6 +77,17 @@ class UserSessionManagementTest extends TestCase
         $this->actingAs($user)->get('/account/sessions')->assertOk();
         $current = DB::table('user_sessions')->where('user_id', $user->id)->whereNull('revoked_at')->first();
         $this->assertNotNull($current);
+        DB::table('login_challenges')->insert([
+            'id' => (string) Str::uuid(),
+            'user_id' => $user->id,
+            'code_hash' => bcrypt('123456'),
+            'expires_at' => now()->addMinutes(10),
+            'attempts' => 0,
+            'consumed_at' => null,
+            'remember' => false,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
         $otherHash = hash('sha256', 'another-device-session');
         DB::table('user_sessions')->insert([
             'id' => (string) Str::uuid(), 'user_id' => $user->id, 'session_hash' => $otherHash,
@@ -89,6 +100,7 @@ class UserSessionManagementTest extends TestCase
         ])->assertRedirect();
         $this->assertAuthenticatedAs($user);
         $this->assertNotNull(DB::table('user_sessions')->where('session_hash', $otherHash)->value('revoked_at'));
+        $this->assertDatabaseMissing('login_challenges', ['user_id' => $user->id]);
         $this->assertNotNull(DB::table('user_sessions')->where('id', $current->id)->value('revoked_at'));
         $this->assertSame(1, DB::table('user_sessions')->where('user_id', $user->id)->whereNull('revoked_at')->count());
     }

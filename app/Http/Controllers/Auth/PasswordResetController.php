@@ -8,6 +8,7 @@ use App\Services\Security\TransactionPinService;
 use App\Services\Security\UserSessionService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
@@ -51,16 +52,26 @@ class PasswordResetController extends Controller
         ]);
 
         $status = Password::reset($data, function (User $user, string $password) use ($security, $sessions): void {
-            $user->forceFill([
-                'password' => Hash::make($password),
-                'remember_token' => Str::random(60),
-                // A forgotten login password invalidates the old transaction PIN.
-                'transaction_pin_hash' => null,
-                'transaction_pin_failed_attempts' => 0,
-                'transaction_pin_locked_until' => null,
-            ])->save();
-            $sessions->revokeAll($user);
-            $security->record($user->id, 'password_reset_completed', 'success', ['transaction_pin_cleared' => true, 'sessions_revoked' => true]);
+            DB::transaction(function () use ($user, $password, $security, $sessions): void {
+                $lockedUser = User::query()->whereKey($user->getKey())->lockForUpdate()->firstOrFail();
+                $lockedUser->forceFill([
+                    'password' => Hash::make($password),
+                    'remember_token' => Str::random(60),
+                    // A forgotten login password invalidates the old transaction PIN.
+                    'transaction_pin_hash' => null,
+                    'transaction_pin_failed_attempts' => 0,
+                    'transaction_pin_locked_until' => null,
+                ])->save();
+
+                // A pre-reset password + OTP flow must not complete after the reset.
+                DB::table('login_challenges')->where('user_id', $lockedUser->id)->delete();
+                $sessions->revokeAll($lockedUser);
+                $security->record($lockedUser->id, 'password_reset_completed', 'success', [
+                    'transaction_pin_cleared' => true,
+                    'sessions_revoked' => true,
+                    'pending_login_challenges_invalidated' => true,
+                ]);
+            });
         });
 
         if ($status === Password::PASSWORD_RESET) {

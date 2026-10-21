@@ -5,9 +5,11 @@ namespace Tests\Feature;
 use App\Models\User;
 use Illuminate\Auth\Notifications\ResetPassword as ResetPasswordNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Password;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 class PasswordResetWorkflowTest extends TestCase
@@ -30,6 +32,17 @@ class PasswordResetWorkflowTest extends TestCase
         $user = User::query()->create(['name' => 'Reset User', 'email' => 'reset-complete@example.test', 'password' => 'OriginalPassword123']);
         $user->forceFill(['transaction_pin_hash' => Hash::make('492815')])->save();
         $token = Password::createToken($user);
+        DB::table('login_challenges')->insert([
+            'id' => (string) Str::uuid(),
+            'user_id' => $user->id,
+            'code_hash' => Hash::make('123456'),
+            'expires_at' => now()->addMinutes(10),
+            'attempts' => 0,
+            'consumed_at' => null,
+            'remember' => false,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
 
         $this->post('/reset-password', [
             'token' => $token,
@@ -40,6 +53,7 @@ class PasswordResetWorkflowTest extends TestCase
 
         $this->assertTrue(Hash::check('ChangedPassword456', $user->fresh()->password));
         $this->assertNull($user->fresh()->transaction_pin_hash);
+        $this->assertDatabaseMissing('login_challenges', ['user_id' => $user->id]);
         $this->assertDatabaseHas('transaction_security_events', [
             'user_id' => $user->id,
             'event_type' => 'password_reset_completed',

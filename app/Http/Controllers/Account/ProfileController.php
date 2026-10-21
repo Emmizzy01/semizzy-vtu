@@ -99,20 +99,49 @@ class ProfileController extends Controller
             'current_password' => ['required', 'string', 'max:255'],
             'password' => ['required', 'string', 'min:12', 'max:255', 'confirmed', 'regex:/[a-z]/', 'regex:/[A-Z]/', 'regex:/[0-9]/'],
         ]);
-        if (! Hash::check($data['current_password'], $user->password)) {
-            $security->record($user->id, 'password_change', 'failed', []);
+
+        $previousSessionHash = $sessions->currentHash($request);
+        $result = DB::transaction(function () use ($user, $data, $security, $sessions, $previousSessionHash): string {
+            $lockedUser = User::query()->whereKey($user->getKey())->lockForUpdate()->firstOrFail();
+
+            // Recheck against the locked row so two simultaneous password changes
+            // cannot both succeed using the same old password.
+            if (! Hash::check($data['current_password'], $lockedUser->password)) {
+                $security->record($lockedUser->id, 'password_change', 'failed', []);
+                return 'incorrect';
+            }
+
+            if (Hash::check($data['password'], $lockedUser->password)) {
+                return 'same';
+            }
+
+            $sessions->revokeOthers($lockedUser, $previousSessionHash);
+            $lockedUser->forceFill([
+                'password' => Hash::make($data['password']),
+                'remember_token' => Str::random(60),
+            ])->save();
+
+            // Invalidate any OTP sign-in that began before this password change.
+            DB::table('login_challenges')->where('user_id', $lockedUser->id)->delete();
+            $security->record($lockedUser->id, 'password_changed', 'success', [
+                'other_sessions_revoked' => true,
+                'pending_login_challenges_invalidated' => true,
+            ]);
+
+            return 'changed';
+        }, attempts: 3);
+
+        if ($result === 'incorrect') {
             return back()->withErrors(['current_password' => 'Current password is incorrect.']);
         }
-        if (Hash::check($data['password'], $user->password)) {
+        if ($result === 'same') {
             return back()->withErrors(['password' => 'Choose a new password different from your current password.']);
         }
 
-        $previousSessionHash = $sessions->currentHash($request);
-        $sessions->revokeOthers($user, $previousSessionHash);
-        $user->forceFill(['password' => Hash::make($data['password']), 'remember_token' => Str::random(60)])->save();
+        $user->refresh();
         $request->session()->regenerate();
         $sessions->rotateCurrent($request, $user, $previousSessionHash);
-        $security->record($user->id, 'password_changed', 'success', ['session_regenerated' => true, 'other_sessions_revoked' => true]);
+
         return back()->with('status', 'Password changed. Your current session has been refreshed; sign in again on other devices if prompted.');
     }
 }

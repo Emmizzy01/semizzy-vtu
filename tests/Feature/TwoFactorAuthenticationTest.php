@@ -176,6 +176,27 @@ class TwoFactorAuthenticationTest extends TestCase
         $this->assertDatabaseCount('user_two_factor_recovery_codes', 0);
     }
 
+    public function test_two_factor_cannot_be_reenabled_over_an_existing_configuration(): void
+    {
+        $user = User::query()->create([
+            'name' => 'TOTP Already Enabled Customer',
+            'email' => 'totp-already-enabled@example.test',
+            'password' => 'CorrectPassword1234',
+        ]);
+        $secret = 'JBSWY3DPEHPK3PXP';
+        app(TotpTwoFactorService::class)->enable($user, $secret);
+        $storedSecret = $user->fresh()->two_factor_secret;
+
+        $this->actingAs($user)->withSession(['security.totp_setup_secret' => $secret])
+            ->post('/security/two-factor/enable', [
+                'password' => 'CorrectPassword1234',
+                'code' => $this->totpCode($secret),
+            ])->assertSessionHasErrors('code');
+
+        $this->assertSame($storedSecret, $user->fresh()->two_factor_secret);
+        $this->assertDatabaseCount('user_two_factor_recovery_codes', 10);
+    }
+
     private function totpCode(string $secret): string
     {
         $alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';

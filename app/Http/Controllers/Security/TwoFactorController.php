@@ -34,6 +34,10 @@ class TwoFactorController extends Controller
 
     public function enable(Request $request, TotpTwoFactorService $totp): RedirectResponse
     {
+        if ($request->user()->two_factor_enabled_at !== null) {
+            return back()->withErrors(['code' => 'Two-factor authentication is already enabled. Disable it before setting it up again.']);
+        }
+
         $data = $request->validate(['password' => ['required', 'string'], 'code' => ['required', 'string', 'max:32']]);
         if (!Hash::check($data['password'], $request->user()->password)) {
             return back()->withErrors(['password' => 'Your current password is incorrect.']);
