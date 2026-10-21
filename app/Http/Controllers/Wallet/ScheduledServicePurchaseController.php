@@ -145,12 +145,28 @@ class ScheduledServicePurchaseController extends Controller
 
     public function destroy(Request $request, int $schedule): JsonResponse
     {
-        $item = ScheduledServicePurchase::query()->where('user_id', $request->user()->getKey())
-            ->whereKey($schedule)->firstOrFail();
-        if ($item->status === 'processing') {
+        $result = DB::transaction(function () use ($request, $schedule): array {
+            // Serialize cancellation with the scheduler's active -> processing
+            // claim. Without this row lock, a concurrent cancel can overwrite a
+            // processing claim and falsely tell the user the run was cancelled.
+            $item = ScheduledServicePurchase::query()
+                ->where('user_id', $request->user()->getKey())
+                ->whereKey($schedule)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if ($item->status === 'processing') {
+                return ['processing' => true];
+            }
+
+            $item->update(['status' => 'cancelled']);
+
+            return ['processing' => false];
+        });
+
+        if ($result['processing']) {
             return response()->json(['message' => 'This scheduled purchase is processing and cannot be cancelled until its outcome is recorded.'], 409);
         }
-        $item->update(['status' => 'cancelled']);
 
         return response()->json(['message' => 'Scheduled purchase cancelled.']);
     }
