@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Services\Security\TotpTwoFactorService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Password;
 use Tests\TestCase;
 
 class TwoFactorAuthenticationTest extends TestCase
@@ -70,6 +71,8 @@ class TwoFactorAuthenticationTest extends TestCase
             'auth.two_factor_user_id' => (int) $user->id,
             'auth.two_factor_remember' => false,
             'auth.two_factor_attempts' => 4,
+            'auth.two_factor_started_at' => now()->timestamp,
+            'auth.two_factor_password_fingerprint' => hash('sha256', (string) $user->fresh()->password),
         ])->from('/login/two-factor')->post('/login/two-factor', ['code' => '000000']);
         $response->assertRedirect('/login')->assertSessionHasErrors('identifier');
 
@@ -92,12 +95,42 @@ class TwoFactorAuthenticationTest extends TestCase
             'auth.two_factor_remember' => false,
             'auth.two_factor_attempts' => 0,
             'auth.two_factor_started_at' => now()->subMinutes(6)->timestamp,
+            'auth.two_factor_password_fingerprint' => hash('sha256', (string) $user->fresh()->password),
         ])->from('/login/two-factor')->post('/login/two-factor', ['code' => '000000']);
         $response->assertRedirect('/login')->assertSessionHasErrors('identifier');
 
         $this->assertGuest();
         $response->assertSessionMissing('auth.two_factor_user_id');
         $response->assertSessionMissing('auth.two_factor_started_at');
+    }
+
+    public function test_password_reset_invalidates_a_pending_totp_login_challenge(): void
+    {
+        $user = User::query()->create([
+            'name' => 'Reset Pending TOTP Customer',
+            'email' => 'reset-pending-totp@example.test',
+            'password' => 'CorrectPassword1234',
+        ]);
+        $secret = 'JBSWY3DPEHPK3PXP';
+        app(TotpTwoFactorService::class)->enable($user, $secret);
+
+        $this->post('/login', [
+            'identifier' => $user->email,
+            'password' => 'CorrectPassword1234',
+        ])->assertRedirect('/login/two-factor');
+
+        $token = Password::createToken($user);
+        $this->post('/reset-password', [
+            'token' => $token,
+            'email' => $user->email,
+            'password' => 'ChangedPassword5678',
+            'password_confirmation' => 'ChangedPassword5678',
+        ])->assertRedirect('/login');
+
+        $this->from('/login/two-factor')->post('/login/two-factor', ['code' => $this->totpCode($secret)])
+            ->assertRedirect('/login')
+            ->assertSessionHasErrors('identifier');
+        $this->assertGuest();
     }
 
     public function test_email_otp_must_be_completed_before_totp_challenge(): void

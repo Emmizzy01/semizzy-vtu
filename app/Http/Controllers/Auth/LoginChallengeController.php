@@ -91,6 +91,7 @@ class LoginChallengeController extends Controller
             $request->session()->put('auth.two_factor_remember', (bool) $result['remember']);
             $request->session()->put('auth.two_factor_attempts', 0);
             $request->session()->put('auth.two_factor_started_at', now()->timestamp);
+            $request->session()->put('auth.two_factor_password_fingerprint', hash('sha256', (string) $user->password));
             return redirect()->route('login.two-factor');
         }
 
