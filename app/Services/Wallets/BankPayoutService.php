@@ -96,9 +96,8 @@ class BankPayoutService
             throw new InvalidArgumentException('Select a bank from the current bank directory.');
         }
 
-        // Avoid creating a provider-side recipient when this exact bank account
-        // is already attached to a Semizzy account. account_number is encrypted at
-        // rest, but Eloquent decrypts it when read; never log or return the full value.
+        // Preserve the fast path for already-saved accounts. The claim table below
+        // closes the race between this lookup and the provider recipient call.
         $matchingAccount = BankBeneficiary::query()
             ->where('bank_code', $bankCode)
             ->orderBy('id')
@@ -116,6 +115,62 @@ class BankPayoutService
             return $matchingAccount;
         }
 
+        // A keyed fingerprint avoids storing/indexing plaintext account numbers.
+        // The unique DB constraint serializes competing requests before either
+        // request can create a provider-side recipient.
+        $appKey = (string) config('app.key');
+        if ($appKey === '') {
+            throw new LogicException('Bank beneficiary protection is unavailable because the application key is missing.');
+        }
+        $fingerprint = hash_hmac('sha256', $bankCode.'|'.trim($accountNumber), $appKey);
+
+        $claim = DB::transaction(function () use ($fingerprint, $user): object {
+            DB::table('bank_beneficiary_claims')->insertOrIgnore([
+                'account_fingerprint' => $fingerprint,
+                'user_id' => $user->id,
+                'beneficiary_id' => null,
+                'status' => 'pending',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+
+            return DB::table('bank_beneficiary_claims')
+                ->where('account_fingerprint', $fingerprint)
+                ->lockForUpdate()
+                ->firstOrFail();
+        }, attempts: 3);
+
+        if ((int) $claim->user_id !== (int) $user->id) {
+            throw new LogicException('This bank account is already associated with another Semizzy account.');
+        }
+
+        if ($claim->beneficiary_id !== null) {
+            $claimedBeneficiary = BankBeneficiary::query()->find($claim->beneficiary_id);
+            if ($claimedBeneficiary !== null && (int) $claimedBeneficiary->user_id === (int) $user->id) {
+                return $claimedBeneficiary;
+            }
+
+            throw new LogicException('This bank account is reserved for verification recovery. Contact support; do not submit it again.');
+        }
+
+        // A pending claim is deliberately not retried: the previous request may
+        // have reached the provider even if its response was lost. This fails
+        // closed instead of creating another provider recipient on an uncertain outcome.
+        $claimWasJustCreated = (string) $claim->status === 'pending'
+            && DB::table('bank_beneficiary_claims')
+                ->where('account_fingerprint', $fingerprint)
+                ->where('user_id', $user->id)
+                ->whereNull('beneficiary_id')
+                ->where('created_at', '>=', now()->subSeconds(3))
+                ->exists();
+
+        // The DB claim may have been created by another concurrent request. Only
+        // the request that inserted it may proceed; a unique insert that conflicted
+        // must not cause a second provider recipient to be created.
+        if (! $claimWasJustCreated) {
+            throw new LogicException('This bank account is already being verified. If you just submitted it, wait or contact support before retrying.');
+        }
+
         $resolved = $this->paystack->resolveNigerianAccount($accountNumber, $bankCode);
         $recipient = $this->paystack->createTransferRecipient($resolved['account_name'], $accountNumber, $bankCode);
         $recipientCode = $recipient['recipient_code'];
@@ -125,20 +180,38 @@ class BankPayoutService
             if ((int) $existing->user_id !== (int) $user->id) {
                 throw new LogicException('This provider recipient is already associated with another Semizzy account.');
             }
+
+            DB::table('bank_beneficiary_claims')
+                ->where('account_fingerprint', $fingerprint)
+                ->update(['beneficiary_id' => $existing->id, 'status' => 'complete', 'updated_at' => now()]);
+
             return $existing;
         }
 
-        return BankBeneficiary::query()->create([
-            'user_id' => $user->id,
-            'bank_code' => $bankCode,
-            'bank_name' => (string) $bank['name'],
-            'account_number' => $accountNumber,
-            'account_number_last4' => substr($accountNumber, -4),
-            'account_name' => $resolved['account_name'],
-            'provider_recipient_code' => $recipientCode,
-            'verification_status' => 'verified',
-            'verified_at' => now(),
-        ]);
+        return DB::transaction(function () use ($user, $bank, $bankCode, $accountNumber, $resolved, $recipientCode, $fingerprint): BankBeneficiary {
+            $beneficiary = BankBeneficiary::query()->create([
+                'user_id' => $user->id,
+                'bank_code' => $bankCode,
+                'bank_name' => (string) $bank['name'],
+                'account_number' => $accountNumber,
+                'account_number_last4' => substr($accountNumber, -4),
+                'account_name' => $resolved['account_name'],
+                'provider_recipient_code' => $recipientCode,
+                'verification_status' => 'verified',
+                'verified_at' => now(),
+            ]);
+
+            DB::table('bank_beneficiary_claims')
+                ->where('account_fingerprint', $fingerprint)
+                ->where('user_id', $user->id)
+                ->update([
+                    'beneficiary_id' => $beneficiary->id,
+                    'status' => 'complete',
+                    'updated_at' => now(),
+                ]);
+
+            return $beneficiary;
+        }, attempts: 3);
     }
 
     public function removeBeneficiary(User $user, int $beneficiaryId): void
