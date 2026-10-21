@@ -27,18 +27,30 @@ class PrivacyRequestController extends Controller
             'reason' => ['nullable', 'string', 'max:2000'],
         ]);
 
-        $existing = PrivacyRequest::query()->where('user_id', $request->user()->id)
-            ->whereIn('status', ['submitted', 'in_review', 'approved'])
-            ->where('request_type', $data['request_type'])->exists();
-        if ($existing) {
+        // Serialize submissions per account. The row lock makes the open-request
+        // check and insert atomic against simultaneous requests for the same type.
+        $created = DB::transaction(function () use ($request, $data): bool {
+            DB::table('users')->where('id', $request->user()->id)->lockForUpdate()->first();
+
+            $existing = PrivacyRequest::query()->where('user_id', $request->user()->id)
+                ->whereIn('status', ['submitted', 'in_review', 'approved'])
+                ->where('request_type', $data['request_type'])->exists();
+            if ($existing) {
+                return false;
+            }
+
+            PrivacyRequest::query()->create([
+                'user_id' => $request->user()->id,
+                'request_type' => $data['request_type'],
+                'reason' => trim((string) ($data['reason'] ?? '')) ?: null,
+            ]);
+
+            return true;
+        }, attempts: 3);
+
+        if (! $created) {
             return back()->withErrors(['request_type' => 'You already have an open request of this type. Please wait for it to be reviewed.']);
         }
-
-        PrivacyRequest::query()->create([
-            'user_id' => $request->user()->id,
-            'request_type' => $data['request_type'],
-            'reason' => trim((string) ($data['reason'] ?? '')) ?: null,
-        ]);
 
         return back()->with('success', 'Privacy request submitted for review. No account data has been deleted or changed automatically.');
     }
