@@ -10,6 +10,7 @@ use App\Services\Vtu\VtuOrderService;
 use App\Services\Vtu\VtuProviderWebhookService;
 use App\Services\Wallets\WalletAccountService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 use RuntimeException;
 use Tests\TestCase;
@@ -141,7 +142,7 @@ class VtuProviderWebhookRecoveryTest extends TestCase
             $this->assertNotNull($event->fresh()->last_attempted_at);
 
             // Model a worker restart after the documented five-minute retry backoff.
-            \\Illuminate\\Support\\Carbon::setTestNow(now()->addMinutes(6));
+            Carbon::setTestNow(now()->addMinutes(6));
             $second = app(VtuProviderWebhookService::class)->process();
 
             $this->assertSame(1, $second['checked']);
@@ -149,7 +150,7 @@ class VtuProviderWebhookRecoveryTest extends TestCase
             $this->assertNotNull($event->fresh()->processed_at);
             $this->assertNull($event->fresh()->processing_error);
         } finally {
-            \\Illuminate\\Support\\Carbon::setTestNow();
+            Carbon::setTestNow();
         }
     }
 
