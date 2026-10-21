@@ -56,6 +56,23 @@ class VtpassProviderClientTest extends TestCase
         Http::assertSent(fn ($request) => $request->url() === 'https://sandbox.vtpass.com/api/requery');
     }
 
+    public function test_order_service_type_must_match_validated_catalogue_product(): void
+    {
+        Http::fake();
+
+        $order = $this->order('airtime', 'mtn');
+        $order->service_type = 'data';
+
+        try {
+            app(VtpassProviderClient::class)->submit($order);
+            $this->fail('An order must not submit a payload for a service type different from its catalogue product.');
+        } catch (\\LogicException $exception) {
+            $this->assertStringContainsString('does not match its catalogue product', $exception->getMessage());
+        }
+
+        Http::assertNothingSent();
+    }
+
     public function test_production_rejects_sandbox_before_any_provider_request(): void
     {
         config(['app.env' => 'production']);
