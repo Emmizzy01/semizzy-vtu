@@ -39,6 +39,7 @@ class ScheduledServicePurchaseTest extends TestCase
             'recipient' => '08012345678',
             'frequency' => 'weekly',
             'next_run_at' => now()->addDay()->toIso8601String(),
+            'idempotency_key' => 'schedule-create-key-0001',
             'transaction_pin' => '1234',
         ])->assertCreated()->assertJsonPath('data.status', 'active');
 
@@ -81,6 +82,7 @@ class ScheduledServicePurchaseTest extends TestCase
             'recipient' => '08012345678',
             'frequency' => 'daily',
             'next_run_at' => now()->addDay()->toIso8601String(),
+            'idempotency_key' => 'schedule-create-key-0002',
             'transaction_pin' => '0000',
         ];
         $this->actingAs($user)->postJson('/wallet/scheduled-purchases', $payload)->assertUnprocessable();
@@ -89,6 +91,54 @@ class ScheduledServicePurchaseTest extends TestCase
         $payload['transaction_pin'] = '1234';
         $this->actingAs($user)->postJson('/wallet/scheduled-purchases', $payload)->assertUnprocessable();
         $this->assertDatabaseCount('scheduled_service_purchases', 0);
+    }
+
+    public function test_schedule_creation_is_idempotent_and_rejects_key_reuse_with_changed_payload(): void
+    {
+        $user = User::query()->create([
+            'name' => 'Idempotent Schedule User',
+            'email' => 'idempotent-schedule@example.test',
+            'password' => 'not-a-real-password',
+        ]);
+        $user->forceFill(['transaction_pin_hash' => Hash::make('2468')])->save();
+
+        VtuProduct::query()->create([
+            'service_type' => 'data',
+            'network' => 'mtn',
+            'code' => 'idempotent-schedule-plan',
+            'name' => 'MTN Repeat Data Plan',
+            'price_minor' => 100000,
+            'currency' => 'NGN',
+            'is_active' => true,
+            'metadata' => ['catalog_source' => 'sogo', 'provider_mappings' => ['sogo' => ['network' => 'mtn', 'variation_code' => 'plan-1']]],
+        ]);
+
+        $payload = [
+            'service_type' => 'data',
+            'product_code' => 'idempotent-schedule-plan',
+            'recipient' => '08012345678',
+            'frequency' => 'weekly',
+            'next_run_at' => now()->addDay()->toIso8601String(),
+            'idempotency_key' => 'schedule-idempotency-0001',
+            'transaction_pin' => '2468',
+        ];
+
+        $first = $this->actingAs($user)->postJson('/wallet/scheduled-purchases', $payload)->assertCreated();
+        $scheduleId = $first->json('data.id');
+
+        $this->postJson('/wallet/scheduled-purchases', $payload)
+            ->assertOk()
+            ->assertJsonPath('data.id', $scheduleId);
+
+        $changed = $payload;
+        $changed['recipient'] = '08087654321';
+        $this->postJson('/wallet/scheduled-purchases', $changed)->assertStatus(409);
+
+        $this->assertDatabaseCount('scheduled_service_purchases', 1);
+        $this->assertDatabaseHas('scheduled_service_purchases', [
+            'id' => $scheduleId,
+            'idempotency_key' => 'schedule-idempotency-0001',
+        ]);
     }
 
     public function test_schedule_is_owner_scoped(): void

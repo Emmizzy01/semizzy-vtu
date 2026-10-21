@@ -4,10 +4,13 @@ namespace App\Http\Controllers\Wallet;
 
 use App\Http\Controllers\Controller;
 use App\Models\ScheduledServicePurchase;
+use App\Models\User;
 use App\Models\VtuProduct;
 use App\Services\Security\TransactionPinService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
 class ScheduledServicePurchaseController extends Controller
@@ -26,6 +29,9 @@ class ScheduledServicePurchaseController extends Controller
 
     public function store(Request $request, TransactionPinService $pins): JsonResponse
     {
+        $request->merge([
+            'idempotency_key' => $request->input('idempotency_key', $request->header('Idempotency-Key')),
+        ]);
         $validated = $request->validate([
             'service_type' => ['required', Rule::in(['airtime', 'data', 'electricity-bill', 'tv-subscription'])],
             'product_code' => ['required', 'string', 'max:100'],
@@ -33,6 +39,7 @@ class ScheduledServicePurchaseController extends Controller
             'amount' => ['nullable', 'numeric', 'min:1', 'max:1000000'],
             'frequency' => ['required', Rule::in(['daily', 'weekly', 'monthly'])],
             'next_run_at' => ['required', 'date', 'after:now'],
+            'idempotency_key' => ['required', 'string', 'min:8', 'max:128', 'regex:/^[A-Za-z0-9._:-]+$/'],
             'transaction_pin' => ['required', 'digits:4'],
             'meter_type' => ['nullable', Rule::in(['prepaid', 'postpaid'])],
             'contact_phone' => ['nullable', 'string', 'max:20', 'regex:/^\+?[0-9\s-]{10,20}$/'],
@@ -79,8 +86,7 @@ class ScheduledServicePurchaseController extends Controller
             return response()->json(['message' => 'Enter the electricity amount.'], 422);
         }
 
-        $schedule = ScheduledServicePurchase::query()->create([
-            'user_id' => $request->user()->getKey(),
+        $requestHash = hash('sha256', json_encode([
             'service_type' => $product->service_type,
             'product_code' => $product->code,
             'recipient' => $recipient,
@@ -88,11 +94,53 @@ class ScheduledServicePurchaseController extends Controller
             'currency' => 'NGN',
             'service_details' => $details ?: null,
             'frequency' => $validated['frequency'],
-            'next_run_at' => $validated['next_run_at'],
-            'status' => 'active',
-        ]);
+            'next_run_at' => Carbon::parse($validated['next_run_at'])->utc()->toISOString(),
+        ], JSON_THROW_ON_ERROR));
 
-        return response()->json(['data' => $schedule], 201);
+        $result = DB::transaction(function () use ($request, $product, $recipient, $amountMinor, $details, $validated, $requestHash): array {
+            // Serialize schedule creation per account so simultaneous retries cannot
+            // create two future debit schedules for the same idempotency key.
+            User::query()->whereKey($request->user()->getKey())->lockForUpdate()->firstOrFail();
+
+            $existing = ScheduledServicePurchase::query()
+                ->where('user_id', $request->user()->getKey())
+                ->where('idempotency_key', $validated['idempotency_key'])
+                ->lockForUpdate()
+                ->first();
+
+            if ($existing) {
+                $sameRequest = hash_equals((string) $existing->request_hash, $requestHash);
+
+                return [
+                    'schedule' => $existing,
+                    'replayed' => $sameRequest,
+                    'conflict' => ! $sameRequest,
+                ];
+            }
+
+            $schedule = ScheduledServicePurchase::query()->create([
+                'user_id' => $request->user()->getKey(),
+                'service_type' => $product->service_type,
+                'product_code' => $product->code,
+                'recipient' => $recipient,
+                'amount_minor' => $amountMinor,
+                'currency' => 'NGN',
+                'service_details' => $details ?: null,
+                'frequency' => $validated['frequency'],
+                'next_run_at' => $validated['next_run_at'],
+                'status' => 'active',
+                'idempotency_key' => $validated['idempotency_key'],
+                'request_hash' => $requestHash,
+            ]);
+
+            return ['schedule' => $schedule, 'replayed' => false, 'conflict' => false];
+        }, attempts: 3);
+
+        if ($result['conflict']) {
+            return response()->json(['message' => 'This idempotency key was already used for a different scheduled purchase.'], 409);
+        }
+
+        return response()->json(['data' => $result['schedule']], $result['replayed'] ? 200 : 201);
     }
 
     public function destroy(Request $request, int $schedule): JsonResponse

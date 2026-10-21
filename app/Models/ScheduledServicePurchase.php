@@ -10,6 +10,7 @@ class ScheduledServicePurchase extends Model
     protected $fillable = [
         'user_id', 'service_type', 'product_code', 'recipient', 'amount_minor',
         'currency', 'service_details', 'frequency', 'next_run_at', 'last_run_at',
+        'idempotency_key', 'request_hash',
         'status', 'last_order_public_id', 'last_result', 'last_error',
     ];
 
