@@ -76,7 +76,7 @@ class PeerWalletTransferMariaDbConcurrencyTest extends TestCase
                         'concurrent-p2p-same-key-001',
                     );
                     exit(0);
-                } catch (\\Throwable) {
+                } catch (\Throwable) {
                     exit(20);
                 }
             }
