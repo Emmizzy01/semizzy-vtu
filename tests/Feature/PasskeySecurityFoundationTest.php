@@ -1,16 +1,18 @@
 <?php
 
-namespace Tests\Feature;
+namespace Tests\\Feature;
 
-use App\Http\Middleware\EnsurePasskeysEnabled;
-use App\Http\Middleware\EnsureRecentPasskeyConfirmation;
-use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Route;
-use Tests\TestCase;
+use App\\Http\\Middleware\\EnsurePasskeysEnabled;
+use App\\Http\\Middleware\\EnsureRecentPasskeyConfirmation;
+use App\\Models\\User;
+use Illuminate\\Foundation\\Testing\\RefreshDatabase;
+use Illuminate\\Support\\Facades\\Route;
+use Tests\\TestCase;
 
 class PasskeySecurityFoundationTest extends TestCase
 {
     use RefreshDatabase;
+
     public function test_passkey_routes_are_disabled_by_default(): void
     {
         config(['passkeys.enabled' => false]);
@@ -32,12 +34,15 @@ class PasskeySecurityFoundationTest extends TestCase
         $this->get('/__test/passkeys-http-origin')->assertStatus(503);
     }
 
-    public function test_passkey_management_requires_recent_password_confirmation(): void
+    public function test_passkey_management_requires_recent_password_confirmation_bound_to_authenticated_user(): void
     {
+        $user = User::query()->create(['name' => 'Passkey Confirmation', 'email' => 'passkey-confirmation@example.test', 'password' => 'CorrectPassword1234']);
         Route::middleware(['web', EnsureRecentPasskeyConfirmation::class])->get('/__test/passkeys-confirm', fn () => response('ok'));
 
         $this->get('/__test/passkeys-confirm')->assertForbidden();
-        $this->withSession(['passkeys.password_confirmed_at' => now()->timestamp])
-            ->get('/__test/passkeys-confirm')->assertOk();
+        $this->actingAs($user)->withSession([
+            'passkeys.password_confirmed_at' => now()->timestamp,
+            'passkeys.password_confirmed_password_hash' => hash('sha256', (string) $user->password),
+        ])->get('/__test/passkeys-confirm')->assertOk();
     }
 }

@@ -1,21 +1,32 @@
 <?php
 
-namespace App\Http\Middleware;
+namespace App\\Http\\Middleware;
 
 use Closure;
-use Illuminate\Http\Request;
-use Symfony\Component\HttpFoundation\Response;
+use Illuminate\\Http\\Request;
+use Symfony\\Component\\HttpFoundation\\Response;
 
 class EnsureRecentPasskeyConfirmation
 {
     public function handle(Request $request, Closure $next): Response
     {
-        // Fail closed when this middleware is invoked without a started session.
-        // This also keeps isolated routes/tests from throwing a 500 before the 403 guard.
-        abort_unless($request->hasSession(), 403, 'Confirm your current password before managing passkeys.');
+        // Fail closed unless the request has both a session and an authenticated owner.
+        abort_unless($request->hasSession() && $request->user(), 403, 'Confirm your current password before managing passkeys.');
 
         $confirmedAt = (int) $request->session()->get('passkeys.password_confirmed_at', 0);
-        abort_if($confirmedAt < 1 || $confirmedAt < now()->subMinutes(5)->timestamp, 403, 'Confirm your current password before managing passkeys.');
+        $confirmedPasswordHash = $request->session()->get('passkeys.password_confirmed_password_hash');
+        $currentPasswordHash = hash('sha256', (string) $request->user()->password);
+
+        // A recent timestamp alone is insufficient: password changes must invalidate
+        // prior confirmation even when the five-minute window has not elapsed.
+        abort_if(
+            $confirmedAt < 1
+            || $confirmedAt < now()->subMinutes(5)->timestamp
+            || !is_string($confirmedPasswordHash)
+            || !hash_equals($currentPasswordHash, $confirmedPasswordHash),
+            403,
+            'Confirm your current password before managing passkeys.'
+        );
 
         return $next($request);
     }

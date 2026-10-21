@@ -139,6 +139,8 @@ class ProfileController extends Controller
         }
 
         $user->refresh();
+        // Password confirmation for sensitive passkey management must not survive a credential change.
+        $request->session()->forget(['passkeys.password_confirmed_at', 'passkeys.password_confirmed_password_hash']);
         $request->session()->regenerate();
         $sessions->rotateCurrent($request, $user, $previousSessionHash);
 

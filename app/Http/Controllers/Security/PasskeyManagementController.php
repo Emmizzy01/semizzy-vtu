@@ -23,7 +23,9 @@ class PasskeyManagementController extends Controller
                 'last_used_at' => $passkey->last_used_at?->toISOString(),
                 'created_at' => $passkey->created_at?->toISOString(),
             ])->values(),
-            'recentlyConfirmed' => (int) $request->session()->get('passkeys.password_confirmed_at', 0) >= now()->subMinutes(5)->timestamp,
+            'recentlyConfirmed' => (int) $request->session()->get('passkeys.password_confirmed_at', 0) >= now()->subMinutes(5)->timestamp
+                && is_string($request->session()->get('passkeys.password_confirmed_password_hash'))
+                && hash_equals(hash('sha256', (string) $user->password), (string) $request->session()->get('passkeys.password_confirmed_password_hash')),
         ]);
     }
 
@@ -38,6 +40,7 @@ class PasskeyManagementController extends Controller
         }
 
         $request->session()->put('passkeys.password_confirmed_at', now()->timestamp);
+        $request->session()->put('passkeys.password_confirmed_password_hash', hash('sha256', (string) $request->user()->password));
 
         return back()->with('status', 'Password confirmed. You can manage passkeys for the next five minutes.');
     }
