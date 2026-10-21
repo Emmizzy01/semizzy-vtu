@@ -71,3 +71,28 @@ Repository tests cannot establish merchant-account readiness. Before any provide
 - Keep real provider purchases, payouts and refunds gated while automated verification is in progress.
 
 **CI note:** The prior candidate's Laravel PHP 8.3/8.4 jobs were still running at the last check; a passed SQLite suite or frontend build is not a substitute for completed full CI. Recheck workflows after this document commit and report exact-SHA results only.
+
+
+## Follow-up verification — 21 October 2026
+
+### CI result for audit commit `9c7abb3d61e29482a496ad553282c7e5be0d417b`
+
+All three workflows for this exact commit completed successfully:
+
+- [Laravel and frontend checks](https://github.com/Emmizzy01/semizzy-vtu/actions/runs/39674112171): PHP 8.3, PHP 8.4, frontend build, MariaDB error-123 diagnostic (default isolation), and diagnostic (OFF) all passed.
+- [Phase 1 security verification](https://github.com/Emmizzy01/semizzy-vtu/actions/runs/39674112200): SQLite and MariaDB Laravel suites passed.
+- [Frontend asset build](https://github.com/Emmizzy01/semizzy-vtu/actions/runs/39674112002): passed.
+
+This closes CI verification for `9c7abb3d`; it does not automatically certify subsequent commits.
+
+### Additional dispatch guard
+
+Review found that the router's `submitAttempt` method checked order/provider identity but did not itself reject an attempt whose durable outcome was `unknown`, `failed`, or `pending`. The caller's recovery flow already has its own claims and gates, but defense in depth is appropriate at the network-dispatch boundary.
+
+The router now allows submission only for an attempt explicitly in `reserved` state (a second attempt reserved after an allowlisted definitive failure) or `recovery_dispatching` state (a locked same-key recovery claim). Unknown/historical attempts remain lookup-only. A focused regression test asserts an unknown attempt is rejected before any HTTP request.
+
+Commits:
+- `5807bd905804396cc78b49e376fa1834008972ca` — dispatch-state guard.
+- `b5501afad0f0029e2aaeb7cbebc87ad6b31762b3` — regression test.
+
+**Verification for these follow-up commits is pending their own CI runs.** No provider APIs were called and no real purchases, payouts, refunds, or production data changes were performed.
