@@ -81,6 +81,51 @@ class PaymentFundingWorkflowTest extends TestCase
         $this->assertDatabaseCount('payment_webhook_events', 1);
     }
 
+    public function test_reused_payment_webhook_event_id_with_changed_payload_is_rejected_without_second_credit(): void
+    {
+        config(['services.semizzy_payments.webhook_secrets.semizzy' => 'test-secret-that-is-long-enough-for-tests']);
+
+        $user = User::query()->create([
+            'name' => 'Webhook Conflict Customer',
+            'email' => 'webhook-conflict@example.test',
+            'password' => 'not-a-real-password',
+        ]);
+        $wallet = app(WalletAccountService::class)->openForUser($user);
+        $intent = app(PaymentIntentService::class)->create($wallet, 12500, 'semizzy');
+
+        $send = function (string $transactionId) use ($intent) {
+            $payload = [
+                'id' => 'evt_conflict_0001',
+                'type' => 'payment.succeeded',
+                'data' => [
+                    'reference' => $intent->reference,
+                    'transaction_id' => $transactionId,
+                    'status' => 'succeeded',
+                    'amount_minor' => 12500,
+                    'currency' => 'NGN',
+                ],
+            ];
+            $raw = json_encode($payload, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES);
+            $timestamp = now()->timestamp;
+            $signature = hash_hmac('sha256', $timestamp.'.'.$raw, 'test-secret-that-is-long-enough-for-tests');
+
+            return $this->call('POST', '/api/payments/webhooks/semizzy', [], [], [], [
+                'HTTP_X_SEMIZZY_SIGNATURE' => 't='.$timestamp.',v1='.$signature,
+                'CONTENT_TYPE' => 'application/json',
+            ], $raw);
+        };
+
+        $send('provider_tx_conflict_original')->assertOk()->assertJsonPath('outcome', 'credited');
+
+        $send('provider_tx_conflict_changed')->assertStatus(409);
+
+        $this->assertSame(12500, (int) $wallet->fresh()->balance_minor);
+        $this->assertSame('paid', $intent->fresh()->status);
+        $this->assertDatabaseCount('wallet_transactions', 1);
+        $this->assertDatabaseCount('wallet_ledger_entries', 1);
+        $this->assertDatabaseCount('payment_webhook_events', 1);
+    }
+
     public function test_verified_gateway_payment_over_wallet_limit_is_preserved_for_reconciliation(): void
     {
         config(['services.semizzy_payments.webhook_secrets.semizzy' => 'test-secret-that-is-long-enough-for-tests']);
