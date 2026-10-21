@@ -592,4 +592,58 @@ class PaymentRefundWorkflowTest extends TestCase
         $this->assertDatabaseCount('wallet_ledger_entries', 2);
     }
 
+
+
+    public function test_unexpected_reconciliation_lookup_exception_preserves_refund_state(): void
+    {
+        Http::fake([
+            'api.paystack.co/refund' => Http::response([
+                'status' => true,
+                'data' => ['id' => 7654321, 'status' => 'pending'],
+            ], 200),
+        ]);
+
+        $customer = User::query()->create([
+            'name' => 'Refund Reconcile Customer',
+            'email' => 'refund-reconcile-customer@example.test',
+            'password' => 'test-password',
+        ]);
+        $approver = User::query()->create([
+            'name' => 'Refund Reconcile Approver',
+            'email' => 'refund-reconcile-approver@example.test',
+            'password' => 'test-password',
+        ]);
+        UserPermission::query()->create(['user_id' => $approver->id, 'permission' => 'refunds.approve']);
+        $intent = $this->paidIntent($customer, 10000);
+
+        $request = $this->actingAs($customer)->postJson('/wallet/refund-requests', [
+            'payment_intent_id' => $intent->public_id,
+            'amount_minor' => 2500,
+            'reason' => 'Reconciliation lookup exception',
+            'idempotency_key' => 'refund-reconcile-exception-'.$customer->id,
+        ])->assertCreated();
+
+        $refundId = $request->json('data.id');
+        $this->actingAs($approver)->postJson('/admin/payment-refunds/'.$refundId.'/approve')
+            ->assertOk()
+            ->assertJsonPath('data.status', 'provider_pending');
+
+        $client = \Mockery::mock(\App\Services\Payments\PaystackClient::class);
+        $client->shouldReceive('fetchRefund')->once()->with('7654321', 'test')
+            ->andThrow(new \RuntimeException('Unexpected reconciliation transport failure.'));
+        app()->instance(\App\Services\Payments\PaystackClient::class, $client);
+
+        $result = app(\App\Services\Payments\PaymentRefundService::class)->reconcileProviderStatus($refundId);
+
+        $this->assertSame(['outcome' => 'unavailable', 'status' => 'provider_pending'], $result);
+        $this->assertDatabaseHas('payment_refunds', [
+            'public_id' => $refundId,
+            'status' => 'provider_pending',
+            'provider_refund_reference' => '7654321',
+        ]);
+        $this->assertSame(7500, (int) $intent->wallet()->first()->fresh()->balance_minor);
+        $this->assertDatabaseCount('wallet_transactions', 2);
+        $this->assertDatabaseCount('wallet_ledger_entries', 2);
+    }
+
 }
