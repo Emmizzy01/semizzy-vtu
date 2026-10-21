@@ -48,6 +48,28 @@ class VtuProviderWebhookRecoveryTest extends TestCase
         $this->assertSame('processing', $order->fresh()->status);
     }
 
+    public function test_sogo_event_and_embedded_status_must_agree_before_order_update(): void
+    {
+        $order = $this->createMatchedOrder('SOGO-CONTRADICTORY-1');
+        $event = $this->createEvent('evt-contradictory-1', 'SOGO-CONTRADICTORY-1');
+        $event->forceFill([
+            'payload' => [
+                'id' => 'evt-contradictory-1',
+                'event' => 'transaction.completed',
+                'data' => ['reference' => 'SOGO-CONTRADICTORY-1', 'status' => 'failed'],
+            ],
+        ])->save();
+
+        $stats = app(VtuProviderWebhookService::class)->process();
+
+        $this->assertSame(1, $stats['checked']);
+        $this->assertSame(1, $stats['ignored']);
+        $this->assertSame(0, $stats['processed']);
+        $this->assertNotNull($event->fresh()->processed_at);
+        $this->assertStringContainsString('Ignored unsupported webhook', $event->fresh()->processing_error);
+        $this->assertSame('processing', $order->fresh()->status);
+    }
+
     public function test_worker_skips_event_already_claimed_within_backoff_window(): void
     {
         $this->createMatchedOrder('SOGO-COMPETING-1');
