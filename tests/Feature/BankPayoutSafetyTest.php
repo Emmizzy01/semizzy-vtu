@@ -39,7 +39,7 @@ class BankPayoutSafetyTest extends TestCase
             'email' => 'stale-queued-payout@example.test',
             'password' => 'not-a-real-password',
         ]);
-        $beneficiary = \\App\\Models\\BankBeneficiary::query()->create([
+        $beneficiary = \App\Models\BankBeneficiary::query()->create([
             'user_id' => $user->id,
             'bank_code' => '999',
             'bank_name' => 'Recovery Test Bank',
@@ -52,8 +52,8 @@ class BankPayoutSafetyTest extends TestCase
         ]);
 
         $makePayout = function (string $suffix, string $status, $createdAt) use ($user, $beneficiary) {
-            return \\App\\Models\\BankPayout::query()->create([
-                'public_id' => (string) \\Illuminate\\Support\\Str::uuid(),
+            return \App\Models\BankPayout::query()->create([
+                'public_id' => (string) \Illuminate\Support\Str::uuid(),
                 'user_id' => $user->id,
                 'bank_beneficiary_id' => $beneficiary->id,
                 'currency' => 'NGN',
@@ -74,7 +74,7 @@ class BankPayoutSafetyTest extends TestCase
         $recent = $makePayout('recent', 'queued', now()->subMinutes(5));
         $pending = $makePayout('provider-pending', 'provider_pending', now()->subHour());
 
-        $exitCode = \\Illuminate\\Support\\Facades\\Artisan::call('bank-payouts:quarantine-stale-queued', [
+        $exitCode = \Illuminate\Support\Facades\Artisan::call('bank-payouts:quarantine-stale-queued', [
             '--minutes' => 30,
             '--limit' => 100,
         ]);
