@@ -553,7 +553,7 @@ class PaymentRefundWorkflowTest extends TestCase
     public function test_unexpected_transport_exception_marks_refund_for_review_without_resubmitting(): void
     {
         Http::fake(function () {
-            throw new \\RuntimeException('Connection lost after refund request dispatch.');
+            throw new \RuntimeException('Connection lost after refund request dispatch.');
         });
 
         $customer = User::query()->create([
