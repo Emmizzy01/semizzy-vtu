@@ -275,10 +275,11 @@ class VtpassProviderClient implements VtuProvider, BillerVerificationProvider
     {
         $baseUrl = rtrim((string) app(IntegrationSettings::class)->get('vtu.vtpass.base_url', config('services.vtu.vtpass.base_url')), '/');
 
-        return Http::withHeaders([
-            'api-key' => (string) app(IntegrationSettings::class)->get('vtu.vtpass.api_key', config('services.vtu.vtpass.api_key')),
-            'secret-key' => (string) app(IntegrationSettings::class)->get('vtu.vtpass.secret_key', config('services.vtu.vtpass.secret_key')),
-        ])
+        return Http::withOptions(['allow_redirects' => false])
+            ->withHeaders([
+                'api-key' => (string) app(IntegrationSettings::class)->get('vtu.vtpass.api_key', config('services.vtu.vtpass.api_key')),
+                'secret-key' => (string) app(IntegrationSettings::class)->get('vtu.vtpass.secret_key', config('services.vtu.vtpass.secret_key')),
+            ])
             ->acceptJson()
             ->asJson()
             ->connectTimeout(5)
