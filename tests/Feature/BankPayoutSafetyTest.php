@@ -341,4 +341,62 @@ class BankPayoutSafetyTest extends TestCase
             'status' => 'reconciliation_required',
         ]);
     }
+
+    public function test_unexpected_provider_lookup_exception_keeps_payout_reserved_for_reconciliation(): void
+    {
+        $user = User::query()->create([
+            'name' => 'Payout Reconciliation User',
+            'email' => 'payout-reconciliation-unknown@example.test',
+            'password' => 'not-a-real-password',
+        ]);
+        $beneficiary = \App\Models\BankBeneficiary::query()->create([
+            'user_id' => $user->id,
+            'bank_code' => '999',
+            'bank_name' => 'Reconciliation Test Bank',
+            'account_number' => '0123456789',
+            'account_number_last4' => '6789',
+            'account_name' => $user->name,
+            'provider_recipient_code' => 'RCP_reconciliation_unknown',
+            'verification_status' => 'verified',
+            'verified_at' => now(),
+        ]);
+        $payout = \App\Models\BankPayout::query()->create([
+            'public_id' => (string) \Illuminate\Support\Str::uuid(),
+            'user_id' => $user->id,
+            'bank_beneficiary_id' => $beneficiary->id,
+            'currency' => 'NGN',
+            'amount_minor' => 12500,
+            'fee_minor' => 0,
+            'status' => 'provider_pending',
+            'idempotency_key' => 'payout-reconciliation-unknown-001',
+            'request_hash' => hash('sha256', 'payout-reconciliation-unknown'),
+            'provider_reference' => 'semizzy_reconciliation_unknown_001',
+            'provider_transfer_code' => 'TRF_reconciliation_unknown',
+            'wallet_transaction_id' => null,
+            'metadata' => ['gateway_mode' => 'test'],
+        ]);
+
+        $paystack = \Mockery::mock(\App\Services\Payments\PaystackClient::class);
+        $paystack->shouldReceive('fetchBankTransfer')
+            ->once()
+            ->with('TRF_reconciliation_unknown')
+            ->andThrow(new \RuntimeException('Unexpected provider lookup failure.'));
+        $this->app->instance(\App\Services\Payments\PaystackClient::class, $paystack);
+
+        $result = app(\App\Services\Wallets\BankPayoutReconciliationService::class)
+            ->applyPaystackEvent('transfer.success', [
+                'data' => [
+                    'reference' => 'semizzy_reconciliation_unknown_001',
+                    'transfer_code' => 'TRF_reconciliation_unknown',
+                ],
+            ]);
+
+        $this->assertSame('reconciliation_required', $result['outcome']);
+        $this->assertSame('reconciliation_required', $payout->fresh()->status);
+        $this->assertStringContainsString('funds remain reserved', $payout->fresh()->failure_reason);
+        $this->assertDatabaseCount('wallet_transactions', 0);
+        $this->assertDatabaseCount('wallet_ledger_entries', 0);
+        $paystack->shouldHaveReceived('fetchBankTransfer')->once();
+    }
+
 }
