@@ -8,6 +8,7 @@ use App\Services\Security\TransactionPinService;
 use App\Services\Security\UserSessionService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -29,6 +30,7 @@ class ProfileController extends Controller
                 'date_of_birth' => $user->date_of_birth?->format('Y-m-d'),
                 'sex' => $user->sex,
                 'mobile_number' => $user->mobile_number,
+                'mobile_verified' => $user->mobile_verified_at !== null,
                 'user_type' => $user->user_type ?: 'customer',
                 'user_level' => $user->user_level ?: 'level_1',
                 'kyc_status' => $user->kyc_status ?: 'unverified',
@@ -52,25 +54,37 @@ class ProfileController extends Controller
         ]);
         $oldName = $user->name;
         $name = trim($data['name']);
+        $mobileNumber = isset($data['mobile_number']) ? trim((string) $data['mobile_number']) : null;
+        $mobileNumber = $mobileNumber === '' ? null : $mobileNumber;
+        $mobileChanged = $mobileNumber !== $user->mobile_number;
         $updates = [
             'name' => $name,
             'address' => isset($data['address']) ? trim($data['address']) : null,
             'date_of_birth' => $data['date_of_birth'] ?? null,
             'sex' => $data['sex'] ?? null,
-            'mobile_number' => $data['mobile_number'] ?? null,
+            'mobile_number' => $mobileNumber,
         ];
+        if ($mobileChanged) {
+            $updates['mobile_verified_at'] = null;
+        }
         if ($request->hasFile('avatar')) {
             $path = $request->file('avatar')->store('avatars/'.$user->id, 'public');
             if ($user->avatar_path) Storage::disk('public')->delete($user->avatar_path);
             $updates['avatar_path'] = $path;
         }
-        $user->forceFill($updates)->save();
+        DB::transaction(function () use ($user, $updates, $mobileChanged): void {
+            if ($mobileChanged) {
+                DB::table('verified_mobile_numbers')->where('user_id', $user->id)->delete();
+                DB::table('mobile_verification_challenges')->where('user_id', $user->id)->whereNull('consumed_at')->delete();
+            }
+            $user->forceFill($updates)->save();
+        });
         if ($name !== $oldName) $security->record($user->id, 'profile_name_updated', 'success', ['changed' => true]);
         $security->record($user->id, 'profile_details_updated', 'success', [
             'address_changed' => array_key_exists('address', $data),
             'date_of_birth_changed' => array_key_exists('date_of_birth', $data),
             'sex_changed' => array_key_exists('sex', $data),
-            'mobile_number_changed' => array_key_exists('mobile_number', $data),
+            'mobile_number_changed' => $mobileChanged,
             'avatar_changed' => $request->hasFile('avatar'),
         ]);
         return back()->with('status', 'Profile saved.');

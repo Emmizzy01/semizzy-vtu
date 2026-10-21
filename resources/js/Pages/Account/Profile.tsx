@@ -6,7 +6,7 @@ import { KeyRound, ShieldCheck, UserRound, ChevronRight, MonitorSmartphone, Came
 type Profile = {
   name: string; email: string; user_type: string; user_level: string; kyc_status: string;
   avatar_url: string | null; address: string | null; date_of_birth: string | null; sex: string | null; mobile_number: string | null;
-  transaction_pin_configured: boolean; transaction_pin_changed_at: string | null;
+  mobile_verified: boolean; transaction_pin_configured: boolean; transaction_pin_changed_at: string | null;
 };
 const tierLabel = (value: string) => ({ level_1: 'Tier1', level_2: 'Tier2', level_3: 'Tier3', level_4: 'Tier4/Merchant', tier1: 'Tier1', tier2: 'Tier2', tier3: 'Tier3', tier4: 'Tier4/Merchant' } as Record<string, string>)[value.toLowerCase()] || value.replace(/_/g, ' ').replace(/\b\w/g, char => char.toUpperCase());
 export default function ProfilePage({ profile }: { profile: Profile }) {
@@ -14,7 +14,12 @@ export default function ProfilePage({ profile }: { profile: Profile }) {
   const [address, setAddress] = useState(profile.address || '');
   const [dateOfBirth, setDateOfBirth] = useState(profile.date_of_birth || '');
   const [sex, setSex] = useState(profile.sex || '');
-  const [mobileNumber, setMobileNumber] = useState(profile.mobile_number || '+234');
+  const [mobileNumber, setMobileNumber] = useState(profile.mobile_number || '');
+  const [verificationCode, setVerificationCode] = useState('');
+  const [verificationBusy, setVerificationBusy] = useState(false);
+  const [verificationSent, setVerificationSent] = useState(false);
+  const [verificationMessage, setVerificationMessage] = useState('');
+  const [verificationError, setVerificationError] = useState('');
   const [avatar, setAvatar] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState(profile.avatar_url || '');
   const [currentPassword, setCurrentPassword] = useState('');
@@ -53,7 +58,23 @@ export default function ProfilePage({ profile }: { profile: Profile }) {
             <label className="block text-sm font-medium">Date of birth<input type="date" className="mt-1 w-full rounded-xl border bg-transparent p-3 dark:border-slate-700" value={dateOfBirth} onChange={e=>setDateOfBirth(e.target.value)} max={new Date().toISOString().slice(0,10)}/></label>
             <label className="block text-sm font-medium">Sex<select className="mt-1 w-full rounded-xl border bg-transparent p-3 dark:border-slate-700" value={sex} onChange={e=>setSex(e.target.value)}><option value="">Prefer not to specify</option><option value="female">Female</option><option value="male">Male</option><option value="other">Other</option><option value="prefer_not_to_say">Prefer not to say</option></select></label>
           </div>
-          <label className="block text-sm font-medium">Mobile number with country code<input type="tel" inputMode="tel" autoComplete="tel" className="mt-1 w-full rounded-xl border bg-transparent p-3 dark:border-slate-700" value={mobileNumber || ''} onChange={e=>setMobileNumber(e.target.value)} placeholder="+2348012345678" pattern="\+[1-9][0-9]{7,14}" title="Use international format, for example +2348012345678"/><span className="mt-1 block text-xs text-slate-500">Use international format, e.g. +2348012345678 for Nigeria.</span></label>
+          <label className="block text-sm font-medium">Mobile number with country code<input type="tel" inputMode="tel" autoComplete="tel" className="mt-1 w-full rounded-xl border bg-transparent p-3 dark:border-slate-700" value={mobileNumber} onChange={e=>setMobileNumber(e.target.value)} placeholder="+2348012345678" pattern="\+[1-9][0-9]{7,14}" title="Use international format, for example +2348012345678"/><span className="mt-1 block text-xs text-slate-500">Use international format, e.g. +2348012345678 for Nigeria.</span></label>
+          <div className="rounded-xl border border-slate-200 p-4 dark:border-slate-800">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div><p className="font-semibold">Mobile-number verification</p><p className="mt-1 text-sm text-slate-500">{profile.mobile_verified && mobileNumber.trim() === (profile.mobile_number || '') ? 'This number is verified and can be used to sign in.' : 'Verify ownership before using this number to sign in. Save any number changes first.'}</p></div>
+              {profile.mobile_verified && mobileNumber.trim() === (profile.mobile_number || '') && <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200">Verified</span>}
+            </div>
+            {(!profile.mobile_verified || mobileNumber.trim() !== (profile.mobile_number || '')) && <div className="mt-3 space-y-3">
+              <button type="button" disabled={verificationBusy || !mobileNumber.trim() || mobileNumber.trim() !== (profile.mobile_number || '')} onClick={() => { setVerificationBusy(true); setVerificationError(''); setVerificationMessage(''); router.post('/profile/mobile-number/verification', {}, { preserveScroll: true, onSuccess: () => { setVerificationSent(true); setVerificationMessage('Verification code sent. Check your SMS inbox.'); }, onError: errors => setVerificationError(String(errors.mobile_number || 'SMS verification could not be started.')), onFinish: () => setVerificationBusy(false) }); }} className="rounded-xl border border-emerald-700 px-4 py-2 text-sm font-semibold text-emerald-800 disabled:opacity-50 dark:text-emerald-300">{verificationBusy ? 'Sending…' : verificationSent ? 'Send another code' : 'Send verification code'}</button>
+              <form onSubmit={e => { e.preventDefault(); setVerificationBusy(true); setVerificationError(''); setVerificationMessage(''); router.post('/profile/mobile-number/verification/confirm', { code: verificationCode }, { preserveScroll: true, onSuccess: () => { setVerificationCode(''); setVerificationSent(false); setVerificationMessage('Mobile number verified successfully.'); }, onError: errors => setVerificationError(String(errors.verification_code || errors.mobile_number || 'The code could not be verified.')), onFinish: () => setVerificationBusy(false) }); }} className="flex flex-wrap gap-2">
+                <input aria-label="SMS verification code" inputMode="numeric" autoComplete="one-time-code" maxLength={6} pattern="[0-9]{6}" value={verificationCode} onChange={e=>setVerificationCode(e.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="6-digit code" className="min-w-0 flex-1 rounded-xl border bg-transparent p-3 dark:border-slate-700" />
+                <button type="submit" disabled={verificationBusy || verificationCode.length !== 6 || !verificationSent} className="rounded-xl bg-emerald-700 px-4 py-3 text-sm font-semibold text-white disabled:opacity-50">Verify number</button>
+              </form>
+              {verificationMessage && <p role="status" className="text-sm text-emerald-700 dark:text-emerald-300">{verificationMessage}</p>}
+              {verificationError && <p role="alert" className="text-sm text-rose-700 dark:text-rose-300">{verificationError}</p>}
+              <p className="text-xs text-slate-500">SMS verification stays unavailable until an HTTPS SMS provider is configured and enabled by the operator.</p>
+            </div>}
+          </div>
           <div className="grid gap-3 sm:grid-cols-3">{[['Account type',profile.user_type],['Account tier',tierLabel(profile.user_level)],['KYC status',profile.kyc_status.replace(/_/g,' ')]].map(([label,value])=><div key={label} className="rounded-xl bg-slate-50 p-3 dark:bg-slate-900"><p className="text-xs text-slate-500">{label}</p><p className="mt-1 font-semibold capitalize">{value}</p></div>)}</div>
           <button disabled={busy || name.trim().length<2} className="inline-flex items-center gap-2 rounded-xl bg-emerald-700 px-4 py-3 font-semibold text-white disabled:opacity-50">{busy?'Saving…':<><Upload size={17}/> Save profile</>}</button>
         </form>

@@ -71,6 +71,41 @@ class AuthFlowTest extends TestCase
         $this->assertAuthenticatedAs($user);
     }
 
+    public function test_user_can_sign_in_with_a_verified_mobile_number(): void
+    {
+        $user = User::query()->create([
+            'name' => 'Verified Mobile Customer',
+            'email' => 'verified-mobile@example.test',
+            'mobile_number' => '+2348011112233',
+            'password' => 'CorrectPassword1234',
+        ]);
+        $user->forceFill(['mobile_verified_at' => now()])->save();
+
+        $this->post('/login', [
+            'identifier' => '+234 801 111 2233',
+            'password' => 'CorrectPassword1234',
+        ])->assertRedirect('/dashboard');
+
+        $this->assertAuthenticatedAs($user);
+    }
+
+    public function test_unverified_mobile_number_cannot_be_used_to_sign_in(): void
+    {
+        User::query()->create([
+            'name' => 'Unverified Mobile Customer',
+            'email' => 'unverified-mobile@example.test',
+            'mobile_number' => '+2348022223344',
+            'password' => 'CorrectPassword1234',
+        ]);
+
+        $this->from('/login')->post('/login', [
+            'identifier' => '+2348022223344',
+            'password' => 'CorrectPassword1234',
+        ])->assertRedirect('/login')->assertSessionHasErrors('identifier');
+
+        $this->assertGuest();
+    }
+
     public function test_user_can_sign_in_with_a_verified_whatsapp_number_only(): void
     {
         $user = User::query()->create([

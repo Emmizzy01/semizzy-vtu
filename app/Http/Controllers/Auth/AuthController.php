@@ -35,20 +35,46 @@ class AuthController extends Controller
         ]);
 
         $identifier = $credentials['identifier'];
-        $userQuery = User::query();
+        $user = null;
 
         if (filter_var($identifier, FILTER_VALIDATE_EMAIL)) {
-            $userQuery->whereRaw('LOWER(email) = ?', [strtolower($identifier)]);
+            $user = User::query()
+                ->whereRaw('LOWER(email) = ?', [strtolower($identifier)])
+                ->where('account_status', 'active')
+                ->first();
         } elseif (preg_match('/^[+0-9() .-]{7,32}$/', $identifier)) {
-            // A WhatsApp number is accepted only after its ownership has been verified.
             $normalizedNumber = preg_replace('/[() .-]/', '', $identifier);
-            $userQuery->where('whatsapp_number', $normalizedNumber)
-                ->whereNotNull('whatsapp_verified_at');
-        } else {
-            $userQuery->whereRaw('LOWER(username) = ?', [strtolower($identifier)]);
-        }
 
-        $user = $userQuery->where('account_status', 'active')->first();
+            // Phone login is available only after explicit ownership verification.
+            // Refuse ambiguous legacy duplicates rather than signing into the first match.
+            $mobileMatches = User::query()
+                ->where('mobile_number', $normalizedNumber)
+                ->whereNotNull('mobile_verified_at')
+                ->where('account_status', 'active')
+                ->limit(2)
+                ->get();
+
+            if ($mobileMatches->count() === 1) {
+                $user = $mobileMatches->first();
+            } elseif ($mobileMatches->isEmpty()) {
+                // WhatsApp login remains separately gated by WhatsApp verification.
+                $whatsappMatches = User::query()
+                    ->where('whatsapp_number', $normalizedNumber)
+                    ->whereNotNull('whatsapp_verified_at')
+                    ->where('account_status', 'active')
+                    ->limit(2)
+                    ->get();
+
+                if ($whatsappMatches->count() === 1) {
+                    $user = $whatsappMatches->first();
+                }
+            }
+        } else {
+            $user = User::query()
+                ->whereRaw('LOWER(username) = ?', [strtolower($identifier)])
+                ->where('account_status', 'active')
+                ->first();
+        }
 
         if (! $user || ! Hash::check($credentials['password'], $user->password)) {
             return back()->withErrors([

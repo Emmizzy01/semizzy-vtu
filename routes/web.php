@@ -32,6 +32,7 @@ use App\Http\Controllers\Admin\FeatureControlController;
 use App\Models\PlatformFeatureControl;
 use App\Http\Controllers\Security\TransactionPinController;
 use App\Http\Controllers\Account\ProfileController;
+use App\Http\Controllers\Account\MobileNumberVerificationController;
 use App\Http\Controllers\Account\BusinessWorkspaceController;
 use App\Http\Controllers\Account\BusinessWorkspaceStorefrontController;
 use App\Http\Controllers\Account\UserSessionController;
@@ -114,6 +115,8 @@ Route::middleware('auth')->group(function (): void {
     Route::get('/account/tiers', [AccountTierController::class, 'index'])->name('account.tiers');
     Route::post('/account/tiers/upgrade', [AccountTierController::class, 'requestUpgrade'])->middleware('throttle:3,1')->name('account.tiers.upgrade');
     Route::put('/profile', [ProfileController::class, 'update'])->middleware('throttle:10,1')->name('profile.update');
+    Route::post('/profile/mobile-number/verification', [MobileNumberVerificationController::class, 'send'])->middleware('throttle:3,1')->name('profile.mobile-verification.send');
+    Route::post('/profile/mobile-number/verification/confirm', [MobileNumberVerificationController::class, 'confirm'])->middleware('throttle:5,1')->name('profile.mobile-verification.confirm');
     Route::put('/profile/password', [ProfileController::class, 'updatePassword'])->middleware('throttle:5,1')->name('profile.password.update');
     Route::get('/dashboard', [DashboardController::class, 'customer'])->name('dashboard');
     Route::get('/services/education', [EducationServiceController::class, 'index'])->name('education-services.index');

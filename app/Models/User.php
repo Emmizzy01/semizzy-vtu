@@ -45,6 +45,7 @@ class User extends Authenticatable implements PasskeyUser
         return [
             'email_verified_at' => 'datetime',
             'whatsapp_verified_at' => 'datetime',
+            'mobile_verified_at' => 'datetime',
             'date_of_birth' => 'date',
             'password' => 'hashed',
             'transaction_pin_locked_until' => 'datetime',

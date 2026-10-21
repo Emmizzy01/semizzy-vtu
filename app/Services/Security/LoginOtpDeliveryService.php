@@ -64,4 +64,35 @@ class LoginOtpDeliveryService
             throw new RuntimeException('The phone OTP provider did not accept the delivery request.');
         }
     }
+
+    public function deliverMobileVerification(string $number, string $code): void
+    {
+        if (! config('auth_security.sms_otp_enabled', false)) {
+            throw new RuntimeException('SMS phone verification is not enabled.');
+        }
+
+        $endpoint = trim((string) config('services.login_otp.sms.endpoint', ''));
+        $token = trim((string) config('services.login_otp.sms.token', ''));
+        if ($endpoint === '' || $token === '' || ! filter_var($endpoint, FILTER_VALIDATE_URL)
+            || ! str_starts_with(strtolower($endpoint), 'https://')) {
+            throw new RuntimeException('The SMS verification provider is not fully configured for secure delivery.');
+        }
+
+        $response = Http::acceptJson()
+            ->asJson()
+            ->withToken($token)
+            ->connectTimeout(3)
+            ->timeout(8)
+            ->post($endpoint, [
+                'to' => $number,
+                'message' => "Your SEMIZZY mobile verification code is {$code}. Do not share this code.",
+                'purpose' => 'mobile_verification',
+                'channel' => 'sms',
+            ]);
+
+        if (! $response->successful()) {
+            throw new RuntimeException('The SMS provider did not accept the verification request.');
+        }
+    }
+
 }
