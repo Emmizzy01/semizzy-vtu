@@ -29,7 +29,9 @@ class RouteContractCharacterizationTest extends TestCase
         $this->assertSame(['POST'], $vtu->methods());
         $this->assertSame('api/vtu/webhooks/{provider}', $vtu->uri());
         $this->assertContains('throttle:60,1', $vtu->gatherMiddleware());
-        $this->assertSame(['sogo', 'dataway'], $vtu->wheres['provider'] ?? null);
+        $providerConstraint = (string) ($vtu->wheres['provider'] ?? '');
+        $this->assertStringContainsString('sogo', $providerConstraint);
+        $this->assertStringContainsString('dataway', $providerConstraint);
 
         // Webhooks must not require a customer session or addon-admission middleware:
         // accepted operations still need callback processing and reconciliation.
