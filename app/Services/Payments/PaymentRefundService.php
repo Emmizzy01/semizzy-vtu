@@ -182,7 +182,7 @@ class PaymentRefundService
                 is_scalar($providerRef) ? (string) $providerRef : null,
                 ['provider_response_status' => $providerStatus],
             );
-        } catch (\\Throwable $exception) {
+        } catch (\Throwable $exception) {
             // Network, transport, and provider exceptions can all happen after Paystack
             // accepted the request. Preserve the wallet reservation and require canonical
             // reconciliation; never resubmit an uncertain refund automatically.
