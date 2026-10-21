@@ -90,6 +90,7 @@ class LoginChallengeController extends Controller
             $request->session()->put('auth.two_factor_user_id', (int) $user->id);
             $request->session()->put('auth.two_factor_remember', (bool) $result['remember']);
             $request->session()->put('auth.two_factor_attempts', 0);
+            $request->session()->put('auth.two_factor_started_at', now()->timestamp);
             return redirect()->route('login.two-factor');
         }
 

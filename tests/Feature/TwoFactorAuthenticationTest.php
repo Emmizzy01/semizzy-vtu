@@ -79,6 +79,29 @@ class TwoFactorAuthenticationTest extends TestCase
         $this->assertSessionMissing('auth.two_factor_attempts');
     }
 
+    public function test_expired_totp_login_challenge_is_rejected_and_cleared(): void
+    {
+        $user = User::query()->create([
+            'name' => 'Expired TOTP Customer',
+            'email' => 'totp-expired@example.test',
+            'password' => 'CorrectPassword1234',
+        ]);
+        app(TotpTwoFactorService::class)->enable($user, 'JBSWY3DPEHPK3PXP');
+
+        $this->withSession([
+            'auth.two_factor_user_id' => (int) $user->id,
+            'auth.two_factor_remember' => false,
+            'auth.two_factor_attempts' => 0,
+            'auth.two_factor_started_at' => now()->subMinutes(6)->timestamp,
+        ])->from('/login/two-factor')->post('/login/two-factor', ['code' => '000000'])
+            ->assertRedirect('/login')
+            ->assertSessionHasErrors('identifier');
+
+        $this->assertGuest();
+        $this->assertSessionMissing('auth.two_factor_user_id');
+        $this->assertSessionMissing('auth.two_factor_started_at');
+    }
+
     public function test_email_otp_must_be_completed_before_totp_challenge(): void
     {
         config(['auth_security.email_otp_enabled' => true]);
