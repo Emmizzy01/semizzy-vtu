@@ -602,4 +602,46 @@ class VtuBulkPurchaseBatchTest extends TestCase
             'items' => $items,
         ]];
     }
+
+    public function test_late_worker_cannot_overwrite_item_quarantined_as_unknown(): void
+    {
+        $user = User::factory()->create();
+        $batch = VtuBulkPurchaseBatch::query()->create([
+            'public_id' => (string) \\Illuminate\\Support\\Str::uuid(),
+            'user_id' => $user->id,
+            'batch_key' => 'bulk-late-worker-quarantine-key',
+            'request_hash' => hash('sha256', 'late-worker-quarantine'),
+            'status' => 'processing',
+            'item_count' => 1,
+            'total_amount_minor' => 1000,
+            'currency' => 'NGN',
+        ]);
+        $item = $batch->items()->create([
+            'item_index' => 0,
+            'idempotency_key' => hash('sha256', 'late-worker-quarantine-item'),
+            'product_code' => 'private-code',
+            'service_type' => 'airtime',
+            'recipient' => '08012345678',
+            'amount_minor' => 1000,
+            'status' => 'unknown',
+            'result_message' => 'Stale in-flight item quarantined for reconciliation.',
+            'completed_at' => now(),
+        ]);
+
+        $job = new ProcessVtuBulkPurchaseBatch((int) $batch->id);
+        $method = new \\ReflectionMethod($job, 'finalizeClaimedItem');
+        $updated = $method->invoke($job, (int) $item->id, [
+            'status' => 'successful',
+            'result_message' => null,
+            'completed_at' => now(),
+        ]);
+
+        $this->assertFalse($updated);
+        $this->assertSame('unknown', $item->fresh()->status);
+        $this->assertSame(
+            'Stale in-flight item quarantined for reconciliation.',
+            $item->fresh()->result_message,
+        );
+    }
+
 }
