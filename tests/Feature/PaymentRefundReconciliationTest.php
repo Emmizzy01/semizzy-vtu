@@ -197,6 +197,58 @@ class PaymentRefundReconciliationTest extends TestCase
         $this->assertSame('succeeded', $refund->fresh()->status);
     }
 
+    public function test_unavailable_lookup_reports_concurrent_terminal_refund_status(): void
+    {
+        config(['services.paystack.secret_key' => 'sk_test_refund_reconcile']);
+
+        $user = User::query()->create([
+            'name' => 'Refund Lookup Race Customer',
+            'email' => 'refund-lookup-race@example.test',
+            'password' => 'test-password',
+        ]);
+        $wallet = app(WalletAccountService::class)->openForUser($user);
+        $intent = app(PaymentIntentService::class)->create($wallet, 10000, 'paystack');
+        $intent->forceFill([
+            'status' => 'paid',
+            'provider_transaction_id' => '987659',
+            'paid_at' => now(),
+            'metadata' => ['gateway_mode' => 'test'],
+        ])->save();
+
+        $refund = PaymentRefund::query()->create([
+            'public_id' => (string) \Illuminate\Support\Str::uuid(),
+            'payment_intent_id' => $intent->id,
+            'requested_by_user_id' => $user->id,
+            'idempotency_key' => 'refund-unavailable-lookup-race',
+            'amount_minor' => 2500,
+            'reason' => 'Concurrent settlement during unavailable lookup',
+            'status' => 'provider_pending',
+            'provider_refund_reference' => '1234598',
+            'provider_status' => 'pending',
+            'metadata' => ['currency' => 'NGN'],
+            'created_at' => now()->subHour(),
+            'updated_at' => now()->subHour(),
+            'status_changed_at' => now()->subHour(),
+        ]);
+
+        Http::fake(function ($request) use ($refund) {
+            if (! str_ends_with($request->url(), '/refund/1234598')) {
+                return Http::response(['status' => false, 'message' => 'Unexpected test request'], 404);
+            }
+
+            $refund->forceFill(['status' => 'succeeded', 'settled_at' => now()])->save();
+
+            throw new \Illuminate\Http\Client\ConnectionException('Simulated provider lookup timeout');
+        });
+
+        $result = app(\App\Services\Payments\PaymentRefundService::class)
+            ->reconcileProviderStatus($refund->public_id);
+
+        $this->assertSame('skipped', $result['outcome']);
+        $this->assertSame('succeeded', $result['status']);
+        $this->assertSame('succeeded', $refund->fresh()->status);
+    }
+
     public function test_stale_review_required_refund_is_reconciled_by_scheduled_reconciliation(): void
     {
         Http::fake([
