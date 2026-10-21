@@ -238,7 +238,15 @@ class PaymentRefundService
             // Re-read state because another worker may have settled it while the
             // provider request was in flight; never report stale pending status.
             report($exception);
-            $current = PaymentRefund::query()->whereKey($refund->id)->firstOrFail();
+            // Lock and reread the refund so a concurrent settlement transaction
+            // must commit before we choose which status to report.
+            $current = DB::transaction(
+                fn (): PaymentRefund => PaymentRefund::query()
+                    ->whereKey($refund->id)
+                    ->lockForUpdate()
+                    ->firstOrFail(),
+                attempts: 3,
+            );
 
             if (in_array($current->status, ['succeeded', 'failed'], true)) {
                 return ['outcome' => 'skipped', 'status' => $current->status];
