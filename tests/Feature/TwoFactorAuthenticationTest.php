@@ -55,7 +55,7 @@ class TwoFactorAuthenticationTest extends TestCase
         $this->assertGuest();
     }
 
-    public function test_five_failed_totp_login_attempts_expire_the_pending_challenge(): void
+    public function test_fifth_failed_totp_login_attempt_expires_the_pending_challenge(): void
     {
         $user = User::query()->create([
             'name' => 'TOTP Lockout Customer',
@@ -64,18 +64,19 @@ class TwoFactorAuthenticationTest extends TestCase
         ]);
         app(TotpTwoFactorService::class)->enable($user, 'JBSWY3DPEHPK3PXP');
 
-        $this->post('/login', [
-            'identifier' => $user->email,
-            'password' => 'CorrectPassword1234',
-        ])->assertRedirect('/login/two-factor');
-
-        for ($attempt = 1; $attempt <= 5; $attempt++) {
-            $response = $this->from('/login/two-factor')->post('/login/two-factor', ['code' => '000000']);
-            $response->assertRedirect($attempt === 5 ? '/login' : '/login/two-factor');
-        }
+        // Seed four prior failures directly so this regression tests the
+        // session challenge limit independently of the shared IP throttle.
+        $this->withSession([
+            'auth.two_factor_user_id' => (int) $user->id,
+            'auth.two_factor_remember' => false,
+            'auth.two_factor_attempts' => 4,
+        ])->from('/login/two-factor')->post('/login/two-factor', ['code' => '000000'])
+            ->assertRedirect('/login')
+            ->assertSessionHasErrors('identifier');
 
         $this->assertGuest();
         $this->assertSessionMissing('auth.two_factor_user_id');
+        $this->assertSessionMissing('auth.two_factor_attempts');
     }
 
     public function test_email_otp_must_be_completed_before_totp_challenge(): void
