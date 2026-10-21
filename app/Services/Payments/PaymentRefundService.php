@@ -235,10 +235,16 @@ class PaymentRefundService
             $provider = $this->paystack->fetchRefund($providerRef, $gatewayMode);
         } catch (\Throwable $exception) {
             // A failed lookup is not evidence that the provider refund failed.
-            // Preserve the current state and let a later reconciliation retry safely.
+            // Re-read state because another worker may have settled it while the
+            // provider request was in flight; never report stale pending status.
             report($exception);
+            $current = PaymentRefund::query()->whereKey($refund->id)->firstOrFail();
 
-            return ['outcome' => 'unavailable', 'status' => $refund->status];
+            if (in_array($current->status, ['succeeded', 'failed'], true)) {
+                return ['outcome' => 'skipped', 'status' => $current->status];
+            }
+
+            return ['outcome' => 'unavailable', 'status' => $current->status];
         }
 
         $providerId = isset($provider['id']) && is_numeric($provider['id']) ? (string) $provider['id'] : null;
