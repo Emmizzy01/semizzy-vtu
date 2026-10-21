@@ -20,10 +20,16 @@ class WalletAccountService
 
         try {
             return DB::transaction(function () use ($user, $currency): Wallet {
+                // This is an existence check, not a balance mutation. Do not
+                // take a locking read here: callers may already be inside a wallet
+                // transaction, and locking reads on this secondary-key lookup
+                // triggered MariaDB error 123 under default snapshot isolation.
+                // Actual money movement locks the wallet by its primary key in the
+                // ledger service; the unique (user_id, currency) index arbitrates
+                // concurrent wallet creation.
                 $existing = Wallet::query()
                     ->where('user_id', $user->getKey())
                     ->where('currency', $currency)
-                    ->lockForUpdate()
                     ->first();
 
                 if ($existing !== null) {
