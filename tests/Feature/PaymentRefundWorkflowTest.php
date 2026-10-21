@@ -550,4 +550,47 @@ class PaymentRefundWorkflowTest extends TestCase
         Http::assertNothingSent();
     }
 
+    public function test_unexpected_transport_exception_marks_refund_for_review_without_resubmitting(): void
+    {
+        Http::fake(function () {
+            throw new \\RuntimeException('Connection lost after refund request dispatch.');
+        });
+
+        $customer = User::query()->create([
+            'name' => 'Refund Transport Customer',
+            'email' => 'refund-transport-customer@example.test',
+            'password' => 'test-password',
+        ]);
+        $approver = User::query()->create([
+            'name' => 'Refund Transport Approver',
+            'email' => 'refund-transport-approver@example.test',
+            'password' => 'test-password',
+        ]);
+        UserPermission::query()->create(['user_id' => $approver->id, 'permission' => 'refunds.approve']);
+        $intent = $this->paidIntent($customer, 10000);
+
+        $request = $this->actingAs($customer)->postJson('/wallet/refund-requests', [
+            'payment_intent_id' => $intent->public_id,
+            'amount_minor' => 2500,
+            'reason' => 'Transport exception recovery',
+            'idempotency_key' => 'refund-transport-exception-'.$customer->id,
+        ])->assertCreated();
+        $url = '/admin/payment-refunds/'.$request->json('data.id').'/approve';
+
+        $this->actingAs($approver)->postJson($url)
+            ->assertStatus(409)
+            ->assertJsonPath('data.status', 'review_required');
+
+        $this->actingAs($approver)->postJson($url)->assertStatus(409);
+        $this->assertDatabaseHas('payment_refunds', [
+            'public_id' => $request->json('data.id'),
+            'status' => 'review_required',
+            'metadata->review_reason' => 'provider_result_unknown',
+        ]);
+        $this->assertSame(7500, (int) $intent->wallet()->first()->fresh()->balance_minor);
+        $this->assertDatabaseCount('wallet_transactions', 2);
+        $this->assertDatabaseCount('wallet_ledger_entries', 2);
+        Http::assertSentCount(1);
+    }
+
 }
