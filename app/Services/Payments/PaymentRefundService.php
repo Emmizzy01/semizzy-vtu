@@ -182,9 +182,10 @@ class PaymentRefundService
                 is_scalar($providerRef) ? (string) $providerRef : null,
                 ['provider_response_status' => $providerStatus],
             );
-        } catch (LogicException $exception) {
-            // A timeout/ambiguous response must not trigger a second refund or restore
-            // the wallet until Paystack's actual outcome has been reconciled.
+        } catch (\\Throwable $exception) {
+            // Network, transport, and provider exceptions can all happen after Paystack
+            // accepted the request. Preserve the wallet reservation and require canonical
+            // reconciliation; never resubmit an uncertain refund automatically.
             report($exception);
 
             return $this->markReviewRequired($refund->public_id, 'provider_result_unknown');
