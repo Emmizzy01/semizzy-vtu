@@ -369,11 +369,18 @@ class BankPayoutService
                 'provider_transfer_code' => is_string($response['transfer_code'] ?? null) ? $response['transfer_code'] : null,
                 'metadata' => array_merge($payout->metadata ?? [], ['provider_status' => $providerStatus]),
             ])->save();
-        } catch (LogicException $exception) {
+        } catch (\\Throwable $exception) {
+            // Any exception after the request may have reached the provider is
+            // an uncertain outcome. Persist a reconciliation state and never
+            // automatically submit this payout again on an idempotent retry.
             report($exception);
             $payout->forceFill([
                 'status' => 'reconciliation_required',
                 'failure_reason' => 'Provider outcome is not confirmed. Do not retry automatically.',
+                'metadata' => array_merge($payout->metadata ?? [], [
+                    'provider_outcome' => 'unknown',
+                    'provider_exception_class' => $exception::class,
+                ]),
             ])->save();
         }
 
