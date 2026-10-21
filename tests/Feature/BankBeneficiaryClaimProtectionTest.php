@@ -65,22 +65,22 @@ class BankBeneficiaryClaimProtectionTest extends TestCase
             'password' => 'not-a-real-password',
         ]);
 
-        $paystack = \\Mockery::mock(\\App\\Services\\Payments\\PaystackClient::class);
+        $paystack = \Mockery::mock(\App\Services\Payments\PaystackClient::class);
         $paystack->shouldReceive('listNigerianBanks')->once()->andReturn([
             ['name' => 'Example Test Bank', 'code' => '999'],
         ]);
         $paystack->shouldReceive('resolveNigerianAccount')
             ->once()
             ->with('0123456789', '999')
-            ->andThrow(new \\RuntimeException('Account resolution failed before recipient creation.'));
+            ->andThrow(new \RuntimeException('Account resolution failed before recipient creation.'));
         $paystack->shouldNotReceive('createTransferRecipient');
-        $this->app->instance(\\App\\Services\\Payments\\PaystackClient::class, $paystack);
+        $this->app->instance(\App\Services\Payments\PaystackClient::class, $paystack);
 
         try {
-            app(\\App\\Services\\Wallets\\BankPayoutService::class)
+            app(\App\Services\Wallets\BankPayoutService::class)
                 ->addBeneficiary($user, '999', '0123456789');
             $this->fail('A failed account resolution must be reported.');
-        } catch (\\RuntimeException $exception) {
+        } catch (\RuntimeException $exception) {
             $this->assertSame('Account resolution failed before recipient creation.', $exception->getMessage());
         }
 
