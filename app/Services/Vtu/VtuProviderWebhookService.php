@@ -95,9 +95,15 @@ class VtuProviderWebhookService
     {
         $status = strtolower((string) data_get($payload, 'data.status', ''));
         if ($provider === 'sogo') {
-            return match ($eventType) {
-                'transaction.completed' => 'success',
-                'transaction.failed', 'transaction.refunded', 'transaction.cancelled' => 'failed',
+            // The signed event name and embedded status must agree. Never let a
+            // contradictory payload turn a failure into a success (or vice versa).
+            return match ([$eventType, $status]) {
+                ['transaction.completed', 'completed'],
+                ['transaction.completed', 'success'],
+                ['transaction.completed', 'successful'] => 'success',
+                ['transaction.failed', 'failed'],
+                ['transaction.refunded', 'refunded'],
+                ['transaction.cancelled', 'cancelled'] => 'failed',
                 default => null,
             };
         }
