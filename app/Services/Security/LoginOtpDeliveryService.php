@@ -4,6 +4,7 @@ namespace App\Services\Security;
 
 use App\Mail\LoginOtpMail;
 use App\Models\User;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
 use RuntimeException;
@@ -36,7 +37,10 @@ class LoginOtpDeliveryService
 
         $destination = $channel === 'whatsapp'
             ? (string) ($user->whatsapp_verified_at && $user->whatsapp_number ? $user->whatsapp_number : '')
-            : (string) ($user->mobile_number ?? '');
+            : (string) ($user->mobile_verified_at && $user->mobile_number
+                && DB::table('verified_mobile_numbers')->where('user_id', $user->id)->where('mobile_number', $user->mobile_number)->exists()
+                ? $user->mobile_number
+                : '');
 
         if ($destination === '') {
             throw new RuntimeException('This account has no eligible verified destination for the configured OTP channel.');

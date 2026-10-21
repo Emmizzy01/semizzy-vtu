@@ -30,7 +30,8 @@ class ProfileController extends Controller
                 'date_of_birth' => $user->date_of_birth?->format('Y-m-d'),
                 'sex' => $user->sex,
                 'mobile_number' => $user->mobile_number,
-                'mobile_verified' => $user->mobile_verified_at !== null,
+                'mobile_verified' => $user->mobile_verified_at !== null
+                    && DB::table('verified_mobile_numbers')->where('user_id', $user->id)->where('mobile_number', $user->mobile_number)->exists(),
                 'user_type' => $user->user_type ?: 'customer',
                 'user_level' => $user->user_level ?: 'level_1',
                 'kyc_status' => $user->kyc_status ?: 'unverified',

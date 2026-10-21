@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
@@ -27,6 +28,13 @@ class LoginOtpChannelDeliveryTest extends TestCase
             'mobile_number' => '+2348012345678',
             'password' => 'CorrectPassword1234',
         ]);
+        $user->forceFill(['mobile_verified_at' => now()])->save();
+        DB::table('verified_mobile_numbers')->insert([
+            'user_id' => $user->id,
+            'mobile_number' => '+2348012345678',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
 
         $this->post('/login', ['identifier' => $user->email, 'password' => 'CorrectPassword1234'])
             ->assertRedirect('/login/verify');
@@ -40,6 +48,33 @@ class LoginOtpChannelDeliveryTest extends TestCase
             && $request['channel'] === 'sms'
             && str_contains($request['message'], 'SEMIZZY sign-in code')
         );
+    }
+
+    public function test_sms_login_otp_refuses_an_unverified_mobile_destination(): void
+    {
+        config([
+            'auth_security.login_otp_channel' => 'sms',
+            'auth_security.sms_otp_enabled' => true,
+            'services.login_otp.sms.endpoint' => 'https://sms.example.test/messages',
+            'services.login_otp.sms.token' => 'test-token',
+        ]);
+        Http::fake(['sms.example.test/*' => Http::response(['accepted' => true], 202)]);
+
+        $user = User::query()->create([
+            'name' => 'Unverified SMS OTP Customer',
+            'email' => 'unverified-sms-otp@example.test',
+            'mobile_number' => '+2348012345678',
+            'password' => 'CorrectPassword1234',
+        ]);
+
+        $this->from('/login')->post('/login', [
+            'identifier' => $user->email,
+            'password' => 'CorrectPassword1234',
+        ])->assertRedirect('/login')->assertSessionHasErrors('identifier');
+
+        $this->assertGuest();
+        $this->assertDatabaseCount('login_challenges', 0);
+        Http::assertNothingSent();
     }
 
     public function test_whatsapp_login_otp_requires_verified_whatsapp_destination(): void

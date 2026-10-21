@@ -80,6 +80,12 @@ class AuthFlowTest extends TestCase
             'password' => 'CorrectPassword1234',
         ]);
         $user->forceFill(['mobile_verified_at' => now()])->save();
+        \Illuminate\Support\Facades\DB::table('verified_mobile_numbers')->insert([
+            'user_id' => $user->id,
+            'mobile_number' => '+2348011112233',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
 
         $this->post('/login', [
             'identifier' => '+234 801 111 2233',

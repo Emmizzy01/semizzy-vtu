@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Services\Security\MobileNumberVerificationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use RuntimeException;
 
 class MobileNumberVerificationController extends Controller
 {
@@ -14,7 +13,7 @@ class MobileNumberVerificationController extends Controller
     {
         try {
             $verification->start($request->user());
-        } catch (RuntimeException $exception) {
+        } catch (\Throwable $exception) {
             report($exception);
             return back()->withErrors(['mobile_number' => 'We could not send a verification code. Confirm your number and try again later.']);
         }

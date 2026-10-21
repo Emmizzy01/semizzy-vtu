@@ -105,6 +105,8 @@ class MobileNumberVerificationService
 
                 $claim = DB::table('verified_mobile_numbers')->where('mobile_number', $number)->lockForUpdate()->first();
                 if ($claim && (int) $claim->user_id !== (int) $lockedUser->id) {
+                    DB::table('mobile_verification_challenges')->where('id', $challenge->id)
+                        ->whereNull('consumed_at')->update(['consumed_at' => now(), 'updated_at' => now()]);
                     return 'duplicate';
                 }
 

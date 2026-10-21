@@ -51,6 +51,11 @@ class AuthController extends Controller
                 ->where('mobile_number', $normalizedNumber)
                 ->whereNotNull('mobile_verified_at')
                 ->where('account_status', 'active')
+                ->whereExists(function ($query): void {
+                    $query->selectRaw('1')->from('verified_mobile_numbers')
+                        ->whereColumn('verified_mobile_numbers.user_id', 'users.id')
+                        ->whereColumn('verified_mobile_numbers.mobile_number', 'users.mobile_number');
+                })
                 ->limit(2)
                 ->get();
 
