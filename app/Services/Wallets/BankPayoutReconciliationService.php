@@ -32,7 +32,8 @@ class BankPayoutReconciliationService
         if (! $payout) {
             return ['outcome' => 'unmatched', 'duplicate' => false];
         }
-        if (in_array($payout->status, ['succeeded', 'failed_refunded'], true)) {
+        if ($payout->status === 'failed_refunded'
+            || ($payout->status === 'succeeded' && $eventType !== 'transfer.reversed')) {
             return ['outcome' => $payout->status, 'duplicate' => true];
         }
 
@@ -80,9 +81,10 @@ class BankPayoutReconciliationService
             return ['outcome' => 'reconciliation_required', 'duplicate' => false];
         }
 
-        return DB::transaction(function () use ($payout, $providerStatus, $transferCode): array {
+        return DB::transaction(function () use ($payout, $providerStatus, $transferCode, $eventType): array {
             $locked = BankPayout::query()->whereKey($payout->id)->lockForUpdate()->firstOrFail();
-            if (in_array($locked->status, ['succeeded', 'failed_refunded'], true)) {
+            if ($locked->status === 'failed_refunded'
+                || ($locked->status === 'succeeded' && $eventType !== 'transfer.reversed')) {
                 return ['outcome' => $locked->status, 'duplicate' => true];
             }
 
@@ -112,7 +114,9 @@ class BankPayoutReconciliationService
                 amountMinor: (int) $locked->amount_minor,
                 idempotencyKey: 'bank-payout:'.$locked->public_id.':failed-refund',
                 reference: $locked->public_id,
-                description: 'Refund for verified failed bank payout',
+                description: $providerStatus === 'reversed'
+                    ? 'Refund for verified reversed bank payout'
+                    : 'Refund for verified failed bank payout',
                 actorUserId: null,
                 metadata: ['payout_id' => $locked->public_id, 'provider_status' => $providerStatus],
                 isFinancialRecovery: true,
@@ -121,7 +125,9 @@ class BankPayoutReconciliationService
             $locked->forceFill([
                 'status' => 'failed_refunded',
                 'provider_transfer_code' => $transferCode,
-                'failure_reason' => 'Provider confirmed failure; wallet debit was reversed.',
+                'failure_reason' => $providerStatus === 'reversed'
+                    ? 'Provider confirmed reversal; wallet debit was reversed.'
+                    : 'Provider confirmed failure; wallet debit was reversed.',
             ])->save();
 
             return ['outcome' => 'failed_refunded', 'duplicate' => false];
