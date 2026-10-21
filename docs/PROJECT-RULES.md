@@ -11,7 +11,7 @@ These rules apply to all future implementation, maintenance, database evolution,
 - Build and maintain the application as a real production product, not a demo. Do not substitute simulated balances, fake provider results, fabricated delivery/status progress, or placeholder controls for real functionality.
 - A feature is not complete until its end-to-end flow exists: UI, server-side validation, authorization, persistence, failure states, auditability where appropriate, automated tests, and deployment/configuration notes.
 - Keep production-safe configuration and real integrations separate from test/sandbox mode. Never send a real payment, purchase, refund, or provider request as part of routine verification.
-- Never claim the website is production-ready while critical security, financial integrity, database migration, recovery, build, or workflow checks remain unverified. State blockers plainly.
+- Never claim a specific capability or release is verified when its required development/CI checks have not passed. Classify live-server-only checks as deployment-stage items under Section 7A; they do not block unrelated development, but must be run at deployment before enabling the affected live capability.
 - Preserve the existing project blueprint and working features. Do not remove agreed functionality just to simplify or consolidate implementation.
 
 ## 2. GitHub and change control
@@ -64,12 +64,22 @@ These rules apply to all future implementation, maintenance, database evolution,
 - Maintain a deployment checklist covering release commit, PHP/extensions, frontend build assets, environment/config, migration status, storage permissions, queues/scheduler if used, logs, backups, smoke checks, and recovery.
 - A backup is only useful if its existence, integrity, access, and restoration procedure are checked. Never test restore by overwriting the live database.
 
+## 7A. Development completion versus deployment-stage work — binding rule
+
+- **Live-server-dependent work is deployment-stage work, not an incomplete development task.** If a check or action can only be completed against the deployed cPanel/live environment, mark it as a deployment checklist item and defer execution until deployment/production verification. Do not count it as an unfinished development blocker or stop unrelated implementation because it cannot be checked locally or in CI.
+- Examples include inspecting production-only environment values, cPanel/PHP runtime and permissions, deployed asset/route smoke checks, live HTTPS passkey/browser behavior, real SMS/WhatsApp delivery to an authorised device, production scheduler/queue operation, and authorised live-provider contract checks.
+- During development, complete everything that can be completed without the live server: implementation, code/config validation, automated tests, static/security checks, build checks, provider mocks/sandbox tests, recovery/reconciliation logic, documentation, and a precise deployment checklist for the remaining live-only steps.
+- Keep deployment-stage items visible in a clearly labelled **Deployment checklist / deferred to deployment** section. Do not label them as failed, incomplete development, or release blockers to unrelated work merely because they require the live server.
+- A live-only check must not be claimed as passed before it is executed. This rule changes task classification, not truthfulness: report it as “deferred to deployment / not yet run on live environment.”
+- Deployment-stage items do not prevent completion of independent development batches. They may still govern whether a specific live capability (for example, provider purchases or payouts) can be activated at deployment.
+- Do not access or change the production server, alter production data, run migrations, or trigger real transactions merely to turn a deployment checklist item green during development. Live operations must follow the existing authorisation, backup, migration, and financial-safety rules.
+
 ## 8. Verification and release acceptance
 
 - Run the relevant PHP/Laravel tests, frontend checks/build, and targeted regression tests for touched financial, security, provider, and admin workflows.
 - Check GitHub Actions on the exact commit being reported. Distinguish passed, failed, in-progress, skipped, and not-run checks.
 - Verify responsive rendering and real route/permission behaviour when UI changes are involved; do not infer visual correctness from a successful build alone.
-- Report exactly what changed, the commit SHA/link, checks performed and their actual results, any migration/deployment action still required, and remaining blockers.
+- Report exactly what changed, the commit SHA/link, checks performed and their actual results, and separate (a) development/CI gaps that still need work from (b) deployment-stage checks deferred until live deployment. Do not mix the two categories.
 - Do not state “production-ready” as a blanket guarantee. Use it only for the verified scope and clearly list anything still awaiting provider approval, credentials, operational configuration, or live-environment validation.
 
 ## 9. Product continuity
