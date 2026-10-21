@@ -27,24 +27,33 @@ class TotpTwoFactorService
     /** @return array<int, string> Plain recovery codes are shown once only. */
     public function enable(User $user, string $secret): array
     {
-        $user->forceFill([
-            'two_factor_secret' => Crypt::encryptString($secret),
-            'two_factor_enabled_at' => now(),
-        ])->save();
+        $codes = DB::transaction(function () use ($user, $secret): array {
+            // Keep the enabled state and its recovery-code set atomic. Locking the
+            // user row also serializes simultaneous enable/disable operations.
+            $lockedUser = User::query()->whereKey($user->getKey())->lockForUpdate()->firstOrFail();
+            $lockedUser->forceFill([
+                'two_factor_secret' => Crypt::encryptString($secret),
+                'two_factor_enabled_at' => now(),
+            ])->save();
 
-        DB::table('user_two_factor_recovery_codes')->where('user_id', $user->id)->delete();
-        $codes = [];
-        foreach (range(1, 10) as $_) {
-            $code = strtoupper(Str::random(5).'-'.Str::random(5));
-            $codes[] = $code;
-            DB::table('user_two_factor_recovery_codes')->insert([
-                'user_id' => $user->id,
-                'code_hash' => Hash::make($code),
-                'used_at' => null,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
-        }
+            DB::table('user_two_factor_recovery_codes')->where('user_id', $lockedUser->id)->delete();
+            $codes = [];
+            foreach (range(1, 10) as $_) {
+                $code = strtoupper(Str::random(5).'-'.Str::random(5));
+                $codes[] = $code;
+                DB::table('user_two_factor_recovery_codes')->insert([
+                    'user_id' => $lockedUser->id,
+                    'code_hash' => Hash::make($code),
+                    'used_at' => null,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            }
+
+            return $codes;
+        }, attempts: 3);
+
+        $user->refresh();
 
         return $codes;
     }
@@ -95,8 +104,19 @@ class TotpTwoFactorService
 
     public function disable(User $user): void
     {
-        $user->forceFill(['two_factor_secret' => null, 'two_factor_enabled_at' => null])->save();
-        DB::table('user_two_factor_recovery_codes')->where('user_id', $user->id)->delete();
+        DB::transaction(function () use ($user): void {
+            // Use the same lock order as enable() so overlapping state changes
+            // cannot leave recovery codes behind for a disabled account.
+            $lockedUser = User::query()->whereKey($user->getKey())->lockForUpdate()->firstOrFail();
+            $lockedUser->forceFill([
+                'two_factor_secret' => null,
+                'two_factor_enabled_at' => null,
+            ])->save();
+
+            DB::table('user_two_factor_recovery_codes')->where('user_id', $lockedUser->id)->delete();
+        }, attempts: 3);
+
+        $user->refresh();
     }
 
     private function verifyTotp(string $secret, string $code): bool
