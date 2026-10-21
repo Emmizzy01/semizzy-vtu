@@ -303,4 +303,42 @@ class BankPayoutSafetyTest extends TestCase
         $service->requestPayout($user, $beneficiary->id, 13000, 'payout-conflict-key-001');
     }
 
+
+    public function test_uncertain_provider_exception_marks_payout_for_reconciliation_without_retrying(): void
+    {
+        $user = User::query()->create([
+            'name' => 'Unknown Outcome User',
+            'email' => 'unknown-payout-outcome@example.test',
+            'password' => 'not-a-real-password',
+        ]);
+        $beneficiary = \\App\\Models\\BankBeneficiary::query()->create([
+            'user_id' => $user->id, 'bank_code' => '999', 'bank_name' => 'Unknown Outcome Bank',
+            'account_number' => '0123456789', 'account_number_last4' => '6789',
+            'account_name' => $user->name, 'provider_recipient_code' => 'RCP_unknown_outcome',
+            'verification_status' => 'verified', 'verified_at' => now(),
+        ]);
+        app(\\App\\Services\\IntegrationSettings::class)->set('paystack.transfers_enabled', '1', $user->id);
+        $wallet = app(\\App\\Services\\Wallets\\WalletAccountService::class)->openForUser($user);
+        app(\\App\\Services\\Wallets\\WalletLedgerService::class)->post($wallet->id, 'credit', 50000, 'unknown-payout-seed-001');
+
+        $paystack = \\Mockery::mock(\\App\\Services\\Payments\\PaystackClient::class);
+        $paystack->shouldReceive('mode')->once()->andReturn('test');
+        $paystack->shouldReceive('initiateBankTransfer')->once()->andThrow(new \\RuntimeException('Connection lost after request dispatch'));
+        $this->app->instance(\\App\\Services\\Payments\\PaystackClient::class, $paystack);
+
+        $service = app(BankPayoutService::class);
+        $first = $service->requestPayout($user, $beneficiary->id, 12500, 'payout-unknown-outcome-001');
+        $again = $service->requestPayout($user, $beneficiary->id, 12500, 'payout-unknown-outcome-001');
+
+        $this->assertSame($first->id, $again->id);
+        $this->assertSame('reconciliation_required', $first->status);
+        $this->assertSame('reconciliation_required', $again->status);
+        $this->assertSame(37500, (int) $wallet->fresh()->balance_minor);
+        $this->assertDatabaseCount('bank_payouts', 1);
+        $this->assertDatabaseCount('wallet_ledger_entries', 2);
+        $this->assertDatabaseHas('bank_payouts', [
+            'id' => $first->id,
+            'status' => 'reconciliation_required',
+        ]);
+    }
 }
