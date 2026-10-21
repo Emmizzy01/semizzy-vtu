@@ -167,7 +167,23 @@ class BankPayoutService
             throw new LogicException('This bank account is already being verified. If you just submitted it, wait or contact support before retrying.');
         }
 
-        $resolved = $this->paystack->resolveNigerianAccount($accountNumber, $bankCode);
+        // Account resolution is read-only. If it fails, no provider recipient could
+        // have been created, so release this claim and allow a safe later retry.
+        // Do not apply this cleanup to createTransferRecipient: its outcome may be
+        // unknown if the provider created the recipient but the response was lost.
+        try {
+            $resolved = $this->paystack->resolveNigerianAccount($accountNumber, $bankCode);
+        } catch (\\Throwable $exception) {
+            DB::table('bank_beneficiary_claims')
+                ->where('account_fingerprint', $fingerprint)
+                ->where('user_id', $user->id)
+                ->whereNull('beneficiary_id')
+                ->where('status', 'pending')
+                ->delete();
+
+            throw $exception;
+        }
+
         $recipient = $this->paystack->createTransferRecipient($resolved['account_name'], $accountNumber, $bankCode);
         $recipientCode = $recipient['recipient_code'];
 
