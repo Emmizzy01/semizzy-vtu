@@ -603,6 +603,39 @@ class VtuBulkPurchaseBatchTest extends TestCase
         ]];
     }
 
+    public function test_duplicate_delivery_does_not_reopen_terminal_batch(): void
+    {
+        $user = User::factory()->create();
+        $batch = VtuBulkPurchaseBatch::query()->create([
+            'public_id' => (string) \\Illuminate\\Support\\Str::uuid(),
+            'user_id' => $user->id,
+            'batch_key' => 'bulk-terminal-delivery-key',
+            'request_hash' => hash('sha256', 'terminal-delivery'),
+            'status' => 'completed',
+            'item_count' => 1,
+            'total_amount_minor' => 1000,
+            'currency' => 'NGN',
+            'completed_at' => now(),
+        ]);
+        $item = $batch->items()->create([
+            'item_index' => 0,
+            'idempotency_key' => hash('sha256', 'terminal-delivery-item'),
+            'product_code' => 'private-code',
+            'service_type' => 'airtime',
+            'recipient' => '08012345678',
+            'amount_minor' => 1000,
+            'status' => 'pending',
+        ]);
+        $orders = \\Mockery::mock(VtuOrderService::class);
+        $orders->shouldNotReceive('purchase');
+
+        (new ProcessVtuBulkPurchaseBatch((int) $batch->id))->handle($orders);
+
+        $this->assertSame('completed', $batch->fresh()->status);
+        $this->assertNotNull($batch->fresh()->completed_at);
+        $this->assertSame('pending', $item->fresh()->status);
+    }
+
     public function test_late_worker_cannot_overwrite_item_quarantined_as_unknown(): void
     {
         $user = User::factory()->create();
