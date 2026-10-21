@@ -517,4 +517,67 @@ class BankPayoutSafetyTest extends TestCase
         ]);
     }
 
+
+    public function test_uncertain_stale_webhook_does_not_overwrite_concurrently_confirmed_success(): void
+    {
+        $user = User::query()->create([
+            'name' => 'Concurrent Payout Settlement User',
+            'email' => 'concurrent-payout-settlement@example.test',
+            'password' => 'not-a-real-password',
+        ]);
+        $beneficiary = \\App\\Models\\BankBeneficiary::query()->create([
+            'user_id' => $user->id,
+            'bank_code' => '999',
+            'bank_name' => 'Concurrent Settlement Bank',
+            'account_number' => '0123456789',
+            'account_number_last4' => '6789',
+            'account_name' => $user->name,
+            'provider_recipient_code' => 'RCP_concurrent_settlement',
+            'verification_status' => 'verified',
+            'verified_at' => now(),
+        ]);
+        $payout = \\App\\Models\\BankPayout::query()->create([
+            'public_id' => (string) \\Illuminate\\Support\\Str::uuid(),
+            'user_id' => $user->id,
+            'bank_beneficiary_id' => $beneficiary->id,
+            'currency' => 'NGN',
+            'amount_minor' => 12500,
+            'fee_minor' => 0,
+            'status' => 'provider_pending',
+            'idempotency_key' => 'concurrent-payout-settlement-001',
+            'request_hash' => hash('sha256', 'concurrent-payout-settlement'),
+            'provider_reference' => 'semizzy_concurrent_settlement_001',
+            'provider_transfer_code' => 'TRF_concurrent_settlement',
+            'wallet_transaction_id' => null,
+            'metadata' => ['gateway_mode' => 'test'],
+        ]);
+
+        $paystack = \\Mockery::mock(\\App\\Services\\Payments\\PaystackClient::class);
+        $paystack->shouldReceive('fetchBankTransfer')
+            ->once()
+            ->with('TRF_concurrent_settlement')
+            ->andReturnUsing(function () use ($payout): array {
+                // Simulate another verified webhook winning while this lookup is in flight.
+                $payout->forceFill(['status' => 'succeeded'])->save();
+
+                throw new \\RuntimeException('Stale webhook lookup lost its connection.');
+            });
+        $this->app->instance(\\App\\Services\\Payments\\PaystackClient::class, $paystack);
+
+        $result = app(\\App\\Services\\Wallets\\BankPayoutReconciliationService::class)
+            ->applyPaystackEvent('transfer.failed', [
+                'data' => [
+                    'reference' => 'semizzy_concurrent_settlement_001',
+                    'transfer_code' => 'TRF_concurrent_settlement',
+                ],
+            ]);
+
+        $this->assertSame('succeeded', $result['outcome']);
+        $this->assertTrue($result['duplicate']);
+        $this->assertSame('succeeded', $payout->fresh()->status);
+        $this->assertDatabaseCount('wallet_transactions', 0);
+        $this->assertDatabaseCount('wallet_ledger_entries', 0);
+        $paystack->shouldHaveReceived('fetchBankTransfer')->once();
+    }
+
 }
