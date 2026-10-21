@@ -201,8 +201,26 @@ jobs:
             docker exec "$container_id" mariadb -uroot -proot -e "SET GLOBAL innodb_snapshot_isolation=OFF;"
           fi
           docker exec "$container_id" mariadb -uroot -proot -e "SHOW VARIABLES LIKE 'innodb_snapshot_isolation';"
-      - name: Run isolated financial concurrency regressions
-        run: php artisan test tests/Feature/BankPayoutMariaDbConcurrencyTest.php tests/Feature/PaymentRefundMariaDbConcurrencyTest.php tests/Feature/PeerWalletTransferMariaDbConcurrencyTest.php
+      - name: Isolate error 123 by financial concurrency test file
+        run: |
+          container_id="$(docker ps --filter 'ancestor=mariadb:11' --format '{{.ID}}' | head -n 1)"
+          test -n "$container_id"
+          for test_file in \
+            tests/Feature/BankPayoutMariaDbConcurrencyTest.php \
+            tests/Feature/PaymentRefundMariaDbConcurrencyTest.php \
+            tests/Feature/PeerWalletTransferMariaDbConcurrencyTest.php; do
+            before="$(docker logs "$container_id" 2>&1 | grep -Fc "Got error 123 when reading table" || true)"
+            set +e
+            php artisan test "$test_file"
+            test_status=$?
+            set -e
+            after="$(docker logs "$container_id" 2>&1 | grep -Fc "Got error 123 when reading table" || true)"
+            delta=$((after - before))
+            echo "MARIADB_ERROR_123_DELTA[$test_file]=$delta"
+            if [ "$test_status" -ne 0 ]; then
+              exit "$test_status"
+            fi
+          done
       - name: Report MariaDB error 123 occurrences without suppressing them
         if: always()
         run: |
