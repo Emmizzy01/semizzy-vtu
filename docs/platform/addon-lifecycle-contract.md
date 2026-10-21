@@ -174,3 +174,34 @@ These tests characterize routing and middleware only; they do not prove controll
 3. Add missing assertions for payment webhook duplicate event IDs/payload conflicts and VTU order idempotency/recovery permissions only where existing tests do not already cover them.
 4. Update this document with the final CI run URLs and test evidence.
 5. Keep addon lifecycle admission unwired until these gates are closed. No live transactions, production data changes, or provider purchase activation are part of this audit.
+
+
+## Dispatch-origin and replay follow-up — 2026-10-21
+
+### New payment webhook replay regression
+
+- Commit `c54d052d75ebfdac444fae1aa8c3075ec226d70b` adds `test_reused_payment_webhook_event_id_with_changed_payload_is_rejected_without_second_credit` in `tests/Feature/PaymentFundingWorkflowTest.php`.
+- The scenario reuses a signed provider event ID with a changed transaction payload and asserts HTTP 409 while wallet balance, payment-intent state, wallet transaction count, ledger count, and webhook-event count remain unchanged after the original settlement.
+- This test is committed but must not be described as passing until the corresponding PHP CI jobs complete successfully.
+
+### Dispatch and scheduler source inventory
+
+- The repository tree currently contains one tracked Laravel queue job class: `app/Jobs/ProcessVtuBulkPurchaseBatch.php`. Its controller dispatch origin is `VtuOrderController`'s bulk-purchase action; the job also redispatches remaining pending work. The job declares three attempts and a 60-second timeout, claims each item under a row lock, and treats uncertain provider outcomes as unknown rather than blindly resubmitting.
+- Login OTP email uses `LoginOtpMail`; source inspection found it is sent synchronously rather than dispatched as a queue job. SMS/WhatsApp delivery is performed through synchronous HTTPS service calls. Workspace invitation calls `notify(new WorkspaceInvitationNotification(...))`; that notification uses `Queueable` but does not implement `ShouldQueue`, so it is not evidence of queued delivery.
+- `routes/console.php` schedules the database queue worker, scheduled VTU purchases, Paystack payment reconciliation, refund reconciliation, provider-webhook processing, VTU order reconciliation/monitoring, and education-order reconciliation. Scheduled commands use `withoutOverlapping()`.
+- `payments:monitor-refunds` exists as a standalone operator command and is also called by the scheduled refund-reconciliation command; it does not need a second independent schedule for the scheduled monitoring path to run. `vtu:catalog-sync --apply` is an explicit command, not an automatic recurring schedule, so catalogue mutation remains operator-triggered.
+- This is a source inventory of tracked job classes and inspected call sites, not proof of runtime queue delivery, scheduler execution, or every dynamically constructed dispatch. Runtime configuration and remaining call-site review remain acceptance gates.
+
+### CI status for the replay-test commit
+
+- Commit under test: `c54d052d75ebfdac444fae1aa8c3075ec226d70b`.
+- Laravel/frontend checks: [run 39628126277](https://github.com/Emmizzy01/semizzy-vtu/actions/runs/39628126277) — frontend-build passed; PHP 8.4 was in progress and PHP 8.3 was queued at the latest inspection.
+- Security verification: [run 39628125907](https://github.com/Emmizzy01/semizzy-vtu/actions/runs/39628125907) — SQLite passed; MariaDB was in progress.
+- Frontend asset build/publish: [run 39628126406](https://github.com/Emmizzy01/semizzy-vtu/actions/runs/39628126406) — build was in progress.
+- These workflows were not yet fully green when this entry was written. Recheck them after this documentation update; do not sign off the gate based on partial job success.
+
+### Remaining acceptance gates
+
+1. Recheck the workflow runs above and the new documentation commit's workflows; inspect and fix any failing step on `main`.
+2. Finish verifying recovery endpoint ownership and permissions with the focused tests, and record exact test evidence.
+3. Keep addon lifecycle admission unwired until CI and the route/recovery inventory are complete. No production mutation, real financial transaction, or live provider purchase is authorized by this audit.
