@@ -170,3 +170,21 @@ Additional source inventory evidence from the current `main` tree:
 Created `docs/platform/addon-route-recovery-map.md` with current customer/admin route-to-owner mappings for education, streaming subscriptions, VTU website requests, VTU, manual deposits, funding/refunds, virtual accounts, transfers, payouts, scheduled purchases, provider catalogues and addon administration. It records the direct provider bindings and background recovery paths that must be considered alongside HTTP routes.
 
 This is a bounded first map, not the final endpoint inventory: webhook/callback routes, all route-group middleware, every console schedule/listener/job, and endpoint-by-endpoint permission/idempotency/ledger mapping remain open. No runtime gating was added before those boundaries can be tested.
+
+
+## Bulk Action — endpoint/background audit and lifecycle policy checkpoint (2026-10-21)
+
+### Newly inspected entry points
+
+- API routes: `POST /api/payments/webhooks/{provider}` (Paystack/approved payment providers validated in controller) and `POST /api/vtu/webhooks/{provider}` (route allowlist Sogo/Dataway), both throttled at 60/minute. API middleware appends `EnsurePlatformAvailable`; no addon-specific gate is wired.
+- `bootstrap/app.php` loads `routes/console.php`; `app/Console/Kernel.php` is absent. Current scheduled work includes scheduled purchases and queue draining every minute; Paystack payment/refund reconciliation every five minutes; VTU provider webhook processing every minute; VTU/education order reconciliation every five minutes; VTU monitoring every 15 minutes. Catalog sync and refund monitoring commands exist without explicit schedule declarations in the inspected source.
+- Existing webhook controllers validate signatures and payloads; VTU event intake uses provider/event identity and payload hash conflict checks. Payment settlement has provider/amount/currency validation, replay conflict handling and a live-settlement release gate. VTU and education workflows preserve ambiguous outcomes for reconciliation instead of blind resubmission.
+- Admin route groups inherit authentication and staff permission checks; refund approval uses a separate narrow permission. Route-level throttles and names are compatibility requirements during any delegation.
+
+### Lifecycle policy added
+
+- Added `app/Services/Addons/AddonLifecyclePolicy.php`, a pure fail-closed admission policy requiring enabled registry state, compatible core version/dependencies, registered reviewed implementation, Core feature flag and provider readiness.
+- Added `tests/Unit/AddonLifecyclePolicyTest.php` covering ready admission, each missing gate, and the key safety rule that Core may recover an accepted non-terminal operation after addon disablement while new, terminal or unrecoverable work is not admitted to recovery.
+- Added `docs/platform/addon-lifecycle-contract.md` with the contract, current webhook/worker inventory, and remaining route/job audit work.
+
+**Important boundary:** policy is deliberately not yet wired into routes, jobs or provider resolution. No service was migrated in this checkpoint. This avoids blocking webhooks/reconciliation or falsely declaring a registry row operational before the complete endpoint map and CI results are available. New tests must be confirmed by GitHub Actions before the policy can be treated as verified.
