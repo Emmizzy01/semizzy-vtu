@@ -100,7 +100,7 @@ jobs:
           QUEUE_CONNECTION: sync
           MAIL_MAILER: array
       - name: Run payout, peer-transfer, bulk-recovery, and payout race regressions
-        run: php artisan test tests/Feature/BankPayoutSafetyTest.php tests/Feature/PeerWalletTransferTest.php tests/Feature/PeerWalletTransferMariaDbConcurrencyTest.php tests/Feature/VtuBulkPurchaseBatchTest.php tests/Feature/BankPayoutMariaDbConcurrencyTest.php
+        run: php artisan test tests/Feature/BankPayoutSafetyTest.php tests/Feature/PeerWalletTransferTest.php tests/Feature/PeerWalletTransferMariaDbConcurrencyTest.php tests/Feature/PaymentRefundWorkflowTest.php tests/Feature/PaymentRefundMariaDbConcurrencyTest.php tests/Feature/VtuBulkPurchaseBatchTest.php tests/Feature/BankPayoutMariaDbConcurrencyTest.php
         env:
           APP_ENV: testing
           APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
