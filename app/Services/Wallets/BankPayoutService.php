@@ -96,6 +96,26 @@ class BankPayoutService
             throw new InvalidArgumentException('Select a bank from the current bank directory.');
         }
 
+        // Avoid creating a provider-side recipient when this exact bank account
+        // is already attached to a Semizzy account. account_number is encrypted at
+        // rest, but Eloquent decrypts it when read; never log or return the full value.
+        $matchingAccount = BankBeneficiary::query()
+            ->where('bank_code', $bankCode)
+            ->orderBy('id')
+            ->get(['id', 'user_id', 'bank_code', 'account_number', 'account_name', 'provider_recipient_code'])
+            ->first(fn (BankBeneficiary $saved): bool => hash_equals(
+                (string) $saved->account_number,
+                $accountNumber,
+            ));
+
+        if ($matchingAccount !== null) {
+            if ((int) $matchingAccount->user_id !== (int) $user->id) {
+                throw new LogicException('This bank account is already associated with another Semizzy account.');
+            }
+
+            return $matchingAccount;
+        }
+
         $resolved = $this->paystack->resolveNigerianAccount($accountNumber, $bankCode);
         $recipient = $this->paystack->createTransferRecipient($resolved['account_name'], $accountNumber, $bankCode);
         $recipientCode = $recipient['recipient_code'];
