@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Services\Security\TransactionPinService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
 use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
 
@@ -33,9 +34,16 @@ class TransactionPinController extends Controller
         }
         $wasConfigured = (bool) $user->transaction_pin_hash;
         $data = $request->validate([
+            'password' => ['required', 'string', 'max:255'],
             'current_pin' => $wasConfigured ? ['required', 'string', 'regex:/^\\d{4}(?:\\d{2})?$/'] : ['nullable', 'string', 'regex:/^\\d{4}(?:\\d{2})?$/'],
             'pin' => ['required', 'string', 'digits:4', 'confirmed', 'regex:/^(?!([0-9])\1{3})\d{4}$/'],
         ]);
+        if (! Hash::check((string) $data['password'], (string) $user->password)) {
+            $pins->record((int) $user->id, 'pin_step_up', 'failed', ['purpose' => $wasConfigured ? 'pin_change' : 'pin_creation']);
+            return back()->withErrors(['password' => 'Your current login password is incorrect.']);
+        }
+        $pins->record((int) $user->id, 'pin_step_up', 'success', ['purpose' => $wasConfigured ? 'pin_change' : 'pin_creation']);
+
         $pin = (string) $data['pin'];
         if (in_array($pin, ['0123', '1234', '2345', '3456', '4567', '5678', '6789', '9876', '8765', '7654', '6543', '5432', '4321', '3210', '1212', '1122', '2211', '1010', '1111', '2222', '3333', '4444', '5555', '6666', '7777', '8888', '9999', '0000'], true)) {
             return back()->withErrors(['pin' => 'Choose a less predictable four-digit PIN.']);
