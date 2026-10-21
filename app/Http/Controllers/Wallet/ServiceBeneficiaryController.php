@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\ServiceBeneficiary;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Database\QueryException;
 use Illuminate\Validation\Rule;
 
 class ServiceBeneficiaryController extends Controller
@@ -58,15 +59,25 @@ class ServiceBeneficiaryController extends Controller
             return response()->json(['message' => 'A beneficiary with this label already exists for this service.'], 409);
         }
 
-        $beneficiary = ServiceBeneficiary::query()->create([
-            'user_id' => $request->user()->getKey(),
-            'service_type' => $validated['service_type'],
-            'label' => trim($validated['label']),
-            'recipient' => $recipient,
-            'network' => isset($validated['network']) ? trim($validated['network']) : null,
-            'product_code' => $validated['product_code'] ?? null,
-            'service_details' => $details ?: null,
-        ]);
+        try {
+            $beneficiary = ServiceBeneficiary::query()->create([
+                'user_id' => $request->user()->getKey(),
+                'service_type' => $validated['service_type'],
+                'label' => trim($validated['label']),
+                'recipient' => $recipient,
+                'network' => isset($validated['network']) ? trim($validated['network']) : null,
+                'product_code' => $validated['product_code'] ?? null,
+                'service_details' => $details ?: null,
+            ]);
+        } catch (QueryException $exception) {
+            // The unique database constraint is the final authority when two
+            // identical submissions race past the friendly pre-check above.
+            if (in_array((string) $exception->getCode(), ['23000', '23505'], true)) {
+                return response()->json(['message' => 'A beneficiary with this label already exists for this service.'], 409);
+            }
+
+            throw $exception;
+        }
 
         return response()->json(['data' => $beneficiary->only([
             'id', 'service_type', 'label', 'recipient', 'network', 'product_code', 'service_details', 'created_at',
