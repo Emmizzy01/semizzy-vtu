@@ -240,26 +240,52 @@ Artisan::command('vtu:run-scheduled-purchases {--limit=100}', function (VtuOrder
             }
             $orderStatus = (string) $order->status;
             $confirmedFinal = in_array($orderStatus, ['successful', 'failed', 'cancelled'], true);
-            $schedule->update([
-                'status' => ($next && $confirmedFinal) ? 'active' : 'paused',
-                'last_run_at' => now(),
-                'next_run_at' => ($next && $confirmedFinal) ? $next : $dueAt,
-                'last_order_public_id' => $order->public_id,
-                'last_result' => $orderStatus,
-                'last_error' => $confirmedFinal ? null : 'The provider outcome is not final. This schedule is paused until the existing order is reconciled.',
-            ]);
-            $processed++;
-            if (!$confirmedFinal) $paused++;
-        } catch (\Throwable $exception) {
+            // Finalize under a fresh row lock. A concurrent stale-claim recovery
+            // may have paused this schedule while the provider request was in flight;
+            // never overwrite that safety pause or reactivate it automatically.
+            $finalized = DB::transaction(function () use ($schedule, $next, $confirmedFinal, $dueAt, $order, $orderStatus): bool {
+                $current = ScheduledServicePurchase::query()->whereKey($schedule->id)->lockForUpdate()->first();
+                if (!$current || $current->status !== 'processing') {
+                    if ($current) {
+                        $current->update([
+                            'last_run_at' => now(),
+                            'last_order_public_id' => $order->public_id,
+                            'last_result' => $orderStatus,
+                            'last_error' => 'The provider returned after this schedule was paused. Keep it paused and reconcile the recorded order before resuming.',
+                        ]);
+                    }
+                    return false;
+                }
+
+                $current->update([
+                    'status' => ($next && $confirmedFinal) ? 'active' : 'paused',
+                    'last_run_at' => now(),
+                    'next_run_at' => ($next && $confirmedFinal) ? $next : $dueAt,
+                    'last_order_public_id' => $order->public_id,
+                    'last_result' => $orderStatus,
+                    'last_error' => $confirmedFinal ? null : 'The provider outcome is not final. This schedule is paused until the existing order is reconciled.',
+                ]);
+                return true;
+            });
+            if ($finalized) {
+                $processed++;
+                if (!$confirmedFinal) $paused++;
+            } else {
+                $paused++;
+            }
+        } catch (\\Throwable $exception) {
             report($exception);
-            // Fail closed. Do not auto-retry a run whose provider outcome could be
-            // uncertain; operations/user must inspect the stable order reference.
-            $schedule->update([
-                'status' => 'paused',
-                'last_run_at' => now(),
-                'last_result' => 'unknown',
-                'last_error' => 'Scheduled run paused after an uncertain or rejected result. Review the order before resuming.',
-            ]);
+            // Fail closed. Preserve any pause made by recovery or an operator.
+            DB::transaction(function () use ($schedule): void {
+                $current = ScheduledServicePurchase::query()->whereKey($schedule->id)->lockForUpdate()->first();
+                if (!$current) return;
+                $current->update([
+                    'status' => $current->status === 'processing' ? 'paused' : $current->status,
+                    'last_run_at' => now(),
+                    'last_result' => 'unknown',
+                    'last_error' => 'Scheduled run paused after an uncertain or rejected result. Review the order before resuming.',
+                ]);
+            });
             $paused++;
         }
     }
