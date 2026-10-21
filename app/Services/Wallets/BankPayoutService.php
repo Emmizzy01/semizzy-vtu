@@ -124,8 +124,8 @@ class BankPayoutService
         }
         $fingerprint = hash_hmac('sha256', $bankCode.'|'.trim($accountNumber), $appKey);
 
-        $claim = DB::transaction(function () use ($fingerprint, $user): object {
-            DB::table('bank_beneficiary_claims')->insertOrIgnore([
+        $claimResult = DB::transaction(function () use ($fingerprint, $user): array {
+            $inserted = DB::table('bank_beneficiary_claims')->insertOrIgnore([
                 'account_fingerprint' => $fingerprint,
                 'user_id' => $user->id,
                 'beneficiary_id' => null,
@@ -134,12 +134,19 @@ class BankPayoutService
                 'updated_at' => now(),
             ]);
 
-            return DB::table('bank_beneficiary_claims')
+            $claim = DB::table('bank_beneficiary_claims')
                 ->where('account_fingerprint', $fingerprint)
                 ->lockForUpdate()
-                ->firstOrFail();
+                ->first();
+
+            if ($claim === null) {
+                throw new LogicException('Could not reserve this bank account safely. Please try again later.');
+            }
+
+            return ['claim' => $claim, 'inserted' => $inserted === 1];
         }, attempts: 3);
 
+        $claim = $claimResult['claim'];
         if ((int) $claim->user_id !== (int) $user->id) {
             throw new LogicException('This bank account is already associated with another Semizzy account.');
         }
@@ -153,21 +160,10 @@ class BankPayoutService
             throw new LogicException('This bank account is reserved for verification recovery. Contact support; do not submit it again.');
         }
 
-        // A pending claim is deliberately not retried: the previous request may
-        // have reached the provider even if its response was lost. This fails
-        // closed instead of creating another provider recipient on an uncertain outcome.
-        $claimWasJustCreated = (string) $claim->status === 'pending'
-            && DB::table('bank_beneficiary_claims')
-                ->where('account_fingerprint', $fingerprint)
-                ->where('user_id', $user->id)
-                ->whereNull('beneficiary_id')
-                ->where('created_at', '>=', now()->subSeconds(3))
-                ->exists();
-
-        // The DB claim may have been created by another concurrent request. Only
-        // the request that inserted it may proceed; a unique insert that conflicted
-        // must not cause a second provider recipient to be created.
-        if (! $claimWasJustCreated) {
+        // Only the request that inserted the unique claim may contact the provider.
+        // Existing pending claims are never retried because the prior provider call
+        // may have succeeded even if its response was lost.
+        if (! $claimResult['inserted']) {
             throw new LogicException('This bank account is already being verified. If you just submitted it, wait or contact support before retrying.');
         }
 
