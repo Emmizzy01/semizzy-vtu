@@ -89,4 +89,47 @@ class UserClassificationTest extends TestCase
                 ->where('users.data.0.id', $matching->id));
     }
 
+    public function test_administrator_account_type_does_not_grant_staff_permissions(): void
+    {
+        $classifiedAdministrator = User::query()->create([
+            'name' => 'Classified Administrator',
+            'email' => 'classified-administrator@example.test',
+            'password' => 'not-a-real-password',
+        ]);
+        $classifiedAdministrator->forceFill([
+            'user_type' => 'administrator',
+            'user_level' => 'level_4',
+        ])->save();
+
+        // Customer classification and merchant tier describe the account; they
+        // must never act as a substitute for an explicit staff permission grant.
+        $this->actingAs($classifiedAdministrator)->get('/admin/users')->assertForbidden();
+        $this->actingAs($classifiedAdministrator)->get('/admin/user-levels')->assertForbidden();
+
+        $this->assertDatabaseMissing('user_permissions', [
+            'user_id' => $classifiedAdministrator->id,
+            'permission' => 'staff.permissions.manage',
+        ]);
+        $this->assertDatabaseMissing('user_permissions', [
+            'user_id' => $classifiedAdministrator->id,
+            'permission' => 'refunds.approve',
+        ]);
+    }
+
+    public function test_support_account_type_does_not_grant_refund_approval(): void
+    {
+        $support = User::query()->create([
+            'name' => 'Support Classification',
+            'email' => 'support-classification@example.test',
+            'password' => 'not-a-real-password',
+        ]);
+        $support->forceFill(['user_type' => 'support'])->save();
+
+        $this->actingAs($support)->get('/admin/staff')->assertForbidden();
+        $this->assertDatabaseMissing('user_permissions', [
+            'user_id' => $support->id,
+            'permission' => 'refunds.approve',
+        ]);
+    }
+
 }
