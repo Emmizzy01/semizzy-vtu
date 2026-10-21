@@ -309,4 +309,33 @@ class MultiProviderVtuRouterTest extends TestCase
         $this->assertFalse($result['definitive_failure']);
     }
 
+    public function test_unknown_historical_attempt_cannot_be_submitted_again(): void
+    {
+        Http::fake();
+
+        $order = new VtuOrder([
+            'public_id' => 'sogo-unknown-attempt-guard',
+            'provider' => 'sogo',
+            'status' => 'processing',
+        ]);
+        $order->setAttribute('id', 77);
+
+        $attempt = new VtuProviderAttempt([
+            'vtu_order_id' => 77,
+            'attempt_number' => 1,
+            'provider' => 'sogo',
+            'provider_reference' => 'SOGO-UNKNOWN-REF',
+            'outcome' => 'unknown',
+        ]);
+
+        try {
+            app(MultiProviderVtuRouter::class)->submitAttempt($order, $attempt);
+            $this->fail('Unknown historical attempts must remain lookup-only.');
+        } catch (LogicException $exception) {
+            $this->assertStringContainsString('not in an authorized dispatch state', $exception->getMessage());
+        }
+
+        Http::assertNothingSent();
+    }
+
 }
