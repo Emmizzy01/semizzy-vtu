@@ -63,3 +63,19 @@ Latest evidence:
 - Do not modify or redesign the theme during this sweep.
 - Do not reset production data, run destructive production commands, or perform real payments, payouts, refunds, or provider purchases.
 - Treat production schema, first-admin access, scheduler, queue, and provider onboarding as deployment verification where appropriate; continue unrelated code implementation without waiting for live-server access.
+
+
+## Bulk Action — webhook replay and recovery permission isolation (2026-10-21)
+
+This checkpoint adds focused regression coverage; it does **not** close Phase 1.
+
+- Commit `c54d052d75ebfdac444fae1aa8c3075ec226d70b` adds a payment webhook test proving reuse of one provider event ID with a changed payload is rejected without a second wallet credit or duplicate ledger/event records. Its Laravel/frontend workflow completed successfully: PHP 8.3 and PHP 8.4 suites passed, and the frontend build passed. [Workflow evidence](https://github.com/Emmizzy01/semizzy-vtu/actions/runs/39628126277).
+- Commit `4821859bd99c6dead8a61c6970229ede5d3abafb` strengthens `AdminVtuOrderOperationsTest`: a customer and an account with only `refunds.approve` are both explicitly denied the administrative VTU queue and reconcile POST. The dedicated SQLite security suite and full PHP suites for this commit are still running at the latest check; do not claim this newest regression has passed yet.
+- For `4821859`, the frontend build step has passed. PHP 8.3, PHP 8.4, the MariaDB security suite, and asset publication were still in progress. [Laravel/frontend workflow](https://github.com/Emmizzy01/semizzy-vtu/actions/runs/39628664526), [security workflow](https://github.com/Emmizzy01/semizzy-vtu/actions/runs/39628664542), [asset build workflow](https://github.com/Emmizzy01/semizzy-vtu/actions/runs/39628664580).
+- Dispatch/source review recorded in `docs/platform/addon-lifecycle-contract.md` identifies the bulk-purchase job and scheduled recovery paths, distinguishes synchronous OTP/invitation delivery from queued jobs, and keeps lifecycle policy unwired until full route/job authorization and recovery acceptance is complete.
+
+### Phase 1 release decision
+
+**Phase 1 remains OPEN.** Outstanding gates include the final complete CI run on the latest commit; endpoint-by-endpoint wallet/PIN/authorization and recovery acceptance; real-browser HTTPS passkey ceremonies; vendor-specific SMS/WhatsApp contract and authorized device delivery; multi-provider virtual-account coverage; live provider contract verification; and production deployment/schema/scheduler/queue/first-admin checks. These are not safe to waive to make a phase appear complete.
+
+No production database changes, real payments/refunds/payouts, live provider purchases, or feature-gate openings were performed by this bulk action. Continue on `main` only, preserve the existing UI/routes/contracts, and do not wire addon lifecycle admission until its route and background recovery gates are verified.
