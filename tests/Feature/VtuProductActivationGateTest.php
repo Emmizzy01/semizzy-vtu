@@ -19,7 +19,7 @@ class VtuProductActivationGateTest extends TestCase
     {
         PlatformFeatureControl::query()->updateOrCreate(
             ['feature_key' => 'service.data'],
-            ['label' => 'Data', 'category' => 'services', 'owner' => 'Core', 'is_enabled' => true, 'is_implemented' => true],
+            ['label' => 'Data', 'category' => 'services', 'owner' => 'Core', 'description' => 'Data service activation test control', 'is_enabled' => true, 'is_implemented' => true],
         );
         PlatformAddon::query()->updateOrCreate(
             ['addon_key' => 'service.data'],
