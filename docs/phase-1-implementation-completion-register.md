@@ -16,6 +16,20 @@ Latest **runtime-code** commit verified by terminal CI: `bb558be45160d6794d1d469
 
 **Phase 1 status: OPEN.** Bulk Action 3 source-level route-to-service matrix is documented, but Phase 1 is not signed off until the final register commit's CI is terminal-green and all deployment-only gates are separately verified.
 
+## Bulk Action 7 verification update — 2026-10-22
+
+Latest runtime-code commit verified: `3095bdada1469dd6229acaee5cec65be2590a37b` on `main`.
+
+- [Laravel and frontend checks](https://github.com/Emmizzy01/semizzy-vtu/actions/runs/39737423498) completed successfully: PHP 8.3 and PHP 8.4 lint, focused VTU/provider/education/concurrency/catalogue tests, full Laravel suites, and frontend build all passed; both MariaDB error-123 diagnostics passed.
+- [Phase 1 security verification](https://github.com/Emmizzy01/semizzy-vtu/actions/runs/39737423625) completed successfully: SQLite suite and focused MariaDB security/financial suite passed.
+- [Frontend asset build/publication](https://github.com/Emmizzy01/semizzy-vtu/actions/runs/39737423484) completed successfully.
+- The corrected `test_accepted_order_retry_remains_recoverable_after_service_feature_is_disabled` is present in `tests/Feature/VtuOrderWorkflowTest.php`. Both PHP full-suite jobs passed on this commit, so this regression test is included in successful suite execution. It asserts the retry returns the original accepted order/status after the feature is disabled, keeps one order and one debit, and makes no second provider submission.
+- Source-level endpoint review identified an outstanding enforcement question: `UserLevelPolicyService` currently evaluates configured KYC, single-transaction and daily-debit limits for wallet-funded VTU purchases. The reviewed peer-transfer and bank-payout service paths enforce their own PIN, idempotency, locking and ledger controls, but no shared tier-policy call was confirmed there. Before acceptance, explicitly define whether the configured tier limits govern P2P transfers and payouts, then add tests proving the intended rule at each applicable mutation endpoint. Do not infer limits or apply new limits without confirming the blueprint and policy semantics.
+- Dashboard route checks establish that the enumerated destinations resolve and admin routes have capability middleware; they do not yet prove full page-by-page blueprint parity or persistent global navigation across every user/admin page. Catalogue tests cover provider metadata privacy and import preservation but do not accept every requested service category as provider-backed.
+- Add-on lifecycle policy still has no confirmed runtime admission/dispatch/recovery call site. Keep that implementation gap open.
+
+**Bulk Action 7 status: OPEN.** The latest automated CI is green, and the accepted-order retry regression is verified. Endpoint-level tier-policy semantics/coverage, runtime add-on lifecycle integration, and complete dashboard/navigation/catalogue acceptance remain open. Phase 1 remains OPEN. No live purchases or real financial transactions were triggered; production provider contracts, real-device SMS/WhatsApp delivery, HTTPS browser passkey ceremony and cPanel-only checks remain release/deployment gates.
+
 ## Bulk Action 1 — critical security and authentication sweep (2026-10-21)
 
 **Implementation and automated regression coverage are in place; this is not full Phase 1 sign-off.** Current code covers verified mobile-number login, verified WhatsApp login, hashed/expiring/single-use OTP challenges, atomic TOTP recovery-code management, five-minute TOTP challenge expiry, password-change/reset invalidation of pending sign-in challenges, session revocation, transaction-PIN controls, passkey origin/confirmation guards, and passkey authorization that blocks inactive accounts and configured OTP/TOTP step-up bypasses.
