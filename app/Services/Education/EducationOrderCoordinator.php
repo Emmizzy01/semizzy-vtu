@@ -6,6 +6,10 @@ use App\Exceptions\Wallet\IdempotencyConflict;
 use App\Models\EducationOrder;
 use App\Models\EducationProviderAttempt;
 use App\Models\EducationServiceProduct;
+use App\Models\PlatformAddon;
+use App\Models\PlatformFeatureControl;
+use App\Services\Addons\AddonImplementationRegistry;
+use App\Services\Addons\AddonLifecyclePolicy;
 use App\Models\User;
 use App\Models\Wallet;
 use App\Services\Security\UserLevelPolicyService;
@@ -65,6 +69,11 @@ class EducationOrderCoordinator
                 if ($existing !== null) {
                     return $this->returnExisting($existing, $requestHash);
                 }
+
+                // Admission can change after preflight (which may contact the
+                // provider for candidate validation). Recheck inside the reservation
+                // transaction before any order, debit, or provider-attempt record exists.
+                $this->assertPurchaseAdmission();
 
                 $lockedProduct = EducationServiceProduct::query()->whereKey($product->getKey())->lockForUpdate()->firstOrFail();
                 if (! $lockedProduct->is_active || ! $lockedProduct->purchase_approved || $lockedProduct->currency !== 'NGN'
@@ -150,7 +159,18 @@ class EducationOrderCoordinator
         }
 
         try {
+            // The addon may have been disabled after reservation. Do not send a
+            // new provider request in that case; retain the debit/order for lookup
+            // and reconciliation instead of refunding an uncertain operation.
+            $this->assertPurchaseAdmission();
             $result = $provider->submit($order->public_id, $product, $candidate);
+        } catch (\\LogicException $exception) {
+            if (str_contains($exception->getMessage(), 'Education purchases are disabled at the addon execution boundary:')) {
+                return $this->recordOutcome($order, 'unknown', null, 'addon_admission_closed_before_submission');
+            }
+
+            $this->recordOutcome($order, 'unknown', null, 'provider_submission_configuration_unknown');
+            return $order->fresh();
         } catch (Throwable) {
             // Provider outcome is ambiguous. Keep the debit and durable attempt for lookup.
             $this->recordOutcome($order, 'unknown', null, 'submission_outcome_unknown');
@@ -202,6 +222,35 @@ class EducationOrderCoordinator
             isset($result['message_code']) ? (string) $result['message_code'] : null,
             is_array($result['delivery_payload'] ?? null) ? $result['delivery_payload'] : null,
         );
+    }
+
+    /**
+     * Server-side admission check shared by the reservation and submission
+     * boundaries. It deliberately does not apply to reconcile() or delivery.
+     */
+    private function assertPurchaseAdmission(): void
+    {
+        $feature = PlatformFeatureControl::query()->where('feature_key', 'service.education')->first();
+        $addon = PlatformAddon::query()->where('addon_key', 'service.education')->first();
+        $implementation = app(AddonImplementationRegistry::class)->find('service.education');
+        $registered = $implementation !== null
+            && in_array('education-services.purchase', $implementation['operations'], true);
+
+        $assessment = $addon === null || $feature === null
+            ? ['available' => false, 'reason' => 'addon_or_feature_control_missing']
+            : app(AddonLifecyclePolicy::class)->assessAdmission(
+                (string) $addon->status,
+                (string) $addon->compatibility_status,
+                $registered,
+                true,
+                (bool) $feature->is_enabled && (bool) $feature->is_implemented,
+            );
+
+        if (! ($assessment['available'] ?? false)) {
+            throw new \\LogicException(
+                'Education purchases are disabled at the addon execution boundary: '.($assessment['reason'] ?? 'admission_unavailable').'.'
+            );
+        }
     }
 
     private function returnExisting(EducationOrder $order, string $requestHash): EducationOrder
