@@ -363,6 +363,13 @@ class BankPayoutService
         }
 
         try {
+            // Admission is checked again at the external-submission boundary.
+            // The payout and wallet debit are already durable here, so if the
+            // administrator disables transfers after request creation, do not
+            // call Paystack; the catch below records reconciliation_required
+            // and deliberately avoids an automatic refund or resubmission.
+            $this->assertPayoutProviderAdmission();
+
             $response = $this->paystack->initiateBankTransfer(
                 (int) $payout->amount_minor,
                 (string) $beneficiary->provider_recipient_code,
