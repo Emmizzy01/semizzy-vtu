@@ -18,7 +18,10 @@ class DashboardLinkRouteMatrixTest extends TestCase
             '/services/coming-soon/airtime-to-cash', '/services/coming-soon/e-pin',
             '/services/coming-soon/bulk-sms', '/services/coming-soon/gift-cards',
             '/services/coming-soon/flight', '/services/coming-soon/gadget-catalogue',
-            '/account/referrals', '/profile', '/support',
+            '/account/referrals', '/account/tiers', '/profile', '/support',
+            '/security/transaction-pin', '/security/two-factor', '/security/passkeys',
+            '/privacy/requests', '/wallet/virtual-accounts', '/wallet/bank-transfer',
+            '/wallet/transfers/history', '/wallet/scheduled-purchases',
         ];
 
         foreach ($destinations as $destination) {
