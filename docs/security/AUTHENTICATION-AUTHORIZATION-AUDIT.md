@@ -23,6 +23,13 @@
 6. **Passkey management foundation:** passkeys are disabled by default; enabled origins must be HTTPS, exact, non-wildcard subdomains of the relying-party domain; management actions require recent password confirmation bound to the current password. Existing regression tests cover wildcard/HTTP origins and stale confirmation.
 7. **Role boundary tests:** existing direct-URL tests exercise guest redirects and ADMIN, STAFF, SUPPORT, USER permission combinations for dashboard/refunds routes; suspended staff is logged out.
 
+## Additional source-level findings from the next pass
+
+- The staff permission-management controller explicitly rejects self-targeting, permits only the fixed `refunds.approve` permission, requires a reason, records actor/target/reason audit events, and performs the grant/revoke mutation transactionally. Existing `StaffAccessManagementTest` and `StaffPermissionAuditTest` cover these controls. Remaining concern is exhaustive route/method and privilege-boundary coverage, not an observed self-grant bypass in this controller.
+- `config/passkeys.php` configures the package's management middleware as `auth + EnsurePasskeysEnabled + EnsureRecentPasskeyConfirmation`, and its general passkey middleware is `web + EnsurePasskeysEnabled`. The browser uses the Laravel Passkeys package; package-resolved route middleware and the vendor's full ceremony implementation still need verification from the installed locked dependency and runtime route list. No claim is made that repository middleware alone proves WebAuthn signature/challenge safety.
+- KYC evidence is stored on the private local disk, access is routed through a staff-capability-protected review endpoint, access is audited, and tests cover customer denial and the review-before-approval workflow.
+- Added a password-reset token replay regression test in commit `60153b52729ed8fea31e403e514a56001086d19d`. It asserts that a token accepted once cannot change the password a second time. The test has been committed but is **not yet verified by a completed CI run**.
+
 ## Open verification items
 
 | ID | Priority | Required evidence / test |
