@@ -431,7 +431,7 @@ class ManualDepositWorkflowTest extends TestCase
         $other = User::query()->create(['name' => 'Deposit History Other', 'email' => 'deposit-history-other@example.test', 'password' => 'not-a-real-password']);
         app(WalletAccountService::class)->openForUser($owner);
         app(WalletAccountService::class)->openForUser($other);
-        app(IntegrationSettings::class)->set('manual_deposit.enabled', '1');
+        app(IntegrationSettings::class)->set('manual_deposit.enabled', '1', null);
         PlatformFeatureControl::query()->updateOrCreate(
             ['feature_key' => 'service.manual_deposit'],
             ['is_enabled' => true],
