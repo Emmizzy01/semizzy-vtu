@@ -2,6 +2,7 @@
 
 use App\Models\User;
 use App\Services\Payments\PaystackClient;
+use App\Exceptions\Wallet\IdempotencyConflict;
 use App\Services\Wallets\BankPayoutService;
 use Illuminate\Contracts\Console\Kernel;
 
@@ -53,5 +54,5 @@ try {
     exit(0);
 } catch (Throwable $exception) {
     fwrite(STDERR, get_class($exception).': '.$exception->getMessage()."\n");
-    exit(1);
+    exit($exception instanceof IdempotencyConflict ? 21 : 1);
 }
