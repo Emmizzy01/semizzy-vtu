@@ -142,15 +142,16 @@ class ScheduledPurchaseRunnerTest extends TestCase
         $order = new VtuOrder();
         $order->forceFill(['public_id' => 'order-finished-after-pause', 'status' => 'successful']);
 
+        $operatorReason = 'Operator paused this schedule pending provider verification.';
         $this->mock(VtuOrderService::class)
             ->shouldReceive('purchase')
             ->once()
-            ->andReturnUsing(function () use ($schedule, $order) {
+            ->andReturnUsing(function () use ($schedule, $order, $operatorReason) {
                 // Simulate stale-claim recovery or an operator pausing the schedule
                 // while the external provider request is still in flight.
                 \Illuminate\Support\Facades\DB::table('scheduled_service_purchases')
                     ->where('id', $schedule->id)
-                    ->update(['status' => 'paused']);
+                    ->update(['status' => 'paused', 'last_error' => $operatorReason]);
 
                 return $order;
             });
@@ -161,7 +162,7 @@ class ScheduledPurchaseRunnerTest extends TestCase
         $this->assertSame('paused', $schedule->status);
         $this->assertSame('order-finished-after-pause', $schedule->last_order_public_id);
         $this->assertSame('successful', $schedule->last_result);
-        $this->assertStringContainsString('after this schedule was paused', (string) $schedule->last_error);
+        $this->assertSame($operatorReason, $schedule->last_error, 'A late provider response must not erase the operator/recovery reason for pausing the schedule.');
     }
 
     public function test_provider_exception_pauses_schedule_and_never_replays_uncertain_purchase(): void
