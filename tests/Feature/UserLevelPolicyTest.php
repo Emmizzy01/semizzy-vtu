@@ -232,4 +232,45 @@ class UserLevelPolicyTest extends TestCase
         }
     }
 
+    public function test_configured_tier_daily_limit_blocks_peer_transfer_before_ledger_mutation(): void
+    {
+        $sender = User::query()->create([
+            'name' => 'Tier Limited Sender',
+            'email' => 'tier-limited-sender@example.test',
+            'password' => 'not-a-real-password',
+        ]);
+        $recipient = User::query()->create([
+            'name' => 'Tier Transfer Recipient',
+            'email' => 'tier-transfer-recipient@example.test',
+            'password' => 'not-a-real-password',
+        ]);
+
+        $senderWallet = app(WalletAccountService::class)->openForUser($sender);
+        app(WalletLedgerService::class)->post($senderWallet->id, 'credit', 5000, 'tier-transfer-funding');
+        app(WalletLedgerService::class)->post($senderWallet->id, 'debit', 500, 'tier-transfer-prior-debit');
+        UserLevelPolicy::query()->where('level', 'level_1')->update([
+            'daily_transaction_limit_minor' => 1000,
+            'max_single_transaction_minor' => null,
+            'requires_verified_kyc' => false,
+            'is_active' => true,
+        ]);
+
+        try {
+            app(\\App\\Services\\Wallets\\PeerWalletTransferService::class)->transfer(
+                $sender,
+                $recipient->email,
+                600,
+                'tier-transfer-over-limit',
+            );
+            $this->fail('Peer transfers must obey the configured account-tier daily debit limit.');
+        } catch (InvalidArgumentException $exception) {
+            $this->assertStringContainsString('daily transaction limit', $exception->getMessage());
+        }
+
+        $this->assertSame(4500, (int) $senderWallet->fresh()->available_balance_minor);
+        $this->assertDatabaseCount('wallet_transfers', 0);
+        $this->assertDatabaseCount('wallet_transactions', 2);
+        $this->assertDatabaseCount('wallet_ledger_entries', 2);
+    }
+
 }
