@@ -6,6 +6,8 @@ use Tests\TestCase;
 
 class FinancialMutationAuthenticationTest extends TestCase
 {
+    use RefreshDatabase;
+
     public function test_guest_cannot_reach_financial_mutation_or_recovery_endpoints(): void
     {
         $requests = [
