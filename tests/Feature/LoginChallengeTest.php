@@ -198,4 +198,40 @@ class LoginChallengeTest extends TestCase
         ]);
     }
 
+
+    public function test_new_login_challenge_replaces_the_previous_unconsumed_challenge(): void
+    {
+        $user = User::query()->create([
+            'name' => 'OTP Replacement Customer',
+            'email' => 'otp-replacement@example.test',
+            'password' => 'CorrectPassword1234',
+        ]);
+
+        $this->post('/login', [
+            'identifier' => $user->email,
+            'password' => 'CorrectPassword1234',
+        ])->assertRedirect('/login/verify');
+
+        $firstChallengeId = session('auth.login_challenge_id');
+        $this->assertIsString($firstChallengeId);
+        $this->assertDatabaseHas('login_challenges', ['id' => $firstChallengeId, 'consumed_at' => null]);
+
+        $this->post('/login', [
+            'identifier' => $user->email,
+            'password' => 'CorrectPassword1234',
+        ])->assertRedirect('/login/verify');
+
+        $secondChallengeId = session('auth.login_challenge_id');
+        $this->assertIsString($secondChallengeId);
+        $this->assertNotSame($firstChallengeId, $secondChallengeId);
+        $this->assertDatabaseMissing('login_challenges', ['id' => $firstChallengeId]);
+        $this->assertDatabaseHas('login_challenges', [
+            'id' => $secondChallengeId,
+            'user_id' => $user->id,
+            'consumed_at' => null,
+            'attempts' => 0,
+        ]);
+        $this->assertGuest();
+    }
+
 }
