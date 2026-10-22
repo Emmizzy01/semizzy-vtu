@@ -263,4 +263,119 @@ class PaymentFundingWorkflowTest extends TestCase
         $this->assertDatabaseCount('wallet_ledger_entries', 4);
     }
 
+
+    public function test_virtual_account_provisioning_is_disabled_without_provider_calls_by_default(): void
+    {
+        config(['services.semizzy_virtual_accounts.enabled' => false]);
+        $user = User::query()->create([
+            'name' => 'Virtual Account Disabled',
+            'email' => 'virtual-account-disabled@example.test',
+            'password' => 'not-a-real-password',
+        ]);
+
+        $paystack = \\Mockery::mock(PaystackClient::class);
+        $paystack->shouldNotReceive('mode');
+        $this->app->instance(PaystackClient::class, $paystack);
+
+        try {
+            app(UserVirtualAccountService::class)->provisionPaystackAccount($user, 'wema-bank', true);
+            $this->fail('Virtual-account provisioning must remain disabled until its release gates pass.');
+        } catch (LogicException $exception) {
+            $this->assertStringContainsString('provisioning is disabled', $exception->getMessage());
+        }
+
+        $this->assertDatabaseCount('user_virtual_accounts', 0);
+    }
+
+    public function test_recent_virtual_account_provisioning_claim_blocks_a_second_provider_dispatch(): void
+    {
+        config(['services.semizzy_virtual_accounts.enabled' => true]);
+        $user = User::query()->create([
+            'name' => 'Virtual Account Claim Owner',
+            'email' => 'virtual-account-claim-owner@example.test',
+            'password' => 'not-a-real-password',
+        ]);
+        $account = UserVirtualAccount::query()->create([
+            'public_id' => (string) \\Illuminate\\Support\\Str::uuid(),
+            'user_id' => $user->id,
+            'provider' => 'paystack',
+            'bank_code' => 'test-bank',
+            'currency' => 'NGN',
+            'status' => 'provisioning',
+            'consented_at' => now(),
+            'metadata' => [
+                'integration_mode' => 'test',
+                'provisioning_claimed_at' => now()->subMinute()->toIso8601String(),
+                'provisioning_claim_token' => 'first-worker-claim',
+            ],
+        ]);
+
+        $paystack = \\Mockery::mock(PaystackClient::class);
+        $paystack->shouldReceive('mode')->once()->andReturn('test');
+        $paystack->shouldNotReceive('createOrFetchCustomer');
+        $paystack->shouldNotReceive('fetchCustomer');
+        $paystack->shouldNotReceive('assignDedicatedVirtualAccount');
+        $this->app->instance(PaystackClient::class, $paystack);
+
+        try {
+            app(UserVirtualAccountService::class)->provisionPaystackAccount($user, 'wema-bank', true);
+            $this->fail('A second request must not dispatch a concurrent provider assignment.');
+        } catch (LogicException $exception) {
+            $this->assertStringContainsString('already in progress', $exception->getMessage());
+        }
+
+        $this->assertSame('provisioning', $account->fresh()->status);
+        $this->assertSame('first-worker-claim', $account->fresh()->metadata['provisioning_claim_token']);
+    }
+
+    public function test_stale_virtual_account_claim_recovers_by_fetching_provider_state_before_assignment(): void
+    {
+        config(['services.semizzy_virtual_accounts.enabled' => true]);
+        $user = User::query()->create([
+            'name' => 'Virtual Account Recovery Owner',
+            'email' => 'virtual-account-recovery-owner@example.test',
+            'password' => 'not-a-real-password',
+        ]);
+        $account = UserVirtualAccount::query()->create([
+            'public_id' => (string) \\Illuminate\\Support\\Str::uuid(),
+            'user_id' => $user->id,
+            'provider' => 'paystack',
+            'provider_customer_reference' => 'CUS_recovery_test',
+            'bank_code' => 'test-bank',
+            'currency' => 'NGN',
+            'status' => 'provisioning',
+            'consented_at' => now()->subHour(),
+            'metadata' => [
+                'integration_mode' => 'test',
+                'provisioning_claimed_at' => now()->subMinutes(31)->toIso8601String(),
+                'provisioning_claim_token' => 'abandoned-worker-claim',
+            ],
+        ]);
+
+        $paystack = \\Mockery::mock(PaystackClient::class);
+        $paystack->shouldReceive('mode')->once()->andReturn('test');
+        $paystack->shouldReceive('fetchCustomer')->once()->with('CUS_recovery_test')->andReturn([
+            'dedicated_account' => [
+                'id' => 901,
+                'assigned' => true,
+                'active' => true,
+                'account_number' => '0123456789',
+                'account_name' => 'SEMIZZY TEST CUSTOMER',
+                'currency' => 'NGN',
+                'bank' => ['slug' => 'test-bank', 'name' => 'Test Bank'],
+            ],
+        ]);
+        $paystack->shouldNotReceive('createOrFetchCustomer');
+        $paystack->shouldNotReceive('assignDedicatedVirtualAccount');
+        $this->app->instance(PaystackClient::class, $paystack);
+
+        $recovered = app(UserVirtualAccountService::class)->provisionPaystackAccount($user, 'wema-bank', true);
+
+        $this->assertSame($account->id, $recovered->id);
+        $this->assertSame('active', $recovered->status);
+        $this->assertSame('0123456789', $recovered->account_number);
+        $this->assertArrayNotHasKey('provisioning_claim_token', $recovered->metadata);
+        $this->assertSame(1, UserVirtualAccount::query()->where('user_id', $user->id)->count());
+    }
+
 }
