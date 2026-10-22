@@ -3,6 +3,8 @@
 namespace Tests\Feature;
 
 use App\Models\User;
+use App\Models\PlatformAddon;
+use App\Services\IntegrationSettings;
 use App\Models\VtuProduct;
 use App\Services\Security\TransactionPinService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -12,6 +14,19 @@ use Tests\TestCase;
 class TransactionPinSecurityTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        foreach (['airtime', 'data'] as $service) {
+            PlatformAddon::query()->updateOrCreate(
+                ['addon_key' => 'service.'.$service],
+                ['name' => ucfirst($service), 'version' => '1.0.0', 'minimum_core_version' => '1.0.0', 'status' => 'enabled', 'is_core_owned' => false, 'compatibility_status' => 'compatible'],
+            );
+            app(IntegrationSettings::class)->set('service.'.$service.'.enabled', '1', null);
+        }
+        app(IntegrationSettings::class)->set('service.airtime_data.enabled', '1', null);
+    }
 
     public function test_wallet_funded_purchase_is_rejected_when_transaction_pin_is_not_configured(): void
     {
