@@ -63,7 +63,10 @@ class VtuDataAddonRouteCharacterizationTest extends TestCase
         $this->assertNotNull($data);
         $this->assertSame(VtuOrderController::class, $airtime['handler']);
         $this->assertSame(VtuOrderController::class, $data['handler']);
-        $this->assertSame($airtime['operations'], $data['operations']);
+        $this->assertContains('service.airtime.purchase', $airtime['operations']);
+        $this->assertContains('service.data.purchase', $data['operations']);
+        $this->assertNotContains('service.data.purchase', $airtime['operations']);
+        $this->assertNotContains('service.airtime.purchase', $data['operations']);
         $this->assertContains('wallet.vtu.orders.create', $airtime['operations']);
         $this->assertContains('wallet.vtu.orders.bulk', $data['operations']);
     }
