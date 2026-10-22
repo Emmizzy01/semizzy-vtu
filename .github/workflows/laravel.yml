@@ -11,6 +11,34 @@ permissions:
   contents: read
 
 jobs:
+  resolve-composer-lockfile:
+    name: Resolve Composer lockfile for PHP 8.3+
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mbstring, pdo_mysql, bcmath, curl, dom, fileinfo, intl, json, openssl, pcntl, tokenizer, xml
+          coverage: none
+      - name: Resolve dependencies for the declared PHP platform
+        run: composer update --no-install --no-scripts --no-interaction --prefer-dist
+      - name: Audit locked Composer dependencies
+        run: composer audit --locked
+      - name: Commit compatible Composer lockfile directly to main
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add composer.json composer.lock
+          if git diff --cached --quiet; then
+            echo "Composer manifest and lockfile are already current."
+            exit 0
+          fi
+          git commit -m "Resolve Composer lockfile for PHP 8.3 compatibility"
+          git push origin HEAD:main
+
   php-tests:
     name: PHP tests (PHP ${{ matrix.php-version }})
     strategy:
