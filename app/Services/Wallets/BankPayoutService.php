@@ -169,6 +169,11 @@ class BankPayoutService
             throw new LogicException('This bank account is already being verified. If you just submitted it, wait or contact support before retrying.');
         }
 
+        // Recipient creation is an external provider-side effect. Respect the
+        // same explicit payout-provider switch used by transfer submission before
+        // making either the account-resolution or recipient-creation call.
+        $this->assertPayoutProviderAdmission();
+
         // Account resolution is read-only. If it fails, no provider recipient could
         // have been created, so release this claim and allow a safe later retry.
         // Do not apply this cleanup to createTransferRecipient: its outcome may be
@@ -263,9 +268,7 @@ class BankPayoutService
         if (trim($idempotencyKey) === '' || strlen($idempotencyKey) > 128) {
             throw new InvalidArgumentException('A valid idempotency key is required.');
         }
-        if (! filter_var($this->settings->get('paystack.transfers_enabled', '0'), FILTER_VALIDATE_BOOLEAN)) {
-            throw new LogicException('Bank payouts are disabled by the administrator until the payout provider is configured and verified.');
-        }
+        $this->assertPayoutProviderAdmission();
 
         $beneficiary = BankBeneficiary::query()
             ->where('user_id', $user->id)
@@ -392,6 +395,13 @@ class BankPayoutService
         }
 
         return $payout->fresh(['beneficiary']);
+    }
+
+    private function assertPayoutProviderAdmission(): void
+    {
+        if (! filter_var($this->settings->get('paystack.transfers_enabled', '0'), FILTER_VALIDATE_BOOLEAN)) {
+            throw new LogicException('Bank payouts are disabled by the administrator until the payout provider is configured and verified.');
+        }
     }
 
     public function history(User $user)
