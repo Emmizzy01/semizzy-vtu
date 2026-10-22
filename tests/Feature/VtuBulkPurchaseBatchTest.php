@@ -571,7 +571,7 @@ class VtuBulkPurchaseBatchTest extends TestCase
         $user = User::factory()->create();
 
         $stale = VtuBulkPurchaseBatch::query()->create([
-            'public_id' => (string) \\Illuminate\\Support\\Str::uuid(),
+            'public_id' => (string) \Illuminate\Support\Str::uuid(),
             'user_id' => $user->id,
             'batch_key' => 'bulk-stale-dispatch-key',
             'request_hash' => hash('sha256', 'stale-dispatch'),
@@ -593,7 +593,7 @@ class VtuBulkPurchaseBatchTest extends TestCase
         ]);
 
         $recent = VtuBulkPurchaseBatch::query()->create([
-            'public_id' => (string) \\Illuminate\\Support\\Str::uuid(),
+            'public_id' => (string) \Illuminate\Support\Str::uuid(),
             'user_id' => $user->id,
             'batch_key' => 'bulk-recent-dispatch-key',
             'request_hash' => hash('sha256', 'recent-dispatch'),
@@ -613,7 +613,7 @@ class VtuBulkPurchaseBatchTest extends TestCase
         ]);
 
         $terminal = VtuBulkPurchaseBatch::query()->create([
-            'public_id' => (string) \\Illuminate\\Support\\Str::uuid(),
+            'public_id' => (string) \Illuminate\Support\Str::uuid(),
             'user_id' => $user->id,
             'batch_key' => 'bulk-terminal-dispatch-key',
             'request_hash' => hash('sha256', 'terminal-dispatch'),
