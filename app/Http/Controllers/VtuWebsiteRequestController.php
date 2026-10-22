@@ -2,7 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\PlatformAddon;
 use App\Models\PlatformFeatureControl;
+use App\Services\Addons\AddonImplementationRegistry;
+use App\Services\Addons\AddonLifecyclePolicy;
 use App\Models\VtuWebsiteRequest;
 use App\Models\VtuWebsiteRequestEvent;
 use Illuminate\Http\RedirectResponse;
@@ -17,10 +20,21 @@ class VtuWebsiteRequestController extends Controller
     public function index(Request $request): InertiaResponse
     {
         $feature = PlatformFeatureControl::query()->where('feature_key', 'service.vtu_website_requests')->first();
+        $addon = PlatformAddon::query()->where('addon_key', 'service.vtu-website-requests')->first();
+        $implementation = app(AddonImplementationRegistry::class)->find('service.vtu-website-requests');
+        $registered = $implementation !== null && in_array('vtu-website-requests.index', $implementation['operations'], true);
+        $available = $addon !== null && app(AddonLifecyclePolicy::class)->assessAdmission(
+            (string) $addon->status,
+            (string) $addon->compatibility_status,
+            $registered,
+            true,
+            $feature !== null && $feature->is_enabled && $feature->is_implemented,
+        )['available'];
+        // Keep request history readable even when new submissions are gated.
         $requests = VtuWebsiteRequest::query()->where('user_id', $request->user()->id)->latest()->paginate(10)->withQueryString();
 
         return Inertia::render('Services/VtuWebsiteRequests', [
-            'available' => $feature !== null && $feature->is_enabled && $feature->is_implemented,
+            'available' => $available,
             'requests' => $requests->through(fn (VtuWebsiteRequest $item): array => [
                 'public_id' => $item->public_id,
                 'request_type' => $item->request_type,
@@ -36,7 +50,17 @@ class VtuWebsiteRequestController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $feature = PlatformFeatureControl::query()->where('feature_key', 'service.vtu_website_requests')->first();
-        abort_unless($feature !== null && $feature->is_enabled && $feature->is_implemented, 503, 'VTU website requests are not accepting submissions right now.');
+        $addon = PlatformAddon::query()->where('addon_key', 'service.vtu-website-requests')->first();
+        $implementation = app(AddonImplementationRegistry::class)->find('service.vtu-website-requests');
+        $registered = $implementation !== null && in_array('vtu-website-requests.store', $implementation['operations'], true);
+        $available = $addon !== null && app(AddonLifecyclePolicy::class)->assessAdmission(
+            (string) $addon->status,
+            (string) $addon->compatibility_status,
+            $registered,
+            true,
+            $feature !== null && $feature->is_enabled && $feature->is_implemented,
+        )['available'];
+        abort_unless($available, 503, 'VTU website requests are not accepting submissions right now.');
 
         $data = $request->validate([
             'request_type' => ['required', 'in:new_vtu_site,redesign,api_integration,maintenance,other'],
