@@ -11,12 +11,12 @@ This register tracks implementation against `docs/SEMIZZY-BLUEPRINT.md` and the 
 
 ## Current verification update — 2026-10-22
 
-Latest implementation commit at the time of this update: `dbde8451d0b6ad1637c4f9d437dba2f1b458ed94` on `main`.
+Latest implementation commit at the time of this update: `dd7b2a42ef4234ae6e6778abda740c1901b2c7b0` on `main`.
 
-- Added scheduled recovery for old queued and interrupted processing bulk-purchase batches that still have pending items; added regression coverage for stale queued, stale processing, recent queued and terminal batches.
-- The batch table has a database-enforced unique constraint on `(user_id, batch_key)`, and the controller handles only that specific uniqueness collision as an idempotent retry. This establishes the database guard, but **independent-process MariaDB acceptance for competing bulk batch submissions is still open**.
-- Latest workflow runs for this commit are not all complete: [security verification](https://github.com/Emmizzy01/semizzy-vtu/actions/runs/39730777912), [Laravel and frontend checks](https://github.com/Emmizzy01/semizzy-vtu/actions/runs/39730777903), and [frontend asset build/publish](https://github.com/Emmizzy01/semizzy-vtu/actions/runs/39730777919). Do not interpret earlier green runs on older commits as verification of this commit.
-- Worker-interruption recovery still requires focused MariaDB execution evidence, including concurrent workers, partial batches and uncertain provider outcomes.
+- Added independent-process MariaDB acceptance scenarios for competing same-key bulk submissions, duplicate workers processing one batch item, and worker interruption after simulated provider acceptance. Added worker modes in `tests/Support/vtu_concurrency_worker.php` and included `VtuOrderMariaDbConcurrencyTest` in the Phase 1 security workflow.
+- A syntax failure in the first version of the new MariaDB test was confirmed from CI logs and corrected in the commit above. The earlier failures on intermediate commits `2af99a0f` and `d43b5c17` are not passing evidence for the corrected commit.
+- On the latest checked commit, SQLite suite and frontend build passed; production asset build/publish passed. MariaDB security tests and PHP 8.3/8.4 feature suites were still running at the latest check. Do not interpret in-progress runs as green: [security verification](https://github.com/Emmizzy01/semizzy-vtu/actions/runs/39731369352), [Laravel and frontend checks](https://github.com/Emmizzy01/semizzy-vtu/actions/runs/39731369375), [frontend asset build/publish](https://github.com/Emmizzy01/semizzy-vtu/actions/runs/39731369521).
+- The independent-process race and interruption cases have been added but are **not accepted until their MariaDB execution results are confirmed**. The batch schema's unique constraint on `(user_id, batch_key)` remains a database-level guard, not proof by itself that the concurrent request flow behaves correctly.
 - Financial endpoint authorization/ownership/privilege-escalation review remains open across funding, refunds, transfers, payouts, manual deposits, scheduled purchases and staff permissions. Existing tests are coverage evidence, not a completed endpoint-by-endpoint acceptance.
 - Deployment-only gates remain deferred: real-browser HTTPS passkey ceremonies, authorized real-device SMS/WhatsApp delivery, production environment checks and live provider onboarding. No live purchases or real financial transactions are authorized by this register.
 
