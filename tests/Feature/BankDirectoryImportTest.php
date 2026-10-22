@@ -27,6 +27,10 @@ class BankDirectoryImportTest extends TestCase
             ['key' => 'paystack.mode'],
             ['value' => 'test', 'updated_by_user_id' => null],
         );
+        IntegrationSetting::query()->updateOrCreate(
+            ['key' => 'paystack.transfers_enabled'],
+            ['value' => '1', 'updated_by_user_id' => null],
+        );
     }
 
     public function test_bank_directory_is_imported_and_normalized_from_provider(): void
