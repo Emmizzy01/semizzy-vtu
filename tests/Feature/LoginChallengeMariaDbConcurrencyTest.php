@@ -95,4 +95,44 @@ class LoginChallengeMariaDbConcurrencyTest extends TestCase
         ]);
         $this->assertNotNull(DB::table('login_challenges')->where('id', $challengeId)->value('consumed_at'));
     }
+    public function test_competing_resends_leave_exactly_one_pending_challenge_for_the_user(): void
+    {
+        $user = User::query()->create([
+            'name' => 'Concurrent OTP Resend Customer',
+            'email' => 'otp-resend-race-'.Str::uuid().'@example.test',
+            'password' => Hash::make('test-only-password'),
+        ]);
+        $worker = base_path('tests/Support/login_challenge_resend_concurrency_worker.php');
+        $processes = [];
+
+        foreach ([1, 2] as $_) {
+            $pipes = [];
+            $process = proc_open([PHP_BINARY, $worker, (string) $user->getKey()], [
+                0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w'],
+            ], $pipes, base_path());
+            $this->assertIsResource($process, 'Could not start independent OTP resend worker.');
+            fclose($pipes[0]);
+            $processes[] = [$process, $pipes];
+        }
+
+        $ids = [];
+        foreach ($processes as [$process, $pipes]) {
+            $stdout = stream_get_contents($pipes[1]);
+            $stderr = stream_get_contents($pipes[2]);
+            fclose($pipes[1]);
+            fclose($pipes[2]);
+            $this->assertSame(0, proc_close($process), 'OTP resend worker failed: '.trim((string) $stderr));
+            $ids[] = trim((string) $stdout);
+        }
+
+        $pending = DB::table('login_challenges')
+            ->where('user_id', $user->getKey())
+            ->whereNull('consumed_at')
+            ->pluck('id')
+            ->all();
+
+        $this->assertCount(1, $pending, 'Concurrent resends must leave exactly one usable challenge.');
+        $this->assertContains($pending[0], $ids, 'The active challenge must be one of the two committed resend results.');
+    }
+
 }
