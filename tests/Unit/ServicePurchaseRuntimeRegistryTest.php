@@ -47,6 +47,11 @@ class ServicePurchaseRuntimeRegistryTest extends TestCase
         $this->assertNull($runtime->unavailableError($legacySettings));
     }
 
+    public function test_data_runtime_does_not_require_airtime_style_free_form_amount(): void
+    {
+        $this->assertNull(app(DataPurchaseRuntime::class)->missingAmountError([]));
+    }
+
     public function test_data_runtime_uses_its_own_setting_before_legacy_fallback(): void
     {
         $runtime = app(DataPurchaseRuntime::class);
