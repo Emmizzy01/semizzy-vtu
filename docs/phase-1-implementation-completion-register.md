@@ -2,25 +2,19 @@
 
 This register tracks implementation against `docs/SEMIZZY-BLUEPRINT.md` and the owner-approved core requirements. It is not a test report. **No item is accepted solely because a file or route exists**; final acceptance happens after implementation is complete and the planned test sweep is run.
 
-## Delivery order
-
-1. Finish missing end-to-end implementation while preserving current features and theme.
-2. Review migrations, server-side authorization, provider failure handling, audit records, and deployment notes.
-3. Run the complete PHP suites, MariaDB concurrency suites, and frontend production build only after the implementation sweep.
-4. Fix failures without weakening safety gates; then report evidence and remaining deployment-only blockers.
-
 ## Current verification update — 2026-10-22
 
-Latest implementation commit at the time of this update: `dd7b2a42ef4234ae6e6778abda740c1901b2c7b0` on `main`.
+Latest reviewed implementation commit: `6a878f0805b6cd210ce5eaf8fa5023623e19526d` on `main`.
 
-- Added independent-process MariaDB acceptance scenarios for competing same-key bulk submissions, duplicate workers processing one batch item, and worker interruption after simulated provider acceptance. Added worker modes in `tests/Support/vtu_concurrency_worker.php` and included `VtuOrderMariaDbConcurrencyTest` in the Phase 1 security workflow.
-- A syntax failure in the first version of the new MariaDB test was confirmed from CI logs and corrected in the commit above. The earlier failures on intermediate commits `2af99a0f` and `d43b5c17` are not passing evidence for the corrected commit.
-- On the latest checked commit, SQLite suite and frontend build passed; production asset build/publish passed. MariaDB security tests and PHP 8.3/8.4 feature suites were still running at the latest check. Do not interpret in-progress runs as green: [security verification](https://github.com/Emmizzy01/semizzy-vtu/actions/runs/39731369352), [Laravel and frontend checks](https://github.com/Emmizzy01/semizzy-vtu/actions/runs/39731369375), [frontend asset build/publish](https://github.com/Emmizzy01/semizzy-vtu/actions/runs/39731369521).
-- The independent-process race and interruption cases have been added but are **not accepted until their MariaDB execution results are confirmed**. The batch schema's unique constraint on `(user_id, batch_key)` remains a database-level guard, not proof by itself that the concurrent request flow behaves correctly.
-- Financial endpoint authorization/ownership/privilege-escalation review remains open across funding, refunds, transfers, payouts, manual deposits, scheduled purchases and staff permissions. Existing tests are coverage evidence, not a completed endpoint-by-endpoint acceptance.
-- Deployment-only gates remain deferred: real-browser HTTPS passkey ceremonies, authorized real-device SMS/WhatsApp delivery, production environment checks and live provider onboarding. No live purchases or real financial transactions are authorized by this register.
+- Phase 1 security verification on this commit completed successfully: SQLite and MariaDB suite jobs both passed. [Security workflow](https://github.com/Emmizzy01/semizzy-vtu/actions/runs/39732030455).
+- Frontend asset build/publication completed successfully on this commit. [Asset workflow](https://github.com/Emmizzy01/semizzy-vtu/actions/runs/39732030399).
+- The Laravel/frontend workflow has **not yet reached a terminal state**. The frontend-build job and both MariaDB error-123 diagnostic jobs passed, but PHP 8.3 full Laravel tests were still running and PHP 8.4 was still finishing cleanup at the latest job inspection. Do not record the full PHP matrix as green until the workflow and both PHP jobs complete. [Laravel/frontend workflow](https://github.com/Emmizzy01/semizzy-vtu/actions/runs/39732030392).
+- Added manual-deposit transfer-reference collision regression coverage on this commit. The targeted test simulates a database uniqueness race and asserts validation feedback, evidence cleanup, no created deposit and no wallet credit.
+- Provider adapter source/test review confirms: Sogo only treats `failed`/`refunded` as definitive outcomes (not `cancelled`, pending, transport or lookup errors); GSUBZ requires an allowlisted documented business code before treating a failed response as definitive; Dataway transaction lookup throws and its purchase path remains gated in the multi-provider router; VTpass keeps ambiguous/non-2xx results unresolved and re-queries using the stable request ID. These are code-level findings, not independent verification of live provider contracts.
+- Financial endpoint review remains open. Inspected routes and controllers show authenticated wallet mutation routes, transaction-PIN checks on peer transfers and payouts, owner-scoped transfer/payout history, owner-scoped refund detail, and refund approval guarded by `can:refunds.approve`. These source checks do not yet close the complete service-level authorization/ownership and concurrency matrix.
+- No live payment, payout, refund, or provider purchase was initiated. Production-only provider contract, HTTPS passkey, real-device SMS/WhatsApp and cPanel checks remain deferred and must not be marked passed.
 
-**Phase 1 status: OPEN.** Do not close any bulk action or mark Phase 1 complete until latest CI is green and each applicable acceptance requirement has commit-specific evidence.
+**Phase 1 status: OPEN.** Do not close any bulk action or mark Phase 1 complete until the latest full PHP workflow is terminal-green, the remaining endpoint-level authorization/recovery audit is accepted, and each applicable requirement has commit-specific evidence.
 
 ## Bulk Action 1 — critical security and authentication sweep (2026-10-21)
 
