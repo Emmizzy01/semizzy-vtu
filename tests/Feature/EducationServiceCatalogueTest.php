@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\EducationServiceProduct;
 use App\Models\PlatformFeatureControl;
 use App\Models\User;
+use App\Services\Addons\AddonImplementationRegistry;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -37,6 +38,29 @@ class EducationServiceCatalogueTest extends TestCase
                 ->where('available', false)
                 ->where('purchaseEnabled', false)
                 ->has('products', 0));
+    }
+
+    public function test_education_has_no_customer_purchase_route_and_purchase_operation_is_unregistered(): void
+    {
+        $implementation = app(AddonImplementationRegistry::class)->find('service.education');
+
+        $this->assertNotNull($implementation);
+        $this->assertContains('education-services.index', $implementation['operations']);
+        $this->assertContains('education-services.delivery', $implementation['operations']);
+        $this->assertNotContains('education-services.purchase', $implementation['operations']);
+
+        $routes = collect(app('router')->getRoutes()->getRoutes())
+            ->filter(fn ($route) => str_contains($route->uri(), 'education'));
+
+        $customerWriteRoutes = $routes
+            ->filter(fn ($route) => ! str_starts_with($route->uri(), 'admin/') && ! str_starts_with($route->uri(), 'education-services'))
+            ->filter(fn ($route) => array_intersect($route->methods(), ['POST', 'PUT', 'PATCH', 'DELETE']) !== []);
+
+        $this->assertCount(0, $customerWriteRoutes);
+
+        $deliveryRoute = $routes->first(fn ($route) => $route->getName() === 'education-services.delivery');
+        $this->assertNotNull($deliveryRoute, 'Existing PIN delivery must remain reachable for accepted orders.');
+        $this->assertContains('GET', $deliveryRoute->methods());
     }
 
     public function test_admin_catalogue_creation_forces_product_inactive_and_unapproved(): void
