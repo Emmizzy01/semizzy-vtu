@@ -25,11 +25,11 @@ class AddonImplementationRegistry
         // retaining Core-owned wallet, pricing, and provider safeguards.
         'service.airtime' => [
             'handler' => VtuOrderController::class,
-            'operations' => ['wallet.vtu.products', 'wallet.vtu.orders.create', 'wallet.vtu.orders.bulk'],
+            'operations' => ['service.airtime.purchase', 'wallet.vtu.products', 'wallet.vtu.orders.create', 'wallet.vtu.orders.bulk'],
         ],
         'service.data' => [
             'handler' => VtuOrderController::class,
-            'operations' => ['wallet.vtu.products', 'wallet.vtu.orders.create', 'wallet.vtu.orders.bulk'],
+            'operations' => ['service.data.purchase', 'wallet.vtu.products', 'wallet.vtu.orders.create', 'wallet.vtu.orders.bulk'],
         ],
         // Legacy catalogue key remains registered during the compatibility window.
         'service.airtime_data' => [
