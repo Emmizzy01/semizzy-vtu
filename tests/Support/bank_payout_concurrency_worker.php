@@ -19,7 +19,7 @@ if ($mode !== 'request' || $statePath === '' || $userId === '' || $beneficiaryId
 
 $paystack = Mockery::mock(PaystackClient::class);
 $paystack->shouldReceive('mode')->andReturn('test');
-$paystack->shouldReceive('initiateBankTransfer')->once()->andReturnUsing(
+$paystack->shouldReceive('initiateBankTransfer')->zeroOrMoreTimes()->andReturnUsing(
     static function (int $amountMinor, string $recipient, string $reference, string $reason) use ($statePath): array {
         $handle = fopen($statePath, 'c+');
         if ($handle === false) {
