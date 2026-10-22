@@ -1,0 +1,22 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Providers\ServiceAddonsProvider;
+use App\Services\Vtu\MultiProviderVtuRouter;
+use App\Services\Vtu\VtuProvider;
+use Tests\TestCase;
+
+class ServiceAddonsProviderRegistrationTest extends TestCase
+{
+    public function test_service_addon_provider_is_registered_and_preserves_legacy_adapter_bindings(): void
+    {
+        $this->assertContains(ServiceAddonsProvider::class, config('app.providers', []));
+        $this->assertTrue(app()->bound('education.providers.sogo'));
+        $this->assertTrue(app()->bound('education.providers.gsubz'));
+        $this->assertTrue(app()->bound('education.providers.vtpass'));
+        $this->assertTrue(app()->bound('education.providers.dataway'));
+        $this->assertTrue(app()->bound(VtuProvider::class));
+        $this->assertInstanceOf(MultiProviderVtuRouter::class, app(VtuProvider::class));
+    }
+}
