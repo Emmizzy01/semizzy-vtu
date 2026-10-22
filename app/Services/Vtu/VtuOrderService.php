@@ -426,7 +426,10 @@ class VtuOrderService
             throw new InvalidArgumentException('This product is not approved for customer purchases.');
         }
 
-        if (! filter_var(app(\App\Services\IntegrationSettings::class)->get('service.airtime_data.enabled', true), FILTER_VALIDATE_BOOLEAN)) {
+        $integrationSettings = app(\App\Services\IntegrationSettings::class);
+        $serviceSetting = $integrationSettings->get('service.'.$product->service_type.'.enabled', null);
+        $legacySetting = $integrationSettings->get('service.airtime_data.enabled', true);
+        if (! filter_var($serviceSetting ?? $legacySetting, FILTER_VALIDATE_BOOLEAN)) {
             throw new InvalidArgumentException('Airtime and data purchases are temporarily unavailable.');
         }
 
