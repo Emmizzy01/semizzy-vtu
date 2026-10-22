@@ -741,4 +741,35 @@ class PaymentRefundWorkflowTest extends TestCase
         $this->assertDatabaseCount('wallet_transactions', 2);
     }
 
+    public function test_customer_cannot_read_another_customers_refund_by_public_id(): void
+    {
+        $owner = User::query()->create([
+            'name' => 'Refund Record Owner',
+            'email' => 'refund-record-owner@example.test',
+            'password' => 'test-password',
+        ]);
+        $other = User::query()->create([
+            'name' => 'Refund Record Other',
+            'email' => 'refund-record-other@example.test',
+            'password' => 'test-password',
+        ]);
+        $intent = $this->paidIntent($owner, 10000);
+
+        $response = $this->actingAs($owner)->postJson('/wallet/refund-requests', [
+            'payment_intent_id' => $intent->public_id,
+            'amount_minor' => 2500,
+            'reason' => 'Customer refund record privacy test',
+            'idempotency_key' => 'refund-record-privacy-owner',
+        ])->assertCreated();
+
+        $refundId = $response->json('data.id');
+
+        $this->actingAs($owner)->getJson('/wallet/refund-requests/'.$refundId)
+            ->assertOk()
+            ->assertJsonPath('data.id', $refundId);
+
+        $this->actingAs($other)->getJson('/wallet/refund-requests/'.$refundId)
+            ->assertNotFound();
+    }
+
 }
