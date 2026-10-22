@@ -62,7 +62,9 @@ class LoginChallengeTest extends TestCase
         });
         $this->assertIsString($code);
 
+        $sessionIdBeforeVerification = session()->getId();
         $this->post('/login/verify', ['code' => $code])->assertRedirect('/dashboard');
+        $this->assertNotSame($sessionIdBeforeVerification, session()->getId(), 'Completing OTP login must rotate the session identifier.');
         $this->assertAuthenticatedAs($user);
         $challenge = \Illuminate\Support\Facades\DB::table('login_challenges')->where('user_id', $user->id)->first();
         $this->assertNotNull($challenge);
