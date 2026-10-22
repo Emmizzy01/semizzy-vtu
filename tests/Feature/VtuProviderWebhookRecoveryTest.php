@@ -181,16 +181,18 @@ class VtuProviderWebhookRecoveryTest extends TestCase
         $order = $this->createMatchedOrder('SOGO-ACCEPTED-WHILE-PAUSED-1');
         $event = $this->createEvent('evt-accepted-while-paused-1', 'SOGO-ACCEPTED-WHILE-PAUSED-1');
 
-        PlatformAddon::query()->create([
-            'addon_key' => 'service.airtime',
-            'name' => 'Airtime',
-            'version' => '1.0.0',
-            'minimum_core_version' => '1.0.0',
-            'status' => 'disabled',
-            'is_core_owned' => false,
-            'compatibility_status' => 'incompatible',
-            'compatibility_message' => 'Test: new purchases are paused.',
-        ]);
+        PlatformAddon::query()->updateOrCreate(
+            ['addon_key' => 'service.airtime'],
+            [
+                'name' => 'Airtime',
+                'version' => '1.0.0',
+                'minimum_core_version' => '1.0.0',
+                'status' => 'disabled',
+                'is_core_owned' => false,
+                'compatibility_status' => 'incompatible',
+                'compatibility_message' => 'Test: new purchases are paused.',
+            ],
+        );
 
         // Lifecycle admission controls new submissions only. A verified callback
         // for an already accepted provider order must still reach order recovery.
