@@ -617,14 +617,15 @@ Artisan::command('vtu:recover-bulk-purchase-batches {--limit=100}', function () 
     }
 
     // A request can commit its durable batch and then the PHP process can die
-    // before the queue dispatch completes. Recover only old queued batches with
-    // pending items. Duplicate deliveries are safe: the worker claims each item
-    // under a row lock and never resubmits processing/unknown items.
+    // before queue dispatch completes. A worker can also die after changing the
+    // batch to processing while pending items remain. Redispatch both old states:
+    // item-level row locks permit only one worker to claim each pending item, and
+    // processing/unknown items are never resubmitted by a duplicate delivery.
     $batchIds = \App\Models\VtuBulkPurchaseBatch::query()
-        ->where('status', 'queued')
-        ->where('created_at', '<=', now()->subMinutes(5))
+        ->whereIn('status', ['queued', 'processing'])
+        ->where('updated_at', '<=', now()->subMinutes(5))
         ->whereHas('items', fn ($query) => $query->where('status', 'pending'))
-        ->orderBy('created_at')
+        ->orderBy('updated_at')
         ->limit($limit)
         ->pluck('id');
 
