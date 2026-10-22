@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\PlatformFeatureControl;
 use App\Models\PlatformAddon;
+use App\Models\PlatformAddon;
 use App\Models\StreamingSubscriptionProduct;
 use App\Models\User;
 use App\Services\Addons\AddonImplementationRegistry;
@@ -42,7 +43,7 @@ class StreamingSubscriptionCatalogueTest extends TestCase
             'is_implemented' => true,
         ]);
 
-        \\App\\Models\\PlatformAddon::query()->updateOrCreate(
+        PlatformAddon::query()->updateOrCreate(
             ['addon_key' => 'service.streaming'],
             [
                 'name' => 'Streaming',
