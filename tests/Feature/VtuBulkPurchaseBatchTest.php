@@ -580,8 +580,8 @@ class VtuBulkPurchaseBatchTest extends TestCase
             'total_amount_minor' => 1000,
             'currency' => 'NGN',
             'created_at' => now()->subMinutes(6),
-            'updated_at' => now()->subMinutes(6),
         ]);
+        $stale->forceFill(['created_at' => now()->subMinutes(6), 'updated_at' => now()->subMinutes(6)])->save();
         $stale->items()->create([
             'item_index' => 0,
             'idempotency_key' => hash('sha256', 'stale-dispatch-item'),
@@ -622,8 +622,8 @@ class VtuBulkPurchaseBatchTest extends TestCase
             'total_amount_minor' => 1000,
             'currency' => 'NGN',
             'created_at' => now()->subMinutes(10),
-            'updated_at' => now()->subMinutes(10),
         ]);
+        $terminal->forceFill(['created_at' => now()->subMinutes(10), 'updated_at' => now()->subMinutes(10)])->save();
         $terminal->items()->create([
             'item_index' => 0,
             'idempotency_key' => hash('sha256', 'terminal-dispatch-item'),
