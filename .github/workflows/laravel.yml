@@ -11,41 +11,6 @@ permissions:
   contents: read
 
 jobs:
-  resolve-dependency-lockfiles:
-    name: Resolve and audit reproducible dependency lockfiles
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@v4
-      - uses: shivammathur/setup-php@v2
-        with:
-          php-version: '8.4'
-          extensions: mbstring, pdo_mysql, bcmath, curl, dom, fileinfo, intl, json, openssl, pcntl, tokenizer, xml
-          coverage: none
-      - name: Resolve Composer dependencies without installing packages
-        run: composer update --no-install --no-scripts --no-interaction --prefer-dist
-      - name: Audit resolved Composer dependencies
-        run: composer audit --locked
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-      - name: Resolve npm dependency lockfile without running package scripts
-        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
-      - name: Audit resolved production npm dependencies
-        run: npm audit --package-lock-only --omit=dev --audit-level=high
-      - name: Commit dependency lockfiles directly to main
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add composer.lock package-lock.json
-          if git diff --cached --quiet; then
-            echo "Dependency lockfiles are already current."
-            exit 0
-          fi
-          git commit -m "Pin Composer and npm dependency resolutions"
-          git push origin HEAD:main
-
   php-tests:
     name: PHP tests (PHP ${{ matrix.php-version }})
     strategy:
@@ -84,6 +49,8 @@ jobs:
       - name: Prepare writable Laravel runtime directories
         run: mkdir -p bootstrap/cache storage/framework/cache storage/framework/sessions storage/framework/views storage/logs
       - uses: ramsey/composer-install@v3
+      - name: Audit locked Composer dependencies
+        run: composer audit --locked
       - name: Record resolved passkey and WebAuthn dependency versions
         run: |
           composer show laravel/passkeys --format=json
@@ -106,7 +73,8 @@ jobs:
           node-version: 22
       - name: Build Vite assets for HTTP feature tests
         run: |
-          npm install
+          npm ci --no-audit --no-fund
+          npm audit --omit=dev --audit-level=high
           npm run build
       - name: Run targeted VTU multi-provider router tests
         run: php artisan test tests/Feature/MultiProviderVtuRouterTest.php
@@ -283,5 +251,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: npm install
+      - run: npm ci --no-audit --no-fund
+      - run: npm audit --omit=dev --audit-level=high
       - run: npm run build
