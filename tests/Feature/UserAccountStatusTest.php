@@ -47,4 +47,22 @@ class UserAccountStatusTest extends TestCase
             'account_status' => 'suspended', 'reason' => 'Trying to suspend own account',
         ])->assertForbidden();
     }
+
+    public function test_suspended_account_is_rejected_across_profile_wallet_and_session_routes(): void
+    {
+        $user = User::query()->create([
+            'name' => 'Suspended Multi Route User',
+            'email' => 'suspended-multi-route@example.test',
+            'password' => 'CorrectPassword1234',
+            'account_status' => 'suspended',
+        ]);
+
+        foreach (['/profile', '/wallet/transfers/history', '/account/sessions'] as $uri) {
+            $this->actingAs($user)->get($uri)
+                ->assertRedirect('/login')
+                ->assertSessionHasErrors('email');
+            $this->assertGuest();
+        }
+    }
+
 }
