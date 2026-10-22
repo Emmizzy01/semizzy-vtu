@@ -49,18 +49,7 @@ class VtuWebsiteRequestController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
-        $feature = PlatformFeatureControl::query()->where('feature_key', 'service.vtu_website_requests')->first();
-        $addon = PlatformAddon::query()->where('addon_key', 'service.vtu-website-requests')->first();
-        $implementation = app(AddonImplementationRegistry::class)->find('service.vtu-website-requests');
-        $registered = $implementation !== null && in_array('vtu-website-requests.store', $implementation['operations'], true);
-        $available = $addon !== null && app(AddonLifecyclePolicy::class)->assessAdmission(
-            (string) $addon->status,
-            (string) $addon->compatibility_status,
-            $registered,
-            true,
-            $feature !== null && $feature->is_enabled && $feature->is_implemented,
-        )['available'];
-        abort_unless($available, 503, 'VTU website requests are not accepting submissions right now.');
+        $this->assertSubmissionAdmission();
 
         $data = $request->validate([
             'request_type' => ['required', 'in:new_vtu_site,redesign,api_integration,maintenance,other'],
@@ -71,6 +60,11 @@ class VtuWebsiteRequestController extends Controller
         ]);
 
         $item = DB::transaction(function () use ($request, $data): VtuWebsiteRequest {
+            // Recheck immediately before creating the new request. The addon
+            // can be disabled after preflight; existing request history and
+            // admin review remain available, but new submissions must stop.
+            $this->assertSubmissionAdmission();
+
             $created = VtuWebsiteRequest::query()->create([
                 'public_id' => 'VWR-'.Str::upper(Str::random(10)),
                 'user_id' => $request->user()->id,
@@ -94,6 +88,23 @@ class VtuWebsiteRequestController extends Controller
         });
 
         return redirect()->route('vtu-website-requests.index')->with('status', 'Request '.$item->public_id.' submitted for review.');
+    }
+
+    private function assertSubmissionAdmission(): void
+    {
+        $feature = PlatformFeatureControl::query()->where('feature_key', 'service.vtu_website_requests')->first();
+        $addon = PlatformAddon::query()->where('addon_key', 'service.vtu-website-requests')->first();
+        $implementation = app(AddonImplementationRegistry::class)->find('service.vtu-website-requests');
+        $registered = $implementation !== null && in_array('vtu-website-requests.store', $implementation['operations'], true);
+        $available = $addon !== null && app(AddonLifecyclePolicy::class)->assessAdmission(
+            (string) $addon->status,
+            (string) $addon->compatibility_status,
+            $registered,
+            true,
+            $feature !== null && $feature->is_enabled && $feature->is_implemented,
+        )['available'];
+
+        abort_unless($available, 503, 'VTU website requests are not accepting submissions right now.');
     }
 
     public function adminIndex(Request $request): InertiaResponse
