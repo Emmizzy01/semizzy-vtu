@@ -62,4 +62,28 @@ class DashboardLinkRouteMatrixTest extends TestCase
         $this->assertStringNotContainsString("price:'₦720,000'", $dashboard);
         $this->assertStringContainsString('/services/coming-soon/gadget-catalogue', $dashboard);
     }
+    public function test_shared_navigation_preserves_five_customer_quick_links_and_admin_workspace_links(): void
+    {
+        $navigation = file_get_contents(resource_path('js/Components/SiteNavigation.tsx'));
+        $this->assertIsString($navigation);
+
+        foreach ([
+            'aria-label="Quick navigation"',
+            'repeat(${admin ? 4 : 5},minmax(0,1fr))',
+            'href="/dashboard"',
+            'href="/services"',
+            'href="/dashboard#rewards"',
+            'href="/wallet/manual-deposits"',
+            'href="/profile"',
+            'href="/admin/dashboard"',
+            'href="/admin/staff"',
+            'href="/admin/staff/permission-audits"',
+            'href="/admin/payment-gateway"',
+            'href="/admin/api-providers"',
+            'href="/customer/dashboard"',
+        ] as $requiredNavigationMarker) {
+            $this->assertStringContainsString($requiredNavigationMarker, $navigation);
+        }
+    }
+
 }
