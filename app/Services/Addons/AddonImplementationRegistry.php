@@ -21,6 +21,24 @@ class AddonImplementationRegistry
             'handler' => VtuOrderController::class,
             'operations' => ['wallet.vtu.products', 'wallet.vtu.orders.create', 'wallet.vtu.orders.bulk'],
         ],
+        // Compatibility keys preserve existing catalogue metadata while those
+        // services are migrated into their final independent addon manifests.
+        'service.airtime_data' => [
+            'handler' => VtuOrderController::class,
+            'operations' => ['wallet.vtu.products', 'wallet.vtu.orders.create', 'wallet.vtu.orders.bulk'],
+        ],
+        'service.electricity' => [
+            'handler' => VtuOrderController::class,
+            'operations' => ['wallet.vtu.products', 'wallet.vtu.orders.create', 'wallet.vtu.orders.bulk', 'wallet.vtu.billers.verify'],
+        ],
+        'service.tv' => [
+            'handler' => VtuOrderController::class,
+            'operations' => ['wallet.vtu.products', 'wallet.vtu.orders.create', 'wallet.vtu.orders.bulk', 'wallet.vtu.billers.verify'],
+        ],
+        'service.bills' => [
+            'handler' => VtuOrderController::class,
+            'operations' => ['wallet.vtu.products', 'wallet.vtu.orders.create', 'wallet.vtu.orders.bulk', 'wallet.vtu.billers.verify'],
+        ],
         'service.education' => [
             'handler' => EducationServiceController::class,
             'operations' => ['education-services.index', 'education-services.delivery'],
