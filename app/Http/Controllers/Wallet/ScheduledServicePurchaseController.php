@@ -4,9 +4,14 @@ namespace App\Http\Controllers\Wallet;
 
 use App\Http\Controllers\Controller;
 use App\Models\ScheduledServicePurchase;
+use App\Models\PlatformAddon;
+use App\Models\PlatformFeatureControl;
 use App\Models\User;
 use App\Models\VtuProduct;
 use App\Services\Security\TransactionPinService;
+use App\Services\Addons\AddonImplementationRegistry;
+use App\Services\Addons\AddonLifecyclePolicy;
+use App\Services\IntegrationSettings;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -62,6 +67,10 @@ class ScheduledServicePurchaseController extends Controller
         }
         if (!in_array($product->service_type, ['airtime', 'data', 'electricity-bill', 'tv-subscription'], true)) {
             return response()->json(['message' => 'This service does not yet have a verified scheduled-purchase handler.'], 422);
+        }
+
+        if (! $this->serviceAdmissionAvailable($product)) {
+            return response()->json(['message' => 'This service add-on is disabled or unavailable for new scheduled purchases. Existing schedules and accepted order recovery are unchanged.'], 503);
         }
 
         $recipient = preg_replace('/[\s-]+/', '', trim($validated['recipient'])) ?? '';
@@ -169,6 +178,43 @@ class ScheduledServicePurchaseController extends Controller
         }
 
         return response()->json(['message' => 'Scheduled purchase cancelled.']);
+    }
+
+    private function serviceAdmissionAvailable(VtuProduct $product): bool
+    {
+        $addonKey = match ($product->service_type) {
+            'airtime' => 'service.airtime',
+            'data' => 'service.data',
+            'electricity-bill' => 'service.electricity',
+            'tv-subscription' => 'service.tv',
+            default => null,
+        };
+
+        if ($addonKey === null) return false;
+
+        $addon = PlatformAddon::query()->where('addon_key', $addonKey)->first();
+        $implementation = app(AddonImplementationRegistry::class)->find($addonKey);
+        $registered = $implementation !== null
+            && in_array('wallet.vtu.orders.create', $implementation['operations'], true);
+        if ($addon === null) return false;
+
+        if (in_array($product->service_type, ['airtime', 'data'], true)) {
+            $settings = app(IntegrationSettings::class);
+            $independent = $settings->get('service.'.$product->service_type.'.enabled', null);
+            $legacy = $settings->get('service.airtime_data.enabled', false);
+            $featureEnabled = filter_var($independent ?? $legacy, FILTER_VALIDATE_BOOLEAN);
+        } else {
+            $feature = PlatformFeatureControl::query()->where('feature_key', $addonKey)->first();
+            $featureEnabled = $feature !== null && $feature->is_enabled && $feature->is_implemented;
+        }
+
+        return app(AddonLifecyclePolicy::class)->assessAdmission(
+            (string) $addon->status,
+            (string) $addon->compatibility_status,
+            $registered,
+            true,
+            $featureEnabled,
+        )['available'];
     }
 
     private function resolveProduct(string $code): ?VtuProduct
