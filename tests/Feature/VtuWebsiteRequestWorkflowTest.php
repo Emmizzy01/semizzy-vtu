@@ -3,6 +3,8 @@
 namespace Tests\Feature;
 
 use App\Models\PlatformFeatureControl;
+use App\Models\PlatformAddon;
+use App\Services\Addons\AddonLifecyclePolicy;
 use App\Models\User;
 use App\Models\UserPermission;
 use App\Models\VtuWebsiteRequest;
@@ -50,6 +52,41 @@ class VtuWebsiteRequestWorkflowTest extends TestCase
         $customer = $this->customer('website-request-disabled@example.test');
         PlatformFeatureControl::query()->where('feature_key', 'service.vtu_website_requests')
             ->update(['is_enabled' => false, 'is_implemented' => true]);
+
+        $this->actingAs($customer)->post('/service-requests/vtu-website', [
+            'request_type' => 'maintenance',
+            'contact_phone' => '08012345678',
+            'description' => 'Please maintain and update my existing VTU website service pages.',
+        ])->assertStatus(503);
+
+        $this->assertDatabaseCount('vtu_website_requests', 0);
+        $this->assertDatabaseCount('vtu_website_request_events', 0);
+    }
+
+    public function test_addon_disabled_between_preflight_and_insert_blocks_new_request(): void
+    {
+        $customer = $this->customer('website-request-addon-race@example.test');
+        PlatformFeatureControl::query()->where('feature_key', 'service.vtu_website_requests')
+            ->update(['is_enabled' => true, 'is_implemented' => true]);
+        PlatformAddon::query()->updateOrCreate(
+            ['addon_key' => 'service.vtu-website-requests'],
+            [
+                'name' => 'VTU Website Requests',
+                'version' => '1.0.0',
+                'minimum_core_version' => '1.0.0',
+                'status' => 'enabled',
+                'compatibility_status' => 'compatible',
+                'is_core_owned' => false,
+            ],
+        );
+
+        // Simulate an administrator disabling the addon after preflight but
+        // before the insert transaction reaches its admission recheck.
+        $policy = $this->mock(AddonLifecyclePolicy::class);
+        $policy->shouldReceive('assessAdmission')->twice()->andReturn(
+            ['available' => true, 'reason' => 'ready'],
+            ['available' => false, 'reason' => 'addon_disabled'],
+        );
 
         $this->actingAs($customer)->post('/service-requests/vtu-website', [
             'request_type' => 'maintenance',
