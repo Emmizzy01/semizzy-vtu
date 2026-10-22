@@ -33,6 +33,10 @@ jobs:
       - run: mkdir -p bootstrap/cache storage/framework/cache storage/framework/sessions storage/framework/views storage/logs
       - run: cp .env.example .env
       - run: composer install --no-interaction --prefer-dist --no-progress
+      - name: Record resolved passkey and WebAuthn dependency versions
+        run: |
+          composer show laravel/passkeys --format=json
+          composer show web-auth/webauthn-lib --format=json
       - run: npm install --no-audit --no-fund
       - run: npm run build
       - run: php artisan test
