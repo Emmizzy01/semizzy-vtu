@@ -60,6 +60,42 @@ Do not access or change production, alter production data, execute migrations, o
 - **The existing user and admin dashboard themes/design are frozen.** Do not redesign, restyle, replace, or change the current dashboard theme while doing addon conversion unless the owner explicitly authorizes it. Preserve existing working behavior and route/API compatibility.
 
 
+## 1D. Production platform updates and current implementation evidence — 22 October 2026
+
+These updates supplement Master Blueprint 1.2 and are binding for ongoing implementation. They describe intended behavior and the observed repository state; a code registration or green CI run is not proof of end-to-end or live production readiness.
+
+### Production execution rules
+- Every production action must execute a real server-side workflow with authorization, validation, durable persistence, truthful status/failure handling, relevant audit records, and automated tests. Financial/provider operations require idempotency, concurrency protection, reconciliation, and safe recovery appropriate to the operation.
+- Mocks/fakes/fixtures/simulated outcomes may exist only in isolated automated tests or explicitly identified provider sandboxes. No fabricated success, fake account numbers, fake balances, invented provider responses, or in-memory-only substitutes in live code paths.
+- Missing credentials, unsupported provider contracts, or unverified integrations must fail truthfully and keep only the affected capability gated. Never submit real financial/provider transactions merely to test code.
+- The target platform is production—not a demo. “Implemented,” “CI passed,” “deployment checked,” and “production verified” are distinct statuses and must be reported separately.
+
+### Core and service-addon ownership
+- Core exclusively owns identity/authentication, users and roles/permissions, tier/KYC policy, wallet and immutable ledger, funding/payments/payouts/transfers, pricing, global settings, security/audit, notifications, transaction recovery, and addon management.
+- Each approved service addon owns its own service catalogue, customer inputs, service orders, provider adapter, admin controls, and service-specific recovery orchestration. Addons must call Core contracts and must not duplicate Core-owned systems.
+- Government Documents & Registration is the explicit provider-ownership exception: use the authorized central government workflow, approved agency integrations, or reviewed manual processing. Do not invent a provider integration.
+- All approved in-scope services are to be converted to independent addons under the already-agreed 20-phase roadmap. Continue from the latest evidenced checkpoint; do not restart, renumber, or replace that roadmap. No new addon manager or arbitrary uploaded-code execution is authorized.
+- The existing user/admin dashboard theme and layout are frozen. Preserve routes, working behavior, data, and established UI; no redesign or restyling without explicit owner approval.
+
+### Addon registry implementation update
+- The existing addon registry is a Core-owned manifest/dependency/compatibility and administration surface. A database manifest alone does not mean executable service code is installed, enabled, or production-ready. The registry is not an arbitrary package installer or dynamic PHP/JavaScript loader.
+- The repository now has an explicit reviewed-code catalogue at `app/Services/Addons/AddonImplementationRegistry.php`, initially mapping VTU, Education, Streaming, and VTU Website Requests to existing application handlers and named operations. The admin addon screen exposes implementation readiness; enabling an unregistered implementation is rejected.
+- Unit coverage has been added for registered and unknown addon keys and handler mappings. These changes are committed on `main`; their latest CI runs must be checked before claiming tests pass.
+- This is an initial implementation-registration step, not completion of the 20-phase conversion. The lifecycle policy still needs to be connected carefully to new-operation entry points after route/job/provider inventories and characterization tests are complete. Do not block webhooks, reconciliation, accepted-order recovery, refunds, or other Core recovery paths when an addon is disabled.
+- Migrate one bounded service at a time through compatibility-preserving delegation. Preserve existing route names, request/response contracts, permissions, idempotency, accepted transaction recovery and customer/admin behavior. Expand only after focused tests, full CI, concurrency checks, and frontend build evidence.
+
+### Deployment checklist classification
+- Anything that can only be tested or inspected on cPanel/live hosting belongs in **Deployment checklist — execute during deployment**, marked **Deferred to deployment / not yet run** until evidence is collected. It is not a development-phase failure and must not keep unrelated development open.
+- Examples include deployed commit/files/assets/routes, PHP extensions/permissions, production environment and database schema/migrations, HTTPS passkeys, authorized real-device SMS/WhatsApp delivery, cron/queues/scheduler, production logs, backup/restore validation, smoke tests, and authorized live-provider checks.
+- Never claim deployment verification from a GitHub push or green CI alone. Production data/schema changes require reviewed forward migrations, a verified recoverable backup, and explicit authorized operator approval; never reset, truncate, drop, or blindly reseed production data.
+
+### Scope and service availability
+- Preserve approved service scope, but do not restore previously removed standalone loans, forex, investment, website-builder, domains, or hosting products without explicit owner approval. Regulated or unsupported money movement stays gated. Do not build unlawful OTP/account-access services.
+- Provider credentials and live readiness are per service/provider; never expose provider names or credentials to customers where the existing customer-facing contract requires abstraction. Keep unverified providers disabled and preserve safe reconciliation for accepted work.
+- Bulk purchase remains **10–100 items per batch** under the current canonical blueprint; a 500-item ceiling is not authorized until queue capacity, concurrency, timeout recovery and reconciliation evidence justify an explicit blueprint change.
+
+---
+
 ## 2. Accounts, user types, and levels
 
 Separate **account type** (what the user does) from **verification/transaction level** (what limits and checks apply). Never use a user-selectable type as proof of authority.
@@ -72,12 +108,17 @@ Separate **account type** (what the user does) from **verification/transaction l
 - **Support staff:** support tickets, communication, and permitted account lookup; no wallet credit or unrestricted financial actions by default.
 - **Finance/operations staff:** funding/deposit review, reconciliation, refund/payment operations only when explicitly granted.
 - **Compliance/security staff:** security events, risk review, privacy/data-request workflows, incident evidence, and restricted investigations.
-- **Administrator/super-administrator:** platform administration according to explicit permissions; sensitive financial actions should support separation of duties and approval where appropriate.
+- **ADMIN:** platform administration limited by explicit server-side permissions; sensitive financial actions require separation of duties and approval where configured.
+- **STAFF:** explicitly granted operational duties only; no implied unrestricted admin access.
+- **SUPPORT:** customer support and permitted account lookup; no default wallet-credit or payout authority.
+- **USER:** customer-facing account and service actions allowed by account state, tier, KYC and feature/provider gates.
+
+Do not introduce a `SUPER_ADMIN` role. The canonical roles are `ADMIN`, `STAFF`, `SUPPORT`, and `USER`; additional capabilities are permissions, not extra implicit roles.
 
 Staff access is permission-based and least-privilege. Admin dashboard access is not a blanket grant to every admin operation.
 
 ### Transaction levels
-Use four policy levels (`level_1` through `level_4`) as configurable policy records. Each level has an active flag, maximum single transaction, daily aggregate limit, and optional verified-KYC requirement. Higher level does not automatically grant a staff role or permissions. Enforce policy at the server-side transaction boundary, including aggregate daily usage, currency/minor-unit correctness, and KYC state. Policy edits require a reason, audit record, validation, and safe defaults. Never invent identity/KYC verification.
+Use the canonical customer tiers **Tier1, Tier2, Tier3, and Tier4/Merchant**. Never expose legacy labels such as `level_1` through `level_4` in customer-facing UI. Read exact limits, KYC requirements, and eligibility from the configured database policy; never invent or hardcode tier limits. Tier membership does not grant staff roles or permissions. Enforce tier policy server-side at every relevant transaction boundary, including aggregate daily usage, currency/minor-unit correctness, and KYC state. Policy edits require validation, a reason, and an audit record. Never invent identity/KYC verification.
 
 ## 3. Manual bank deposit and funding instructions
 
