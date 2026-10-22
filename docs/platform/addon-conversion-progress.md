@@ -277,3 +277,9 @@ This is a bounded first map, not the final endpoint inventory: webhook/callback 
 - Corrected the authenticated `/services` readiness map to check `service.airtime.purchase`, `service.data.purchase`, `service.electricity.purchase`, and `service.tv.purchase` for their matching service addons instead of the generic shared `wallet.vtu.orders.create` operation.
 - This closes a registry/readiness mismatch introduced as the scoped admission operations were added. It does not move controller/runtime ownership or enable any new provider workflow; existing purchase gates and Core financial/recovery protections remain unchanged.
 - Exact-commit CI verification is pending. Do not mark this slice verified until PHP 8.4 full suite, security suites, and frontend build finish successfully.
+
+## 2026-10-22 — Product endpoint uses service-scoped purchase admission
+
+- Updated the VTU product endpoint's admission metadata to check the matching scoped operation for airtime, data, electricity, and TV rather than treating the shared create-order operation as sufficient for every mapped service.
+- This is still a boundary-hardening step, not a completed independent addon conversion. The shared controller and Core order/ledger/recovery service remain in place; no provider or purchase gate is enabled by this change.
+- Exact-commit CI is required before this slice is considered verified.

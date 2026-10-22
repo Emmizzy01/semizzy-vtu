@@ -195,8 +195,16 @@ class VtuOrderController extends Controller
             };
             $addon = $addonKey !== null ? $addonControls->get($addonKey) : null;
             $implementation = $addonKey !== null ? app(AddonImplementationRegistry::class)->find($addonKey) : null;
+            $purchaseOperation = match ($requestedService) {
+                'airtime' => 'service.airtime.purchase',
+                'data' => 'service.data.purchase',
+                'electricity-bill' => 'service.electricity.purchase',
+                'tv-subscription' => 'service.tv.purchase',
+                default => null,
+            };
             $registeredForPurchase = $implementation !== null
-                && in_array('wallet.vtu.orders.create', $implementation['operations'], true);
+                && $purchaseOperation !== null
+                && in_array($purchaseOperation, $implementation['operations'], true);
             if (in_array($requestedService, ['airtime', 'data'], true)) {
                 $featureEnabled = $requestedService === 'airtime' ? $airtimeEnabled : $dataEnabled;
             } else {
