@@ -101,6 +101,37 @@ class FeatureControlRegistryTest extends TestCase
         $this->assertDatabaseMissing('platform_feature_controls', ['feature_key' => 'service.websites']);
     }
 
+    public function test_each_unimplemented_roadmap_service_is_rejected_by_the_server_when_enable_is_requested(): void
+    {
+        $admin = User::query()->create([
+            'name' => 'Roadmap Gate Admin',
+            'email' => 'roadmap-gate-admin@example.test',
+            'password' => 'not-a-real-password',
+        ]);
+        UserPermission::query()->create([
+            'user_id' => $admin->id,
+            'permission' => 'staff.permissions.manage',
+        ]);
+
+        foreach ([
+            'service.streaming_subscriptions',
+            'service.betting',
+            'service.social_accounts',
+            'service.number_verification',
+        ] as $featureKey) {
+            $this->actingAs($admin)->put('/admin/feature-controls/'.$featureKey, [
+                'is_enabled' => true,
+                'reason' => 'Attempt to enable unverified roadmap service',
+            ])->assertStatus(422);
+
+            $this->assertDatabaseHas('platform_feature_controls', [
+                'feature_key' => $featureKey,
+                'is_enabled' => 0,
+                'is_implemented' => 0,
+            ]);
+        }
+    }
+
     public function test_roadmap_services_stay_disabled_until_their_workflows_are_verified(): void
     {
         foreach ([
