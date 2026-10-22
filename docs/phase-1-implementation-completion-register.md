@@ -4,7 +4,7 @@ This register tracks implementation against `docs/SEMIZZY-BLUEPRINT.md` and the 
 
 ## Current verification update — 2026-10-22
 
-Latest **executable-code** commit verified by terminal CI: `5e41c5fe0cdd3ce951e1ce48616e5fc5a696c933` on `main`. Later commits through the current audit-documentation head change documentation, `.gitignore`, and remove the accidentally tracked root application log; the comparison confirms no executable application-code changes after `5e41c5fe...`.
+Latest **fully CI-verified executable-code** baseline: `5e41c5fe0cdd3ce951e1ce48616e5fc5a696c933` on `main`. Important correction: current `main` is now `5b328fe1141b8cbcaabf1dbf44af70ffb88a19e3`; comparison shows newer commits include additional authentication/account-status regression tests (`LoginChallengeTest.php`, `PasswordResetWorkflowTest.php`, and `UserAccountStatusTest.php`) as well as audit documentation, `.gitignore`, and removal of an accidentally tracked root application log. CI for current `main` is queued/in progress and must pass before those newest tests are accepted.
 
 - [Laravel and frontend checks](https://github.com/Emmizzy01/semizzy-vtu/actions/runs/39742792095) completed **successfully** on `5e41c5fe0cdd3ce951e1ce48616e5fc5a696c933`: PHP 8.3 full Laravel suite passed; PHP 8.4 full Laravel suite passed; frontend build passed; both MariaDB error-123 diagnostic jobs passed.
 - [Phase 1 security verification](https://github.com/Emmizzy01/semizzy-vtu/actions/runs/39742792012) completed **successfully** on the same commit: SQLite and focused MariaDB security suites passed.
@@ -14,7 +14,7 @@ Latest **executable-code** commit verified by terminal CI: `5e41c5fe0cdd3ce951e1
 - The full suites and focused security workflow are green on latest executable-code SHA `5e41c5fe...`; the later audit/register commits are documentation-only and the log removal/ignore change does not alter executable code. These links are not evidence for live provider or hosting gates.
 - No real payment, refund, payout, or provider purchase was initiated. Live provider contracts, production cPanel settings, real-device SMS/WhatsApp delivery and browser/WebAuthn ceremony checks on the production HTTPS origin remain separate release gates.
 
-**Phase 1 status: OPEN.** Bulk Action 3 source-level route-to-service matrix is documented, but Phase 1 is not signed off until the final register commit's CI is terminal-green and all deployment-only gates are separately verified.
+**Phase 1 status: OPEN.** Bulk Action 3 source-level route-to-service matrix is documented. The current `main` head has additional authentication/account-status regression tests whose CI is not yet terminal-green. Phase 1 is not signed off until current-head CI is green, the remaining endpoint-by-endpoint audit and action-register reconciliation are complete, and deployment-only gates are separately verified.
 
 ## Bulk Action 7 verification update — 2026-10-22
 
@@ -236,3 +236,34 @@ A new regression test, `PasswordResetWorkflowTest::test_successfully_used_reset_
 - The first CI set on SHA `5d68f7ee8444211595065bb99c312f1ff16538db` was pending/queued or in progress at the last poll: [Laravel/frontend](https://github.com/Emmizzy01/semizzy-vtu/actions/runs/39744970463), [security verification](https://github.com/Emmizzy01/semizzy-vtu/actions/runs/39744970302), [asset publication](https://github.com/Emmizzy01/semizzy-vtu/actions/runs/39744970635).
 - A documentation-only reconciliation commit followed, so the current-head workflow runs must be checked again and only terminal green results accepted.
 - **Phase 1 remains OPEN; Action 8 remains IN PROGRESS.** No real financial/provider transactions were initiated; live-provider, real-device OTP, HTTPS browser WebAuthn and cPanel checks remain explicitly pending.
+
+
+## Final integration audit checkpoint — 2026-10-22 (current main)
+
+**Current repository head:** `5b328fe1141b8cbcaabf1dbf44af70ffb88a19e3`  
+**Last fully CI-verified executable-code baseline:** `5e41c5fe0cdd3ce951e1ce48616e5fc5a696c933`  
+**Decision:** Phase 1 remains OPEN; Bulk Action 8 remains IN PROGRESS.
+
+### Current-head CI — not yet accepted
+- [Laravel and frontend checks](https://github.com/Emmizzy01/semizzy-vtu/actions/runs/39745248485) — queued at checkpoint.
+- [Phase 1 security verification](https://github.com/Emmizzy01/semizzy-vtu/actions/runs/39745248468) — in progress at checkpoint.
+- [Build/publish frontend assets](https://github.com/Emmizzy01/semizzy-vtu/actions/runs/39745248503) — in progress at checkpoint.
+- The added current-head tests cover login challenge verification, password-reset workflow and user account-status protection. Do not mark them accepted until these runs finish.
+
+### Source-level financial mutation and authorization review checkpoint
+Reviewed the current route/controller/service sources and the existing `docs/finance/financial-mutation-authorization-matrix.md`:
+- Customer funding intent creation and gateway return are separated; the return route is not the settlement authority. Manual deposit submission is authenticated, bounded, feature-gated, stores evidence separately and does not credit the wallet directly.
+- Refund requests are attached to a caller-owned paid intent and are idempotent; refund approval has a separate `refunds.approve` permission, prevents self-approval, locks refund/intent state and reserves wallet funds before the provider call.
+- P2P transfer endpoints require a four-digit transaction PIN and idempotency key; the service rejects self-transfer, locks both wallets in deterministic order, posts paired ledger entries and handles unique-key replay/payload conflicts.
+- Bank payout endpoints require a transaction PIN and idempotency key; beneficiary/payout operations delegate ownership and state validation to the payout service. Uncertain outcomes use reconciliation rather than an automatic duplicate payout.
+- The matrix also records owner-scoped refund, transfer, payout, VTU order/batch, scheduled-purchase and beneficiary reads/mutations, plus signed/deduplicated payment and VTU webhook processing.
+
+This checkpoint is **not yet a complete sign-off audit**: remaining work is to systematically reconcile every action's acceptance rows against the blueprint and regression suite, review all other financial mutations and cross-role/foreign-ID paths (including scheduled runner, service beneficiaries, virtual-account claims, referrals/reversals and admin review separation), and address any confirmed code-level gap with targeted tests. Do not infer complete coverage solely from a matrix entry or a green aggregate suite.
+
+### External/deployment gates — explicitly not run
+- Live provider contracts, authorized live provider accounts/catalogue and live settlement/reconciliation behavior.
+- Authorized real-device SMS/WhatsApp OTP delivery.
+- Real-browser passkey registration/login and signature/expiry/replay/session-rotation checks on the production HTTPS origin.
+- Production cPanel environment/schema, cron/scheduler, queue worker, permissions/logs, assets and first-admin smoke checks.
+
+No live financial transaction or provider purchase was triggered, and no production feature gate was opened.
