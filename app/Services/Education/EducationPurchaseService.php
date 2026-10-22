@@ -44,7 +44,7 @@ class EducationPurchaseService
                 (string) $addon->status,
                 (string) $addon->compatibility_status,
                 $purchaseOperationRegistered,
-                false,
+                true,
                 (bool) $feature->is_enabled && (bool) $feature->is_implemented,
             );
 
