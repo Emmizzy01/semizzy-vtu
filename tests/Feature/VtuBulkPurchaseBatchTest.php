@@ -240,6 +240,7 @@ class VtuBulkPurchaseBatchTest extends TestCase
 
     public function test_uncertain_provider_outcome_is_recorded_as_unknown_and_not_retried_in_the_same_batch(): void
     {
+        $this->enableAirtimeAdmission();
         $user = User::factory()->create();
         $batch = VtuBulkPurchaseBatch::query()->create([
             'public_id' => (string) \Illuminate\Support\Str::uuid(),
