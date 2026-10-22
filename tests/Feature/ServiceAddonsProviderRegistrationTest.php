@@ -10,8 +10,9 @@ use Tests\TestCase;
 
 class ServiceAddonsProviderRegistrationTest extends TestCase
 {
-    public function test_service_addon_provider_is_registered_and_preserves_legacy_adapter_bindings(): void
+    public function test_addon_owned_providers_are_registered_and_preserve_adapter_bindings(): void
     {
+        $this->assertFalse(class_exists('App\\Providers\\ServiceAddonsProvider'));
         $this->assertNotEmpty(app()->getProviders(VtuServiceAddonProvider::class));
         $this->assertNotEmpty(app()->getProviders(EducationServiceAddonProvider::class));
         $this->assertTrue(app()->bound('education.providers.sogo'));
