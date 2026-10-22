@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\User;
 use App\Services\Wallets\BankPayoutService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use LogicException;
 use Tests\TestCase;
 
@@ -52,8 +53,8 @@ class BankPayoutSafetyTest extends TestCase
         ]);
 
         $makePayout = function (string $suffix, string $status, $createdAt) use ($user, $beneficiary) {
-            return \App\Models\BankPayout::query()->create([
-                'public_id' => (string) \Illuminate\Support\Str::uuid(),
+            $payout = \\App\\Models\\BankPayout::query()->create([
+                'public_id' => (string) \\Illuminate\\Support\\Str::uuid(),
                 'user_id' => $user->id,
                 'bank_beneficiary_id' => $beneficiary->id,
                 'currency' => 'NGN',
@@ -67,14 +68,11 @@ class BankPayoutSafetyTest extends TestCase
                 'metadata' => ['provider' => 'paystack'],
             ]);
 
-            // Set the historical timestamps directly so Eloquent's automatic
-            // timestamp handling cannot rewrite the recovery fixture.
-            \\Illuminate\\Support\\Facades\\DB::table('bank_payouts')
-                ->where('id', $payout->id)
-                ->update([
-                    'created_at' => $createdAt,
-                    'updated_at' => $createdAt,
-                ]);
+            // Set historical timestamps directly so Eloquent cannot rewrite the fixture.
+            DB::table('bank_payouts')->where('id', $payout->id)->update([
+                'created_at' => $createdAt,
+                'updated_at' => $createdAt,
+            ]);
 
             return $payout->fresh();
         };
