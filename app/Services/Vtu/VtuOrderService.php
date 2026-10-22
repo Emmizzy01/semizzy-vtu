@@ -483,9 +483,16 @@ class VtuOrderService
         }
 
         $implementation = app(AddonImplementationRegistry::class)->find($addonKey);
-        $operation = match ($product->service_type) {
-            'airtime', 'data' => 'wallet.vtu.orders.create',
-            'electricity-bill', 'tv-subscription' => 'wallet.vtu.orders.create',
+        // Airtime and data use separate addon-scoped operation keys. Legacy
+        // aggregate addon mappings retain their route-operation compatibility
+        // during the conversion window; a data addon cannot admit airtime work
+        // (or vice versa) merely because both use the shared controller today.
+        $operation = match (true) {
+            $addonKey === 'service.airtime' && $product->service_type === 'airtime' => 'service.airtime.purchase',
+            $addonKey === 'service.data' && $product->service_type === 'data' => 'service.data.purchase',
+            in_array($addonKey, ['service.vtu', 'service.airtime_data'], true)
+                && in_array($product->service_type, ['airtime', 'data'], true) => 'wallet.vtu.orders.create',
+            in_array($product->service_type, ['electricity-bill', 'tv-subscription'], true) => 'wallet.vtu.orders.create',
             default => null,
         };
         $addon = PlatformAddon::query()->where('addon_key', $addonKey)->first();
