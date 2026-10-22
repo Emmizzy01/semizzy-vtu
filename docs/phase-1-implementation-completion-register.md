@@ -2,17 +2,18 @@
 
 This register tracks implementation against `docs/SEMIZZY-BLUEPRINT.md` and the owner-approved core requirements. It is not a test report. **No item is accepted solely because a file or route exists**; final acceptance happens after implementation is complete and the planned test sweep is run.
 
-## Current verification update — 2026-10-22 (supersedes earlier CI status below)
+## Current verification update — 2026-10-22 — recovery call-site and CI status
 
-Latest executable-code commit verified by all three requested workflows: `318621c3641f93c0c2f9e9619f6f8b2c16a53326` on `main`. The current `main` head was checked and matched this SHA at verification time.
+This section supersedes older statements below about the VTU accepted-operation recovery call site and the status of commit `e9879610160319ca02e51de764fdb06278cf2193`.
 
-- [Laravel and frontend checks](https://github.com/Emmizzy01/semizzy-vtu/actions/runs/39747957676): terminal conclusion **success**. Frontend build, PHP 8.3 full suite, PHP 8.4 full suite, and both MariaDB error-123 diagnostic jobs passed.
-- [Phase 1 security verification](https://github.com/Emmizzy01/semizzy-vtu/actions/runs/39747957614): terminal conclusion **success**. SQLite and MariaDB security suites passed.
-- [Frontend asset build/publication](https://github.com/Emmizzy01/semizzy-vtu/actions/runs/39747957707): terminal conclusion **success**.
-- Commit `318621c3...` fixes malformed namespace syntax in `PasskeySecurityFoundationTest.php` by importing and using the DB facade. All three workflows now provide terminal-green evidence for that exact code SHA.
-- The authorization/ownership audit and reconciliation of all eight bulk actions remain open. Green CI does not close the route-by-route role matrix, all cross-user resource tests, full WebAuthn ceremony checks, or external production gates.
+- Current `main` executable-code commit inspected: [`e9879610160319ca02e51de764fdb06278cf2193`](https://github.com/Emmizzy01/semizzy-vtu/commit/e9879610160319ca02e51de764fdb06278cf2193).
+- **Recovery integration is present in source.** `app/Services/Vtu/VtuOrderService.php::reconcile()` calls `AddonLifecyclePolicy::mayContinueAcceptedOperation()` after checking accepted/non-terminal status and Core recovery markers. It then uses the recorded provider attempt for lookup/reconciliation; this path does not consult new-purchase addon admission.
+- **Relevant regression tests already exist in source** in `tests/Feature/VtuOrderWorkflowTest.php`: disabled addon blocks new purchases before wallet debit; accepted idempotent retry survives addon disablement without another submission; accepted-order reconciliation continues after purchase feature disablement without resubmission or another debit; terminal orders do not resume provider work; and definitive reconciliation failure refunds once without querying/refunding again. Source presence is verified, but this update does not claim a newly executed local test run.
+- [Laravel/frontend workflow run 39816105347](https://github.com/Emmizzy01/semizzy-vtu/actions/runs/39816105347) targets the exact SHA above. The jobs endpoint currently returns four completed-success jobs: frontend build, PHP 8.4 tests, MariaDB error-123 diagnostic (default), and MariaDB error-123 diagnostic (OFF). However, the parent workflow API response still says `in_progress` with no conclusion despite all returned jobs being terminal. This is a GitHub workflow-finalization/status inconsistency; do not label the parent run terminal-green until its run-level conclusion is returned.
+- **PHP 8.3 is not configured in the current `.github/workflows/laravel.yml` inspected on this commit.** Therefore this run provides no PHP 8.3 result. Earlier historical PHP 8.3 passes do not prove PHP 8.3 coverage for this commit.
+- No confirmed source defect was identified in the specific accepted-operation recovery integration during this inspection, so no speculative production-code change was made. The next action is to resolve the workflow status discrepancy / obtain a terminal result, verify the existing regression cases on the current SHA, and then continue the existing 20-phase service-addon roadmap on `main` only.
+- Phase 1 remains **OPEN**. This update does not close the remaining authorization/ownership audit, action reconciliation, or external/deployment release gates. No live financial transaction or provider purchase was triggered.
 
-**Phase 1 status: OPEN — not signed off.** No live payment, payout, refund, or provider purchase was initiated. Provider/device/HTTPS/cPanel checks remain separate release gates.
 
 ## Historical verification update — 2026-10-22
 
