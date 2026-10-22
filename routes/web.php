@@ -163,7 +163,7 @@ Route::middleware('auth')->group(function (): void {
     Route::get('/services', function (IntegrationSettings $settings) {
     $manualDepositFeature = PlatformFeatureControl::query()->where('feature_key', 'service.manual_deposit')->value('is_enabled');
     $featureControls = PlatformFeatureControl::query()
-        ->whereIn('feature_key', ['service.electricity', 'service.tv', 'service.education', 'service.streaming', 'service.vtu-website-requests'])
+        ->whereIn('feature_key', ['service.electricity', 'service.tv', 'service.education', 'service.streaming_subscriptions', 'service.vtu_website_requests'])
         ->get(['feature_key', 'is_enabled', 'is_implemented'])
         ->keyBy('feature_key');
     $addons = \App\Models\PlatformAddon::query()
@@ -179,9 +179,9 @@ Route::middleware('auth')->group(function (): void {
         'electricity' => ['feature' => (bool) ($featureControls->get('service.electricity')?->is_enabled && $featureControls->get('service.electricity')?->is_implemented), 'operation' => 'wallet.vtu.orders.create'],
         'tv' => ['feature' => (bool) ($featureControls->get('service.tv')?->is_enabled && $featureControls->get('service.tv')?->is_implemented), 'operation' => 'wallet.vtu.orders.create'],
         // Catalogue/admin registration is not a customer purchase implementation.
-        'streaming' => ['feature' => (bool) ($featureControls->get('service.streaming')?->is_enabled && $featureControls->get('service.streaming')?->is_implemented), 'operation' => 'streaming-subscriptions.purchase'],
+        'streaming' => ['feature' => (bool) ($featureControls->get('service.streaming_subscriptions')?->is_enabled && $featureControls->get('service.streaming_subscriptions')?->is_implemented), 'operation' => 'streaming-subscriptions.purchase'],
         'education' => ['feature' => (bool) ($featureControls->get('service.education')?->is_enabled && $featureControls->get('service.education')?->is_implemented), 'operation' => 'education-services.purchase'],
-        'vtuWebsiteRequests' => ['feature' => (bool) ($featureControls->get('service.vtu-website-requests')?->is_enabled && $featureControls->get('service.vtu-website-requests')?->is_implemented), 'operation' => 'vtu-website-requests.store'],
+        'vtuWebsiteRequests' => ['feature' => (bool) ($featureControls->get('service.vtu_website_requests')?->is_enabled && $featureControls->get('service.vtu_website_requests')?->is_implemented), 'operation' => 'vtu-website-requests.store'],
     ];
     foreach ($services as $key => $config) {
         $addonKey = match ($key) {
