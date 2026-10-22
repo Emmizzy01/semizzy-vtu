@@ -54,8 +54,9 @@ class UserAccountStatusTest extends TestCase
             'name' => 'Suspended Multi Route User',
             'email' => 'suspended-multi-route@example.test',
             'password' => 'CorrectPassword1234',
-            'account_status' => 'suspended',
         ]);
+        // account_status is intentionally not mass assignable; set the security state explicitly.
+        $user->forceFill(['account_status' => 'suspended'])->save();
 
         foreach (['/profile', '/wallet/transfers/history', '/account/sessions'] as $uri) {
             $this->actingAs($user)->get($uri)
