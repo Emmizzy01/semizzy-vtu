@@ -54,7 +54,7 @@ class AddonImplementationRegistry
         ],
         'service.streaming' => [
             'handler' => StreamingSubscriptionController::class,
-            'operations' => ['streaming-subscriptions.index'],
+            'operations' => ['streaming-subscriptions.index', 'streaming-subscriptions.admin.catalogue', 'streaming-subscriptions.admin.catalogue.create', 'streaming-subscriptions.admin.catalogue.update'],
         ],
         'service.vtu-website-requests' => [
             'handler' => VtuWebsiteRequestController::class,
