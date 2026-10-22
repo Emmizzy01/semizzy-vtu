@@ -43,4 +43,39 @@ class SupportTicketWorkflowTest extends TestCase
         $customer = User::query()->create(['name' => 'Normal Customer', 'email' => 'normal-support@example.test', 'password' => 'not-a-real-password']);
         $this->actingAs($customer)->get('/admin/support')->assertForbidden();
     }
+
+    public function test_customer_cannot_reply_to_another_users_ticket_by_direct_url(): void
+    {
+        $owner = User::query()->create(['name' => 'Ticket Owner', 'email' => 'ticket-owner-direct@example.test', 'password' => 'not-a-real-password']);
+        $other = User::query()->create(['name' => 'Ticket Outsider', 'email' => 'ticket-outsider-direct@example.test', 'password' => 'not-a-real-password']);
+        $ticket = SupportTicket::query()->create([
+            'public_id' => 'SUP-OWNERONLY123',
+            'user_id' => $owner->id,
+            'category' => 'security',
+            'subject' => 'Private account security issue',
+            'status' => 'open',
+            'priority' => 'normal',
+        ]);
+        $ticket->messages()->create([
+            'author_user_id' => $owner->id,
+            'is_staff' => false,
+            'body' => 'This is a private security issue.',
+        ]);
+
+        $this->actingAs($other)->post('/support/'.$ticket->id.'/reply', [
+            'body' => 'Trying to reply to another customer ticket.',
+        ])->assertNotFound();
+
+        $this->assertDatabaseCount('support_ticket_messages', 1);
+        $this->assertDatabaseMissing('support_ticket_messages', [
+            'ticket_id' => $ticket->id,
+            'author_user_id' => $other->id,
+        ]);
+        $this->assertDatabaseMissing('support_ticket_audits', [
+            'ticket_id' => $ticket->id,
+            'actor_user_id' => $other->id,
+            'action' => 'customer_replied',
+        ]);
+    }
+
 }
