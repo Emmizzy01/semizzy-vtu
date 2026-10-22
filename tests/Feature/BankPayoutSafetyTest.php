@@ -67,13 +67,16 @@ class BankPayoutSafetyTest extends TestCase
                 'metadata' => ['provider' => 'paystack'],
             ]);
 
-            // Timestamps are intentionally not mass assignable on BankPayout.
-            $payout->forceFill([
-                'created_at' => $createdAt,
-                'updated_at' => $createdAt,
-            ])->save();
+            // Set the historical timestamps directly so Eloquent's automatic
+            // timestamp handling cannot rewrite the recovery fixture.
+            \\Illuminate\\Support\\Facades\\DB::table('bank_payouts')
+                ->where('id', $payout->id)
+                ->update([
+                    'created_at' => $createdAt,
+                    'updated_at' => $createdAt,
+                ]);
 
-            return $payout;
+            return $payout->fresh();
         };
 
         $stale = $makePayout('old', 'queued', now()->subHour());
