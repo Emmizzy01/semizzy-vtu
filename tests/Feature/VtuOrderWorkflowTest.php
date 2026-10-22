@@ -609,6 +609,87 @@ class VtuOrderWorkflowTest extends TestCase
         $this->assertSame(1, $attempts, 'Retrying an accepted order must not resubmit the provider purchase.');
     }
 
+    public function test_accepted_order_reconciliation_continues_after_new_purchases_are_disabled_without_resubmission(): void
+    {
+        [$user, $wallet, $product] = $this->preparedCustomer(1000, 1500);
+        $provider = new class implements VtuProvider {
+            public int $submissions = 0;
+            public int $lookups = 0;
+
+            public function assertConfigured(): void {}
+            public function assertProductConfigured(VtuProduct $product): void {}
+
+            public function submit(VtuOrder $order): array
+            {
+                $this->submissions++;
+
+                return ['status' => 'pending', 'provider_reference' => 'core-recovery-pending-1'];
+            }
+
+            public function lookup(VtuOrder $order): array
+            {
+                $this->lookups++;
+
+                return ['status' => 'pending', 'provider_reference' => 'core-recovery-pending-1'];
+            }
+        };
+        $this->app->instance(VtuProvider::class, $provider);
+        $service = app(VtuOrderService::class);
+        $accepted = $service->purchase($user, $product->code, '08012345678', 'core-recovery-after-disable');
+
+        PlatformFeatureControl::query()->where('feature_key', 'service.airtime_data')
+            ->update(['is_enabled' => false]);
+        app(IntegrationSettings::class)->set('service.airtime_data.enabled', '0', null);
+
+        $recovered = $service->reconcile($accepted->fresh());
+
+        $this->assertSame($accepted->id, $recovered->id);
+        $this->assertSame(1, $provider->submissions, 'Recovery must never duplicate the accepted provider submission.');
+        $this->assertSame(1, $provider->lookups, 'Core must still look up an accepted operation after new purchases are disabled.');
+        $this->assertDatabaseCount('vtu_orders', 1);
+        $this->assertDatabaseCount('wallet_transactions', 2, 'Recovery must not post a second wallet debit.');
+        $this->assertSame((int) $wallet->fresh()->available_balance_minor, (int) $recovered->wallet->available_balance_minor);
+    }
+
+    public function test_terminal_order_reconciliation_does_not_resume_provider_work(): void
+    {
+        [$user, $wallet, $product] = $this->preparedCustomer(1000, 1500);
+        $provider = new class implements VtuProvider {
+            public int $submissions = 0;
+            public int $lookups = 0;
+
+            public function assertConfigured(): void {}
+            public function assertProductConfigured(VtuProduct $product): void {}
+
+            public function submit(VtuOrder $order): array
+            {
+                $this->submissions++;
+
+                return ['status' => 'success', 'provider_reference' => 'core-recovery-terminal-1'];
+            }
+
+            public function lookup(VtuOrder $order): array
+            {
+                $this->lookups++;
+
+                return ['status' => 'success', 'provider_reference' => 'core-recovery-terminal-1'];
+            }
+        };
+        $this->app->instance(VtuProvider::class, $provider);
+        $service = app(VtuOrderService::class);
+        $terminal = $service->purchase($user, $product->code, '08012345678', 'core-terminal-no-resume');
+
+        $this->assertSame('successful', $terminal->status);
+        $unchanged = $service->reconcile($terminal->fresh());
+
+        $this->assertSame($terminal->id, $unchanged->id);
+        $this->assertSame('successful', $unchanged->status);
+        $this->assertSame(1, $provider->submissions);
+        $this->assertSame(0, $provider->lookups, 'A terminal order must not resume provider recovery.');
+        $this->assertDatabaseCount('vtu_orders', 1);
+        $this->assertDatabaseCount('wallet_transactions', 2);
+    }
+
     public function test_concurrent_duplicate_request_during_provider_submission_does_not_repeat_financial_or_provider_effects(): void
     {
         [$user, $wallet, $product] = $this->preparedCustomer(1000, 1500);

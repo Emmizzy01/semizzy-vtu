@@ -536,10 +536,30 @@ class VtuOrderService
 
     public function reconcile(VtuOrder $order): VtuOrder
     {
-        if (! in_array($order->status, [
+        // Recovery is a Core-owned continuation of an already accepted financial
+        // operation. It deliberately does not consult new-purchase/add-on admission:
+        // disabling a service must not strand a debit whose provider outcome is
+        // uncertain. It also never authorizes a new submission by itself.
+        $terminal = in_array($order->status, [
+            VtuOrderStatus::Successful->value,
+            VtuOrderStatus::Failed->value,
+            VtuOrderStatus::Cancelled->value,
+        ], true);
+        $accepted = in_array($order->status, [
             VtuOrderStatus::Processing->value,
             VtuOrderStatus::AwaitingReconciliation->value,
-        ], true) || $order->dispatch_started_at === null) {
+        ], true)
+            && $order->dispatch_started_at !== null
+            && $order->wallet_transaction_id !== null;
+        $coreRecoveryAvailable = $order->dispatch_started_at !== null
+            && $order->wallet_transaction_id !== null
+            && trim((string) $order->provider) !== '';
+
+        if (! app(AddonLifecyclePolicy::class)->mayContinueAcceptedOperation(
+            $accepted,
+            $terminal,
+            $coreRecoveryAvailable,
+        )) {
             return $order;
         }
 

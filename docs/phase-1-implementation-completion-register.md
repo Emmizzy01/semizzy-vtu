@@ -134,3 +134,14 @@ This matrix coordinates the eight bulk actions requested for the Phase 1 complet
 
 **Sign-off rule:** a deployment-only check must be labelled “deferred to deployment / not yet run,” not falsely marked passed and not used to block unrelated repository implementation. No bulk action is signed off by this matrix alone.
 
+
+
+## Bulk Action 7 execution update — 2026-10-22 (Core recovery integration)
+
+- Confirmed the previously pending CI runs on documentation commit `d5d805819315c4d09eef28fa9fcc938204ad32bb`: [Laravel/frontend](https://github.com/Emmizzy01/semizzy-vtu/actions/runs/39739641037) passed PHP 8.3 and PHP 8.4 full Laravel suites, frontend build, and both MariaDB error-123 diagnostic jobs; [security verification](https://github.com/Emmizzy01/semizzy-vtu/actions/runs/39739641222) passed SQLite and focused MariaDB security suites. These runs verify the code present at that commit, before the recovery integration below.
+- Added a Core-owned runtime call to `AddonLifecyclePolicy::mayContinueAcceptedOperation` at the start of `VtuOrderService::reconcile`. Recovery is permitted only for a processing/awaiting-reconciliation order with its durable dispatch marker and wallet transaction reference; terminal orders are rejected. This gate is separate from new-purchase/add-on admission and does not itself authorize provider submission.
+- Added feature regressions for (a) reconciling an accepted pending order after the new-purchase feature is disabled, with one provider submission, one lookup, one order and no additional wallet debit, and (b) terminal successful orders not resuming provider lookup.
+- New implementation/test commit is awaiting its own CI results. Dashboard and catalogue acceptance is still incomplete: route matrices and selected page/controller feature tests exist, but a full page-by-page browser acceptance record and complete service-by-service provider readiness proof are not yet recorded. Frozen theme unchanged; no live financial/provider purchase initiated.
+- Remaining release-only gates include production provider contract verification, authorized real-device SMS/WhatsApp delivery, HTTPS browser/WebAuthn ceremony, and cPanel production scheduler/log/environment checks.
+
+**Bulk Action 7 status: OPEN.** The recovery integration and new regressions are implemented, but acceptance depends on green CI on the new code SHA and completion of the dashboard/navigation and service-catalogue acceptance matrix. Phase 1 remains OPEN.
