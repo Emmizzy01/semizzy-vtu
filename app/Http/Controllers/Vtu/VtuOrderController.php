@@ -12,6 +12,7 @@ use App\Models\VtuProduct;
 use App\Models\PlatformFeatureControl;
 use App\Models\PlatformAddon;
 use App\Services\Vtu\VtuOrderService;
+use App\Services\Addons\AddonImplementationRegistry;
 use App\Services\IntegrationSettings;
 use App\Services\Security\TransactionPinService;
 use Illuminate\Http\JsonResponse;
@@ -122,7 +123,17 @@ class VtuOrderController extends Controller
                     default => null,
                 };
                 $addon = $addonKey !== null ? $addonControls->get($addonKey) : null;
-                if ($addonKey !== null && ($addon === null || $addon->status !== 'enabled' || $addon->compatibility_status !== 'compatible')) {
+                $implementation = $addonKey !== null
+                    ? app(AddonImplementationRegistry::class)->find($addonKey)
+                    : null;
+                $registeredForCatalogue = $implementation !== null
+                    && in_array('wallet.vtu.products', $implementation['operations'], true);
+                if ($addonKey !== null && (
+                    $addon === null
+                    || $addon->status !== 'enabled'
+                    || $addon->compatibility_status !== 'compatible'
+                    || ! $registeredForCatalogue
+                )) {
                     $product->setAttribute('is_active', false);
                 }
 
