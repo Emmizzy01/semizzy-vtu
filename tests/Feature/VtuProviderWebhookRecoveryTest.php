@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\PlatformAddon;
 use App\Models\User;
 use App\Models\VtuOrder;
 use App\Models\VtuProduct;
