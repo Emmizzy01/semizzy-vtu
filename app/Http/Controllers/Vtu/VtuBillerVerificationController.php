@@ -3,7 +3,11 @@
 namespace App\Http\Controllers\Vtu;
 
 use App\Http\Controllers\Controller;
+use App\Models\PlatformAddon;
+use App\Models\PlatformFeatureControl;
 use App\Models\VtuProduct;
+use App\Services\Addons\AddonImplementationRegistry;
+use App\Services\Addons\AddonLifecyclePolicy;
 use App\Services\Vtu\BillerVerificationProviderRegistry;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\JsonResponse;
@@ -51,7 +55,36 @@ class VtuBillerVerificationController extends Controller
         }
 
         try {
+            // Configuration is checked before lifecycle admission so provider
+            // readiness is not guessed. Disabled/incompatible addons must not
+            // trigger a biller-verification request to an external provider.
             $provider->assertConfigured();
+
+            $addonKey = $product->service_type === 'electricity-bill'
+                ? 'service.electricity'
+                : 'service.tv';
+            $featureKey = $addonKey;
+            $feature = PlatformFeatureControl::query()->where('feature_key', $featureKey)->first();
+            $addon = PlatformAddon::query()->where('addon_key', $addonKey)->first();
+            $implementation = app(AddonImplementationRegistry::class)->find($addonKey);
+            $operation = 'wallet.vtu.billers.verify';
+            $assessment = $addon === null || $feature === null
+                ? ['available' => false, 'reason' => 'addon_or_feature_control_missing']
+                : app(AddonLifecyclePolicy::class)->assessAdmission(
+                    (string) $addon->status,
+                    (string) $addon->compatibility_status,
+                    $implementation !== null && in_array($operation, $implementation['operations'], true),
+                    true,
+                    (bool) $feature->is_enabled && (bool) $feature->is_implemented,
+                );
+
+            if (! $assessment['available']) {
+                return response()->json([
+                    'message' => 'This bill-payment add-on is disabled or unavailable for new operations.',
+                    'reason' => $assessment['reason'],
+                ], 503);
+            }
+
             $result = $product->service_type === 'electricity-bill'
                 ? $provider->verifyElectricityMeter($product, $validated['biller_code'], $validated['meter_type'])
                 : $provider->verifyTvSmartcard($product, $validated['biller_code']);
