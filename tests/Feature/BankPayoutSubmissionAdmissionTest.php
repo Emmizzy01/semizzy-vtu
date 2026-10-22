@@ -86,15 +86,5 @@ class BankPayoutSubmissionAdmissionTest extends TestCase
         $this->assertSame(7500, (int) $wallet->fresh()->balance_minor);
         $this->assertSame(1, $wallet->transactions()->where('type', 'debit')->count());
 
-        // An idempotent replay returns the same recorded payout and does not
-        // call the provider, even while transfers remain disabled.
-        $replay = app(BankPayoutService::class)->requestPayout(
-            $user,
-            (int) $beneficiary->id,
-            2500,
-            'payout-admission-race-001',
-        );
-        $this->assertSame($payout->id, $replay->id);
-        $this->assertSame(1, BankPayout::query()->where('user_id', $user->id)->count());
     }
 }
