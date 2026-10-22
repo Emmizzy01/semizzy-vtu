@@ -47,5 +47,10 @@ class AddonImplementationRegistryTest extends TestCase
         $this->assertContains('wallet.vtu.orders.bulk', $registry->find('service.data')['operations']);
         $this->assertContains('wallet.vtu.orders.create', $registry->find('service.airtime_data')['operations']);
         $this->assertContains('wallet.vtu.billers.verify', $registry->find('service.bills')['operations']);
+        $this->assertContains('service.electricity.purchase', $registry->find('service.electricity')['operations']);
+        $this->assertContains('service.tv.purchase', $registry->find('service.tv')['operations']);
+        $this->assertNotContains('service.tv.purchase', $registry->find('service.electricity')['operations']);
+        $this->assertNotContains('service.electricity.purchase', $registry->find('service.tv')['operations']);
+        $this->assertContains('wallet.vtu.orders.create', $registry->find('service.bills')['operations']);
     }
 }

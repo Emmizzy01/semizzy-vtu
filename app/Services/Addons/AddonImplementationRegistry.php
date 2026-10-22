@@ -38,11 +38,11 @@ class AddonImplementationRegistry
         ],
         'service.electricity' => [
             'handler' => VtuOrderController::class,
-            'operations' => ['wallet.vtu.products', 'wallet.vtu.orders.create', 'wallet.vtu.orders.bulk', 'wallet.vtu.billers.verify'],
+            'operations' => ['service.electricity.purchase', 'wallet.vtu.products', 'wallet.vtu.orders.create', 'wallet.vtu.orders.bulk', 'wallet.vtu.billers.verify'],
         ],
         'service.tv' => [
             'handler' => VtuOrderController::class,
-            'operations' => ['wallet.vtu.products', 'wallet.vtu.orders.create', 'wallet.vtu.orders.bulk', 'wallet.vtu.billers.verify'],
+            'operations' => ['service.tv.purchase', 'wallet.vtu.products', 'wallet.vtu.orders.create', 'wallet.vtu.orders.bulk', 'wallet.vtu.billers.verify'],
         ],
         'service.bills' => [
             'handler' => VtuOrderController::class,
