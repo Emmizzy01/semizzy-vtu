@@ -11,7 +11,7 @@ class ServiceAddonsProviderRegistrationTest extends TestCase
 {
     public function test_service_addon_provider_is_registered_and_preserves_legacy_adapter_bindings(): void
     {
-        $this->assertContains(ServiceAddonsProvider::class, config('app.providers', []));
+        $this->assertNotEmpty(app()->getProviders(ServiceAddonsProvider::class));
         $this->assertTrue(app()->bound('education.providers.sogo'));
         $this->assertTrue(app()->bound('education.providers.gsubz'));
         $this->assertTrue(app()->bound('education.providers.vtpass'));
