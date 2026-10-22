@@ -8,6 +8,14 @@ type ServiceType = 'airtime' | 'data' | 'electricity-bill' | 'tv-subscription';
 type SavedBeneficiary = { id: number; service_type: string; label: string; recipient: string; network: string | null; product_code: string | null; service_details: Record<string, unknown> | null };
 type ScheduledPurchase = { id: number; service_type: string; recipient: string; frequency: string; next_run_at: string; status: string; last_result: string | null; last_error: string | null };
 
+type ServiceAdmission = {
+  available: boolean;
+  status: string;
+  compatibility_status: string;
+  purchase_operation_registered: boolean;
+  message: string;
+};
+
 type Product = {
   code: string;
   service_type: ServiceType;
@@ -145,6 +153,7 @@ async function readMessage(response: Response) {
 export default function VtuPurchase({ serviceType }: { serviceType: ServiceType }) {
   const [restoredPending] = useState(readPendingPurchase);
   const [products, setProducts] = useState<Product[]>([]);
+  const [serviceAdmission, setServiceAdmission] = useState<ServiceAdmission | null>(null);
   const [productCode, setProductCode] = useState(restoredPending?.productCode ?? '');
   const [recipient, setRecipient] = useState(restoredPending?.recipient ?? '');
   const [beneficiaries, setBeneficiaries] = useState<SavedBeneficiary[]>([]);
@@ -212,6 +221,7 @@ export default function VtuPurchase({ serviceType }: { serviceType: ServiceType 
       })
       .then((body) => {
         if (cancelled) return;
+        setServiceAdmission(body.admission && typeof body.admission.available === 'boolean' ? body.admission as ServiceAdmission : null);
         const rawList = Array.isArray(body.data) ? body.data as Product[] : [];
         const list = rawList;
         setProducts(list);
@@ -464,6 +474,15 @@ export default function VtuPurchase({ serviceType }: { serviceType: ServiceType 
             </div>
 
             {scheduleMessage && <div role="status" className="mb-5 rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-4 text-sm leading-6">{scheduleMessage}</div>}
+
+            {serviceAdmission && !serviceAdmission.available && (
+              <div role="status" className="mb-5 rounded-2xl border border-amber-500/30 bg-amber-500/5 p-4 text-sm leading-6">
+                <p className="font-bold">New purchases temporarily unavailable</p>
+                <p className="mt-1">{serviceAdmission.message}</p>
+                <p className="mt-2 text-xs text-[var(--muted)]">Add-on status: {serviceAdmission.status} · Compatibility: {serviceAdmission.compatibility_status} · Purchase operation: {serviceAdmission.purchase_operation_registered ? 'registered' : 'not registered'}</p>
+                <a href="/dashboard#activity" className="mt-3 inline-flex font-bold underline underline-offset-4">View transactions and existing orders</a>
+              </div>
+            )}
 
             {error && (
               <div role="alert" className="mb-5 flex items-start gap-3 rounded-2xl border border-rose-500/30 bg-rose-500/5 p-4 text-sm">
