@@ -50,7 +50,7 @@ class AddonImplementationRegistry
         ],
         'service.education' => [
             'handler' => EducationServiceController::class,
-            'operations' => ['education-services.index', 'education-services.delivery'],
+            'operations' => ['education-services.index', 'education-services.delivery', 'education-services.admin.catalogue', 'education-services.admin.catalogue.create', 'education-services.admin.catalogue.update'],
         ],
         'service.streaming' => [
             'handler' => StreamingSubscriptionController::class,
