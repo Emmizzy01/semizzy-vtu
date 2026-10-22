@@ -183,7 +183,46 @@ class VtuOrderController extends Controller
             ];
         })->values();
 
-        return response()->json(['data' => $customerProducts]);
+        $admission = null;
+        $requestedService = $validated['service_type'] ?? null;
+        if ($requestedService !== null) {
+            $addonKey = match ($requestedService) {
+                'airtime' => 'service.airtime',
+                'data' => 'service.data',
+                'electricity-bill' => 'service.electricity',
+                'tv-subscription' => 'service.tv',
+                default => null,
+            };
+            $addon = $addonKey !== null ? $addonControls->get($addonKey) : null;
+            $implementation = $addonKey !== null ? app(AddonImplementationRegistry::class)->find($addonKey) : null;
+            $registeredForPurchase = $implementation !== null
+                && in_array('wallet.vtu.orders.create', $implementation['operations'], true);
+            if (in_array($requestedService, ['airtime', 'data'], true)) {
+                $featureEnabled = $requestedService === 'airtime' ? $airtimeEnabled : $dataEnabled;
+            } else {
+                $featureKey = $requestedService === 'electricity-bill' ? 'service.electricity' : 'service.tv';
+                $control = $serviceControls->get($featureKey);
+                $featureEnabled = $control !== null && $control->is_enabled && $control->is_implemented;
+            }
+            $available = $addon !== null && app(AddonLifecyclePolicy::class)->assessAdmission(
+                (string) $addon->status,
+                (string) $addon->compatibility_status,
+                $registeredForPurchase,
+                true,
+                $featureEnabled,
+            )['available'];
+            $admission = [
+                'available' => $available,
+                'status' => $addon?->status ?? 'not_installed',
+                'compatibility_status' => $addon?->compatibility_status ?? 'unknown',
+                'purchase_operation_registered' => $registeredForPurchase,
+                'message' => $available
+                    ? 'This service is currently accepting new purchases.'
+                    : 'New purchases are paused because this service add-on is disabled, incompatible, or not fully registered. You can still check the status of an existing order or recover an accepted request.',
+            ];
+        }
+
+        return response()->json(['data' => $customerProducts, 'admission' => $admission]);
     }
 
     public function purchase(Request $request, VtuOrderService $orders): JsonResponse
