@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\User;
 use App\Models\VtuProduct;
 use App\Models\PlatformFeatureControl;
+use App\Models\PlatformAddon;
 use App\Services\IntegrationSettings;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -316,6 +317,11 @@ class VtuProductCatalogueTest extends TestCase
 
     public function test_vtpass_product_requires_sandbox_approval_before_activation(): void
     {
+        PlatformAddon::query()->updateOrCreate(
+            ['addon_key' => 'service.data'],
+            ['name' => 'Data', 'version' => '1.0.0', 'minimum_core_version' => '1.0.0', 'status' => 'enabled', 'is_core_owned' => false, 'compatibility_status' => 'compatible'],
+        );
+        app(IntegrationSettings::class)->set('service.data.enabled', '1', null);
         $staff = User::query()->create([
             'name' => 'VTpass Approval Staff',
             'email' => 'vtpass-approval@example.test',
