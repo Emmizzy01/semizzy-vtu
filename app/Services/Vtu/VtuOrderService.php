@@ -164,6 +164,10 @@ class VtuOrderService
             $this->assertStorefrontProductAvailable($storefrontSlug, $product);
         }
 
+        // Gate the addon before any biller-verification call can reach an external provider.
+        // The locked transaction below repeats admission immediately before debit/dispatch
+        // to close the race with an administrator disabling the addon during preflight.
+        $this->assertMappedAddonAdmission($product);
         $this->provider->assertConfigured();
         $this->provider->assertProductConfigured($product);
         $this->verifyBillerBeforePurchase($product, $recipient, $serviceDetails);
