@@ -23,6 +23,7 @@ class BankPayoutService
         private readonly IntegrationSettings $settings,
         private readonly WalletAccountService $wallets,
         private readonly WalletLedgerService $ledger,
+        private readonly UserLevelPolicyService $tierPolicy,
     ) {}
 
     public function banks(): array
