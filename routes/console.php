@@ -251,7 +251,9 @@ Artisan::command('vtu:run-scheduled-purchases {--limit=100}', function (VtuOrder
                             'last_run_at' => now(),
                             'last_order_public_id' => $order->public_id,
                             'last_result' => $orderStatus,
-                            'last_error' => 'The provider returned after this schedule was paused. Keep it paused and reconcile the recorded order before resuming.',
+                            // Preserve an operator/recovery explanation when a late
+                            // provider response arrives after the schedule was paused.
+                            'last_error' => $current->last_error ?: 'The provider returned after this schedule was paused. Keep it paused and reconcile the recorded order before resuming.',
                         ]);
                     }
                     return false;
