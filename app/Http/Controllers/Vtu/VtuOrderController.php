@@ -10,6 +10,7 @@ use App\Models\VtuBulkPurchaseItem;
 use App\Jobs\ProcessVtuBulkPurchaseBatch;
 use App\Models\VtuProduct;
 use App\Models\PlatformFeatureControl;
+use App\Models\PlatformAddon;
 use App\Services\Vtu\VtuOrderService;
 use App\Services\IntegrationSettings;
 use App\Services\Security\TransactionPinService;
@@ -40,6 +41,11 @@ class VtuOrderController extends Controller
             ->whereIn('feature_key', ['service.airtime_data', 'service.electricity', 'service.tv'])
             ->get(['feature_key', 'is_enabled', 'is_implemented'])
             ->keyBy('feature_key');
+
+        $addonControls = PlatformAddon::query()
+            ->whereIn('addon_key', ['service.airtime', 'service.data', 'service.electricity', 'service.tv'])
+            ->get(['addon_key', 'status', 'compatibility_status'])
+            ->keyBy('addon_key');
 
         $products = VtuProduct::query()
             ->where('currency', 'NGN')
@@ -97,6 +103,18 @@ class VtuOrderController extends Controller
                 // even for legacy rows that were active before approval tracking.
                 if (($product->metadata['catalog_source'] ?? null) === 'vtpass'
                     && ($product->metadata['purchase_approved'] ?? false) !== true) {
+                    $product->setAttribute('is_active', false);
+                }
+
+                $addonKey = match ($product->service_type) {
+                    'airtime' => 'service.airtime',
+                    'data' => 'service.data',
+                    'electricity-bill' => 'service.electricity',
+                    'tv-subscription' => 'service.tv',
+                    default => null,
+                };
+                $addon = $addonKey !== null ? $addonControls->get($addonKey) : null;
+                if ($addonKey !== null && ($addon === null || $addon->status !== 'enabled' || $addon->compatibility_status !== 'compatible')) {
                     $product->setAttribute('is_active', false);
                 }
 

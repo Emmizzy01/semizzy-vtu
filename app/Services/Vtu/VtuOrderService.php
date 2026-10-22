@@ -508,6 +508,33 @@ class VtuOrderService
             && ! filter_var(app(IntegrationSettings::class)->get('service.airtime_data.enabled', false), FILTER_VALIDATE_BOOLEAN)) {
             throw new InvalidArgumentException('This service is not yet enabled for customer purchases.');
         }
+
+        // Admission gates only new orders. Idempotent existing orders are
+        // returned before this method; reconciliation remains Core-owned.
+        $addonKey = match ($product->service_type) {
+            'airtime' => 'service.airtime',
+            'data' => 'service.data',
+            'electricity-bill' => 'service.electricity',
+            'tv-subscription' => 'service.tv',
+            default => null,
+        };
+        if ($addonKey !== null) {
+            $addon = PlatformAddon::query()->where('addon_key', $addonKey)->first();
+            $implementation = app(AddonImplementationRegistry::class)->find($addonKey);
+            $assessment = $addon === null
+                ? ['available' => false, 'reason' => 'addon_manifest_missing']
+                : app(AddonLifecyclePolicy::class)->assessAdmission(
+                    (string) $addon->status,
+                    (string) $addon->compatibility_status,
+                    $implementation !== null,
+                    true,
+                    true,
+                );
+
+            if (! ($assessment['available'] ?? false)) {
+                throw new InvalidArgumentException('This service add-on is disabled or unavailable for new purchases.');
+            }
+        }
     }
 
     /** Re-verify biller details immediately before debiting the wallet. */
