@@ -13,6 +13,47 @@ class PasskeySecurityFoundationTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_passkey_management_lists_only_credentials_owned_by_the_authenticated_user(): void
+    {
+        config(['passkeys.enabled' => true]);
+
+        $owner = User::query()->create([
+            'name' => 'Passkey Owner',
+            'email' => 'passkey-owner@example.test',
+            'password' => 'CorrectPassword1234',
+        ]);
+        $other = User::query()->create([
+            'name' => 'Other Passkey Owner',
+            'email' => 'other-passkey-owner@example.test',
+            'password' => 'CorrectPassword1234',
+        ]);
+
+        $ownerCredentialId = \\Illuminate\\Support\\Facades\\DB::table('passkeys')->insertGetId([
+            'user_id' => $owner->id,
+            'name' => 'Owner device',
+            'credential_id' => 'owner-credential-test',
+            'credential' => json_encode(['test' => 'owner'], JSON_THROW_ON_ERROR),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        \\Illuminate\\Support\\Facades\\DB::table('passkeys')->insert([
+            'user_id' => $other->id,
+            'name' => 'Other device',
+            'credential_id' => 'other-credential-test',
+            'credential' => json_encode(['test' => 'other'], JSON_THROW_ON_ERROR),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $this->actingAs($owner)->get('/security/passkeys')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('Security/Passkeys')
+                ->has('credentials', 1)
+                ->where('credentials.0.id', $ownerCredentialId)
+                ->where('credentials.0.name', 'Owner device'));
+    }
+
     public function test_passkey_routes_are_disabled_by_default(): void
     {
         config(['passkeys.enabled' => false]);
