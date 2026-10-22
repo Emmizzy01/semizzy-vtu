@@ -166,12 +166,12 @@ Route::middleware('auth')->group(function (): void {
         ->whereIn('feature_key', ['service.electricity', 'service.tv', 'service.education', 'service.streaming', 'service.vtu-website-requests'])
         ->get(['feature_key', 'is_enabled', 'is_implemented'])
         ->keyBy('feature_key');
-    $addons = \\App\\Models\\PlatformAddon::query()
+    $addons = \App\Models\PlatformAddon::query()
         ->whereIn('addon_key', ['service.airtime', 'service.data', 'service.electricity', 'service.tv', 'service.education', 'service.streaming', 'service.vtu-website-requests'])
         ->get(['addon_key', 'status', 'compatibility_status'])
         ->keyBy('addon_key');
-    $registry = app(\\App\\Services\\Addons\\AddonImplementationRegistry::class);
-    $lifecycle = app(\\App\\Services\\Addons\\AddonLifecyclePolicy::class);
+    $registry = app(\App\Services\Addons\AddonImplementationRegistry::class);
+    $lifecycle = app(\App\Services\Addons\AddonLifecyclePolicy::class);
     $readiness = [];
     $services = [
         'airtime' => ['feature' => filter_var($settings->get('service.airtime.enabled', $settings->get('service.airtime_data.enabled', false)), FILTER_VALIDATE_BOOLEAN), 'operation' => 'wallet.vtu.orders.create'],
