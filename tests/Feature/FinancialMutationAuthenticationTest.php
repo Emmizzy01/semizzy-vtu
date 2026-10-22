@@ -41,4 +41,18 @@ class FinancialMutationAuthenticationTest extends TestCase
             $this->call($method, $uri)->assertRedirect('/login');
         }
     }
+
+    public function test_sensitive_financial_routes_reject_alternative_http_methods(): void
+    {
+        $user = \App\Models\User::query()->create([
+            'name' => 'Method Substitution Customer',
+            'email' => 'method-substitution@example.test',
+            'password' => 'not-a-real-password',
+        ]);
+
+        $this->actingAs($user)->patch('/wallet/transfers/history')->assertStatus(405);
+        $this->actingAs($user)->delete('/wallet/manual-deposits')->assertStatus(405);
+        $this->actingAs($user)->put('/wallet/service-beneficiaries')->assertStatus(405);
+    }
+
 }
