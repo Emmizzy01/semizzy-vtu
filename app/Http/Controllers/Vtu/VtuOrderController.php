@@ -37,9 +37,11 @@ class VtuOrderController extends Controller
         $dataSetting = $integrationSettings->get('service.data.enabled', null);
         $airtimeEnabled = filter_var($airtimeSetting ?? $legacyAirDataSetting ?? false, FILTER_VALIDATE_BOOLEAN);
         $dataEnabled = filter_var($dataSetting ?? $legacyAirDataSetting ?? false, FILTER_VALIDATE_BOOLEAN);
-        if ((! isset($validated['service_type']) && ! $airtimeEnabled && ! $dataEnabled)
-            || (($validated['service_type'] ?? null) === 'airtime' && ! $airtimeEnabled)
-            || (($validated['service_type'] ?? null) === 'data' && ! $dataEnabled)) {
+        $airtimeConfigured = $airtimeSetting !== null || $legacyAirDataSetting !== null;
+        $dataConfigured = $dataSetting !== null || $legacyAirDataSetting !== null;
+        if ((($validated['service_type'] ?? null) === 'airtime' && $airtimeConfigured && ! $airtimeEnabled)
+            || (($validated['service_type'] ?? null) === 'data' && $dataConfigured && ! $dataEnabled)
+            || (! isset($validated['service_type']) && $airtimeConfigured && $dataConfigured && ! $airtimeEnabled && ! $dataEnabled)) {
             return response()->json(['message' => 'Airtime and data purchases are temporarily unavailable.'], 503);
         }
 
@@ -200,9 +202,10 @@ class VtuOrderController extends Controller
         if ($pinStatus !== 'verified') return response()->json(['message' => 'Transaction PIN is incorrect.'], 422);
 
         if (in_array($productType, ['airtime', 'data'], true)) {
-            $airDataFeature = PlatformFeatureControl::query()->where('feature_key', 'service.airtime_data')->first(['is_enabled', 'is_implemented']);
-            if ($airDataFeature === null || ! $airDataFeature->is_enabled || ! $airDataFeature->is_implemented
-                || ! filter_var(app(IntegrationSettings::class)->get('service.airtime_data.enabled', false), FILTER_VALIDATE_BOOLEAN)) {
+            $settings = app(IntegrationSettings::class);
+            $independentSetting = $settings->get('service.'.$productType.'.enabled', null);
+            $legacySetting = $settings->get('service.airtime_data.enabled', false);
+            if (! filter_var($independentSetting ?? $legacySetting, FILTER_VALIDATE_BOOLEAN)) {
                 return response()->json(['message' => 'Airtime and data purchases are temporarily unavailable.'], 503);
             }
         }
