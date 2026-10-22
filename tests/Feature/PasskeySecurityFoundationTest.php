@@ -54,6 +54,46 @@ class PasskeySecurityFoundationTest extends TestCase
                 ->where('credentials.0.name', 'Owner device'));
     }
 
+    public function test_user_cannot_delete_another_users_passkey_credential(): void
+    {
+        config([
+            'passkeys.enabled' => true,
+            'passkeys.relying_party_id' => 'semizzy.example.test',
+            'passkeys.allowed_origins' => ['https://semizzy.example.test'],
+        ]);
+
+        $owner = User::query()->create([
+            'name' => 'Credential Owner',
+            'email' => 'credential-owner@example.test',
+            'password' => 'CorrectPassword1234',
+        ]);
+        $attacker = User::query()->create([
+            'name' => 'Credential Attacker',
+            'email' => 'credential-attacker@example.test',
+            'password' => 'CorrectPassword1234',
+        ]);
+
+        $credentialId = \\Illuminate\\Support\\Facades\\DB::table('passkeys')->insertGetId([
+            'user_id' => $owner->id,
+            'name' => 'Owner credential',
+            'credential_id' => 'owner-delete-protection-test',
+            'credential' => json_encode(['test' => 'credential'], JSON_THROW_ON_ERROR),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $this->actingAs($attacker)->withSession([
+            'passkeys.password_confirmed_at' => now()->timestamp,
+            'passkeys.password_confirmed_password_hash' => hash('sha256', (string) $attacker->password),
+        ])->delete('/user/passkeys/'.$credentialId)->assertForbidden();
+
+        $this->assertDatabaseHas('passkeys', [
+            'id' => $credentialId,
+            'user_id' => $owner->id,
+            'credential_id' => 'owner-delete-protection-test',
+        ]);
+    }
+
     public function test_passkey_routes_are_disabled_by_default(): void
     {
         config(['passkeys.enabled' => false]);
