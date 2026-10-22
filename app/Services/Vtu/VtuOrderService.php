@@ -67,7 +67,6 @@ class VtuOrderService
             if (($product->metadata['purchase_supported'] ?? null) !== true) {
                 throw new InvalidArgumentException('This service is not yet enabled for customer purchases.');
             }
-            $this->assertServiceFeatureEnabled($product);
             $contactPhone = preg_replace('/[\s-]+/', '', (string) ($serviceDetails['contact_phone'] ?? '')) ?? '';
             if (! preg_match('/^\+?[0-9]{10,15}$/', $contactPhone)) {
                 throw new InvalidArgumentException('Enter a valid contact phone number for the provider transaction.');
@@ -100,7 +99,6 @@ class VtuOrderService
                 }
             }
         } else {
-            $this->assertServiceFeatureEnabled($product);
             if (! preg_match('/^\+?[0-9]{10,15}$/', $recipient)) {
                 throw new InvalidArgumentException('Recipient must be a valid phone number.');
             }
@@ -148,6 +146,11 @@ class VtuOrderService
         if ($existing !== null) {
             return $this->returnExisting($existing, $requestHash);
         }
+
+        // A retry of an already accepted order must remain readable when an
+        // administrator disables new purchases for this service. The locked
+        // transaction path re-checks this gate before creating any new order.
+        $this->assertServiceFeatureEnabled($product);
 
         if (! $product->is_active) {
             throw new InvalidArgumentException('This product is no longer available.');
