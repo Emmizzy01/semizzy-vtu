@@ -656,7 +656,7 @@ class BankPayoutSafetyTest extends TestCase
             'password' => 'not-a-real-password',
         ]);
 
-        $beneficiary = \\App\\Models\\BankBeneficiary::query()->create([
+        $beneficiary = \App\Models\BankBeneficiary::query()->create([
             'user_id' => $owner->id,
             'bank_code' => '999',
             'bank_name' => 'Ownership Test Bank',
