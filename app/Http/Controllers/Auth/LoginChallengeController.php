@@ -40,34 +40,8 @@ class LoginChallengeController extends Controller
             return redirect()->route('login')->withErrors(['code' => 'This verification attempt has expired. Please sign in again.']);
         }
 
-        $result = DB::transaction(function () use ($challengeId, $validated): array {
-            $challenge = DB::table('login_challenges')->where('id', $challengeId)->lockForUpdate()->first();
-
-            if (! $challenge || $challenge->consumed_at !== null || now()->greaterThanOrEqualTo($challenge->expires_at)) {
-                return ['status' => 'expired'];
-            }
-
-            $maxAttempts = max(1, min(10, (int) config('auth_security.email_otp_max_attempts', 5)));
-            if ((int) $challenge->attempts >= $maxAttempts) {
-                return ['status' => 'locked'];
-            }
-
-            if (! Hash::check($validated['code'], $challenge->code_hash)) {
-                DB::table('login_challenges')->where('id', $challengeId)->increment('attempts');
-                return ['status' => 'invalid'];
-            }
-
-            DB::table('login_challenges')->where('id', $challengeId)->update([
-                'consumed_at' => now(),
-                'updated_at' => now(),
-            ]);
-
-            return [
-                'status' => 'ok',
-                'user_id' => (int) $challenge->user_id,
-                'remember' => (bool) $challenge->remember,
-            ];
-        });
+        $result = app(\\App\\Services\\Auth\\LoginChallengeVerificationService::class)
+            ->verify($challengeId, $validated['code']);
 
         if ($result['status'] !== 'ok') {
             if (in_array($result['status'], ['expired', 'locked'], true)) {
