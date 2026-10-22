@@ -318,6 +318,11 @@ class BankPayoutService
                 return $existing;
             }
 
+            $tierRejection = $this->tierPolicy->rejectionReasonForAmount($user, $wallet->id, $amountMinor);
+            if ($tierRejection !== null) {
+                throw new InvalidArgumentException($tierRejection);
+            }
+
             $publicId = (string) Str::uuid();
             $reference = 'semizzy_'.str_replace('-', '', $publicId);
 
