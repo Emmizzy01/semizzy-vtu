@@ -186,4 +186,69 @@ class ScheduledServicePurchaseTest extends TestCase
         $this->actingAs($other)->deleteJson('/wallet/scheduled-purchases/'.$schedule->id)->assertNotFound();
         $this->assertDatabaseHas('scheduled_service_purchases', ['id' => $schedule->id, 'status' => 'active']);
     }
+
+
+    public function test_scheduled_runner_quarantines_stale_processing_schedule_without_resubmitting(): void
+    {
+        $user = User::query()->create([
+            'name' => 'Stale Schedule User',
+            'email' => 'stale-schedule-user@example.test',
+            'password' => 'not-a-real-password',
+        ]);
+        $schedule = ScheduledServicePurchase::query()->create([
+            'user_id' => $user->id,
+            'service_type' => 'data',
+            'product_code' => 'stale-processing-plan',
+            'recipient' => '08012345678',
+            'frequency' => 'daily',
+            'next_run_at' => now()->subHour(),
+            'status' => 'processing',
+            'last_result' => null,
+        ]);
+
+        // Force a historical claim timestamp without Eloquent touching it.
+        \\Illuminate\\Support\\Facades\\DB::table('scheduled_service_purchases')
+            ->where('id', $schedule->id)
+            ->update(['updated_at' => now()->subMinutes(45)]);
+
+        $exitCode = \\Illuminate\\Support\\Facades\\Artisan::call('vtu:run-scheduled-purchases', [
+            '--limit' => 100,
+        ]);
+
+        $this->assertSame(0, $exitCode);
+        $this->assertSame('paused', $schedule->fresh()->status);
+        $this->assertSame('unknown', $schedule->fresh()->last_result);
+        $this->assertStringContainsString('reconcile the existing order', $schedule->fresh()->last_error);
+    }
+
+    public function test_scheduled_runner_does_not_quarantine_a_recent_processing_claim(): void
+    {
+        $user = User::query()->create([
+            'name' => 'Recent Schedule User',
+            'email' => 'recent-schedule-user@example.test',
+            'password' => 'not-a-real-password',
+        ]);
+        $schedule = ScheduledServicePurchase::query()->create([
+            'user_id' => $user->id,
+            'service_type' => 'data',
+            'product_code' => 'recent-processing-plan',
+            'recipient' => '08012345678',
+            'frequency' => 'daily',
+            'next_run_at' => now()->subMinute(),
+            'status' => 'processing',
+            'last_result' => null,
+        ]);
+
+        \\Illuminate\\Support\\Facades\\DB::table('scheduled_service_purchases')
+            ->where('id', $schedule->id)
+            ->update(['updated_at' => now()->subMinutes(5)]);
+
+        $exitCode = \\Illuminate\\Support\\Facades\\Artisan::call('vtu:run-scheduled-purchases', [
+            '--limit' => 100,
+        ]);
+
+        $this->assertSame(0, $exitCode);
+        $this->assertSame('processing', $schedule->fresh()->status);
+    }
+
 }
