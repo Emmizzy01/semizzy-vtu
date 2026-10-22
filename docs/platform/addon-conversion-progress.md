@@ -7,6 +7,14 @@
 
 ## Mission and status
 
+## Binding owner rules for all phases
+
+- **Deployment classification:** Anything requiring the live server, cPanel, or deployed environment to test/inspect/verify belongs in **Deployment checklist — execute during deployment**. Mark it deferred until actually run. It is not an unfinished development task and must not keep a development phase or bulk action open. Finish repository/CI/test/sandbox work independently; never claim a live check passed without live evidence.
+- **No unsafe production actions:** Do not access/change production, run migrations, alter production data, or trigger real financial/provider transactions merely to clear a checklist. Production schema/data changes require schema and migration review, verified recoverable backup, and explicit authorised operator approval.
+- **Roadmap continuity:** Continue the agreed 20-phase addon conversion from the current evidenced checkpoint; do not restart phases or substitute a new roadmap. Do not mark phases complete without acceptance evidence.
+- **Dashboard theme freeze:** Preserve the current admin and user dashboard design/themes. No redesign/restyling or layout replacement during addon conversion unless the owner explicitly authorizes it.
+- **Core/addon boundary:** Core owns authentication/identity, users and permissions/tier policy, wallet/immutable ledger, payments/funding/payouts/transfers, pricing, global settings, security/audit, notifications, transaction recovery, and addon management. Each approved service addon owns service-specific catalogues, inputs, orders, provider adapter, admin controls, and service-specific recovery orchestration, and must use Core contracts rather than duplicating Core systems.
+
 This document records evidence for the controlled 20-phase reconciliation and addon-conversion mission. It is a progress ledger, not a completion claim. Requirements remain open until implementation and relevant verification evidence are recorded.
 
 ## Phase 0 — Initial repository baseline
