@@ -162,11 +162,60 @@ Route::middleware('auth')->group(function (): void {
     })->name('services.coming-soon');
     Route::get('/services', function (IntegrationSettings $settings) {
     $manualDepositFeature = PlatformFeatureControl::query()->where('feature_key', 'service.manual_deposit')->value('is_enabled');
-    return Inertia::render('Services/Index', ['availability' => [
-        'airtimeData' => filter_var($settings->get('service.airtime_data.enabled', true), FILTER_VALIDATE_BOOLEAN),
-        'manualDeposit' => filter_var($settings->get('manual_deposit.enabled', false), FILTER_VALIDATE_BOOLEAN)
-            && $manualDepositFeature !== null && (bool) $manualDepositFeature,
-    ]]);
+    $featureControls = PlatformFeatureControl::query()
+        ->whereIn('feature_key', ['service.electricity', 'service.tv', 'service.education', 'service.streaming', 'service.vtu-website-requests'])
+        ->get(['feature_key', 'is_enabled', 'is_implemented'])
+        ->keyBy('feature_key');
+    $addons = \\App\\Models\\PlatformAddon::query()
+        ->whereIn('addon_key', ['service.airtime', 'service.data', 'service.electricity', 'service.tv', 'service.education', 'service.streaming', 'service.vtu-website-requests'])
+        ->get(['addon_key', 'status', 'compatibility_status'])
+        ->keyBy('addon_key');
+    $registry = app(\\App\\Services\\Addons\\AddonImplementationRegistry::class);
+    $lifecycle = app(\\App\\Services\\Addons\\AddonLifecyclePolicy::class);
+    $readiness = [];
+    $services = [
+        'airtime' => ['feature' => filter_var($settings->get('service.airtime.enabled', $settings->get('service.airtime_data.enabled', false)), FILTER_VALIDATE_BOOLEAN), 'operation' => 'wallet.vtu.orders.create'],
+        'data' => ['feature' => filter_var($settings->get('service.data.enabled', $settings->get('service.airtime_data.enabled', false)), FILTER_VALIDATE_BOOLEAN), 'operation' => 'wallet.vtu.orders.create'],
+        'electricity' => ['feature' => (bool) ($featureControls->get('service.electricity')?->is_enabled && $featureControls->get('service.electricity')?->is_implemented), 'operation' => 'wallet.vtu.orders.create'],
+        'tv' => ['feature' => (bool) ($featureControls->get('service.tv')?->is_enabled && $featureControls->get('service.tv')?->is_implemented), 'operation' => 'wallet.vtu.orders.create'],
+        // Catalogue/admin registration is not a customer purchase implementation.
+        'streaming' => ['feature' => (bool) ($featureControls->get('service.streaming')?->is_enabled && $featureControls->get('service.streaming')?->is_implemented), 'operation' => 'streaming-subscriptions.purchase'],
+        'education' => ['feature' => (bool) ($featureControls->get('service.education')?->is_enabled && $featureControls->get('service.education')?->is_implemented), 'operation' => 'education-services.purchase'],
+        'vtuWebsiteRequests' => ['feature' => (bool) ($featureControls->get('service.vtu-website-requests')?->is_enabled && $featureControls->get('service.vtu-website-requests')?->is_implemented), 'operation' => 'vtu-website-requests.store'],
+    ];
+    foreach ($services as $key => $config) {
+        $addonKey = match ($key) {
+            'airtime', 'data', 'electricity', 'tv' => 'service.'.$key,
+            'vtuWebsiteRequests' => 'service.vtu-website-requests',
+            default => 'service.'.$key,
+        };
+        $addon = $addons->get($addonKey);
+        $implementation = $registry->find($addonKey);
+        $registered = $implementation !== null && in_array($config['operation'], $implementation['operations'], true);
+        $decision = $lifecycle->assessAdmission(
+            (string) ($addon?->status ?? 'not_installed'),
+            (string) ($addon?->compatibility_status ?? 'unknown'),
+            $registered,
+            true,
+            $config['feature'],
+        );
+        $readiness[$key] = [
+            'available' => $decision['available'],
+            'status' => (string) ($addon?->status ?? 'not_installed'),
+            'compatibility_status' => (string) ($addon?->compatibility_status ?? 'unknown'),
+            'purchase_operation_registered' => $registered,
+            'reason' => $decision['reason'],
+        ];
+    }
+
+    return Inertia::render('Services/Index', [
+        'availability' => [
+            'airtimeData' => $readiness['airtime']['available'] && $readiness['data']['available'],
+            'manualDeposit' => filter_var($settings->get('manual_deposit.enabled', false), FILTER_VALIDATE_BOOLEAN)
+                && $manualDepositFeature !== null && (bool) $manualDepositFeature,
+        ],
+        'addonReadiness' => $readiness,
+    ]);
 })->name('services.index');
     Route::get('/customer/dashboard', [DashboardController::class, 'customerPreview'])->name('customer.dashboard');
     Route::get('/admin/dashboard', [DashboardController::class, 'admin'])
