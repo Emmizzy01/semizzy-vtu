@@ -579,6 +579,36 @@ class VtuOrderWorkflowTest extends TestCase
         $this->assertSame(1, $attempts, 'A duplicate successful purchase must not be resubmitted.');
     }
 
+    public function test_accepted_order_retry_remains_recoverable_after_service_feature_is_disabled(): void
+    {
+        $attempts = 0;
+        Http::fake(function () use (&$attempts) {
+            $attempts++;
+
+            return Http::response([
+                'status' => 'pending',
+                'provider_reference' => 'provider-order-awaiting-recovery',
+            ], 200);
+        });
+
+        [$user, $wallet, $product] = $this->preparedCustomer(1000, 1500);
+        $service = app(VtuOrderService::class);
+        $first = $service->purchase($user, $product->code, '08012345678', 'retry-after-service-disable');
+
+        PlatformFeatureControl::query()->where('feature_key', 'service.airtime_data')
+            ->update(['is_enabled' => false]);
+        app(IntegrationSettings::class)->set('service.airtime_data.enabled', '0', null);
+
+        $retry = $service->purchase($user, $product->code, '08012345678', 'retry-after-service-disable');
+
+        $this->assertSame($first->id, $retry->id);
+        $this->assertSame('pending', $retry->status);
+        $this->assertSame(500, (int) $wallet->fresh()->available_balance_minor);
+        $this->assertDatabaseCount('vtu_orders', 1);
+        $this->assertDatabaseCount('wallet_transactions', 2);
+        $this->assertSame(1, $attempts, 'Retrying an accepted order must not resubmit the provider purchase.');
+    }
+
     public function test_concurrent_duplicate_request_during_provider_submission_does_not_repeat_financial_or_provider_effects(): void
     {
         [$user, $wallet, $product] = $this->preparedCustomer(1000, 1500);
