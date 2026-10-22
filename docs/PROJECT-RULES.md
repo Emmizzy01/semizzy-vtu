@@ -6,7 +6,15 @@
 
 These rules apply to all future implementation, maintenance, database evolution, testing, and deployment work. If another note conflicts with these rules, preserve customer data and financial integrity first, and work directly on `main`.
 
-## 1. Production-grade implementation is the default
+## 1. Production-grade implementation is mandatory
+
+**SEMIZZY ONE is a real production platform, not a mock/demo.** All production code paths must perform real, durable, auditable work through verified integrations and persisted state. Mocks, fakes, fixtures, simulated provider outcomes, fabricated transaction states, and in-memory substitutes are permitted only in isolated automated tests or explicitly identified provider sandbox environments. They must never be represented as live functionality or silently substitute for unavailable production integrations.
+
+- Every enabled action must have end-to-end implementation: UI, server-side validation and authorization, durable persistence, safe state transitions, failure/recovery handling, auditability where appropriate, automated tests, and deployment/configuration instructions.
+- No placeholder control may be presented as operational. If credentials, provider support, or required configuration is missing, return a truthful unavailable state and keep the affected capability disabled rather than fabricating success.
+- Automated tests and sandbox checks must not send real money or real provider transactions. Live verification belongs to controlled deployment tasks under Section 7A.
+- Production-grade implementation does not bypass safety gates: unverified integrations, ambiguous outcomes, missing credentials, or incomplete reconciliation remain gated. The code can be implemented while live activation awaits deployment verification.
+- This standard applies to Core and every approved addon, including funding, wallet movements, purchases, refunds, payouts, OTP, passkeys, admin controls, background jobs, catalogue sync, and recovery.
 
 - Build and maintain the application as a real production product, not a demo. Do not substitute simulated balances, fake provider results, fabricated delivery/status progress, or placeholder controls for real functionality.
 - A feature is not complete until its end-to-end flow exists: UI, server-side validation, authorization, persistence, failure states, auditability where appropriate, automated tests, and deployment/configuration notes.
