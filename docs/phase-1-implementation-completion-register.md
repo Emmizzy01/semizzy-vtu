@@ -155,3 +155,10 @@ This matrix coordinates the eight bulk actions requested for the Phase 1 complet
 - Full real-browser navigation/accessibility/responsive acceptance is still not certified by HTTP feature tests; production provider contracts, SMS/WhatsApp device delivery, HTTPS WebAuthn ceremony and cPanel runtime checks remain release gates. Frozen theme unchanged.
 
 **Bulk Action 7 status: OPEN pending terminal CI on the exact implementation SHA and any failures discovered by the new page-render suite.**
+
+
+## CI failure triage — 2026-10-22
+
+- The first asset workflow that also runs the Laravel suite exposed a test assertion API misuse in the new Core recovery regression: a human-readable message was passed as Laravel's third `assertDatabaseCount` argument, which is the database connection name. This was a test-only defect, not an application runtime failure.
+- Corrected the assertion to use the standard signature and compare the wallet balance captured immediately before reconciliation. The failed run is [asset build/test run 39741116648](https://github.com/Emmizzy01/semizzy-vtu/actions/runs/39741116648); it is not accepted as green.
+- The fix requires a fresh full-suite run on the resulting main commit. Action 7 remains OPEN until PHP 8.3/8.4, MariaDB security, asset build and new workspace-page smoke tests pass on the same code SHA.

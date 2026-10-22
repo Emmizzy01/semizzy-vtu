@@ -641,14 +641,15 @@ class VtuOrderWorkflowTest extends TestCase
             ->update(['is_enabled' => false]);
         app(IntegrationSettings::class)->set('service.airtime_data.enabled', '0', null);
 
+        $balanceBeforeRecovery = (int) $wallet->fresh()->available_balance_minor;
         $recovered = $service->reconcile($accepted->fresh());
 
         $this->assertSame($accepted->id, $recovered->id);
         $this->assertSame(1, $provider->submissions, 'Recovery must never duplicate the accepted provider submission.');
         $this->assertSame(1, $provider->lookups, 'Core must still look up an accepted operation after new purchases are disabled.');
         $this->assertDatabaseCount('vtu_orders', 1);
-        $this->assertDatabaseCount('wallet_transactions', 2, 'Recovery must not post a second wallet debit.');
-        $this->assertSame((int) $wallet->fresh()->available_balance_minor, (int) $recovered->wallet->available_balance_minor);
+        $this->assertDatabaseCount('wallet_transactions', 2);
+        $this->assertSame($balanceBeforeRecovery, (int) $wallet->fresh()->available_balance_minor, 'Recovery must not post a second wallet debit.');
     }
 
     public function test_terminal_order_reconciliation_does_not_resume_provider_work(): void
