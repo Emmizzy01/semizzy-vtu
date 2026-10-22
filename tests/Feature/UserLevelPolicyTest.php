@@ -273,4 +273,72 @@ class UserLevelPolicyTest extends TestCase
         $this->assertDatabaseCount('wallet_ledger_entries', 2);
     }
 
+
+    public function test_mapped_vtu_addon_fails_closed_without_runtime_registry_admission(): void
+    {
+        config(['services.vtu.name' => 'test_provider', 'services.vtu.endpoint' => 'https://provider.example.test/api', 'services.vtu.token' => 'test-secret']);
+        $provider = new class implements VtuProvider {
+            public function assertConfigured(): void {}
+            public function assertProductConfigured(VtuProduct $product): void {}
+            public function submit(\App\Models\VtuOrder $order): array { return ['status' => 'pending']; }
+            public function lookup(\App\Models\VtuOrder $order): array { return ['status' => 'pending']; }
+        };
+        $this->app->instance(VtuProvider::class, $provider);
+
+        $user = User::query()->create(['name' => 'Mapped Addon Customer', 'email' => 'mapped-addon@example.test', 'password' => 'not-a-real-password']);
+        $wallet = app(WalletAccountService::class)->openForUser($user);
+        app(WalletLedgerService::class)->post($wallet->id, 'credit', 5000, 'mapped-addon-funding');
+        $product = VtuProduct::query()->create([
+            'service_type' => 'airtime', 'network' => 'mtn', 'code' => 'mapped-addon-airtime',
+            'name' => 'Mapped Addon Airtime', 'price_minor' => 1000, 'face_value_minor' => 1000,
+            'currency' => 'NGN', 'is_active' => true, 'metadata' => ['addon_key' => 'service.airtime_data'],
+        ]);
+
+        try {
+            app(VtuOrderService::class)->purchase($user, $product->code, '08012345678', 'mapped-addon-order');
+            $this->fail('A mapped add-on without an enabled compatible registry entry must fail closed.');
+        } catch (InvalidArgumentException $exception) {
+            $this->assertStringContainsString('addon_disabled', $exception->getMessage());
+        }
+
+        $this->assertSame(5000, (int) $wallet->fresh()->available_balance_minor);
+        $this->assertDatabaseCount('vtu_orders', 0);
+        $this->assertDatabaseCount('wallet_transactions', 1);
+    }
+
+    public function test_configured_tier_single_transaction_limit_blocks_bank_payout_before_ledger_mutation(): void
+    {
+        app(IntegrationSettings::class)->set('paystack.transfers_enabled', '1', null);
+        $user = User::query()->create(['name' => 'Tier Limited Payout User', 'email' => 'tier-limited-payout@example.test', 'password' => 'not-a-real-password']);
+        $beneficiary = \App\Models\BankBeneficiary::query()->create([
+            'user_id' => $user->id,
+            'bank_code' => '999',
+            'bank_name' => 'Tier Test Bank',
+            'account_number' => '0123456789',
+            'account_number_last4' => '6789',
+            'account_name' => $user->name,
+            'provider_recipient_code' => 'RCP_tier_limit_test',
+            'verification_status' => 'verified',
+            'verified_at' => now(),
+        ]);
+        UserLevelPolicy::query()->where('level', (string) ($user->user_level ?: 'level_1'))->update([
+            'max_single_transaction_minor' => 1000,
+            'daily_transaction_limit_minor' => null,
+            'requires_verified_kyc' => false,
+            'is_active' => true,
+        ]);
+
+        try {
+            app(\App\Services\Wallets\BankPayoutService::class)->requestPayout($user, $beneficiary->id, 2000, 'tier-payout-limit-001');
+            $this->fail('The configured tier single-transaction limit must block a payout.');
+        } catch (InvalidArgumentException $exception) {
+            $this->assertStringContainsString('single-transaction limit', $exception->getMessage());
+        }
+
+        $this->assertDatabaseCount('bank_payouts', 0);
+        $this->assertDatabaseCount('wallet_transactions', 0);
+        $this->assertDatabaseCount('wallet_ledger_entries', 0);
+    }
+
+
 }
