@@ -134,7 +134,7 @@ class EducationOrderCoordinatorTest extends TestCase
         $this->assertSame(350000, (int) $wallet->fresh()->balance_minor);
         $this->assertDatabaseCount('education_orders', 1);
         $this->assertDatabaseCount('education_provider_attempts', 1);
-        $this->assertDatabaseCount('wallet_ledger_entries', 1, 'The reserved order retains its single debit for safe reconciliation.');
+        $this->assertSame(1, WalletLedgerEntry::query()->count(), 'The reserved order retains its single debit for safe reconciliation.');
 
         // Accepted-order recovery is intentionally independent of new-purchase admission.
         $recovered = $coordinator->reconcile($order->fresh());
