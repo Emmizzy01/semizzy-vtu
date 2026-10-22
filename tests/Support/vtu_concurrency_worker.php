@@ -49,7 +49,7 @@ try {
         }
 
         $provider->arriveAndWait('bulk_request_barrier', 2);
-        \\Illuminate\\Support\\Facades\\Queue::fake();
+        \Illuminate\Support\Facades\Queue::fake();
         $productId = (string) $product->getKey();
         $selectionCode = 'p'.base_convert($productId, 10, 36).'.'.substr(
             hash_hmac('sha256', 'vtu-product:'.$productId, (string) config('app.key')),
@@ -67,12 +67,12 @@ try {
             'items' => $items,
         ]);
         $request->setUserResolver(fn () => $user);
-        $response = app(\\App\\Http\\Controllers\\Vtu\\VtuOrderController::class)
+        $response = app(\App\Http\Controllers\Vtu\VtuOrderController::class)
             ->bulkPurchase($request, app(VtuOrderService::class));
         fwrite(STDOUT, json_encode([
             'status' => $response->getStatusCode(),
             'data' => $response->getData(true)['data']['id'] ?? null,
-        ], JSON_THROW_ON_ERROR)."\\n");
+        ], JSON_THROW_ON_ERROR)."\n");
         exit(0);
     }
 
@@ -86,7 +86,7 @@ try {
         }
         (new \App\Jobs\ProcessVtuBulkPurchaseBatch($batchId))
             ->handle(app(VtuOrderService::class));
-        fwrite(STDOUT, "processed\\n");
+        fwrite(STDOUT, "processed\n");
         exit(0);
     }
 
@@ -133,7 +133,7 @@ try {
                 'currency' => $intent->currency,
             ],
         ]);
-        fwrite(STDOUT, "processed\\n");
+        fwrite(STDOUT, "processed\n");
         exit(0);
     }
     if ($mode === 'submit-deposit') {
@@ -168,7 +168,7 @@ try {
         $request->setUserResolver(fn () => $admin);
         $provider->arriveAndWait('deposit_review_barrier', 2);
         app(ManualDepositController::class)->review($request, $publicId, app(WalletLedgerService::class));
-        fwrite(STDOUT, "approved\\n");
+        fwrite(STDOUT, "approved\n");
         exit(0);
     }
 
