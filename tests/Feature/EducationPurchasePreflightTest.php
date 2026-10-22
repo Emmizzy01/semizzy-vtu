@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\EducationServiceProduct;
+use App\Models\PlatformAddon;
 use App\Models\PlatformFeatureControl;
 use App\Models\User;
 use App\Models\UserLevelPolicy;
@@ -39,6 +40,67 @@ class EducationPurchasePreflightTest extends TestCase
 
         $this->assertDatabaseCount('education_orders', 0);
         $this->assertDatabaseCount('wallet_transactions', 0);
+    }
+
+
+    public function test_unregistered_education_purchase_operation_blocks_external_candidate_validation(): void
+    {
+        $user = User::query()->create([
+            'name' => 'Education Lifecycle Buyer',
+            'email' => 'education-lifecycle-buyer@example.test',
+            'password' => 'not-a-real-password',
+        ]);
+        PlatformFeatureControl::query()->where('feature_key', 'service.education')->update([
+            'is_enabled' => true, 'is_implemented' => true,
+        ]);
+        PlatformAddon::query()->create([
+            'addon_key' => 'service.education',
+            'name' => 'Education',
+            'version' => '1.0.0',
+            'minimum_core_version' => '1.0.0',
+            'status' => 'enabled',
+            'is_core_owned' => false,
+            'compatibility_status' => 'compatible',
+        ]);
+        EducationServiceProduct::query()->create([
+            'service_type' => 'exam_pin', 'exam_body' => 'WAEC',
+            'name' => 'Lifecycle WAEC PIN', 'code' => 'lifecycle-waec-pin',
+            'provider' => 'lifecycle-provider', 'provider_product_code' => 'waec-test',
+            'price_minor' => 150000, 'currency' => 'NGN',
+            'requires_candidate_validation' => true, 'is_active' => true, 'purchase_approved' => true,
+        ]);
+
+        app()->instance('education.providers.lifecycle-provider', new class implements \\App\\Services\\Education\\EducationProvider {
+            public function assertConfigured(): void
+            {
+                throw new \\RuntimeException('Provider must not be contacted before addon admission.');
+            }
+            public function validateCandidate(EducationServiceProduct $product, array $candidate): array
+            {
+                throw new \\RuntimeException('External candidate validation must not run.');
+            }
+            public function submit(string $orderReference, EducationServiceProduct $product, array $candidate): array
+            {
+                throw new \\RuntimeException('Provider submission must not run.');
+            }
+            public function lookup(string $orderReference, EducationServiceProduct $product): array
+            {
+                return ['status' => 'unknown'];
+            }
+        });
+
+        try {
+            app(EducationPurchaseService::class)->preflight(
+                $user, 'lifecycle-waec-pin', 'edu-idem-lifecycle', ['candidate_number' => '1234567890']
+            );
+            $this->fail('Expected the unregistered education purchase operation to be rejected.');
+        } catch (LogicException $exception) {
+            $this->assertStringContainsString('implementation_unregistered', $exception->getMessage());
+        }
+
+        $this->assertDatabaseCount('education_orders', 0);
+        $this->assertDatabaseCount('wallet_transactions', 0);
+        $this->assertDatabaseCount('wallet_ledger_entries', 0);
     }
 
     public function test_preflight_rejects_unregistered_provider_without_creating_financial_records(): void
