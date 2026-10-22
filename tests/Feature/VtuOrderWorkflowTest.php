@@ -89,7 +89,7 @@ class VtuOrderWorkflowTest extends TestCase
                 10000,
             );
             $this->fail('A disabled service add-on must reject new purchases.');
-        } catch (\\InvalidArgumentException $exception) {
+        } catch (\InvalidArgumentException $exception) {
             $this->assertStringContainsString('add-on is disabled or unavailable', $exception->getMessage());
             $this->assertSame(1500, (int) $wallet->fresh()->available_balance_minor);
             $this->assertDatabaseCount('vtu_orders', 0);
