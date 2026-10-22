@@ -4,7 +4,11 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\PlatformSettingAudit;
+use App\Models\PlatformAddon;
+use App\Models\PlatformFeatureControl;
 use App\Models\VtuProduct;
+use App\Services\Addons\AddonImplementationRegistry;
+use App\Services\Addons\AddonLifecyclePolicy;
 use App\Services\IntegrationSettings;
 use App\Services\Vtu\VtpassCatalogService;
 use Throwable;
@@ -208,6 +212,31 @@ class VtuProductCatalogueController extends Controller
         if (! in_array($type, ['airtime', 'data'], true)) {
             abort(422, 'This category remains catalogue-only until its dedicated purchase and recovery workflow is implemented and verified.');
         }
+
+        // Catalogue activation is an administrative mutation that can expose a
+        // product for sale. Enforce the same Core addon admission policy here,
+        // not only at checkout. Disabling an addon never changes accepted orders.
+        $addonKey = 'service.'.$type;
+        $addon = PlatformAddon::query()->where('addon_key', $addonKey)->first();
+        $implementation = app(AddonImplementationRegistry::class)->find($addonKey);
+        $registered = $implementation !== null
+            && in_array('wallet.vtu.orders.create', $implementation['operations'], true);
+        $settings = app(IntegrationSettings::class);
+        $independentFeature = $settings->get('service.'.$type.'.enabled', null);
+        $legacyFeature = $settings->get('service.airtime_data.enabled', false);
+        $featureEnabled = filter_var($independentFeature ?? $legacyFeature, FILTER_VALIDATE_BOOLEAN);
+        $admission = app(AddonLifecyclePolicy::class)->assessAdmission(
+            (string) ($addon?->status ?? 'not_installed'),
+            (string) ($addon?->compatibility_status ?? 'unknown'),
+            $registered,
+            true,
+            $featureEnabled,
+        );
+        abort_unless(
+            $admission['available'],
+            422,
+            'This product cannot be activated because its addon is not accepting new purchases ('.$admission['reason'].').',
+        );
 
         // Dataway is importable for catalogue/pricing review, but remains excluded from
         // customer purchase routing until its account-specific lookup contract is verified.
