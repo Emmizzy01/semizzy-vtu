@@ -16,6 +16,7 @@ class PeerWalletTransferService
     public function __construct(
         private readonly WalletAccountService $wallets,
         private readonly WalletLedgerService $ledger,
+        private readonly \App\Services\Security\UserLevelPolicyService $tierPolicy,
     ) {}
 
     public function transfer(User $sender, string $recipientIdentifier, int $amountMinor, string $idempotencyKey): WalletTransfer
@@ -82,6 +83,14 @@ class PeerWalletTransferService
                 }
 
                 return $existing;
+            }
+
+            // Enforce the configured account-tier policy inside the same wallet
+            // lock/transaction as the debit, so concurrent debits cannot bypass
+            // single-transaction or daily posted-debit limits.
+            $tierRejection = $this->tierPolicy->rejectionReasonForAmount($sender, $senderWallet->id, $amountMinor);
+            if ($tierRejection !== null) {
+                throw new InvalidArgumentException($tierRejection);
             }
 
             $transferId = (string) Str::uuid();
