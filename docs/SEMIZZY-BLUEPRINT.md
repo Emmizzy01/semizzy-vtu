@@ -36,32 +36,23 @@ The following user-facing money and service workflows are part of the active cor
 
 These are core wallet, account and service capabilities, not a reason to delay the Unified Marketplace phase. Implementation must proceed in coherent batches with migrations, backend authorization, customer UI, tests, and operator/deployment notes. Provider-backed money movement remains disabled until the relevant provider contract, credentials, reconciliation and tests are verified. Never run live transactions as a substitute for automated tests.
 
-## 1B. Development versus deployment-stage acceptance — binding rule
+## 1B. Development versus deployment-stage acceptance — binding owner rule
 
-**Live-server-only work is deferred to deployment; it is not incomplete development work.** The team must continue building and verifying all work that can be completed in the repository, CI, local/test environments, or provider sandbox without waiting for cPanel/live-server access.
+**Anything that needs the live server, cPanel, or deployed environment to test, inspect, or verify is a deployment matter, not an unfinished development task.** This applies across all phases, bulk actions, audits, and status reports. Do not leave a development phase open solely because a live-only check has not yet been run.
 
-During development, complete and verify:
-- Application code, user/admin UI, permissions, persistence, failure handling, and safe state transitions.
-- Automated tests, regression tests, static/security checks, frontend builds, CI, and sandbox/mock-based provider tests.
-- Provider timeout/unknown-outcome recovery and reconciliation logic, migration review, configuration documentation, and deployment instructions.
-- A clear deployment checklist for checks that genuinely require the deployed environment.
+During development, complete all checks available through repository inspection, automated tests, static/security analysis, builds, isolated test environments, and provider sandboxes. Track live-only work under **Deployment checklist — execute during deployment** and label it **Deferred to deployment / not yet run** until verified on the real environment. Do not claim a live check passed without evidence.
 
-Defer the following to deployment/live-environment verification when they cannot be established safely elsewhere:
-- Actual cPanel/PHP runtime, production environment configuration, file permissions, deployed assets/routes, scheduler/queue behavior, and production smoke checks.
-- Real-browser passkey registration/login over HTTPS and real SMS/WhatsApp delivery to authorised devices.
-- Production credentials/provider-account verification, provider contract checks that require provider support or an authorised live account, and any authorised live end-to-end checks.
-- Live database migration execution and production-only operational checks.
+Deployment-only examples include cPanel/runtime and permissions, release commit and deployed files, production environment values, production database/schema and migration status, deployed assets/routes, live HTTPS/passkeys, authorised real-device OTP delivery, host cron/scheduler/queue behavior, production logs, backup/restore validation, smoke tests, and authorised live-provider verification.
 
-Track these under **Deployment checklist — execute during deployment**, not as incomplete development tasks. A deployment-only item must never be marked as passed before it is run, but its deferred status must not block unrelated code implementation or CI completion.
+Do not access or change production, alter production data, execute migrations, or trigger real transactions merely to turn a deployment checklist green. Follow the backup, migration review, operator approval, and financial safety rules. A deployment-only check may gate activation of the affected live capability, but must not block unrelated development. A code push or green CI does not prove that cPanel is serving that release.
 
-This distinction does not waive safety controls. Provider purchases, payouts, refunds, and other live financial actions remain disabled until their specific safety, provider-contract, recovery, reconciliation, and authorisation gates are satisfied. Do not trigger live transactions merely to prove a workflow. Do not reset production data or perform risky live-server changes to clear a checklist item.
+## 1C. Addon conversion and dashboard theme freeze
 
-When reporting progress, separate:
-1. **Development status:** code, tests, builds, CI, and repository-verifiable work.
-2. **Deployment checklist:** live-only steps intentionally deferred until deployment.
-3. **Activation gates:** checks that must pass before a specific live-money or provider capability is enabled.
+- Continue the agreed **20-phase roadmap** for converting all approved in-scope services into independent addons. Resume from the actual evidenced checkpoint; do not restart phases or replace the agreed roadmap with a new one.
+- Core retains ownership of identity/authentication, users/roles/permissions/tier policy, wallet and immutable ledger, funding/payments/payouts/transfers, pricing, global settings, security/audit, notifications, transaction recovery, and addon management.
+- Each service addon owns its service-specific catalogue, customer inputs, orders, provider adapter, service admin controls, and service-specific recovery orchestration. It must use Core contracts and must not duplicate Core-owned functionality.
+- **The existing user and admin dashboard themes/design are frozen.** Do not redesign, restyle, replace, or change the current dashboard theme while doing addon conversion unless the owner explicitly authorizes it. Preserve existing working behavior and route/API compatibility.
 
-Never describe a deployment-deferred check as a development failure. Never describe it as verified until it has actually been executed.
 
 ## 2. Accounts, user types, and levels
 
