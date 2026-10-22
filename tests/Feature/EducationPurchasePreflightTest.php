@@ -4,10 +4,12 @@ namespace Tests\Feature;
 
 use App\Models\EducationServiceProduct;
 use App\Models\PlatformAddon;
+use App\Models\PlatformAddon;
 use App\Models\PlatformFeatureControl;
 use App\Models\User;
 use App\Models\UserLevelPolicy;
 use App\Services\Education\EducationPurchaseService;
+use App\Services\Addons\AddonImplementationRegistry;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use LogicException;
 use Tests\TestCase;
@@ -15,6 +17,28 @@ use Tests\TestCase;
 class EducationPurchasePreflightTest extends TestCase
 {
     use RefreshDatabase;
+
+
+    private function registerEducationPurchaseForTest(): void
+    {
+        PlatformAddon::query()->updateOrCreate(
+            ['addon_key' => 'service.education'],
+            [
+                'name' => 'Education',
+                'version' => '1.0.0',
+                'minimum_core_version' => '1.0.0',
+                'status' => 'enabled',
+                'is_core_owned' => false,
+                'compatibility_status' => 'compatible',
+            ],
+        );
+        $registry = \\Mockery::mock(AddonImplementationRegistry::class);
+        $registry->shouldReceive('find')->with('service.education')->andReturn([
+            'handler' => \\App\\Http\\Controllers\\EducationServiceController::class,
+            'operations' => ['education-services.purchase'],
+        ]);
+        app()->instance(AddonImplementationRegistry::class, $registry);
+    }
 
     public function test_preflight_rejects_disabled_feature_before_provider_or_wallet_activity(): void
     {
@@ -113,6 +137,7 @@ class EducationPurchasePreflightTest extends TestCase
         PlatformFeatureControl::query()->where('feature_key', 'service.education')->update([
             'is_enabled' => true, 'is_implemented' => true,
         ]);
+        $this->registerEducationPurchaseForTest();
         EducationServiceProduct::query()->create([
             'service_type' => 'exam_pin', 'exam_body' => 'WAEC',
             'name' => 'Unverified WAEC PIN', 'code' => 'unverified-waec-pin',
@@ -141,6 +166,7 @@ class EducationPurchasePreflightTest extends TestCase
         PlatformFeatureControl::query()->where('feature_key', 'service.education')->update([
             'is_enabled' => true, 'is_implemented' => true,
         ]);
+        $this->registerEducationPurchaseForTest();
         EducationServiceProduct::query()->create([
             'service_type' => 'exam_pin', 'exam_body' => 'WAEC',
             'name' => 'Provider Authorization Gate PIN', 'code' => 'authorization-gate-waec-pin',
@@ -187,6 +213,7 @@ class EducationPurchasePreflightTest extends TestCase
         PlatformFeatureControl::query()->where('feature_key', 'service.education')->update([
             'is_enabled' => true, 'is_implemented' => true,
         ]);
+        $this->registerEducationPurchaseForTest();
         EducationServiceProduct::query()->create([
             'service_type' => 'exam_pin', 'exam_body' => 'WAEC',
             'name' => 'Tier Policy WAEC PIN', 'code' => 'tier-policy-waec-pin',
@@ -225,6 +252,7 @@ class EducationPurchasePreflightTest extends TestCase
         PlatformFeatureControl::query()->where('feature_key', 'service.education')->update([
             'is_enabled' => true, 'is_implemented' => true,
         ]);
+        $this->registerEducationPurchaseForTest();
         $user = User::query()->create([
             'name' => 'Education Limit Customer',
             'email' => 'education-limit-customer@example.test',
