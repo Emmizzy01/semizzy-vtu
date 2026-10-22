@@ -79,3 +79,28 @@ This checkpoint adds focused regression coverage; it does **not** close Phase 1.
 **Phase 1 remains OPEN.** Outstanding gates include the final complete CI run on the latest commit; endpoint-by-endpoint wallet/PIN/authorization and recovery acceptance; real-browser HTTPS passkey ceremonies; vendor-specific SMS/WhatsApp contract and authorized device delivery; multi-provider virtual-account coverage; live provider contract verification; and production deployment/schema/scheduler/queue/first-admin checks. These are not safe to waive to make a phase appear complete.
 
 No production database changes, real payments/refunds/payouts, live provider purchases, or feature-gate openings were performed by this bulk action. Continue on `main` only, preserve the existing UI/routes/contracts, and do not wire addon lifecycle admission until its route and background recovery gates are verified.
+
+## One-sweep master acceptance matrix — 2026-10-22
+
+This matrix coordinates the eight bulk actions requested for the Phase 1 completion sweep. It is a live checklist, not a declaration of completion. Each action remains unsigned until its repository-verifiable acceptance criteria have passed and evidence is recorded.
+
+| Bulk action | Scope | Current state | Acceptance still required |
+|---|---|---|---|
+| 1. Transaction recovery and crash safety | Payments, refunds, payouts, VTU orders, scheduled purchases, bulk purchases, duplicate workers and late responses | **In progress** — scheduled-runner recovery now preserves an operator/recovery pause reason when a late provider response returns; regression coverage updated | Confirm the latest PHP 8.3/8.4 and MariaDB/SQLite checks; finish the remaining cross-workflow crash/recovery audit and concurrency evidence |
+| 2. Provider integration and failover | VTpass, Sogo, GSUBZ, Dataway, lookup contracts, status normalization and safe retry | **Open** — mock/adapter coverage exists; unverified contracts remain gated | Complete code-level contract review and sandbox/mock regression checks; document provider-specific external evidence; keep unsafe failover and purchases disabled |
+| 3. Wallet and payment integrity | Ledger, deposits, gateway callbacks, idempotency, refunds, reversals and reconciliation | **Open** — substantial workflow and concurrency tests exist | Close the endpoint-by-endpoint financial mutation audit and verify exactly-once settlement, changed-payload conflicts, balanced ledger entries and uncertain-outcome handling |
+| 4. Payouts and transfers | Bank beneficiaries, payout lifecycle, P2P transfers, payout races and reconciliation | **Open** — payout idempotency, unknown-outcome and concurrency regressions exist | Verify the complete payout/transfer matrix and provider reconciliation requirements; do not send live money during CI |
+| 5. Authentication and account security | OTP, PIN, TOTP/2FA, passkeys, sessions, account recovery and lockouts | **Partially verified** — automated security workflow passed on commit `228b36112914386b18e0d778d2b34113c467a64d` | Complete any remaining repository-verifiable gaps; real-browser HTTPS passkey ceremony and authorised SMS/WhatsApp vendor/device verification remain deployment/activation gates |
+| 6. Roles, permissions and admin security | Server-side role/action matrix, staff permissions, ownership, sensitive actions and audit records | **Open** — targeted route and permission regression tests exist | Complete the blueprint-wide role/action matrix, including cross-tenant access, privilege escalation and separation of financial duties |
+| 7. Core platform and blueprint compliance | Migrations/schema drift, account levels, add-ons, privacy, retention, incident workflows, catalogues and requested services | **Open** — several foundations exist; the gap audit records partial or unaccepted areas | Resolve every repository-verifiable gap; document capabilities requiring approved provider contracts or legal/product decisions; preserve production data and existing features |
+| 8. Final integration and acceptance | Full test suites, MariaDB/SQLite concurrency, frontend build, security checks and release evidence | **In progress** — frontend asset build and Phase 1 security verification passed on the commit above; full PHP 8.3/8.4 workflow was still running at register update time | Wait for final results on the exact release commit, fix every failure, inspect the final diff, and record the final commit SHA plus CI links |
+
+### Deployment checklist — intentionally deferred until deployment
+
+- Verify cPanel/PHP runtime, environment configuration, migrations, permissions, scheduler/queue operation, assets, logs and production smoke checks.
+- Verify real-browser HTTPS passkey registration/login and authorised SMS/WhatsApp delivery.
+- Complete provider-account and provider-contract checks that require authorised external access.
+- Keep provider purchases, payouts, refunds and virtual-account provisioning disabled until their individual activation gates are met.
+
+**Sign-off rule:** a deployment-only check must be labelled “deferred to deployment / not yet run,” not falsely marked passed and not used to block unrelated repository implementation. No bulk action is signed off by this matrix alone.
+
