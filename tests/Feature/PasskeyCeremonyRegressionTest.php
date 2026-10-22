@@ -76,6 +76,15 @@ class PasskeyCeremonyRegressionTest extends TestCase
         $this->assertGuest();
     }
 
+    public function test_passkey_login_rejects_a_missing_or_expired_verification_challenge(): void
+    {
+        $this->postJson('/passkeys/login', ['credential' => $this->assertionCredential()])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['credential']);
+
+        $this->assertGuest();
+    }
+
     public function test_real_webauthn_validator_rejects_an_invalid_assertion_signature(): void
     {
         $user = User::query()->create([
@@ -171,7 +180,7 @@ PEM;
 -----BEGIN EC PRIVATE KEY-----
 MHcCAQEEIExwigMuj7pGzk+XVIKVp72gYQc6AU//5HlUHb3X5HGRoAoGCCqGSM49
 AwEHoUQDQgAE53mVK/HTD1mPae7VZ8uzETJC7ZLmAyWKa75YyZ9lNbHFl8oSKWJe
-RYf/wGQSBmBTBSaU+rRuVAx2zexNCzQ==
+RYf/wGQSBmBTBSaU+rRuRbuVAx2zexNCzQ==
 -----END EC PRIVATE KEY-----
 PEM;
         $clientPayload = [
