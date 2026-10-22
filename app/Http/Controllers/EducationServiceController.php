@@ -86,6 +86,9 @@ class EducationServiceController extends Controller
             ->orderBy('exam_body')->orderBy('name')->paginate(30)->withQueryString();
 
         $feature = PlatformFeatureControl::query()->where('feature_key', 'service.education')->first();
+        $addon = PlatformAddon::query()->where('addon_key', 'service.education')->first();
+        $implementation = app(AddonImplementationRegistry::class)->find('service.education');
+        $operations = $implementation['operations'] ?? [];
 
         return Inertia::render('Admin/EducationServices/Index', [
             'products' => $products->getCollection()->map(fn (EducationServiceProduct $p): array => [
@@ -99,8 +102,16 @@ class EducationServiceController extends Controller
             'pagination' => ['currentPage' => $products->currentPage(), 'lastPage' => $products->lastPage(), 'total' => $products->total()],
             'filters' => ['search' => $search, 'service_type' => $type],
             'feature' => $feature ? ['is_enabled' => $feature->is_enabled, 'is_implemented' => $feature->is_implemented] : ['is_enabled' => false, 'is_implemented' => false],
+            'addonLifecycle' => [
+                'status' => $addon?->status ?? 'not_installed',
+                'compatibility_status' => $addon?->compatibility_status ?? 'unknown',
+                'implementation_registered' => $implementation !== null,
+                'catalogue_operation_registered' => in_array('education-services.index', $operations, true),
+                'delivery_operation_registered' => in_array('education-services.delivery', $operations, true),
+                'purchase_operation_registered' => in_array('education-services.purchase', $operations, true),
+            ],
             'purchaseGate' => false,
-            'gateReason' => 'Catalogue management only: no education purchase endpoint is enabled in this Phase 3 slice.',
+            'gateReason' => 'Catalogue management only: provider candidate validation, transaction lookup and accepted-order recovery are not verified; no education purchase operation is registered.',
         ]);
     }
 
