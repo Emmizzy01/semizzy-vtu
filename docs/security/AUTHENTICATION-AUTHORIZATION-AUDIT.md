@@ -46,3 +46,13 @@
 - Record each confirmed vulnerability with affected route/file, reproducible non-destructive test, fix commit, and passing regression test.
 - Do not mark controls verified solely because middleware or a test class exists; record the test result and exact commit.
 - Host-only settings (live PHP handler, cookie flags, HTTPS, environment variables and web-root exposure) require hosting evidence.
+
+
+## Current evidence reconciliation — 2026-10-22
+
+- Latest executable-code SHA with terminal-green CI is `5e41c5fe0cdd3ce951e1ce48616e5fc5a696c933`: [PHP 8.3/8.4 full suites and frontend](https://github.com/Emmizzy01/semizzy-vtu/actions/runs/39742792095), [SQLite/focused MariaDB security suites](https://github.com/Emmizzy01/semizzy-vtu/actions/runs/39742792012), and [asset publication](https://github.com/Emmizzy01/semizzy-vtu/actions/runs/39742792188). Current later commits only update documentation, ignore the log filename, or remove the tracked root application log; compare evidence confirms no executable application-code changes after that SHA.
+- Representative role tests exist in `AdminDirectUrlAuthorizationTest`; guest financial-route tests exist in `FinancialMutationAuthenticationTest`; refund, payout and selected ownership tests exist in their dedicated suites. These do not close AUTH-01 through AUTH-03 because they do not yet enumerate every named sensitive route/method, every role, all cross-user resource substitutions, and all privilege grant/revoke combinations.
+- AUTH-04 remains open: repository tests for HTTPS origin allowlists and recent password confirmation do not prove a complete browser WebAuthn ceremony.
+- AUTH-05 remains open for independent-session/IP OTP abuse/race cases and actual authorised vendor/device delivery. AUTH-06 through AUTH-09 still need their full test matrix and/or production hosting evidence.
+- AUTH-10's CI portion is satisfied for the executable-code SHA above, but the audit as a whole remains open until the targeted route/auth tests and other findings are resolved. Any new executable code requires fresh CI on its exact SHA.
+- Keep SMS/WhatsApp delivery and passkeys disabled until vendor/device and HTTPS browser acceptance are completed. Do not perform live financial operations or use production credentials during this audit.
