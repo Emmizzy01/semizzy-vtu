@@ -117,6 +117,11 @@ class BankPayoutService
             return $matchingAccount;
         }
 
+        // Returning an already-verified local beneficiary is read-only. For a
+        // genuinely new recipient, require payout-provider admission before creating
+        // a durable claim or making any provider-side account/recipient call.
+        $this->assertPayoutProviderAdmission();
+
         // A keyed fingerprint avoids storing/indexing plaintext account numbers.
         // The unique DB constraint serializes competing requests before either
         // request can create a provider-side recipient.
@@ -168,11 +173,6 @@ class BankPayoutService
         if (! $claimResult['inserted']) {
             throw new LogicException('This bank account is already being verified. If you just submitted it, wait or contact support before retrying.');
         }
-
-        // Recipient creation is an external provider-side effect. Respect the
-        // same explicit payout-provider switch used by transfer submission before
-        // making either the account-resolution or recipient-creation call.
-        $this->assertPayoutProviderAdmission();
 
         // Account resolution is read-only. If it fails, no provider recipient could
         // have been created, so release this claim and allow a safe later retry.
