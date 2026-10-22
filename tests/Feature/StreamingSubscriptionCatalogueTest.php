@@ -4,7 +4,6 @@ namespace Tests\Feature;
 
 use App\Models\PlatformFeatureControl;
 use App\Models\PlatformAddon;
-use App\Models\PlatformAddon;
 use App\Models\StreamingSubscriptionProduct;
 use App\Models\User;
 use App\Services\Addons\AddonImplementationRegistry;
