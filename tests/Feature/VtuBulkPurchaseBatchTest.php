@@ -5,6 +5,8 @@ namespace Tests\Feature;
 use App\Jobs\ProcessVtuBulkPurchaseBatch;
 use App\Models\User;
 use App\Models\VtuBulkPurchaseBatch;
+use App\Models\PlatformAddon;
+use App\Services\IntegrationSettings;
 use App\Models\VtuBulkPurchaseItem;
 use App\Services\Vtu\VtuOrderService;
 use Illuminate\Support\Carbon;
@@ -467,6 +469,7 @@ class VtuBulkPurchaseBatchTest extends TestCase
 
     public function test_duplicate_job_delivery_does_not_resubmit_an_item_with_uncertain_outcome(): void
     {
+        $this->enableAirtimeAdmission();
         Queue::fake();
         $user = User::factory()->create();
         $batch = VtuBulkPurchaseBatch::query()->create([
@@ -504,6 +507,7 @@ class VtuBulkPurchaseBatchTest extends TestCase
 
     public function test_fresh_in_flight_items_do_not_starve_pending_items_beyond_the_worker_limit(): void
     {
+        $this->enableAirtimeAdmission();
         Queue::fake();
         $user = User::factory()->create();
         $batch = VtuBulkPurchaseBatch::query()->create([
@@ -612,8 +616,18 @@ class VtuBulkPurchaseBatchTest extends TestCase
         Queue::assertNotPushed(ProcessVtuBulkPurchaseBatch::class, fn ($job) => $job->batchId === $terminal->id);
     }
 
+    private function enableAirtimeAdmission(): void
+    {
+        PlatformAddon::query()->updateOrCreate(
+            ['addon_key' => 'service.airtime'],
+            ['name' => 'Airtime', 'version' => '1.0.0', 'minimum_core_version' => '1.0.0', 'status' => 'enabled', 'compatibility_status' => 'compatible', 'is_core_owned' => true],
+        );
+        app(IntegrationSettings::class)->set('service.airtime.enabled', '1', null);
+    }
+
     private function preparedRequest(): array
     {
+        $this->enableAirtimeAdmission();
         $user = User::factory()->create();
         $user->forceFill(['transaction_pin_hash' => Hash::make('1234')])->save();
 
