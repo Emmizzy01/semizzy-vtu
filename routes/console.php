@@ -608,6 +608,40 @@ Artisan::command('vtu:catalog-sync {--apply : Save the verified provider catalog
 })->purpose('Preview VTpass products safely; persist only when --apply is explicitly supplied');
 
 
+Artisan::command('vtu:recover-bulk-purchase-batches {--limit=100}', function () {
+    $limit = (int) $this->option('limit');
+    if ($limit < 1 || $limit > 500) {
+        $this->error('The limit must be between 1 and 500.');
+
+        return 1;
+    }
+
+    // A request can commit its durable batch and then the PHP process can die
+    // before the queue dispatch completes. Recover only old queued batches with
+    // pending items. Duplicate deliveries are safe: the worker claims each item
+    // under a row lock and never resubmits processing/unknown items.
+    $batchIds = \\App\\Models\\VtuBulkPurchaseBatch::query()
+        ->where('status', 'queued')
+        ->where('created_at', '<=', now()->subMinutes(5))
+        ->whereHas('items', fn ($query) => $query->where('status', 'pending'))
+        ->orderBy('created_at')
+        ->limit($limit)
+        ->pluck('id');
+
+    foreach ($batchIds as $batchId) {
+        \\App\\Jobs\\ProcessVtuBulkPurchaseBatch::dispatch((int) $batchId);
+    }
+
+    $this->table(['Recovered queued batches'], [[$batchIds->count()]]);
+
+    return 0;
+})->purpose('Recover durable bulk-purchase batches whose initial queue dispatch may have been interrupted');
+
+Schedule::command('vtu:recover-bulk-purchase-batches --limit=100')
+    ->everyMinute()
+    ->withoutOverlapping();
+
+
 Artisan::command('semizzy:schema-audit', function () {
     // Read-only audit for the production schema drift reported on 2026-10-18.
     // This command deliberately does not run migrations or alter database state.
