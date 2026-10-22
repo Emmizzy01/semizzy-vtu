@@ -6,6 +6,7 @@ use App\Exceptions\Wallet\IdempotencyConflict;
 use App\Models\EducationOrder;
 use App\Models\EducationProviderAttempt;
 use App\Models\EducationServiceProduct;
+use App\Models\PlatformAddon;
 use App\Models\PlatformFeatureControl;
 use App\Models\User;
 use App\Models\Wallet;
@@ -14,6 +15,7 @@ use App\Models\WalletTransaction;
 use App\Services\Education\EducationOrderCoordinator;
 use App\Services\Education\EducationProvider;
 use App\Services\Education\EducationProviderRegistry;
+use App\Services\Addons\AddonImplementationRegistry;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -31,6 +33,23 @@ class EducationOrderCoordinatorTest extends TestCase
         PlatformFeatureControl::query()->where('feature_key', 'service.education')->update([
             'is_enabled' => true, 'is_implemented' => true,
         ]);
+        PlatformAddon::query()->updateOrCreate(
+            ['addon_key' => 'service.education'],
+            [
+                'name' => 'Education',
+                'version' => '1.0.0',
+                'minimum_core_version' => '1.0.0',
+                'status' => 'enabled',
+                'is_core_owned' => false,
+                'compatibility_status' => 'compatible',
+            ],
+        );
+        $registry = \\Mockery::mock(AddonImplementationRegistry::class);
+        $registry->shouldReceive('find')->with('service.education')->andReturn([
+            'handler' => \\App\\Http\\Controllers\\EducationServiceController::class,
+            'operations' => ['education-services.purchase'],
+        ]);
+        app()->instance(AddonImplementationRegistry::class, $registry);
         $product = EducationServiceProduct::query()->create([
             'service_type' => 'exam_pin', 'exam_body' => 'WAEC',
             'name' => 'Coordinator WAEC PIN', 'code' => $code,
