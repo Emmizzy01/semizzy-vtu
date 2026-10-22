@@ -601,7 +601,7 @@ class VtuOrderWorkflowTest extends TestCase
         try {
             app(VtuOrderService::class)->purchase($user, $product->code, '08012345678', 'disabled-addon-new-purchase', [], 10000);
             $this->fail('A disabled mapped addon must reject new purchases.');
-        } catch (\\InvalidArgumentException $exception) {
+        } catch (\InvalidArgumentException $exception) {
             $this->assertStringContainsString('addon_disabled', $exception->getMessage());
             $this->assertSame(1500, (int) $wallet->fresh()->available_balance_minor);
             $this->assertDatabaseCount('vtu_orders', 0);
