@@ -14,19 +14,20 @@ type Service = {
   icon: LucideIcon;
   status: 'available' | 'in-progress' | 'gated' | 'disabled';
   feature?: 'airtimeData' | 'manualDeposit';
+  readinessKey?: 'airtime' | 'data' | 'electricity' | 'tv' | 'streaming' | 'education' | 'vtuWebsiteRequests';
   href?: string;
   group: string;
 };
 const services: Service[] = [
-  { title: 'Airtime', description: 'Buy airtime for a supported mobile network from its own dedicated purchase page.', icon: Smartphone, status: 'available', feature: 'airtimeData', href: '/wallet/vtu/airtime', group: 'Telecoms & mobile top-ups' },
-  { title: 'Mobile data', description: 'Choose a data plan, validity and network on a separate data purchase page.', icon: Wifi, status: 'available', feature: 'airtimeData', href: '/wallet/vtu/data', group: 'Telecoms & mobile top-ups' },
+  { title: 'Airtime', description: 'Buy airtime for a supported mobile network from its own dedicated purchase page.', icon: Smartphone, status: 'available', feature: 'airtimeData', readinessKey: 'airtime', href: '/wallet/vtu/airtime', group: 'Telecoms & mobile top-ups' },
+  { title: 'Mobile data', description: 'Choose a data plan, validity and network on a separate data purchase page.', icon: Wifi, status: 'available', feature: 'airtimeData', readinessKey: 'data', href: '/wallet/vtu/data', group: 'Telecoms & mobile top-ups' },
   { title: 'Manual bank deposit', description: 'Submit a completed NGN transfer and evidence for independent review; uploads never credit a wallet by themselves.', icon: WalletCards, status: 'available', feature: 'manualDeposit', href: '/wallet/manual-deposits', group: 'Wallet funding & payments' },
   { title: 'Dedicated virtual accounts', description: 'View provider-issued account details. New account provisioning and automatic deposit crediting remain gated until verified provider webhook settlement and reconciliation are complete.', icon: Building2, status: 'gated', href: '/wallet/virtual-accounts', group: 'Wallet funding & payments' },
   { title: 'Transactions & orders', description: 'Review the latest wallet activity and order information on your customer dashboard.', icon: Activity, status: 'available', href: '/dashboard#activity', group: 'Wallet funding & payments' },
-  { title: 'Electricity bills', description: 'Dedicated electricity page for meter details, customer verification and payment amount. Purchases remain unavailable until the provider flow is approved.', icon: Zap, status: 'in-progress', href: '/wallet/vtu/electricity', group: 'Bills & subscriptions' },
-  { title: 'Cable TV subscriptions', description: 'Dedicated TV page for smartcard verification and package selection. Purchases remain unavailable until the provider flow is approved.', icon: Tv, status: 'in-progress', href: '/wallet/vtu/tv', group: 'Bills & subscriptions' },
-  { title: 'Streaming subscriptions', description: 'Streaming plan catalogue is being prepared; purchases remain locked until provider fulfilment and recovery are verified.', icon: Tv, status: 'in-progress', href: '/services/streaming-subscriptions', group: 'Bills & subscriptions' },
-  { title: 'Education services', description: 'WAEC, NECO, JAMB and authorized education products; purchases remain locked until provider and candidate-validation workflows are verified.', icon: GraduationCap, status: 'in-progress', href: '/services/education', group: 'Education & verification' },
+  { title: 'Electricity bills', description: 'Dedicated electricity page for meter details, customer verification and payment amount. Purchases remain unavailable until the provider flow is approved.', icon: Zap, status: 'in-progress', readinessKey: 'electricity', href: '/wallet/vtu/electricity', group: 'Bills & subscriptions' },
+  { title: 'Cable TV subscriptions', description: 'Dedicated TV page for smartcard verification and package selection. Purchases remain unavailable until the provider flow is approved.', icon: Tv, status: 'in-progress', readinessKey: 'tv', href: '/wallet/vtu/tv', group: 'Bills & subscriptions' },
+  { title: 'Streaming subscriptions', description: 'Streaming plan catalogue is being prepared; purchases remain locked until provider fulfilment and recovery are verified.', icon: Tv, status: 'in-progress', readinessKey: 'streaming', href: '/services/streaming-subscriptions', group: 'Bills & subscriptions' },
+  { title: 'Education services', description: 'WAEC, NECO, JAMB and authorized education products; purchases remain locked until provider and candidate-validation workflows are verified.', icon: GraduationCap, status: 'in-progress', readinessKey: 'education', href: '/services/education', group: 'Education & verification' },
   { title: 'Internet bills', description: 'Authorized internet and broadband provider catalogue is not yet enabled.', icon: Wifi, status: 'in-progress', href: '/services/coming-soon/internet', group: 'Bills & subscriptions' },
   { title: 'Water Bill', description: 'Water utility billing will be available when the verified provider catalogue is connected.', icon: Droplets, status: 'in-progress', href: '/services/coming-soon/water-bill', group: 'Bills & subscriptions' },
   { title: 'Betting', description: 'Betting wallet funding for supported platforms will be enabled after provider integration and transaction checks.', icon: Dice5, status: 'in-progress', href: '/services/coming-soon/betting', group: 'Wallet funding & payments' },
@@ -57,7 +58,7 @@ const services: Service[] = [
   { title: 'Wholesale & Bulk Purchases', description: 'Wholesale listings, bulk ordering and business purchase workflows.', icon: Boxes, status: 'in-progress', group: 'Marketplace · Wholesale & bulk' },
   { title: 'Social Media Marketing & Online Promotion', description: 'Provider-backed catalogue, pricing, delivery status and safe wallet reservation are required before activation.', icon: Megaphone, status: 'in-progress', group: 'Social media & online promotion' },
   { title: 'Reseller & agent tools', description: 'Mini-stores, controlled pricing, subagents, commissions and transaction reporting.', icon: Store, status: 'in-progress', group: 'Business & developer tools' },
-  { title: 'VTU website requests', description: 'Submit a request for a VTU website, redesign, API integration or maintenance and track the review in your account.', icon: BriefcaseBusiness, status: 'in-progress', href: '/service-requests/vtu-website', group: 'Business & developer tools' },
+  { title: 'VTU website requests', description: 'Submit a request for a VTU website, redesign, API integration or maintenance and track the review in your account.', icon: BriefcaseBusiness, status: 'in-progress', readinessKey: 'vtuWebsiteRequests', href: '/service-requests/vtu-website', group: 'Business & developer tools' },
   { title: 'Developer APIs', description: 'API credentials, scopes, quotas, provider mapping and usage reporting.', icon: Code2, status: 'in-progress', group: 'Business & developer tools' },
   { title: 'Communications', description: 'In-app, email, SMS, WhatsApp and push channels with consent and delivery tracking.', icon: Smartphone, status: 'in-progress', group: 'Business & developer tools' },
   { title: 'Education & exam services', description: 'Approved learning materials, official exam support and verified institution information.', icon: GraduationCap, status: 'in-progress', group: 'Education & exam services' },
@@ -67,7 +68,9 @@ const services: Service[] = [
 ];
 const statusLabel = (status: Service['status']) => status === 'available' ? 'Available now' : status === 'disabled' ? 'Temporarily unavailable' : status === 'gated' ? 'Approval required' : 'In development';
 
-export default function ServicesIndex({ availability }: { availability: { airtimeData: boolean; manualDeposit: boolean } }) {
+type AddonReadiness = { available: boolean; status: string; compatibility_status: string; purchase_operation_registered: boolean; reason: string };
+
+export default function ServicesIndex({ availability, addonReadiness = {} }: { availability: { airtimeData: boolean; manualDeposit: boolean }; addonReadiness?: Partial<Record<NonNullable<Service['readinessKey']>, AddonReadiness>> }) {
   const [search, setSearch] = useState('');
   const [selectedGroup, setSelectedGroup] = useState(() => typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('category') === 'gadgets' ? 'Marketplace · Electronics & gadgets' : 'all');
   const groups = [...new Set(services.map(service => service.group))];
@@ -89,10 +92,13 @@ export default function ServicesIndex({ availability }: { availability: { airtim
         <div className="grid grid-cols-4 gap-x-2 gap-y-4" aria-label={`${group} services`}>
           {filteredServices.filter(service => service.group === group).map(service => {
             const Icon = service.icon;
-            const effectiveStatus = service.feature ? (availability[service.feature] ? service.status : 'disabled') : service.status;
+            const readiness = service.readinessKey ? addonReadiness[service.readinessKey] : undefined;
+            const effectiveStatus: Service['status'] = readiness
+              ? (readiness.available ? 'available' : 'disabled')
+              : service.feature ? (availability[service.feature] ? service.status : 'disabled') : service.status;
             const content = <><span className="grid h-12 w-12 place-items-center rounded-[19px] bg-emerald-50 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-300"><Icon size={23} strokeWidth={1.8} /></span><span className="line-clamp-2 min-h-[2rem] w-full break-words text-[10px] font-bold leading-tight text-[var(--ink)]">{service.title}</span><span className={'max-w-full rounded-full px-1.5 py-1 text-center text-[9px] font-semibold leading-tight ' + (effectiveStatus === 'available' ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300' : effectiveStatus === 'disabled' ? 'bg-rose-500/10 text-rose-700 dark:text-rose-300' : effectiveStatus === 'gated' ? 'bg-amber-500/10 text-amber-800 dark:text-amber-300' : 'bg-slate-500/10 text-slate-600 dark:text-slate-300')}>{statusLabel(effectiveStatus)}</span></>;
             const tileClass = "flex min-h-[116px] min-w-0 flex-col items-center justify-start gap-2 rounded-xl px-1 py-2 text-center transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)]";
-            return service.href && effectiveStatus !== 'disabled' ? <a key={service.title} href={service.href} aria-label={`${service.title}: ${statusLabel(effectiveStatus)}`} className={`${tileClass} hover:bg-emerald-50/60 dark:hover:bg-emerald-950/40`}>{content}</a> : <div key={service.title} aria-label={`${service.title}: ${statusLabel(effectiveStatus)}`} className={tileClass}>{content}</div>;
+            return service.href ? <a key={service.title} href={service.href} aria-label={`${service.title}: ${statusLabel(effectiveStatus)}`} className={`${tileClass} hover:bg-emerald-50/60 dark:hover:bg-emerald-950/40`}>{content}{readiness && !readiness.available && <span className="sr-only">New purchases are paused; this page remains available for existing order status and recovery.</span>}</a> : <div key={service.title} aria-label={`${service.title}: ${statusLabel(effectiveStatus)}`} className={tileClass}>{content}</div>;
           })}
         </div>
       </section>)}
