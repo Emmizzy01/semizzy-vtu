@@ -174,6 +174,44 @@ class VtuProviderWebhookRecoveryTest extends TestCase
         $this->assertNotNull($event->fresh()->processed_at);
     }
 
+
+    public function test_accepted_order_webhook_recovery_is_not_blocked_when_service_addon_is_disabled(): void
+    {
+        $order = $this->createMatchedOrder('SOGO-ACCEPTED-WHILE-PAUSED-1');
+        $event = $this->createEvent('evt-accepted-while-paused-1', 'SOGO-ACCEPTED-WHILE-PAUSED-1');
+
+        PlatformAddon::query()->create([
+            'addon_key' => 'service.airtime',
+            'name' => 'Airtime',
+            'version' => '1.0.0',
+            'minimum_core_version' => '1.0.0',
+            'status' => 'disabled',
+            'is_core_owned' => false,
+            'compatibility_status' => 'incompatible',
+            'compatibility_message' => 'Test: new purchases are paused.',
+        ]);
+
+        // Lifecycle admission controls new submissions only. A verified callback
+        // for an already accepted provider order must still reach order recovery.
+        $this->mock(VtuOrderService::class, function ($mock) use ($order): void {
+            $mock->shouldReceive('applyVerifiedWebhookResult')
+                ->once()
+                ->withArgs(fn (VtuOrder $actual, string $provider, string $reference, array $result): bool =>
+                    $actual->is($order)
+                    && $provider === 'sogo'
+                    && $reference === 'SOGO-ACCEPTED-WHILE-PAUSED-1'
+                    && $result['status'] === 'success'
+                )
+                ->andReturnUsing(fn (VtuOrder $actual): VtuOrder => $actual);
+        });
+
+        $stats = app(VtuProviderWebhookService::class)->process();
+
+        $this->assertSame(1, $stats['processed']);
+        $this->assertNotNull($event->fresh()->processed_at);
+        $this->assertSame('processing', $order->fresh()->status);
+    }
+
     private function createMatchedOrder(string $providerReference): VtuOrder
     {
         $user = User::factory()->create();
