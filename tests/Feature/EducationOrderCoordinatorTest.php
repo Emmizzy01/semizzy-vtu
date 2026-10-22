@@ -16,6 +16,7 @@ use App\Services\Education\EducationOrderCoordinator;
 use App\Services\Education\EducationProvider;
 use App\Services\Education\EducationProviderRegistry;
 use App\Services\Addons\AddonImplementationRegistry;
+use App\Services\Addons\AddonLifecyclePolicy;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -87,6 +88,62 @@ class EducationOrderCoordinatorTest extends TestCase
         };
         app()->instance('education.providers.test-education', $provider);
         return $provider;
+    }
+
+    public function test_admission_closed_at_submission_blocks_provider_call_but_reconciliation_remains_available(): void
+    {
+        [$user, $product, $wallet] = $this->setupApprovedProduct('waec-admission-submission-race');
+
+        $provider = new class implements EducationProvider {
+            public int $submissions = 0;
+            public int $lookups = 0;
+            public function assertConfigured(): void {}
+            public function validateCandidate(EducationServiceProduct $product, array $candidate): array
+            {
+                return ['status' => 'valid'];
+            }
+            public function submit(string $orderReference, EducationServiceProduct $product, array $candidate): array
+            {
+                $this->submissions++;
+                return ['status' => 'success', 'provider_reference' => 'should-not-be-submitted'];
+            }
+            public function lookup(string $orderReference, EducationServiceProduct $product): array
+            {
+                $this->lookups++;
+                return ['status' => 'success', 'provider_reference' => 'recovered-existing-order'];
+            }
+        };
+        app()->instance('education.providers.test-education', $provider);
+
+        $policy = \\Mockery::mock(AddonLifecyclePolicy::class);
+        $policy->shouldReceive('assessAdmission')->times(3)->andReturn(
+            ['available' => true, 'reason' => 'available'],
+            ['available' => true, 'reason' => 'available'],
+            ['available' => false, 'reason' => 'addon_disabled'],
+        );
+        app()->instance(AddonLifecyclePolicy::class, $policy);
+
+        $coordinator = app(EducationOrderCoordinator::class);
+        $order = $coordinator->purchase(
+            $user, $product->code, 'education-idem-admission-race', ['candidate_number' => '1234567890']
+        );
+
+        $this->assertSame('unknown', $order->status);
+        $this->assertSame('addon_admission_closed_before_submission', $order->safe_provider_response['message_code']);
+        $this->assertSame(0, $provider->submissions, 'The provider must not receive a new purchase after admission closes.');
+        $this->assertSame(350000, (int) $wallet->fresh()->balance_minor);
+        $this->assertDatabaseCount('education_orders', 1);
+        $this->assertDatabaseCount('education_provider_attempts', 1);
+        $this->assertDatabaseCount('wallet_ledger_entries', 1, 'The reserved order retains its single debit for safe reconciliation.');
+
+        // Accepted-order recovery is intentionally independent of new-purchase admission.
+        $recovered = $coordinator->reconcile($order->fresh());
+        $this->assertSame('successful', $recovered->status);
+        $this->assertSame('recovered-existing-order', $recovered->provider_reference);
+        $this->assertSame(0, $provider->submissions);
+        $this->assertSame(1, $provider->lookups);
+        $this->assertSame(350000, (int) $wallet->fresh()->balance_minor);
+        $this->assertDatabaseCount('wallet_ledger_entries', 1);
     }
 
     public function test_success_debits_once_and_duplicate_request_never_resubmits(): void
