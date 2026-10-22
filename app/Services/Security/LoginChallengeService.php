@@ -16,7 +16,7 @@ class LoginChallengeService
 
         try {
             app(LoginOtpDeliveryService::class)->deliver($user, $challenge['code'], $challenge['channel']);
-        } catch (\\Throwable $exception) {
+        } catch (\Throwable $exception) {
             DB::table('login_challenges')->where('id', $challenge['id'])->delete();
             throw $exception;
         }
