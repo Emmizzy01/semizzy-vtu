@@ -5,6 +5,11 @@ namespace App\Jobs;
 use App\Exceptions\Wallet\InsufficientWalletFunds;
 use App\Models\VtuBulkPurchaseBatch;
 use App\Models\VtuBulkPurchaseItem;
+use App\Models\PlatformAddon;
+use App\Models\PlatformFeatureControl;
+use App\Services\Addons\AddonImplementationRegistry;
+use App\Services\Addons\AddonLifecyclePolicy;
+use App\Services\IntegrationSettings;
 use App\Services\Vtu\VtuOrderService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -110,6 +115,20 @@ class ProcessVtuBulkPurchaseBatch implements ShouldQueue
             });
             if (!$claimed) continue;
 
+            // A batch can sit in the queue while an administrator disables a
+            // service. Re-check admission immediately before creating a new order.
+            // Pending items have not been accepted by a provider, so they may be
+            // safely stopped; accepted/in-flight order recovery is handled elsewhere.
+            if (! $this->serviceAdmissionAvailable($item)) {
+                $this->finalizeClaimedItem($item->id, [
+                    'status' => 'unavailable',
+                    'result_message' => 'The service add-on is no longer accepting new work. No order was submitted.',
+                    'completed_at' => now(),
+                ]);
+                $this->refreshBatchStatus($batch->id);
+                continue;
+            }
+
             try {
                 $order = $orders->purchase(
                     $batch->user,
@@ -183,6 +202,50 @@ class ProcessVtuBulkPurchaseBatch implements ShouldQueue
         if (VtuBulkPurchaseItem::query()->where('batch_id', $batch->id)->where('status', 'pending')->exists()) {
             self::dispatch($batch->id);
         }
+    }
+
+    /**
+     * Queue admission is re-evaluated at execution time, not only when the
+     * request first creates its durable batch.
+     */
+    private function serviceAdmissionAvailable(VtuBulkPurchaseItem $item): bool
+    {
+        $addonKey = match ($item->service_type) {
+            'airtime' => 'service.airtime',
+            'data' => 'service.data',
+            'electricity-bill' => 'service.electricity',
+            'tv-subscription' => 'service.tv',
+            default => null,
+        };
+        if ($addonKey === null) {
+            return false;
+        }
+
+        $addon = PlatformAddon::query()->where('addon_key', $addonKey)->first();
+        $implementation = app(AddonImplementationRegistry::class)->find($addonKey);
+        $registered = $implementation !== null
+            && in_array('wallet.vtu.orders.create', $implementation['operations'], true);
+        if ($addon === null) {
+            return false;
+        }
+
+        if (in_array($item->service_type, ['airtime', 'data'], true)) {
+            $settings = app(IntegrationSettings::class);
+            $independent = $settings->get('service.'.$item->service_type.'.enabled', null);
+            $legacy = $settings->get('service.airtime_data.enabled', false);
+            $featureEnabled = filter_var($independent ?? $legacy, FILTER_VALIDATE_BOOLEAN);
+        } else {
+            $feature = PlatformFeatureControl::query()->where('feature_key', $addonKey)->first();
+            $featureEnabled = $feature !== null && $feature->is_enabled && $feature->is_implemented;
+        }
+
+        return app(AddonLifecyclePolicy::class)->assessAdmission(
+            (string) $addon->status,
+            (string) $addon->compatibility_status,
+            $registered,
+            true,
+            $featureEnabled,
+        )['available'];
     }
 
     private function refreshBatchStatus(int $batchId): void
