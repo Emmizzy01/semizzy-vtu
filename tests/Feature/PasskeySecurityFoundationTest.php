@@ -6,6 +6,7 @@ use App\Http\Middleware\EnsurePasskeysEnabled;
 use App\Http\Middleware\EnsureRecentPasskeyConfirmation;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 use Tests\TestCase;
 
@@ -28,7 +29,7 @@ class PasskeySecurityFoundationTest extends TestCase
             'password' => 'CorrectPassword1234',
         ]);
 
-        $ownerCredentialId = \\Illuminate\\Support\\Facades\\DB::table('passkeys')->insertGetId([
+        $ownerCredentialId = DB::table('passkeys')->insertGetId([
             'user_id' => $owner->id,
             'name' => 'Owner device',
             'credential_id' => 'owner-credential-test',
@@ -36,7 +37,7 @@ class PasskeySecurityFoundationTest extends TestCase
             'created_at' => now(),
             'updated_at' => now(),
         ]);
-        \\Illuminate\\Support\\Facades\\DB::table('passkeys')->insert([
+        DB::table('passkeys')->insert([
             'user_id' => $other->id,
             'name' => 'Other device',
             'credential_id' => 'other-credential-test',
@@ -73,7 +74,7 @@ class PasskeySecurityFoundationTest extends TestCase
             'password' => 'CorrectPassword1234',
         ]);
 
-        $credentialId = \\Illuminate\\Support\\Facades\\DB::table('passkeys')->insertGetId([
+        $credentialId = DB::table('passkeys')->insertGetId([
             'user_id' => $owner->id,
             'name' => 'Owner credential',
             'credential_id' => 'owner-delete-protection-test',
