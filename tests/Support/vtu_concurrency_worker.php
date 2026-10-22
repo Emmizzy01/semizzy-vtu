@@ -24,7 +24,7 @@ $app->make(Kernel::class)->bootstrap();
 
 $mode = $argv[1] ?? '';
 $statePath = $argv[2] ?? '';
-if ($statePath === '' || ! in_array($mode, ['purchase', 'reconcile', 'open-wallet', 'review-deposit', 'refund-webhook', 'submit-deposit', 'process-webhooks', 'receive-webhook', 'bulk-process'], true)) {
+if ($statePath === '' || ! in_array($mode, ['purchase', 'reconcile', 'open-wallet', 'review-deposit', 'refund-webhook', 'submit-deposit', 'process-webhooks', 'receive-webhook', 'bulk-process', 'bulk-submit'], true)) {
     fwrite(STDERR, "Invalid worker arguments.\n");
     exit(2);
 }
@@ -40,6 +40,42 @@ $provider = new ConcurrentVtuTestProvider($statePath);
 $app->instance(VtuProvider::class, $provider);
 
 try {
+    if ($mode === 'bulk-submit') {
+        $user = User::query()->findOrFail((int) ($argv[3] ?? 0));
+        $product = VtuProduct::query()->findOrFail((int) ($argv[4] ?? 0));
+        $batchKey = (string) ($argv[5] ?? '');
+        if ($batchKey === '') {
+            throw new RuntimeException('Missing bulk batch key.');
+        }
+
+        $provider->arriveAndWait('bulk_request_barrier', 2);
+        \\Illuminate\\Support\\Facades\\Queue::fake();
+        $productId = (string) $product->getKey();
+        $selectionCode = 'p'.base_convert($productId, 10, 36).'.'.substr(
+            hash_hmac('sha256', 'vtu-product:'.$productId, (string) config('app.key')),
+            0,
+            32,
+        );
+        $items = array_fill(0, 10, [
+            'product_code' => $selectionCode,
+            'recipient' => '08012345678',
+            'amount' => 10,
+        ]);
+        $request = Request::create('/wallet/vtu/orders/bulk', 'POST', [
+            'batch_key' => $batchKey,
+            'transaction_pin' => '1234',
+            'items' => $items,
+        ]);
+        $request->setUserResolver(fn () => $user);
+        $response = app(\\App\\Http\\Controllers\\Vtu\\VtuOrderController::class)
+            ->bulkPurchase($request, app(VtuOrderService::class));
+        fwrite(STDOUT, json_encode([
+            'status' => $response->getStatusCode(),
+            'data' => $response->getData(true)['data']['id'] ?? null,
+        ], JSON_THROW_ON_ERROR)."\\n");
+        exit(0);
+    }
+
     if ($mode === 'bulk-process') {
         $batchId = (int) ($argv[3] ?? 0);
         if ($batchId < 1) {
