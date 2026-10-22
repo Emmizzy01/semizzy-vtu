@@ -161,4 +161,41 @@ class LoginChallengeTest extends TestCase
         $this->assertGuest();
     }
 
+    public function test_correct_code_is_rejected_after_the_attempt_limit_has_been_reached(): void
+    {
+        $user = User::query()->create([
+            'name' => 'OTP Locked Correct Code Customer',
+            'email' => 'otp-locked-correct-code@example.test',
+            'password' => 'CorrectPassword1234',
+        ]);
+
+        $this->post('/login', [
+            'identifier' => $user->email,
+            'password' => 'CorrectPassword1234',
+        ])->assertRedirect('/login/verify');
+
+        $code = null;
+        Mail::assertSent(LoginOtpMail::class, function (LoginOtpMail $mail) use (&$code): bool {
+            $code = $mail->code;
+            return true;
+        });
+        $this->assertIsString($code);
+
+        for ($attempt = 0; $attempt < 5; $attempt++) {
+            $this->from('/login/verify')->post('/login/verify', ['code' => '000000'])
+                ->assertRedirect('/login/verify');
+        }
+
+        $this->from('/login/verify')->post('/login/verify', ['code' => $code])
+            ->assertRedirect('/login')
+            ->assertSessionHasErrors('identifier');
+
+        $this->assertGuest();
+        $this->assertDatabaseHas('login_challenges', [
+            'user_id' => $user->id,
+            'attempts' => 5,
+            'consumed_at' => null,
+        ]);
+    }
+
 }
