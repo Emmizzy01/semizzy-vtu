@@ -490,23 +490,29 @@ class VtuOrderService
 
     private function assertServiceFeatureEnabled(VtuProduct $product): void
     {
-        $featureKey = match ($product->service_type) {
-            'airtime', 'data' => 'service.airtime_data',
-            'electricity-bill' => 'service.electricity',
-            'tv-subscription' => 'service.tv',
-            default => null,
-        };
-        if ($featureKey === null) {
-            return;
-        }
-
-        $feature = PlatformFeatureControl::query()->where('feature_key', $featureKey)->first();
-        if ($feature === null || ! $feature->is_enabled || ! $feature->is_implemented) {
-            throw new InvalidArgumentException('This service is not yet enabled for customer purchases.');
-        }
-        if ($featureKey === 'service.airtime_data'
-            && ! filter_var(app(IntegrationSettings::class)->get('service.airtime_data.enabled', false), FILTER_VALIDATE_BOOLEAN)) {
-            throw new InvalidArgumentException('This service is not yet enabled for customer purchases.');
+        $integrationSettings = app(IntegrationSettings::class);
+        if (in_array($product->service_type, ['airtime', 'data'], true)) {
+            // Prefer independent per-service settings. The legacy combined
+            // setting remains a fallback for existing installations only.
+            $serviceSettingKey = 'service.'.$product->service_type.'.enabled';
+            $serviceSetting = $integrationSettings->get($serviceSettingKey, null);
+            $legacySetting = $integrationSettings->get('service.airtime_data.enabled', false);
+            if (! filter_var($serviceSetting ?? $legacySetting, FILTER_VALIDATE_BOOLEAN)) {
+                throw new InvalidArgumentException('This service is not yet enabled for customer purchases.');
+            }
+        } else {
+            $featureKey = match ($product->service_type) {
+                'electricity-bill' => 'service.electricity',
+                'tv-subscription' => 'service.tv',
+                default => null,
+            };
+            if ($featureKey === null) {
+                return;
+            }
+            $feature = PlatformFeatureControl::query()->where('feature_key', $featureKey)->first();
+            if ($feature === null || ! $feature->is_enabled || ! $feature->is_implemented) {
+                throw new InvalidArgumentException('This service is not yet enabled for customer purchases.');
+            }
         }
 
         // Admission gates only new orders. Idempotent existing orders are

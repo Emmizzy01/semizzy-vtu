@@ -31,14 +31,20 @@ class VtuOrderController extends Controller
             'service_type' => ['sometimes', 'string', 'in:airtime,data,electricity-bill,tv-subscription'],
             'network' => ['sometimes', 'string', 'max:40'],
         ]);
-        $airDataSetting = app(IntegrationSettings::class)->get('service.airtime_data.enabled', null);
-        if ((! isset($validated['service_type']) || in_array($validated['service_type'], ['airtime', 'data'], true))
-            && $airDataSetting !== null && ! filter_var($airDataSetting, FILTER_VALIDATE_BOOLEAN)) {
+        $integrationSettings = app(IntegrationSettings::class);
+        $legacyAirDataSetting = $integrationSettings->get('service.airtime_data.enabled', null);
+        $airtimeSetting = $integrationSettings->get('service.airtime.enabled', null);
+        $dataSetting = $integrationSettings->get('service.data.enabled', null);
+        $airtimeEnabled = filter_var($airtimeSetting ?? $legacyAirDataSetting ?? false, FILTER_VALIDATE_BOOLEAN);
+        $dataEnabled = filter_var($dataSetting ?? $legacyAirDataSetting ?? false, FILTER_VALIDATE_BOOLEAN);
+        if ((! isset($validated['service_type']) && ! $airtimeEnabled && ! $dataEnabled)
+            || (($validated['service_type'] ?? null) === 'airtime' && ! $airtimeEnabled)
+            || (($validated['service_type'] ?? null) === 'data' && ! $dataEnabled)) {
             return response()->json(['message' => 'Airtime and data purchases are temporarily unavailable.'], 503);
         }
 
         $serviceControls = PlatformFeatureControl::query()
-            ->whereIn('feature_key', ['service.airtime_data', 'service.electricity', 'service.tv'])
+            ->whereIn('feature_key', ['service.electricity', 'service.tv'])
             ->get(['feature_key', 'is_enabled', 'is_implemented'])
             ->keyBy('feature_key');
 
@@ -98,7 +104,7 @@ class VtuOrderController extends Controller
                     && $hasProviderService
                     && ($product->service_type === 'airtime' || $hasDataVariation);
             })
-            ->map(function (VtuProduct $product) use ($serviceControls, $airDataSetting, $addonControls): VtuProduct {
+            ->map(function (VtuProduct $product) use ($serviceControls, $airtimeEnabled, $dataEnabled, $addonControls): VtuProduct {
                 // Reflect the actual provider purchase gate in the customer UI,
                 // even for legacy rows that were active before approval tracking.
                 if (($product->metadata['catalog_source'] ?? null) === 'vtpass'
@@ -118,20 +124,22 @@ class VtuOrderController extends Controller
                     $product->setAttribute('is_active', false);
                 }
 
-                $featureKey = match ($product->service_type) {
-                    'airtime', 'data' => 'service.airtime_data',
-                    'electricity-bill' => 'service.electricity',
-                    'tv-subscription' => 'service.tv',
-                    default => null,
-                };
-                if ($featureKey !== null) {
-                    $control = $serviceControls->get($featureKey);
-                    if ($control === null || ! $control->is_enabled || ! $control->is_implemented) {
+                if (in_array($product->service_type, ['airtime', 'data'], true)) {
+                    $serviceEnabled = $product->service_type === 'airtime' ? $airtimeEnabled : $dataEnabled;
+                    if (! $serviceEnabled) {
                         $product->setAttribute('is_active', false);
                     }
-                    if ($featureKey === 'service.airtime_data'
-                        && ($airDataSetting === null || ! filter_var($airDataSetting, FILTER_VALIDATE_BOOLEAN))) {
-                        $product->setAttribute('is_active', false);
+                } else {
+                    $featureKey = match ($product->service_type) {
+                        'electricity-bill' => 'service.electricity',
+                        'tv-subscription' => 'service.tv',
+                        default => null,
+                    };
+                    if ($featureKey !== null) {
+                        $control = $serviceControls->get($featureKey);
+                        if ($control === null || ! $control->is_enabled || ! $control->is_implemented) {
+                            $product->setAttribute('is_active', false);
+                        }
                     }
                 }
 

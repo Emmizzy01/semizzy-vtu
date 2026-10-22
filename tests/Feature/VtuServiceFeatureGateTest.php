@@ -41,19 +41,21 @@ class VtuServiceFeatureGateTest extends TestCase
         $this->assertMatchesRegularExpression('/^p[0-9a-z]+\\.[a-f0-9]{32}$/', (string) $response->json('data.0.code'));
     }
 
-    public function test_missing_airtime_data_feature_control_fails_closed_for_catalogue_and_purchase(): void
+    public function test_airtime_catalogue_uses_independent_service_setting_without_legacy_feature_control(): void
     {
         $user = User::query()->create([
-            'name' => 'Missing Airtime Feature Customer',
-            'email' => 'missing-airtime-feature@example.test',
+            'name' => 'Independent Airtime Feature Customer',
+            'email' => 'independent-airtime-feature@example.test',
             'password' => 'not-a-real-password',
         ]);
-        app(IntegrationSettings::class)->set('service.airtime_data.enabled', '1', $user->id);
+        app(IntegrationSettings::class)->set('service.airtime.enabled', '1', $user->id);
+        app(IntegrationSettings::class)->set('service.airtime_data.enabled', '0', $user->id);
         PlatformFeatureControl::query()->where('feature_key', 'service.airtime_data')->delete();
+
         VtuProduct::query()->create([
             'service_type' => 'airtime',
             'network' => 'mtn',
-            'code' => 'missing-airtime-feature-product',
+            'code' => 'independent-airtime-feature-product',
             'name' => 'MTN Airtime',
             'price_minor' => 10000,
             'face_value_minor' => 10000,
@@ -62,21 +64,9 @@ class VtuServiceFeatureGateTest extends TestCase
             'metadata' => ['purchase_supported' => true, 'provider_service_id' => 'mtn'],
         ]);
 
-        $user->forceFill(['transaction_pin_hash' => Hash::make('4928')])->save();
-
         $this->actingAs($user)->getJson('/wallet/vtu/products?service_type=airtime')
             ->assertOk()
-            ->assertJsonPath('data.0.is_active', false);
-        $this->actingAs($user)->postJson('/wallet/vtu/orders', [
-            'product_code' => 'missing-airtime-feature-product',
-            'recipient' => '08012345678',
-            'idempotency_key' => 'missing-airtime-feature-control',
-            'transaction_pin' => '4928',
-            'amount' => 100,
-        ])->assertStatus(503)->assertJsonPath('message', 'Airtime and data purchases are temporarily unavailable.');
-
-        $this->assertDatabaseCount('vtu_orders', 0);
-        $this->assertDatabaseCount('wallet_transactions', 0);
+            ->assertJsonPath('data.0.is_active', true);
     }
 
     public function test_unimplemented_electricity_feature_blocks_purchase_even_if_product_metadata_allows_it(): void

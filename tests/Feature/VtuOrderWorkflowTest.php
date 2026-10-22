@@ -98,27 +98,35 @@ class VtuOrderWorkflowTest extends TestCase
         }
     }
 
-    public function test_missing_airtime_data_feature_control_blocks_direct_service_purchase(): void
+    public function test_airtime_purchase_uses_independent_service_setting_without_legacy_feature_control(): void
     {
         [$user, $wallet, $product] = $this->preparedCustomer(1000, 1500);
         PlatformFeatureControl::query()->where('feature_key', 'service.airtime_data')->delete();
+        app(IntegrationSettings::class)->set('service.airtime.enabled', '1', $user->id);
+        app(IntegrationSettings::class)->set('service.airtime_data.enabled', '0', $user->id);
 
-        try {
-            app(VtuOrderService::class)->purchase(
-                $user,
-                $product->code,
-                '08012345678',
-                'missing-airtime-data-control-direct-service',
-                [],
-                10000,
-            );
-            $this->fail('The VTU service must reject airtime/data purchases when the feature control is missing.');
-        } catch (\InvalidArgumentException $exception) {
-            $this->assertStringContainsString('service is not yet enabled', $exception->getMessage());
-            $this->assertSame(1500, (int) $wallet->fresh()->available_balance_minor);
-            $this->assertDatabaseCount('vtu_orders', 0);
-            $this->assertDatabaseCount('wallet_transactions', 1);
-        }
+        $provider = new class implements VtuProvider {
+            public int $submissions = 0;
+            public function assertConfigured(): void {}
+            public function assertProductConfigured(VtuProduct $product): void {}
+            public function submit(VtuOrder $order): array { $this->submissions++; return ['status' => 'pending']; }
+            public function lookup(VtuOrder $order): array { return ['status' => 'pending']; }
+        };
+        $this->app->instance(VtuProvider::class, $provider);
+
+        $order = app(VtuOrderService::class)->purchase(
+            $user,
+            $product->code,
+            '08012345678',
+            'independent-airtime-control',
+            [],
+            1000,
+        );
+
+        $this->assertSame('processing', $order->status);
+        $this->assertSame(1, $provider->submissions);
+        $this->assertSame(500, (int) $wallet->fresh()->available_balance_minor);
+        $this->assertDatabaseCount('vtu_orders', 1);
     }
 
     public function test_disabled_airtime_data_setting_blocks_direct_service_purchase(): void
