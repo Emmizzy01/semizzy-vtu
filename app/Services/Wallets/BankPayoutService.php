@@ -9,6 +9,7 @@ use App\Models\BankPayout;
 use App\Models\User;
 use App\Models\Wallet;
 use App\Services\IntegrationSettings;
+use App\Services\Security\UserLevelPolicyService;
 use App\Services\Payments\PaystackClient;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
