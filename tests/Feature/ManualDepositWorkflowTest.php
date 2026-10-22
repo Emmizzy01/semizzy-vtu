@@ -222,6 +222,37 @@ class ManualDepositWorkflowTest extends TestCase
         $this->assertDatabaseHas('manual_deposit_audits', ['manual_deposit_id' => $deposit->id, 'event_type' => 'wallet_limit_review']);
     }
 
+    public function test_concurrent_transfer_reference_collision_returns_validation_error_and_cleans_receipt(): void
+    {
+        Storage::fake('local');
+        $customer = User::query()->create([
+            'name' => 'Concurrent Deposit Customer',
+            'email' => 'concurrent-deposit@example.test',
+            'password' => 'not-a-real-password',
+        ]);
+        app(WalletAccountService::class)->openForUser($customer);
+        app(IntegrationSettings::class)->set('manual_deposit.enabled', '1', $customer->id);
+
+        $submission = \Mockery::mock(\App\Services\Payments\ManualDepositSubmissionService::class);
+        $submission->shouldReceive('submit')->once()->andThrow(new \Illuminate\Database\QueryException(
+            'sqlite',
+            'insert into manual_deposits',
+            [],
+            new \PDOException('UNIQUE constraint failed: manual_deposits.transfer_reference'),
+        ));
+        $this->app->instance(\App\Services\Payments\ManualDepositSubmissionService::class, $submission);
+
+        $this->actingAs($customer)->from('/wallet/manual-deposits')->post('/wallet/manual-deposits', [
+            'amount_minor' => 250000,
+            'transfer_reference' => 'RACE-TRANSFER-REFERENCE-001',
+            'evidence' => UploadedFile::fake()->image('race-receipt.png'),
+        ])->assertRedirect('/wallet/manual-deposits')->assertSessionHasErrors('transfer_reference');
+
+        $this->assertDatabaseCount('manual_deposits', 0);
+        $this->assertSame([], Storage::disk('local')->allFiles('manual-deposits'));
+        $this->assertSame(0, (int) $customer->wallets()->firstOrFail()->fresh()->balance_minor);
+    }
+
     public function test_transfer_reference_cannot_be_reused_by_another_customer(): void
     {
         Storage::fake('local');
