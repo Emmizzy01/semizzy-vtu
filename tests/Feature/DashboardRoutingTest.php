@@ -72,6 +72,29 @@ class DashboardRoutingTest extends TestCase
         }
     }
 
+    public function test_authenticated_customer_workspace_pages_render_without_route_only_shortcuts(): void
+    {
+        $customer = $this->account('workspace-page-smoke@example.test');
+
+        foreach ([
+            '/profile',
+            '/privacy/requests',
+            '/account/tiers',
+            '/security/transaction-pin',
+            '/security/two-factor',
+            '/security/passkeys',
+            '/wallet/transfer',
+            '/wallet/virtual-accounts',
+            '/wallet/transfers/history',
+            '/wallet/bank-transfer',
+            '/wallet/bank-transfer/history',
+            '/wallet/scheduled-purchases',
+            '/wallet/service-beneficiaries',
+        ] as $path) {
+            $this->actingAs($customer)->get($path)->assertOk();
+        }
+    }
+
     public function test_regular_customer_sees_customer_dashboard(): void
     {
         $customer = $this->account('customer@example.test');

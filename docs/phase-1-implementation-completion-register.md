@@ -145,3 +145,13 @@ This matrix coordinates the eight bulk actions requested for the Phase 1 complet
 - Remaining release-only gates include production provider contract verification, authorized real-device SMS/WhatsApp delivery, HTTPS browser/WebAuthn ceremony, and cPanel production scheduler/log/environment checks.
 
 **Bulk Action 7 status: OPEN.** The recovery integration and new regressions are implemented, but acceptance depends on green CI on the new code SHA and completion of the dashboard/navigation and service-catalogue acceptance matrix. Phase 1 remains OPEN.
+
+
+## Bulk Action 7 acceptance expansion — 2026-10-22
+
+- Added `DashboardRoutingTest::test_authenticated_customer_workspace_pages_render_without_route_only_shortcuts`, which makes authenticated GET requests and requires successful rendering for profile, privacy requests, tier page, transaction PIN, two-factor, passkeys, wallet transfer, virtual accounts, transfer history, bank payout/history, scheduled purchases and service beneficiaries. Existing dashboard tests separately verify customer dashboard Inertia data/ownership and distinct airtime/data/electricity/TV purchase pages.
+- The catalogue regression suite continues to verify that provider-owned identifiers/cost/routing fields are not returned to customers, opaque selection codes are used, and catalogue refresh preserves operator price/status/custom metadata. Import tests also require unapproved imported products to remain inactive. This is automated feature acceptance, not proof that every provider contract is production-ready.
+- The current runtime recovery implementation and these added page-render assertions require fresh PHP 8.3/8.4, focused MariaDB security and asset workflow results on the exact resulting commit. Any failure must be fixed and the affected workflow rerun before acceptance.
+- Full real-browser navigation/accessibility/responsive acceptance is still not certified by HTTP feature tests; production provider contracts, SMS/WhatsApp device delivery, HTTPS WebAuthn ceremony and cPanel runtime checks remain release gates. Frozen theme unchanged.
+
+**Bulk Action 7 status: OPEN pending terminal CI on the exact implementation SHA and any failures discovered by the new page-render suite.**
