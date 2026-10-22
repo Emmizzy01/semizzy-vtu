@@ -423,4 +423,46 @@ class ManualDepositWorkflowTest extends TestCase
         $this->assertDatabaseCount('wallet_ledger_entries', 0);
     }
 
+
+    public function test_manual_deposit_history_is_scoped_to_the_authenticated_customer(): void
+    {
+        Storage::fake('local');
+        $owner = User::query()->create(['name' => 'Deposit History Owner', 'email' => 'deposit-history-owner@example.test', 'password' => 'not-a-real-password']);
+        $other = User::query()->create(['name' => 'Deposit History Other', 'email' => 'deposit-history-other@example.test', 'password' => 'not-a-real-password']);
+        app(WalletAccountService::class)->openForUser($owner);
+        app(WalletAccountService::class)->openForUser($other);
+        app(IntegrationSettings::class)->set('manual_deposit.enabled', '1');
+        PlatformFeatureControl::query()->updateOrCreate(
+            ['feature_key' => 'service.manual_deposit'],
+            ['is_enabled' => true],
+        );
+
+        $this->actingAs($owner)->post('/wallet/manual-deposits', [
+            'amount_minor' => 250000,
+            'transfer_reference' => 'OWNER-DEPOSIT-HISTORY-01',
+            'evidence' => UploadedFile::fake()->image('owner-receipt.png'),
+        ])->assertRedirect('/wallet/manual-deposits');
+
+        $this->actingAs($other)->post('/wallet/manual-deposits', [
+            'amount_minor' => 250000,
+            'transfer_reference' => 'OTHER-DEPOSIT-HISTORY-01',
+            'evidence' => UploadedFile::fake()->image('other-receipt.png'),
+        ])->assertRedirect('/wallet/manual-deposits');
+
+        $this->actingAs($owner)->get('/wallet/manual-deposits')->assertOk()
+            ->assertInertia(fn ($page) => $page->component('Wallet/ManualDeposit')
+                ->where('deposits.0.reference', 'OWNER-DEPOSIT-HISTORY-01')
+                ->where('deposits.0.id', fn ($id) => is_string($id) && $id !== '')
+                ->has('deposits', 1)
+            )
+            ->assertDontSee('OTHER-DEPOSIT-HISTORY-01');
+
+        $this->actingAs($other)->get('/wallet/manual-deposits')->assertOk()
+            ->assertInertia(fn ($page) => $page->component('Wallet/ManualDeposit')
+                ->where('deposits.0.reference', 'OTHER-DEPOSIT-HISTORY-01')
+                ->has('deposits', 1)
+            )
+            ->assertDontSee('OWNER-DEPOSIT-HISTORY-01');
+    }
+
 }
