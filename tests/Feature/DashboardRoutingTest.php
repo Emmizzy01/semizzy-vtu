@@ -100,6 +100,7 @@ class DashboardRoutingTest extends TestCase
         $staff = $this->account('admin-workspace-page-smoke@example.test');
         $this->grant($staff, 'admin.dashboard');
         $this->grant($staff, 'staff.permissions.manage');
+        $this->grant($staff, 'refunds.approve');
 
         foreach ([
             '/admin/dashboard',
