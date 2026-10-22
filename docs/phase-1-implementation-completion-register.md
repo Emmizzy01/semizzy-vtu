@@ -218,3 +218,12 @@ This section supersedes earlier historical status paragraphs where they conflict
 | 8. Final integration/acceptance | In progress | Finish authorization/security findings reconciliation, record exact-current-code CI, then make a release decision from evidence. |
 
 **Phase 1 remains OPEN.** Do not change the frozen theme, create/switch branches, perform destructive database operations, trigger live financial transactions, or enable live provider purchases during this closure work.
+
+
+## Security-register reconciliation follow-up — 2026-10-22
+
+- Updated `docs/security/PHASE-1-SECURITY-FINDINGS.md` in commit `3487d2d2e63be920c2c4675c8390b32ba88696a6` to reflect that the root log is removed from the current tree and ignored, while historical exposure remains open; it also records exact-current-executable-code CI evidence and the still-open lockfile/dependency, route authorization, WebAuthn, upload, scan and hosting findings.
+- Updated `docs/security/AUTHENTICATION-AUTHORIZATION-AUDIT.md` in commit `4a7b182d24227c9868ef3eb0cb952ef3dd72a4c3` to distinguish passing CI from incomplete route/role/ownership and WebAuthn/OTP acceptance.
+- Final focused source review is recorded in `docs/security/phase-1-financial-authorization-audit.md`. It found no confirmed additional production-code defect in the reviewed financial services, but it explicitly leaves the exhaustive route/method/role matrix, cross-user resource substitution, staff privilege escalation/revocation, full WebAuthn flow, dependency reproducibility/scans, historical log exposure review and hosting evidence open.
+- Comparison of executable-code SHA `5e41c5fe0cdd3ce951e1ce48616e5fc5a696c933` to the latest audit-documentation head confirms there are no executable application-code changes after the SHA whose full PHP 8.3/8.4, frontend, SQLite/MariaDB security and asset-publication workflows passed. The latest documentation commits themselves are not represented as new runtime-code test runs.
+- **Current decision unchanged: Phase 1 OPEN; Action 8 IN PROGRESS.** Do not close AUTH-01–AUTH-09 merely because tests/classes or middleware exist. Close each only with concrete route/test/host evidence. No live provider, OTP-device, WebAuthn-browser or cPanel gate is marked passed.
