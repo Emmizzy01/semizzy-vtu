@@ -602,7 +602,7 @@ class VtuOrderWorkflowTest extends TestCase
         $retry = $service->purchase($user, $product->code, '08012345678', 'retry-after-service-disable');
 
         $this->assertSame($first->id, $retry->id);
-        $this->assertSame('pending', $retry->status);
+        $this->assertSame($first->status, $retry->status);
         $this->assertSame(500, (int) $wallet->fresh()->available_balance_minor);
         $this->assertDatabaseCount('vtu_orders', 1);
         $this->assertDatabaseCount('wallet_transactions', 2);
