@@ -620,7 +620,7 @@ Artisan::command('vtu:recover-bulk-purchase-batches {--limit=100}', function () 
     // before the queue dispatch completes. Recover only old queued batches with
     // pending items. Duplicate deliveries are safe: the worker claims each item
     // under a row lock and never resubmits processing/unknown items.
-    $batchIds = \\App\\Models\\VtuBulkPurchaseBatch::query()
+    $batchIds = \App\Models\VtuBulkPurchaseBatch::query()
         ->where('status', 'queued')
         ->where('created_at', '<=', now()->subMinutes(5))
         ->whereHas('items', fn ($query) => $query->where('status', 'pending'))
@@ -629,7 +629,7 @@ Artisan::command('vtu:recover-bulk-purchase-batches {--limit=100}', function () 
         ->pluck('id');
 
     foreach ($batchIds as $batchId) {
-        \\App\\Jobs\\ProcessVtuBulkPurchaseBatch::dispatch((int) $batchId);
+        \App\Jobs\ProcessVtuBulkPurchaseBatch::dispatch((int) $batchId);
     }
 
     $this->table(['Recovered queued batches'], [[$batchIds->count()]]);
