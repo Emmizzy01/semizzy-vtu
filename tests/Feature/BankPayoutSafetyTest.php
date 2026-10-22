@@ -53,8 +53,8 @@ class BankPayoutSafetyTest extends TestCase
         ]);
 
         $makePayout = function (string $suffix, string $status, $createdAt) use ($user, $beneficiary) {
-            $payout = \\App\\Models\\BankPayout::query()->create([
-                'public_id' => (string) \\Illuminate\\Support\\Str::uuid(),
+            $payout = \App\Models\BankPayout::query()->create([
+                'public_id' => (string) \Illuminate\Support\Str::uuid(),
                 'user_id' => $user->id,
                 'bank_beneficiary_id' => $beneficiary->id,
                 'currency' => 'NGN',
