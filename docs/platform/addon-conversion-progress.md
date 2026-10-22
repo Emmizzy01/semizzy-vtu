@@ -217,7 +217,7 @@ This is a bounded first map, not the final endpoint inventory: webhook/callback 
 
 ## 2026-10-22 — Runtime admission implementation checkpoint
 
-**Status: IMPLEMENTED IN SOURCE; CI verification pending for the exact commits. This does not complete the 20-phase roadmap.**
+**Status: IMPLEMENTED IN SOURCE; the recorded commits' CI verification has passed, including the PHP 8.4 full suite on `095b228` and `d446315`. This does not complete the 20-phase roadmap; newer ledger-only commits require their own CI verification.**
 
 - `AddonImplementationRegistry` now registers the existing VTU handler and compatibility keys for `service.airtime_data`, `service.electricity`, `service.tv`, and `service.bills`, alongside the previously registered Education, Streaming, and VTU Website Requests handlers. These are explicit reviewed-code mappings, not dynamic code loading.
 - `VtuOrderService::assertMappedAddonAdmission()` now resolves mapped addon keys through that registry and applies the Core lifecycle policy against the persisted addon status and compatibility state. A mapped addon must have a registered handler and the required purchase operation before a new order may pass admission.
@@ -235,5 +235,5 @@ This is a bounded first map, not the final endpoint inventory: webhook/callback 
 - The full-suite output explicitly reports `Tests\\Feature\\StreamingSubscriptionCatalogueTest` passing, including: customer catalogue fails closed when the streaming feature is disabled; customer catalogue fails closed when the streaming addon is disabled even if the feature is enabled; and catalogue scaffolding does not mark streaming as implemented.
 - The same full-suite output reports `Tests\\Feature\\VtuOrderWorkflowTest`, `Tests\\Feature\\VtuOrderMariaDbConcurrencyTest`, and relevant refund/ledger protections passing. This test-only correction did not alter application source or VTU recovery behavior.
 - Security verification and frontend asset builds also reached success on ledger commit `d446315843e54b519723be384cf561c3b3c18822` ([security run 39820071815](https://github.com/Emmizzy01/semizzy-vtu/actions/runs/39820071815), [build run 39820071816](https://github.com/Emmizzy01/semizzy-vtu/actions/runs/39820071816)).
-- **Still pending:** the full PHP 8.4 Laravel suite for ledger commit `d446315843e54b519723be384cf561c3b3c18822` remains in progress at [run 39820071765](https://github.com/Emmizzy01/semizzy-vtu/actions/runs/39820071765). Do not treat that exact commit as fully verified until its run reaches a terminal result.
+- The full PHP 8.4 Laravel suite for ledger commit `d446315843e54b519723be384cf561c3b3c18822` subsequently reached terminal success in [run 39820071765](https://github.com/Emmizzy01/semizzy-vtu/actions/runs/39820071765). The exact-commit workflow completed successfully; see the run and job log for the final result.
 - Streaming customer purchases remain disabled until provider contract, transaction lookup, and accepted-order recovery are verified. No live provider transactions, production-data tests, or dashboard theme changes were made.
