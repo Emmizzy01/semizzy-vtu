@@ -70,8 +70,8 @@ class UserVirtualAccountService
                 $claimedAt = $metadata['provisioning_claimed_at'] ?? null;
                 if (is_string($claimedAt) && $claimedAt !== '') {
                     try {
-                        $claimTime = \\Illuminate\\Support\\Carbon::parse($claimedAt);
-                    } catch (\\Throwable $exception) {
+                        $claimTime = \Illuminate\Support\Carbon::parse($claimedAt);
+                    } catch (\Throwable $exception) {
                         throw new LogicException('Virtual-account provisioning claim is invalid; operator reconciliation is required.', previous: $exception);
                     }
 

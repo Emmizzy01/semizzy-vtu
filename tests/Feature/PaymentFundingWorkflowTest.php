@@ -4,6 +4,10 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use App\Models\UserLevelPolicy;
+use App\Models\UserVirtualAccount;
+use App\Services\Payments\PaystackClient;
+use App\Services\Payments\UserVirtualAccountService;
+use LogicException;
 use App\Services\Payments\PaymentIntentService;
 use App\Services\Wallets\WalletAccountService;
 use App\Services\Wallets\WalletLedgerService;
@@ -273,7 +277,7 @@ class PaymentFundingWorkflowTest extends TestCase
             'password' => 'not-a-real-password',
         ]);
 
-        $paystack = \\Mockery::mock(PaystackClient::class);
+        $paystack = \Mockery::mock(PaystackClient::class);
         $paystack->shouldNotReceive('mode');
         $this->app->instance(PaystackClient::class, $paystack);
 
@@ -296,7 +300,7 @@ class PaymentFundingWorkflowTest extends TestCase
             'password' => 'not-a-real-password',
         ]);
         $account = UserVirtualAccount::query()->create([
-            'public_id' => (string) \\Illuminate\\Support\\Str::uuid(),
+            'public_id' => (string) \Illuminate\Support\Str::uuid(),
             'user_id' => $user->id,
             'provider' => 'paystack',
             'bank_code' => 'test-bank',
@@ -310,7 +314,7 @@ class PaymentFundingWorkflowTest extends TestCase
             ],
         ]);
 
-        $paystack = \\Mockery::mock(PaystackClient::class);
+        $paystack = \Mockery::mock(PaystackClient::class);
         $paystack->shouldReceive('mode')->once()->andReturn('test');
         $paystack->shouldNotReceive('createOrFetchCustomer');
         $paystack->shouldNotReceive('fetchCustomer');
@@ -337,7 +341,7 @@ class PaymentFundingWorkflowTest extends TestCase
             'password' => 'not-a-real-password',
         ]);
         $account = UserVirtualAccount::query()->create([
-            'public_id' => (string) \\Illuminate\\Support\\Str::uuid(),
+            'public_id' => (string) \Illuminate\Support\Str::uuid(),
             'user_id' => $user->id,
             'provider' => 'paystack',
             'provider_customer_reference' => 'CUS_recovery_test',
@@ -352,7 +356,7 @@ class PaymentFundingWorkflowTest extends TestCase
             ],
         ]);
 
-        $paystack = \\Mockery::mock(PaystackClient::class);
+        $paystack = \Mockery::mock(PaystackClient::class);
         $paystack->shouldReceive('mode')->once()->andReturn('test');
         $paystack->shouldReceive('fetchCustomer')->once()->with('CUS_recovery_test')->andReturn([
             'dedicated_account' => [
