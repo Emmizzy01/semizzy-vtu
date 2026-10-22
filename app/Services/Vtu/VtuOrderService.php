@@ -5,6 +5,7 @@ namespace App\Services\Vtu;
 use App\Enums\VtuOrderStatus;
 use App\Models\PlatformAddon;
 use App\Services\Addons\AddonLifecyclePolicy;
+use App\Services\Addons\AddonImplementationRegistry;
 use App\Models\User;
 use App\Models\BusinessWorkspaceStorefront;
 use App\Models\VtuOrder;
@@ -460,27 +461,26 @@ class VtuOrderService
         $metadata = is_array($product->metadata) ? $product->metadata : [];
         $addonKey = trim((string) ($metadata['addon_key'] ?? ''));
         if ($addonKey === '') {
+            // Legacy catalogue entries remain governed by their existing Core
+            // feature/provider gates until their explicit addon mapping is migrated.
             return;
         }
 
-        // This allowlist is the reviewed implementation-registration catalogue.
-        // A manifest row alone must never authorize arbitrary executable code.
-        $registeredImplementations = [
-            'service.airtime_data' => ['airtime', 'data'],
-            'service.electricity' => ['electricity-bill'],
-            'service.tv' => ['tv-subscription'],
-        ];
+        $implementation = app(AddonImplementationRegistry::class)->find($addonKey);
+        $operation = match ($product->service_type) {
+            'airtime', 'data' => 'wallet.vtu.orders.create',
+            'electricity-bill', 'tv-subscription' => 'wallet.vtu.orders.create',
+            default => null,
+        };
         $addon = PlatformAddon::query()->where('addon_key', $addonKey)->first();
-        $registered = isset($registeredImplementations[$addonKey])
-            && in_array($product->service_type, $registeredImplementations[$addonKey], true);
-        $featureEnabled = true; // assertServiceFeatureEnabled() has just passed.
-        $providerReady = true; // assertProductConfigured() has just passed.
+
         $assessment = app(AddonLifecyclePolicy::class)->assessAdmission(
             (string) ($addon?->status ?? 'missing'),
             (string) ($addon?->compatibility_status ?? 'unchecked'),
-            $registered,
-            $providerReady,
-            $featureEnabled,
+            $implementation !== null && $operation !== null
+                && in_array($operation, $implementation['operations'], true),
+            true, // assertProductConfigured() has already passed for this locked product.
+            true, // assertServiceFeatureEnabled() has already passed.
         );
 
         if (! $assessment['available']) {
