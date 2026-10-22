@@ -198,4 +198,27 @@ class StaffAccessManagementTest extends TestCase
         $this->assertDatabaseCount('staff_permission_audits', 2);
     }
 
+    public function test_revoking_refund_permission_takes_effect_for_an_already_authenticated_target(): void
+    {
+        $manager = $this->account('revocation-manager@example.test');
+        $target = $this->account('revocation-target@example.test');
+        $this->grant($manager, 'staff.permissions.manage');
+        $this->grant($target, 'refunds.approve');
+
+        $this->actingAs($target)->get('/admin/refunds')->assertOk();
+
+        $this->actingAs($manager)->deleteJson('/admin/staff/users/'.$target->id.'/permissions', [
+            'permission' => 'refunds.approve',
+            'reason' => 'Refund approval assignment has ended.',
+        ])->assertOk()->assertJsonPath('changed', true);
+
+        // Authorization is re-evaluated from persisted permissions, not a stale
+        // role/session snapshot, on the target's next protected request.
+        $this->actingAs($target)->get('/admin/refunds')->assertForbidden();
+        $this->assertDatabaseMissing('user_permissions', [
+            'user_id' => $target->id,
+            'permission' => 'refunds.approve',
+        ]);
+    }
+
 }
