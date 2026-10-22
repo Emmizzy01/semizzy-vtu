@@ -3,6 +3,8 @@
 namespace Tests\Feature;
 
 use App\Models\User;
+use App\Models\PlatformAddon;
+use App\Models\PlatformFeatureControl;
 use App\Models\VtuProduct;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
@@ -15,6 +17,16 @@ class VtuBillerVerificationTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        foreach (['electricity', 'tv'] as $service) {
+            PlatformFeatureControl::query()->updateOrCreate(
+                ['feature_key' => 'service.'.$service],
+                ['is_enabled' => true, 'is_implemented' => true],
+            );
+            PlatformAddon::query()->updateOrCreate(
+                ['addon_key' => 'service.'.$service],
+                ['name' => ucfirst($service), 'version' => '1.0.0', 'minimum_core_version' => '1.0.0', 'status' => 'enabled', 'is_core_owned' => false, 'compatibility_status' => 'compatible'],
+            );
+        }
 
         config([
             'services.vtu.vtpass.base_url' => 'https://sandbox.vtpass.com/api',
