@@ -6,6 +6,7 @@ use App\Exceptions\Wallet\IdempotencyConflict;
 use App\Models\User;
 use App\Models\Wallet;
 use App\Models\WalletTransfer;
+use App\Services\Security\UserLevelPolicyService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
