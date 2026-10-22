@@ -565,6 +565,83 @@ class VtuBulkPurchaseBatchTest extends TestCase
         Queue::assertNothingPushed();
     }
 
+    public function test_scheduler_recovers_only_old_queued_batches_with_pending_items(): void
+    {
+        Queue::fake();
+        $user = User::factory()->create();
+
+        $stale = VtuBulkPurchaseBatch::query()->create([
+            'public_id' => (string) \\Illuminate\\Support\\Str::uuid(),
+            'user_id' => $user->id,
+            'batch_key' => 'bulk-stale-dispatch-key',
+            'request_hash' => hash('sha256', 'stale-dispatch'),
+            'status' => 'queued',
+            'item_count' => 1,
+            'total_amount_minor' => 1000,
+            'currency' => 'NGN',
+            'created_at' => now()->subMinutes(6),
+            'updated_at' => now()->subMinutes(6),
+        ]);
+        $stale->items()->create([
+            'item_index' => 0,
+            'idempotency_key' => hash('sha256', 'stale-dispatch-item'),
+            'product_code' => 'private-code',
+            'service_type' => 'airtime',
+            'recipient' => '08012345678',
+            'amount_minor' => 1000,
+            'status' => 'pending',
+        ]);
+
+        $recent = VtuBulkPurchaseBatch::query()->create([
+            'public_id' => (string) \\Illuminate\\Support\\Str::uuid(),
+            'user_id' => $user->id,
+            'batch_key' => 'bulk-recent-dispatch-key',
+            'request_hash' => hash('sha256', 'recent-dispatch'),
+            'status' => 'queued',
+            'item_count' => 1,
+            'total_amount_minor' => 1000,
+            'currency' => 'NGN',
+        ]);
+        $recent->items()->create([
+            'item_index' => 0,
+            'idempotency_key' => hash('sha256', 'recent-dispatch-item'),
+            'product_code' => 'private-code',
+            'service_type' => 'airtime',
+            'recipient' => '08012345678',
+            'amount_minor' => 1000,
+            'status' => 'pending',
+        ]);
+
+        $terminal = VtuBulkPurchaseBatch::query()->create([
+            'public_id' => (string) \\Illuminate\\Support\\Str::uuid(),
+            'user_id' => $user->id,
+            'batch_key' => 'bulk-terminal-dispatch-key',
+            'request_hash' => hash('sha256', 'terminal-dispatch'),
+            'status' => 'completed',
+            'item_count' => 1,
+            'total_amount_minor' => 1000,
+            'currency' => 'NGN',
+            'created_at' => now()->subMinutes(10),
+            'updated_at' => now()->subMinutes(10),
+        ]);
+        $terminal->items()->create([
+            'item_index' => 0,
+            'idempotency_key' => hash('sha256', 'terminal-dispatch-item'),
+            'product_code' => 'private-code',
+            'service_type' => 'airtime',
+            'recipient' => '08012345678',
+            'amount_minor' => 1000,
+            'status' => 'pending',
+        ]);
+
+        $this->artisan('vtu:recover-bulk-purchase-batches --limit=100')->assertExitCode(0);
+
+        Queue::assertPushed(ProcessVtuBulkPurchaseBatch::class, 1);
+        Queue::assertPushed(ProcessVtuBulkPurchaseBatch::class, fn ($job) => $job->batchId === $stale->id);
+        Queue::assertNotPushed(ProcessVtuBulkPurchaseBatch::class, fn ($job) => $job->batchId === $recent->id);
+        Queue::assertNotPushed(ProcessVtuBulkPurchaseBatch::class, fn ($job) => $job->batchId === $terminal->id);
+    }
+
     private function preparedRequest(): array
     {
         $user = User::factory()->create();
