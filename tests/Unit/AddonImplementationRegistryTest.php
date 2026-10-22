@@ -16,6 +16,10 @@ class AddonImplementationRegistryTest extends TestCase
         $registry = new AddonImplementationRegistry();
 
         $this->assertTrue($registry->isRegistered('service.vtu'));
+        $this->assertTrue($registry->isRegistered('service.airtime_data'));
+        $this->assertTrue($registry->isRegistered('service.electricity'));
+        $this->assertTrue($registry->isRegistered('service.tv'));
+        $this->assertTrue($registry->isRegistered('service.bills'));
         $this->assertTrue($registry->isRegistered('service.education'));
         $this->assertTrue($registry->isRegistered('service.streaming'));
         $this->assertTrue($registry->isRegistered('service.vtu-website-requests'));
@@ -33,5 +37,7 @@ class AddonImplementationRegistryTest extends TestCase
         $this->assertSame(StreamingSubscriptionController::class, $registry->find('service.streaming')['handler']);
         $this->assertSame(VtuWebsiteRequestController::class, $registry->find('service.vtu-website-requests')['handler']);
         $this->assertArrayHasKey('service.vtu', $registry->all());
+        $this->assertContains('wallet.vtu.orders.create', $registry->find('service.airtime_data')['operations']);
+        $this->assertContains('wallet.vtu.billers.verify', $registry->find('service.bills')['operations']);
     }
 }
