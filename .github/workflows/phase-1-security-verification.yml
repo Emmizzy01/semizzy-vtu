@@ -82,4 +82,4 @@ jobs:
           node-version: '22'
       - run: npm install --no-audit --no-fund
       - run: npm run build
-      - run: php artisan test --testsuite=Feature --filter='BankPayoutSafetyTest|BankBeneficiaryClaimProtectionTest|PeerWalletTransferTest|VtuBulkPurchaseBatchTest|BankPayoutMariaDbConcurrencyTest|TransactionPinSecurityTest|TransactionPinMariaDbConcurrencyTest|TwoFactorAtomicityTest|TwoFactorAuthenticationTest|MobileNumberVerificationTest|PasswordResetWorkflowTest|UserSessionManagementTest|LoginChallengeTest|LoginOtpChannelDeliveryTest|AuthFlowTest|PasskeyOriginAndConfirmationRegressionTest'
+      - run: php artisan test --testsuite=Feature --filter='BankPayoutSafetyTest|BankBeneficiaryClaimProtectionTest|PeerWalletTransferTest|VtuBulkPurchaseBatchTest|VtuOrderMariaDbConcurrencyTest|BankPayoutMariaDbConcurrencyTest|TransactionPinSecurityTest|TransactionPinMariaDbConcurrencyTest|TwoFactorAtomicityTest|TwoFactorAuthenticationTest|MobileNumberVerificationTest|PasswordResetWorkflowTest|UserSessionManagementTest|LoginChallengeTest|LoginOtpChannelDeliveryTest|AuthFlowTest|PasskeyOriginAndConfirmationRegressionTest'
