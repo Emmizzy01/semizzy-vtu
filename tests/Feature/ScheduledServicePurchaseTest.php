@@ -207,11 +207,11 @@ class ScheduledServicePurchaseTest extends TestCase
         ]);
 
         // Force a historical claim timestamp without Eloquent touching it.
-        \Illuminate\\Support\\Facades\\DB::table('scheduled_service_purchases')
+        \Illuminate\Support\Facades\DB::table('scheduled_service_purchases')
             ->where('id', $schedule->id)
             ->update(['updated_at' => now()->subMinutes(45)]);
 
-        $exitCode = \Illuminate\\Support\\Facades\\Artisan::call('vtu:run-scheduled-purchases', [
+        $exitCode = \Illuminate\Support\Facades\Artisan::call('vtu:run-scheduled-purchases', [
             '--limit' => 100,
         ]);
 
@@ -239,11 +239,11 @@ class ScheduledServicePurchaseTest extends TestCase
             'last_result' => null,
         ]);
 
-        \Illuminate\\Support\\Facades\\DB::table('scheduled_service_purchases')
+        \Illuminate\Support\Facades\DB::table('scheduled_service_purchases')
             ->where('id', $schedule->id)
             ->update(['updated_at' => now()->subMinutes(5)]);
 
-        $exitCode = \Illuminate\\Support\\Facades\\Artisan::call('vtu:run-scheduled-purchases', [
+        $exitCode = \Illuminate\Support\Facades\Artisan::call('vtu:run-scheduled-purchases', [
             '--limit' => 100,
         ]);
 
