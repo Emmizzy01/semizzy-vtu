@@ -48,7 +48,7 @@ try {
         if (($argv[4] ?? '') === 'race') {
             $provider->arriveAndWait('bulk_job_barrier', 2);
         }
-        app(\App\Jobs\ProcessVtuBulkPurchaseBatch::class, ['batchId' => $batchId])
+        (new \App\Jobs\ProcessVtuBulkPurchaseBatch($batchId))
             ->handle(app(VtuOrderService::class));
         fwrite(STDOUT, "processed\\n");
         exit(0);
