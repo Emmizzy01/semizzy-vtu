@@ -39,6 +39,10 @@ class AddonImplementationRegistryTest extends TestCase
         $this->assertSame(StreamingSubscriptionController::class, $registry->find('service.streaming')['handler']);
         $this->assertSame(VtuWebsiteRequestController::class, $registry->find('service.vtu-website-requests')['handler']);
         $this->assertArrayHasKey('service.vtu', $registry->all());
+        $this->assertContains('service.airtime.purchase', $registry->find('service.airtime')['operations']);
+        $this->assertContains('service.data.purchase', $registry->find('service.data')['operations']);
+        $this->assertNotContains('service.data.purchase', $registry->find('service.airtime')['operations']);
+        $this->assertNotContains('service.airtime.purchase', $registry->find('service.data')['operations']);
         $this->assertContains('wallet.vtu.orders.create', $registry->find('service.airtime')['operations']);
         $this->assertContains('wallet.vtu.orders.bulk', $registry->find('service.data')['operations']);
         $this->assertContains('wallet.vtu.orders.create', $registry->find('service.airtime_data')['operations']);
