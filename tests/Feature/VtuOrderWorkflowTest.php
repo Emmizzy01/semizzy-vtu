@@ -9,6 +9,7 @@ use App\Models\BusinessWorkspaceCommission;
 use App\Models\VtuOrder;
 use App\Models\VtuProduct;
 use App\Models\PlatformFeatureControl;
+use App\Models\PlatformAddon;
 use App\Services\Vtu\VtuOrderService;
 use App\Services\IntegrationSettings;
 use App\Services\Vtu\VtuProvider;
@@ -577,6 +578,64 @@ class VtuOrderWorkflowTest extends TestCase
             ->where('idempotency_key', 'vtu-purchase:'.$order->public_id)
             ->count(), 'The order debit idempotency key must be unique.');
         $this->assertSame(1, $attempts, 'A duplicate successful purchase must not be resubmitted.');
+    }
+
+
+    public function test_disabled_addon_blocks_new_vtu_purchase_before_wallet_debit(): void
+    {
+        Http::fake();
+        [$user, $wallet, $product] = $this->preparedCustomer(1000, 1500);
+        $product->forceFill(['metadata' => ['addon_key' => 'service.vtu']])->save();
+        PlatformAddon::query()->create([
+            'addon_key' => 'service.vtu',
+            'name' => 'VTU',
+            'version' => '1.0.0',
+            'minimum_core_version' => '1.0.0',
+            'dependencies' => [],
+            'status' => 'disabled',
+            'is_core_owned' => false,
+            'compatibility_status' => 'compatible',
+            'compatibility_message' => 'Test-compatible',
+        ]);
+
+        try {
+            app(VtuOrderService::class)->purchase($user, $product->code, '08012345678', 'disabled-addon-new-purchase', [], 10000);
+            $this->fail('A disabled mapped addon must reject new purchases.');
+        } catch (\\InvalidArgumentException $exception) {
+            $this->assertStringContainsString('addon_disabled', $exception->getMessage());
+            $this->assertSame(1500, (int) $wallet->fresh()->available_balance_minor);
+            $this->assertDatabaseCount('vtu_orders', 0);
+            Http::assertNothingSent();
+        }
+    }
+
+    public function test_accepted_vtu_order_retry_bypasses_new_addon_admission_after_addon_disable(): void
+    {
+        Http::fake(fn () => Http::response(['status' => 'pending', 'provider_reference' => 'addon-pending-order'], 200));
+        [$user, $wallet, $product] = $this->preparedCustomer(1000, 1500);
+        $product->forceFill(['metadata' => ['addon_key' => 'service.vtu']])->save();
+        $addon = PlatformAddon::query()->create([
+            'addon_key' => 'service.vtu',
+            'name' => 'VTU',
+            'version' => '1.0.0',
+            'minimum_core_version' => '1.0.0',
+            'dependencies' => [],
+            'status' => 'enabled',
+            'is_core_owned' => false,
+            'compatibility_status' => 'compatible',
+            'compatibility_message' => 'Test-compatible',
+        ]);
+
+        $service = app(VtuOrderService::class);
+        $first = $service->purchase($user, $product->code, '08012345678', 'addon-recovery-after-disable', [], 10000);
+        $addon->forceFill(['status' => 'disabled'])->save();
+
+        $retry = $service->purchase($user, $product->code, '08012345678', 'addon-recovery-after-disable', [], 10000);
+
+        $this->assertSame($first->id, $retry->id);
+        $this->assertSame(1, VtuOrder::query()->where('idempotency_key', 'addon-recovery-after-disable')->count());
+        $this->assertSame(500, (int) $wallet->fresh()->available_balance_minor);
+        Http::assertSentCount(1);
     }
 
     public function test_accepted_order_retry_remains_recoverable_after_service_feature_is_disabled(): void
