@@ -25,6 +25,17 @@ class VtuWebsiteRequestWorkflowTest extends TestCase
         $customer = $this->customer();
         PlatformFeatureControl::query()->where('feature_key', 'service.vtu_website_requests')
             ->update(['is_enabled' => true, 'is_implemented' => true]);
+        PlatformAddon::query()->updateOrCreate(
+            ['addon_key' => 'service.vtu-website-requests'],
+            [
+                'name' => 'VTU Website Requests',
+                'version' => '1.0.0',
+                'minimum_core_version' => '1.0.0',
+                'status' => 'enabled',
+                'compatibility_status' => 'compatible',
+                'is_core_owned' => false,
+            ],
+        );
 
         $this->actingAs($customer)->post('/service-requests/vtu-website', [
             'request_type' => 'new_vtu_site',
