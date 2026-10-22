@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\PlatformAddon;
 use App\Models\PlatformSettingAudit;
 use App\Services\Addons\PlatformAddonRegistry;
+use App\Services\Addons\AddonImplementationRegistry;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -13,7 +14,7 @@ use Inertia\Response;
 
 class PlatformAddonController extends Controller
 {
-    public function index(PlatformAddonRegistry $registry): Response
+    public function index(PlatformAddonRegistry $registry, AddonImplementationRegistry $implementations): Response
     {
         $registry->refreshCompatibility();
 
@@ -31,6 +32,8 @@ class PlatformAddonController extends Controller
                 'isCoreOwned' => $addon->is_core_owned,
                 'compatibilityStatus' => $addon->compatibility_status,
                 'compatibilityMessage' => $addon->compatibility_message,
+                'implementationRegistered' => $implementations->isRegistered($addon->addon_key),
+                'implementationOperations' => $implementations->find($addon->addon_key)['operations'] ?? [],
             ])->values(),
         ]);
     }
@@ -66,12 +69,16 @@ class PlatformAddonController extends Controller
         return back()->with('success', 'Add-on manifest saved. Compatibility must be satisfied before it can be enabled.');
     }
 
-    public function toggle(Request $request, PlatformAddon $addon, PlatformAddonRegistry $registry): RedirectResponse
+    public function toggle(Request $request, PlatformAddon $addon, PlatformAddonRegistry $registry, AddonImplementationRegistry $implementations): RedirectResponse
     {
         $data = $request->validate([
             'enabled' => ['required', 'boolean'],
             'reason' => ['required', 'string', 'min:8', 'max:500'],
         ]);
+
+        if ((bool) $data['enabled'] && ! $implementations->isRegistered($addon->addon_key)) {
+            return back()->withErrors(['enabled' => 'This add-on has no reviewed runtime implementation registered in the application. Register and deploy its implementation before enabling it.']);
+        }
 
         $oldStatus = $addon->status;
         $updated = $registry->setEnabled($addon, (bool) $data['enabled'], (int) $request->user()->id);
