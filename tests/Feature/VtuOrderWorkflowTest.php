@@ -599,7 +599,7 @@ class VtuOrderWorkflowTest extends TestCase
         ]);
 
         try {
-            app(VtuOrderService::class)->purchase($user, $product->code, '08012345678', 'disabled-addon-new-purchase', [], 10000);
+            app(VtuOrderService::class)->purchase($user, $product->code, '08012345678', 'disabled-addon-new-purchase', [], 1000);
             $this->fail('A disabled mapped addon must reject new purchases.');
         } catch (\InvalidArgumentException $exception) {
             $this->assertStringContainsString('addon_disabled', $exception->getMessage());
@@ -627,7 +627,7 @@ class VtuOrderWorkflowTest extends TestCase
         ]);
 
         $service = app(VtuOrderService::class);
-        $first = $service->purchase($user, $product->code, '08012345678', 'addon-recovery-after-disable', [], 10000);
+        $first = $service->purchase($user, $product->code, '08012345678', 'addon-recovery-after-disable', [], 1000);
         $addon->forceFill(['status' => 'disabled'])->save();
 
         $retry = $service->purchase($user, $product->code, '08012345678', 'addon-recovery-after-disable', [], 10000);
