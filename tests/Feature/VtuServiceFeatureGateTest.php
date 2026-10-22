@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\User;
 use App\Models\VtuProduct;
 use App\Models\PlatformFeatureControl;
+use App\Models\PlatformAddon;
 use App\Services\IntegrationSettings;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
@@ -71,6 +72,10 @@ class VtuServiceFeatureGateTest extends TestCase
 
     public function test_unimplemented_electricity_feature_blocks_purchase_even_if_product_metadata_allows_it(): void
     {
+        PlatformAddon::query()->updateOrCreate(
+            ['addon_key' => 'service.electricity'],
+            ['name' => 'Electricity', 'version' => '1.0.0', 'minimum_core_version' => '1.0.0', 'status' => 'enabled', 'is_core_owned' => false, 'compatibility_status' => 'compatible'],
+        );
         $user = User::query()->create([
             'name' => 'Provider Gate Customer',
             'email' => 'provider-gate-customer@example.test',
