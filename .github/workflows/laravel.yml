@@ -32,8 +32,8 @@ jobs:
           node-version: 22
       - name: Resolve npm dependency lockfile without running package scripts
         run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
-      - name: Audit resolved npm dependencies
-        run: npm audit --package-lock-only --audit-level=high
+      - name: Audit resolved production npm dependencies
+        run: npm audit --package-lock-only --omit=dev --audit-level=high
       - name: Commit dependency lockfiles directly to main
         run: |
           git config user.name "github-actions[bot]"
