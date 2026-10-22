@@ -174,10 +174,10 @@ Route::middleware('auth')->group(function (): void {
     $lifecycle = app(\App\Services\Addons\AddonLifecyclePolicy::class);
     $readiness = [];
     $services = [
-        'airtime' => ['feature' => filter_var($settings->get('service.airtime.enabled', $settings->get('service.airtime_data.enabled', false)), FILTER_VALIDATE_BOOLEAN), 'operation' => 'wallet.vtu.orders.create'],
-        'data' => ['feature' => filter_var($settings->get('service.data.enabled', $settings->get('service.airtime_data.enabled', false)), FILTER_VALIDATE_BOOLEAN), 'operation' => 'wallet.vtu.orders.create'],
-        'electricity' => ['feature' => (bool) ($featureControls->get('service.electricity')?->is_enabled && $featureControls->get('service.electricity')?->is_implemented), 'operation' => 'wallet.vtu.orders.create'],
-        'tv' => ['feature' => (bool) ($featureControls->get('service.tv')?->is_enabled && $featureControls->get('service.tv')?->is_implemented), 'operation' => 'wallet.vtu.orders.create'],
+        'airtime' => ['feature' => filter_var($settings->get('service.airtime.enabled', $settings->get('service.airtime_data.enabled', false)), FILTER_VALIDATE_BOOLEAN), 'operation' => 'service.airtime.purchase'],
+        'data' => ['feature' => filter_var($settings->get('service.data.enabled', $settings->get('service.airtime_data.enabled', false)), FILTER_VALIDATE_BOOLEAN), 'operation' => 'service.data.purchase'],
+        'electricity' => ['feature' => (bool) ($featureControls->get('service.electricity')?->is_enabled && $featureControls->get('service.electricity')?->is_implemented), 'operation' => 'service.electricity.purchase'],
+        'tv' => ['feature' => (bool) ($featureControls->get('service.tv')?->is_enabled && $featureControls->get('service.tv')?->is_implemented), 'operation' => 'service.tv.purchase'],
         // Catalogue/admin registration is not a customer purchase implementation.
         'streaming' => ['feature' => (bool) ($featureControls->get('service.streaming_subscriptions')?->is_enabled && $featureControls->get('service.streaming_subscriptions')?->is_implemented), 'operation' => 'streaming-subscriptions.purchase'],
         'education' => ['feature' => (bool) ($featureControls->get('service.education')?->is_enabled && $featureControls->get('service.education')?->is_implemented), 'operation' => 'education-services.purchase'],

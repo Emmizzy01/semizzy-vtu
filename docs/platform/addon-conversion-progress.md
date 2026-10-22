@@ -270,3 +270,10 @@ This is a bounded first map, not the final endpoint inventory: webhook/callback 
 - `VtuOrderService::assertMappedAddonAdmission()` now requires the matching scoped operation for explicit `service.electricity` and `service.tv` mappings. The legacy aggregate `service.vtu` and `service.bills` keys retain the generic operation only for their existing compatibility families. Unknown/mismatched mappings fail closed at this admission check.
 - Registry unit tests assert the two scoped operations exist and do not cross-appear. This is still an admission-boundary slice, not independent biller controller/provider runtime ownership. Biller verification, wallet/ledger, idempotency, accepted-order recovery, reconciliation and refund-once paths must remain unchanged.
 - Implementation and full-suite verification for this slice are pending on the new main commit; do not claim it is verified until the exact-commit CI output is green. No provider activation, live purchase, production database operation, route change or theme change is included.
+
+
+## 2026-10-22 — Service-list readiness aligned to scoped purchase operations
+
+- Corrected the authenticated `/services` readiness map to check `service.airtime.purchase`, `service.data.purchase`, `service.electricity.purchase`, and `service.tv.purchase` for their matching service addons instead of the generic shared `wallet.vtu.orders.create` operation.
+- This closes a registry/readiness mismatch introduced as the scoped admission operations were added. It does not move controller/runtime ownership or enable any new provider workflow; existing purchase gates and Core financial/recovery protections remain unchanged.
+- Exact-commit CI verification is pending. Do not mark this slice verified until PHP 8.4 full suite, security suites, and frontend build finish successfully.
