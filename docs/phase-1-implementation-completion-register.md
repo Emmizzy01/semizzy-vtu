@@ -189,3 +189,32 @@ Closure scope is intentionally limited to repository-verifiable checks. Full rea
 - Remaining Action 8 work: complete and record the broad financial-mutation/authorization audit, inspect all outstanding action registers for stale or conflicting claims, and decide final Phase 1 status only from recorded evidence. Deployment-only browser/provider/cPanel gates remain deferred and explicitly unpassed.
 
 **Bulk Action 8 status: IN PROGRESS. Phase 1 remains OPEN.**
+
+
+## Authoritative reconciliation — financial mutation, authorization and security findings — 2026-10-22
+
+This section supersedes earlier historical status paragraphs where they conflict with later evidence. Historical entries are retained for audit traceability and must not be read as the current state when contradicted by this reconciliation.
+
+- Current repository head before this register update: `2cf320ae87bf41c2ee7dbca24973ffb9f4b0b6da` (audit documentation commit). The latest runtime-code SHA with terminal green full-suite/security/build evidence recorded above is `bb558be45160d6794d1d469355bf2b3798869067`; the later main commits include documentation and removal/ignore of a tracked application log, and are not represented as an executable-code SHA tested by those workflow links.
+- Detailed source review and remaining findings are now recorded in [Phase 1 financial-mutation and authorization audit](docs/security/phase-1-financial-authorization-audit.md). The existing [financial mutation authorization matrix](docs/finance/financial-mutation-authorization-matrix.md) and authentication/authorization audit commit `90bcaf45266419d815b9ce4d4e231788cd4cc2c2` are supporting evidence, not sign-off by themselves.
+- **Bulk Action 3:** focused source review documented; no new production-code defect confirmed in that bounded review. Final route/method/role coverage and uncertain-outcome tests remain part of Actions 1, 3, 4, 6 and 8.
+- **Bulk Action 7:** closed for repository-verifiable acceptance on `5e41c5fe0cdd3ce951e1ce48616e5fc5a696c933`, as recorded above. Later historical paragraphs labelling Action 7 “OPEN” refer to earlier checkpoints and are superseded by the closure entry. Deployment-only gates remain unpassed.
+- **Bulk Action 8:** in progress. The financial source review is documented, but full named-route/method/role authorization coverage, cross-user resource substitution, staff permission escalation/revocation, current-main CI evidence, and reconciliation of all security findings remain open.
+- **Security findings still open:** historical application-log exposure review/possible credential rotation; deterministic dependency installation and vulnerability scanning (root lockfiles were not found in the review); exhaustive authorization matrix; full end-to-end WebAuthn ceremony verification; upload/injection/secret scanning; and production PHP/runtime/cookie/configuration evidence. These must be closed with evidence or explicitly retained as accepted/deployment-gated risk, not silently waived.
+- **CI:** [PHP 8.3/8.4 full suites and frontend build](https://github.com/Emmizzy01/semizzy-vtu/actions/runs/39732897103), [SQLite/MariaDB security suites](https://github.com/Emmizzy01/semizzy-vtu/actions/runs/39732897104), and [asset publication](https://github.com/Emmizzy01/semizzy-vtu/actions/runs/39732897118) are terminal-green for runtime-code SHA `bb558be45160d6794d1d469355bf2b3798869067`. Do not label the newer docs/log-hygiene head green on that evidence. No executable application change was made in this audit checkpoint; rerun all affected workflows on any new runtime-code SHA.
+- **Deployment gates remain pending, not passed:** authorised live provider contracts, real-device SMS/WhatsApp delivery, HTTPS browser WebAuthn, and cPanel PHP/runtime/schema/environment/scheduler/queue/permissions checks. No live financial/provider transactions were initiated and no feature gates were opened.
+
+### Reconciled current action status
+
+| Action | Current status | Reason |
+|---|---|---|
+| 1. Transaction recovery/crash safety | In progress | Existing concurrency and crash-recovery tests pass on a prior tested code SHA; complete remaining cross-workflow late-response/recovery audit and record current-code evidence. |
+| 2. Provider integration/failover | Open | Provider-specific contracts and safe retry/requery semantics are not verified for every provider; unverified purchases/failover remain gated. |
+| 3. Wallet/payment integrity | Source audit documented; acceptance open | Core invariants and test coverage reviewed; route-by-route mutation/settlement acceptance still open. |
+| 4. Payouts/transfers | Open | Strong service/concurrency controls exist; finish full endpoint/role and provider reconciliation acceptance without live money. |
+| 5. Authentication/account security | Partially verified | Automated suites pass on a prior code SHA; full end-to-end WebAuthn and OTP vendor/device checks remain unverified. |
+| 6. Roles/permissions/admin security | Open | Representative role tests exist; exhaustive route/method matrix, cross-user ID substitution and privilege escalation/revocation tests remain. |
+| 7. Core platform/blueprint compliance | Closed for repository-verifiable acceptance | Closed on SHA `5e41c5fe0cdd3ce951e1ce48616e5fc5a696c933`; does not imply deployment gates passed. |
+| 8. Final integration/acceptance | In progress | Finish authorization/security findings reconciliation, record exact-current-code CI, then make a release decision from evidence. |
+
+**Phase 1 remains OPEN.** Do not change the frozen theme, create/switch branches, perform destructive database operations, trigger live financial transactions, or enable live provider purchases during this closure work.
