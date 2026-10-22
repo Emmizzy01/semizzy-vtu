@@ -13,6 +13,7 @@ use App\Models\PlatformFeatureControl;
 use App\Models\PlatformAddon;
 use App\Services\Vtu\VtuOrderService;
 use App\Services\Addons\AddonImplementationRegistry;
+use App\Services\Addons\AddonLifecyclePolicy;
 use App\Services\IntegrationSettings;
 use App\Services\Security\TransactionPinService;
 use Illuminate\Http\JsonResponse;
@@ -200,6 +201,9 @@ class VtuOrderController extends Controller
         ]);
 
         $selectedProduct = $this->resolveCustomerSelectionCode($validated['product_code']);
+        if ($selectedProduct !== null && ! $this->serviceAdmissionAvailable($selectedProduct)) {
+            return response()->json(['message' => 'This service add-on is disabled or unavailable for new purchases. Existing order recovery remains available.'], 503);
+        }
         $productType = $selectedProduct?->service_type;
         if ($productType === 'airtime' && ! isset($validated['amount'])) {
             return response()->json(['message' => 'Enter the airtime amount you want to purchase.'], 422);
@@ -290,7 +294,7 @@ class VtuOrderController extends Controller
         foreach ($validated['items'] as $index => $item) {
             $product = $this->resolveCustomerSelectionCode($item['product_code']);
             if (!$product || !$product->is_active || !in_array($product->service_type, ['airtime', 'data'], true)
-                || $product->currency !== 'NGN') {
+                || $product->currency !== 'NGN' || ! $this->serviceAdmissionAvailable($product)) {
                 return response()->json(['message' => 'Item '.($index + 1).' is not an active airtime/data bulk selection. Other services remain unavailable for bulk purchase until their batch verification and recovery paths are enabled. No batch was accepted.'], 422);
             }
             if (!in_array($product->service_type, ['airtime', 'data'], true)
@@ -504,6 +508,52 @@ class VtuOrderController extends Controller
         $signature = substr(hash_hmac('sha256', 'vtu-product:'.$id, (string) config('app.key')), 0, 32);
 
         return 'p'.base_convert($id, 10, 36).'.'.$signature;
+    }
+
+    /**
+     * New purchase admission is stricter than order recovery: only enabled,
+     * compatible addons with a registered purchase operation may accept new work.
+     */
+    private function serviceAdmissionAvailable(VtuProduct $product): bool
+    {
+        $addonKey = match ($product->service_type) {
+            'airtime' => 'service.airtime',
+            'data' => 'service.data',
+            'electricity-bill' => 'service.electricity',
+            'tv-subscription' => 'service.tv',
+            default => null,
+        };
+
+        if ($addonKey === null) {
+            return false;
+        }
+
+        $addon = PlatformAddon::query()->where('addon_key', $addonKey)->first();
+        $implementation = app(AddonImplementationRegistry::class)->find($addonKey);
+        $registered = $implementation !== null
+            && in_array('wallet.vtu.orders.create', $implementation['operations'], true);
+
+        if ($addon === null) {
+            return false;
+        }
+
+        if (in_array($product->service_type, ['airtime', 'data'], true)) {
+            $settings = app(IntegrationSettings::class);
+            $independent = $settings->get('service.'.$product->service_type.'.enabled', null);
+            $legacy = $settings->get('service.airtime_data.enabled', false);
+            $featureEnabled = filter_var($independent ?? $legacy, FILTER_VALIDATE_BOOLEAN);
+        } else {
+            $feature = PlatformFeatureControl::query()->where('feature_key', $addonKey)->first();
+            $featureEnabled = $feature !== null && $feature->is_enabled && $feature->is_implemented;
+        }
+
+        return app(AddonLifecyclePolicy::class)->assessAdmission(
+            (string) $addon->status,
+            (string) $addon->compatibility_status,
+            $registered,
+            true,
+            $featureEnabled,
+        )['available'];
     }
 
     /** Resolve a signed public selection key; legacy internal codes remain accepted for compatibility. */
