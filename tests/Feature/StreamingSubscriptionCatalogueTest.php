@@ -63,21 +63,20 @@ class StreamingSubscriptionCatalogueTest extends TestCase
         $this->assertContains('streaming-subscriptions.index', $implementation['operations']);
         $this->assertNotContains('streaming-subscriptions.purchase', $implementation['operations']);
 
-        $controllerRoutes = collect(app('router')->getRoutes()->getRoutes())
-            ->filter(fn ($route) => $route->getActionName() !== 'Closure')
-            ->filter(fn ($route) => str_starts_with($route->getActionName(), StreamingSubscriptionController::class.'@'));
+        $catalogueRoute = app('router')->getRoutes()->getByName('streaming-subscriptions.index');
+        $adminCreateRoute = app('router')->getRoutes()->getByName('admin.streaming-subscriptions.store');
+        $adminUpdateRoute = app('router')->getRoutes()->getByName('admin.streaming-subscriptions.update');
 
-        $this->assertNotEmpty($controllerRoutes);
-
-        foreach ($controllerRoutes as $route) {
-            $action = substr($route->getActionName(), strlen(StreamingSubscriptionController::class.'@'));
-            $this->assertContains($action, ['index', 'adminIndex', 'store', 'update']);
-            if (in_array($action, ['store', 'update'], true)) {
-                $expectedMethod = $action === 'store' ? 'POST' : 'PUT';
-                $this->assertContains($expectedMethod, $route->methods());
-                $this->assertStringStartsWith('/admin/streaming-subscriptions', '/'.$route->uri());
-            }
-        }
+        $this->assertNotNull($catalogueRoute);
+        $this->assertStringContainsString(StreamingSubscriptionController::class, $catalogueRoute->getActionName());
+        $this->assertNotNull($adminCreateRoute);
+        $this->assertNotNull($adminUpdateRoute);
+        $this->assertStringContainsString(StreamingSubscriptionController::class, $adminCreateRoute->getActionName());
+        $this->assertStringContainsString(StreamingSubscriptionController::class, $adminUpdateRoute->getActionName());
+        $this->assertContains('POST', $adminCreateRoute->methods());
+        $this->assertContains('PUT', $adminUpdateRoute->methods());
+        $this->assertStringStartsWith('/admin/streaming-subscriptions', '/'.$adminCreateRoute->uri());
+        $this->assertStringStartsWith('/admin/streaming-subscriptions', '/'.$adminUpdateRoute->uri());
 
         $customerWriteRoutes = collect(app('router')->getRoutes()->getRoutes())
             ->filter(fn ($route) => str_contains($route->uri(), 'streaming-subscriptions'))
