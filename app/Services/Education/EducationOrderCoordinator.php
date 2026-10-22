@@ -164,7 +164,7 @@ class EducationOrderCoordinator
             // and reconciliation instead of refunding an uncertain operation.
             $this->assertPurchaseAdmission();
             $result = $provider->submit($order->public_id, $product, $candidate);
-        } catch (\\LogicException $exception) {
+        } catch (\LogicException $exception) {
             if (str_contains($exception->getMessage(), 'Education purchases are disabled at the addon execution boundary:')) {
                 return $this->recordOutcome($order, 'unknown', null, 'addon_admission_closed_before_submission');
             }
@@ -247,7 +247,7 @@ class EducationOrderCoordinator
             );
 
         if (! ($assessment['available'] ?? false)) {
-            throw new \\LogicException(
+            throw new \LogicException(
                 'Education purchases are disabled at the addon execution boundary: '.($assessment['reason'] ?? 'admission_unavailable').'.'
             );
         }
