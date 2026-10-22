@@ -9,6 +9,19 @@ This register tracks implementation against `docs/SEMIZZY-BLUEPRINT.md` and the 
 3. Run the complete PHP suites, MariaDB concurrency suites, and frontend production build only after the implementation sweep.
 4. Fix failures without weakening safety gates; then report evidence and remaining deployment-only blockers.
 
+## Current verification update — 2026-10-22
+
+Latest implementation commit at the time of this update: `dbde8451d0b6ad1637c4f9d437dba2f1b458ed94` on `main`.
+
+- Added scheduled recovery for old queued and interrupted processing bulk-purchase batches that still have pending items; added regression coverage for stale queued, stale processing, recent queued and terminal batches.
+- The batch table has a database-enforced unique constraint on `(user_id, batch_key)`, and the controller handles only that specific uniqueness collision as an idempotent retry. This establishes the database guard, but **independent-process MariaDB acceptance for competing bulk batch submissions is still open**.
+- Latest workflow runs for this commit are not all complete: [security verification](https://github.com/Emmizzy01/semizzy-vtu/actions/runs/39730777912), [Laravel and frontend checks](https://github.com/Emmizzy01/semizzy-vtu/actions/runs/39730777903), and [frontend asset build/publish](https://github.com/Emmizzy01/semizzy-vtu/actions/runs/39730777919). Do not interpret earlier green runs on older commits as verification of this commit.
+- Worker-interruption recovery still requires focused MariaDB execution evidence, including concurrent workers, partial batches and uncertain provider outcomes.
+- Financial endpoint authorization/ownership/privilege-escalation review remains open across funding, refunds, transfers, payouts, manual deposits, scheduled purchases and staff permissions. Existing tests are coverage evidence, not a completed endpoint-by-endpoint acceptance.
+- Deployment-only gates remain deferred: real-browser HTTPS passkey ceremonies, authorized real-device SMS/WhatsApp delivery, production environment checks and live provider onboarding. No live purchases or real financial transactions are authorized by this register.
+
+**Phase 1 status: OPEN.** Do not close any bulk action or mark Phase 1 complete until latest CI is green and each applicable acceptance requirement has commit-specific evidence.
+
 ## Bulk Action 1 — critical security and authentication sweep (2026-10-21)
 
 **Implementation and automated regression coverage are in place; this is not full Phase 1 sign-off.** Current code covers verified mobile-number login, verified WhatsApp login, hashed/expiring/single-use OTP challenges, atomic TOTP recovery-code management, five-minute TOTP challenge expiry, password-change/reset invalidation of pending sign-in challenges, session revocation, transaction-PIN controls, passkey origin/confirmation guards, and passkey authorization that blocks inactive accounts and configured OTP/TOTP step-up bypasses.
