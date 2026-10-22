@@ -53,7 +53,7 @@ class FinancialMutationAuthenticationTest extends TestCase
 
     public function test_customer_cannot_access_staff_financial_mutations_or_refund_approval(): void
     {
-        $user = \\App\\Models\\User::query()->create([
+        $user = \App\Models\User::query()->create([
             'name' => 'Unauthorized Financial Customer',
             'email' => 'unauthorized-financial-customer@example.test',
             'password' => 'not-a-real-password',
