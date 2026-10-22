@@ -630,7 +630,7 @@ class VtuOrderWorkflowTest extends TestCase
         $first = $service->purchase($user, $product->code, '08012345678', 'addon-recovery-after-disable', [], 1000);
         $addon->forceFill(['status' => 'disabled'])->save();
 
-        $retry = $service->purchase($user, $product->code, '08012345678', 'addon-recovery-after-disable', [], 10000);
+        $retry = $service->purchase($user, $product->code, '08012345678', 'addon-recovery-after-disable', [], 1000);
 
         $this->assertSame($first->id, $retry->id);
         $this->assertSame(1, VtuOrder::query()->where('idempotency_key', 'addon-recovery-after-disable')->count());
