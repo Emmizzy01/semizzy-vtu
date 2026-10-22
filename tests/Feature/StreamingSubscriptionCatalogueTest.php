@@ -32,6 +32,42 @@ class StreamingSubscriptionCatalogueTest extends TestCase
                 ->has('products', 0));
     }
 
+    public function test_customer_catalogue_fails_closed_when_streaming_addon_is_disabled_even_if_feature_is_enabled(): void
+    {
+        $user = User::query()->create(['name' => 'Disabled Addon Customer', 'email' => 'disabled-stream-addon@example.test', 'password' => 'not-a-real-password']);
+
+        PlatformFeatureControl::query()->where('feature_key', 'service.streaming_subscriptions')->update([
+            'is_enabled' => true,
+            'is_implemented' => true,
+        ]);
+
+        \\App\\Models\\PlatformAddon::query()->updateOrCreate(
+            ['addon_key' => 'service.streaming'],
+            [
+                'name' => 'Streaming',
+                'version' => '1.0.0',
+                'minimum_core_version' => '1.0.0',
+                'status' => 'disabled',
+                'is_core_owned' => false,
+                'compatibility_status' => 'compatible',
+            ],
+        );
+
+        StreamingSubscriptionProduct::query()->create([
+            'platform' => 'Example Stream', 'name' => 'Monthly Plan', 'code' => 'disabled-addon-monthly',
+            'provider' => 'not-configured', 'provider_product_code' => 'sku-disabled',
+            'duration' => '30 days', 'price_minor' => 500000, 'currency' => 'NGN',
+            'is_active' => true, 'purchase_approved' => true,
+        ]);
+
+        $this->actingAs($user)->get('/services/streaming-subscriptions')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('Services/StreamingSubscriptions')
+                ->where('available', false)
+                ->has('products', 0));
+    }
+
     public function test_admin_can_add_catalogue_plan_but_it_is_forced_inactive_and_unapproved(): void
     {
         $staff = User::query()->create(['name' => 'Streaming Staff', 'email' => 'stream-staff@example.test', 'password' => 'not-a-real-password']);
