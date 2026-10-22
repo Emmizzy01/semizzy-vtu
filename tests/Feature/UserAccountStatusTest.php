@@ -55,13 +55,16 @@ class UserAccountStatusTest extends TestCase
             'email' => 'suspended-multi-route@example.test',
             'password' => 'CorrectPassword1234',
         ]);
-        // account_status is intentionally not mass assignable; set the security state explicitly.
         $user->forceFill(['account_status' => 'suspended'])->save();
 
         foreach (['/profile', '/wallet/transfers/history', '/account/sessions'] as $uri) {
-            $this->actingAs($user)->get($uri)
-                ->assertRedirect('/login')
-                ->assertSessionHasErrors('email');
+            $response = $this->actingAs($user)->get($uri);
+            $this->assertContains(
+                $response->getStatusCode(),
+                [302, 303],
+                'Suspended account was not redirected on '.$uri.'; received '.$response->getStatusCode().'.'
+            );
+            $response->assertRedirect('/login')->assertSessionHasErrors('email');
             $this->assertGuest();
         }
     }
