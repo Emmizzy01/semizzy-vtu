@@ -643,4 +643,39 @@ class BankPayoutSafetyTest extends TestCase
         $paystack->shouldHaveReceived('fetchBankTransfer')->once();
     }
 
+    public function test_customer_cannot_remove_another_customers_saved_bank_beneficiary_by_id(): void
+    {
+        $owner = User::query()->create([
+            'name' => 'Beneficiary Record Owner',
+            'email' => 'beneficiary-record-owner@example.test',
+            'password' => 'not-a-real-password',
+        ]);
+        $other = User::query()->create([
+            'name' => 'Beneficiary Record Other',
+            'email' => 'beneficiary-record-other@example.test',
+            'password' => 'not-a-real-password',
+        ]);
+
+        $beneficiary = \\App\\Models\\BankBeneficiary::query()->create([
+            'user_id' => $owner->id,
+            'bank_code' => '999',
+            'bank_name' => 'Ownership Test Bank',
+            'account_number' => '0123456789',
+            'account_number_last4' => '6789',
+            'account_name' => $owner->name,
+            'provider_recipient_code' => 'RCP_cross_user_delete_123',
+            'verification_status' => 'verified',
+            'verified_at' => now(),
+        ]);
+
+        $this->actingAs($other)
+            ->deleteJson('/wallet/bank-transfer/beneficiaries/'.$beneficiary->id)
+            ->assertNotFound();
+
+        $this->assertDatabaseHas('bank_beneficiaries', [
+            'id' => $beneficiary->id,
+            'user_id' => $owner->id,
+        ]);
+    }
+
 }
