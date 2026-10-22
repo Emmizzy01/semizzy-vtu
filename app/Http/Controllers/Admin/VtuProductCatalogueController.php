@@ -148,7 +148,7 @@ class VtuProductCatalogueController extends Controller
     private function validatedData(Request $request, bool $creating): array
     {
         $data = $request->validate([
-            'service_type' => [$creating ? 'required' : 'sometimes', 'string', Rule::in(['airtime', 'data'])],
+            'service_type' => [$creating ? 'required' : 'sometimes', 'string', Rule::in(['airtime', 'data', 'electricity-bill', 'tv-subscription'])],
             'provider_key' => ['nullable', 'string', Rule::in(['vtpass', 'sogo', 'gsubz', 'dataway', 'manual'])],
             'provider_product_code' => ['nullable', 'string', 'max:120'],
             'provider_cost_minor' => ['nullable', 'integer', 'min:0', 'max:1000000000'],
