@@ -696,6 +696,32 @@ class VtuOrderMariaDbConcurrencyTest extends TestCase
         @unlink($state);
     }
 
+    public function test_two_independent_requests_with_the_same_bulk_key_create_one_batch(): void
+    {
+        [$user, $wallet, $product] = $this->preparedCustomer(1000, 10000);
+        $user->forceFill(['transaction_pin_hash' => Hash::make('1234')])->save();
+        $batchKey = 'mariadb-bulk-race-'.Str::uuid();
+        $state = $this->newStateFile();
+
+        $results = $this->runWorkers([
+            ['bulk-submit', $state, (string) $user->id, (string) $product->id, $batchKey],
+            ['bulk-submit', $state, (string) $user->id, (string) $product->id, $batchKey],
+        ]);
+
+        $this->assertSame(2, $this->readState($state, 'bulk_request_barrier'),
+            'Both independent PHP requests must reach the barrier before either creates the batch.');
+        $responses = array_map(
+            fn (array $result): array => json_decode($result['stdout'], true, flags: JSON_THROW_ON_ERROR),
+            $results,
+        );
+        $this->assertSame([200, 202], collect($responses)->pluck('status')->sort()->values()->all());
+        $this->assertCount(1, collect($responses)->pluck('data')->unique());
+        $this->assertDatabaseCount('vtu_bulk_purchase_batches', 1);
+        $this->assertDatabaseCount('vtu_bulk_purchase_items', 10);
+
+        @unlink($state);
+    }
+
     public function test_two_independent_workers_deliver_one_bulk_item_once(): void
     {
         [$user, $wallet, $product, $batch, $item] = $this->preparedBulkBatch();
