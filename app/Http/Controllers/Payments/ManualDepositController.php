@@ -11,6 +11,7 @@ use App\Services\IntegrationSettings;
 use App\Services\Payments\ManualDepositSubmissionService;
 use App\Services\Wallets\WalletAccountService;
 use App\Services\Wallets\WalletLedgerService;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use DomainException;
@@ -90,6 +91,20 @@ class ManualDepositController extends Controller
                 $path,
                 $evidenceHash,
             );
+        } catch (QueryException $exception) {
+            // The unique validator is helpful UX, but concurrent submissions can
+            // both pass it. Translate only a confirmed transfer-reference unique
+            // collision into a validation error; never hide unrelated DB failures.
+            Storage::disk('local')->delete($path);
+            $message = strtolower($exception->getMessage());
+            if (str_contains($message, 'transfer_reference')
+                && (str_contains($message, 'unique') || str_contains($message, 'duplicate'))) {
+                return back()->withErrors([
+                    'transfer_reference' => 'This transfer reference has already been submitted.',
+                ]);
+            }
+
+            throw $exception;
         } catch (\Throwable $exception) {
             // The file is stored before the database transaction. Remove it if
             // submission fails so retries do not leave unreferenced receipts behind.
