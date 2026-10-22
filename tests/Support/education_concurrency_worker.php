@@ -3,6 +3,8 @@
 use App\Models\EducationOrder;
 use App\Models\User;
 use App\Services\Education\EducationOrderCoordinator;
+use App\Services\Addons\AddonImplementationRegistry;
+use App\Http\Controllers\EducationServiceController;
 use Tests\Support\ConcurrentEducationTestProvider;
 use Illuminate\Contracts\Console\Kernel;
 
@@ -20,6 +22,23 @@ if ($statePath === '' || ! in_array($mode, ['purchase', 'reconcile'], true)) {
 
 $provider = new ConcurrentEducationTestProvider($statePath);
 $app->instance('education.providers.education-concurrency-test', $provider);
+
+// This independent-process harness explicitly registers a test-only purchase
+// operation so it can exercise coordinator concurrency without enabling the
+// production education purchase operation in the real addon registry.
+$app->instance(AddonImplementationRegistry::class, new class extends AddonImplementationRegistry {
+    public function find(string $addonKey): ?array
+    {
+        if ($addonKey === 'service.education') {
+            return [
+                'handler' => EducationServiceController::class,
+                'operations' => ['education-services.purchase', 'education-services.delivery'],
+            ];
+        }
+
+        return parent::find($addonKey);
+    }
+});
 
 try {
     $coordinator = app(EducationOrderCoordinator::class);
