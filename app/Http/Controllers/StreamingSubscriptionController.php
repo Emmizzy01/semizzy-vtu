@@ -2,7 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\PlatformAddon;
 use App\Models\PlatformFeatureControl;
+use App\Services\Addons\AddonImplementationRegistry;
+use App\Services\Addons\AddonLifecyclePolicy;
 use App\Models\PlatformSettingAudit;
 use App\Models\StreamingSubscriptionProduct;
 use Illuminate\Http\RedirectResponse;
@@ -17,7 +20,16 @@ class StreamingSubscriptionController extends Controller
     public function index(): InertiaResponse
     {
         $feature = PlatformFeatureControl::query()->where('feature_key', 'service.streaming_subscriptions')->first();
-        $available = $feature !== null && $feature->is_enabled && $feature->is_implemented;
+        $addon = PlatformAddon::query()->where('addon_key', 'service.streaming')->first();
+        $implementation = app(AddonImplementationRegistry::class)->find('service.streaming');
+        $registered = $implementation !== null && in_array('streaming-subscriptions.index', $implementation['operations'], true);
+        $available = $addon !== null && app(AddonLifecyclePolicy::class)->assessAdmission(
+            (string) $addon->status,
+            (string) $addon->compatibility_status,
+            $registered,
+            true,
+            $feature !== null && $feature->is_enabled && $feature->is_implemented,
+        )['available'];
         $products = $available
             ? StreamingSubscriptionProduct::query()->where('is_active', true)->where('purchase_approved', true)->orderBy('platform')->orderBy('price_minor')->get()
             : collect();
