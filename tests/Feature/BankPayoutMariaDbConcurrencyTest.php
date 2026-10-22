@@ -132,4 +132,98 @@ class BankPayoutMariaDbConcurrencyTest extends TestCase
             @unlink($state);
         }
     }
+
+    public function test_parallel_same_key_different_amount_creates_one_payout_and_rejects_conflict(): void
+    {
+        $user = User::query()->create([
+            'name' => 'Concurrent Payout Conflict Customer',
+            'email' => 'payout-conflict-'.Str::uuid().'@example.test',
+            'password' => Hash::make('test-only-password'),
+        ]);
+
+        $beneficiary = BankBeneficiary::query()->create([
+            'user_id' => $user->getKey(),
+            'bank_code' => '999',
+            'bank_name' => 'Concurrency Test Bank',
+            'account_number' => '0123456789',
+            'account_number_last4' => '6789',
+            'account_name' => $user->name,
+            'provider_recipient_code' => 'RCP_conflict_'.Str::uuid(),
+            'verification_status' => 'verified',
+            'verified_at' => now(),
+        ]);
+
+        $wallet = Wallet::query()->create([
+            'user_id' => $user->getKey(),
+            'currency' => 'NGN',
+            'status' => 'active',
+            'balance_minor' => 0,
+            'available_balance_minor' => 0,
+            'version' => 0,
+        ]);
+        app(WalletLedgerService::class)->post(
+            walletId: (int) $wallet->getKey(),
+            type: 'credit',
+            amountMinor: 50000,
+            idempotencyKey: 'payout-conflict-funding:'.$user->getKey(),
+            reference: 'payout-conflict-funding:'.$user->getKey(),
+            description: 'Concurrency test opening balance',
+            actorUserId: (int) $user->getKey(),
+        );
+        app(IntegrationSettings::class)->set('paystack.transfers_enabled', '1', (int) $user->getKey());
+
+        $state = tempnam(sys_get_temp_dir(), 'semizzy-payout-conflict-');
+        if ($state === false) {
+            $this->fail('Could not create payout conflict state file.');
+        }
+        file_put_contents($state, json_encode(['submissions' => 0], JSON_THROW_ON_ERROR));
+
+        $worker = base_path('tests/Support/bank_payout_concurrency_worker.php');
+        $requests = [
+            ['12500', 'same-payout-conflict-key'],
+            ['15000', 'same-payout-conflict-key'],
+        ];
+        $processes = [];
+        foreach ($requests as [$amount, $key]) {
+            $pipes = [];
+            $process = proc_open(array_merge([PHP_BINARY, $worker], [
+                'request', $state, (string) $user->getKey(), (string) $beneficiary->getKey(), $amount, $key,
+            ]), [
+                0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w'],
+            ], $pipes, base_path());
+            $this->assertIsResource($process, 'Could not start independent payout conflict worker.');
+            fclose($pipes[0]);
+            $processes[] = [$process, $pipes];
+        }
+
+        $results = [];
+        foreach ($processes as [$process, $pipes]) {
+            $stdout = stream_get_contents($pipes[1]);
+            $stderr = stream_get_contents($pipes[2]);
+            fclose($pipes[1]);
+            fclose($pipes[2]);
+            $results[] = ['exit' => proc_close($process), 'stdout' => trim((string) $stdout), 'stderr' => trim((string) $stderr)];
+        }
+
+        try {
+            $codes = array_column($results, 'exit');
+            sort($codes);
+            $this->assertSame([0, 21], $codes, 'One payout must win; the competing payload must be rejected as an idempotency conflict.');
+            $conflict = array_values(array_filter($results, static fn (array $result): bool => $result['exit'] === 21));
+            $this->assertCount(1, $conflict);
+            $this->assertStringContainsString('IdempotencyConflict', $conflict[0]['stderr']);
+
+            $payouts = DB::table('bank_payouts')->where('user_id', $user->getKey())->get();
+            $this->assertCount(1, $payouts);
+            $this->assertContains((int) $payouts[0]->amount_minor, [12500, 15000]);
+            $this->assertSame(1, DB::table('wallet_transactions')->where('type', 'debit')->count());
+            $this->assertSame(2, DB::table('wallet_ledger_entries')->count());
+            $this->assertSame(50000 - (int) $payouts[0]->amount_minor, (int) $wallet->fresh()->balance_minor);
+            $stateData = json_decode((string) file_get_contents($state), true);
+            $this->assertSame(1, (int) ($stateData['submissions'] ?? 0), 'Conflicting concurrent payloads must not produce a second provider submission.');
+        } finally {
+            @unlink($state);
+        }
+    }
+
 }
