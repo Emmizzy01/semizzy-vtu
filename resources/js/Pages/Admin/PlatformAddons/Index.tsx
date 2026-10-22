@@ -6,6 +6,7 @@ type Addon = {
   id: number; key: string; name: string; version: string; minimumCoreVersion: string;
   description: string | null; dependencies: string[]; status: string; isCoreOwned: boolean;
   compatibilityStatus: string; compatibilityMessage: string | null;
+  implementationRegistered: boolean; implementationOperations: string[];
 };
 
 export default function PlatformAddons({ coreVersion, addons }: { coreVersion: string; addons: Addon[] }) {
@@ -68,6 +69,10 @@ export default function PlatformAddons({ coreVersion, addons }: { coreVersion: s
             {addon.description && <p className="mt-3 text-sm text-slate-600 dark:text-slate-300">{addon.description}</p>}
             <p className="mt-3 text-sm text-slate-500">Requires core ≥ {addon.minimumCoreVersion}. Dependencies: {addon.dependencies.length ? addon.dependencies.join(', ') : 'none'}</p>
             {addon.compatibilityMessage && <p className="mt-2 text-sm">{addon.compatibilityMessage}</p>}
+            <p className={`mt-2 text-sm ${addon.implementationRegistered ? 'text-emerald-700 dark:text-emerald-400' : 'text-amber-700 dark:text-amber-400'}`}>
+              Runtime implementation: {addon.implementationRegistered ? 'registered' : 'not registered'}
+            </p>
+            {addon.implementationOperations.length > 0 && <p className="mt-1 text-xs text-slate-500">Registered entry points: {addon.implementationOperations.join(', ')}</p>}
             {!addon.isCoreOwned && <div className="mt-4"><button onClick={() => changeStatus(addon, addon.status !== 'enabled')} disabled={toggle.processing} className="rounded-xl border border-slate-300 px-3 py-2 text-sm font-semibold dark:border-slate-700">{addon.status === 'enabled' ? 'Disable registry entry' : 'Enable registry entry'}</button></div>}
           </article>)}
         </section>
