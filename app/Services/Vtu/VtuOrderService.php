@@ -466,11 +466,20 @@ class VtuOrderService
     private function assertMappedAddonAdmission(VtuProduct $product): void
     {
         $metadata = is_array($product->metadata) ? $product->metadata : [];
+        // Prefer an explicit reviewed mapping, but never let a legacy catalogue
+        // row bypass lifecycle admission merely because its metadata predates addons.
         $addonKey = trim((string) ($metadata['addon_key'] ?? ''));
         if ($addonKey === '') {
-            // Legacy catalogue entries remain governed by their existing Core
-            // feature/provider gates until their explicit addon mapping is migrated.
-            return;
+            $addonKey = match ($product->service_type) {
+                'airtime' => 'service.airtime',
+                'data' => 'service.data',
+                'electricity-bill' => 'service.electricity',
+                'tv-subscription' => 'service.tv',
+                default => '',
+            };
+        }
+        if ($addonKey === '') {
+            throw new InvalidArgumentException('This service has no registered add-on mapping for new purchases.');
         }
 
         $implementation = app(AddonImplementationRegistry::class)->find($addonKey);
