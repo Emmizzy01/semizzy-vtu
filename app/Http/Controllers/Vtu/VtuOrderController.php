@@ -14,6 +14,7 @@ use App\Models\PlatformAddon;
 use App\Services\Vtu\VtuOrderService;
 use App\Services\Addons\AddonImplementationRegistry;
 use App\Services\Addons\AddonLifecyclePolicy;
+use App\Services\Addons\ServicePurchaseRuntimeRegistry;
 use App\Services\IntegrationSettings;
 use App\Services\Security\TransactionPinService;
 use Illuminate\Http\JsonResponse;
@@ -252,8 +253,10 @@ class VtuOrderController extends Controller
             return response()->json(['message' => 'This service add-on is disabled or unavailable for new purchases. Existing order recovery remains available.'], 503);
         }
         $productType = $selectedProduct?->service_type;
-        if ($productType === 'airtime' && ! isset($validated['amount'])) {
-            return response()->json(['message' => 'Enter the airtime amount you want to purchase.'], 422);
+        $purchaseRuntime = app(ServicePurchaseRuntimeRegistry::class)->forService($productType);
+        $amountError = $purchaseRuntime?->missingAmountError($validated);
+        if ($amountError !== null) {
+            return response()->json(['message' => $amountError['message']], $amountError['status']);
         }
         $user = $request->user();
         abort_unless($user, 401);
@@ -263,13 +266,9 @@ class VtuOrderController extends Controller
         if ($pinStatus === 'locked') return response()->json(['message' => 'Transaction PIN is locked for 15 minutes after repeated failures.'], 423);
         if ($pinStatus !== 'verified') return response()->json(['message' => 'Transaction PIN is incorrect.'], 422);
 
-        if (in_array($productType, ['airtime', 'data'], true)) {
-            $settings = app(IntegrationSettings::class);
-            $independentSetting = $settings->get('service.'.$productType.'.enabled', null);
-            $legacySetting = $settings->get('service.airtime_data.enabled', false);
-            if (! filter_var($independentSetting ?? $legacySetting, FILTER_VALIDATE_BOOLEAN)) {
-                return response()->json(['message' => 'Airtime and data purchases are temporarily unavailable.'], 503);
-            }
+        $availabilityError = $purchaseRuntime?->unavailableError(app(IntegrationSettings::class));
+        if ($availabilityError !== null) {
+            return response()->json(['message' => $availabilityError['message']], $availabilityError['status']);
         }
 
         try {

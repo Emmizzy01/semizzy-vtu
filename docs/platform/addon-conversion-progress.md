@@ -283,3 +283,11 @@ This is a bounded first map, not the final endpoint inventory: webhook/callback 
 - Updated the VTU product endpoint's admission metadata to check the matching scoped operation for airtime, data, electricity, and TV rather than treating the shared create-order operation as sufficient for every mapped service.
 - This is still a boundary-hardening step, not a completed independent addon conversion. The shared controller and Core order/ledger/recovery service remain in place; no provider or purchase gate is enabled by this change.
 - Exact-commit CI is required before this slice is considered verified.
+
+
+## 2026-10-22 — Airtime/data service-specific purchase policy extraction
+
+- Extracted airtime's required-amount rule and airtime/data independent-feature-setting fallback into separate runtime policy classes selected by a service runtime registry.
+- The public shared purchase endpoint, route names, request fields, response messages/statuses, transaction PIN verification, addon admission, and Core VtuOrderService order/financial execution remain in place.
+- This is the first runtime-separation slice, not a claim that the entire service lifecycle or routes have been independently converted. Accepted-order recovery, ledger, reconciliation and refund ownership remain in Core.
+- Exact-commit CI must pass before expanding this pattern to electricity and TV.

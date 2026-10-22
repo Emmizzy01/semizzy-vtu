@@ -4,6 +4,9 @@ namespace Tests\Feature;
 
 use App\Http\Controllers\Vtu\VtuOrderController;
 use App\Services\Addons\AddonImplementationRegistry;
+use App\Services\Addons\AirtimePurchaseRuntime;
+use App\Services\Addons\DataPurchaseRuntime;
+use App\Services\Addons\ServicePurchaseRuntimeRegistry;
 use Illuminate\Routing\Route;
 use Tests\TestCase;
 
@@ -70,4 +73,18 @@ class VtuDataAddonRouteCharacterizationTest extends TestCase
         $this->assertContains('wallet.vtu.orders.create', $airtime['operations']);
         $this->assertContains('wallet.vtu.orders.bulk', $data['operations']);
     }
+    public function test_shared_route_contract_dispatches_service_specific_airtime_and_data_runtime_policies(): void
+    {
+        $runtimeRegistry = app(ServicePurchaseRuntimeRegistry::class);
+
+        $this->assertInstanceOf(AirtimePurchaseRuntime::class, $runtimeRegistry->forService('airtime'));
+        $this->assertInstanceOf(DataPurchaseRuntime::class, $runtimeRegistry->forService('data'));
+
+        // Public purchase and recovery routes intentionally retain their existing
+        // shared endpoint contracts while only service-specific policy is extracted.
+        $routes = app('router')->getRoutes();
+        $this->assertSame(VtuOrderController::class, $routes->getByName('wallet.vtu.orders.create')?->getControllerClass());
+        $this->assertSame(VtuOrderController::class, $routes->getByName('wallet.vtu.orders.recover')?->getControllerClass());
+    }
+
 }
