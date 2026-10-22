@@ -12,6 +12,8 @@ use App\Services\Vtu\VtuOrderService;
 use App\Services\Vtu\VtuProvider;
 use App\Services\Wallets\WalletAccountService;
 use App\Services\Wallets\WalletLedgerService;
+use App\Services\Wallets\PeerWalletTransferService;
+use App\Services\Wallets\BankPayoutService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use InvalidArgumentException;
 use Tests\TestCase;
@@ -256,7 +258,7 @@ class UserLevelPolicyTest extends TestCase
         ]);
 
         try {
-            app(\App\Services\Wallets\PeerWalletTransferService::class)->transfer(
+            app(PeerWalletTransferService::class)->transfer(
                 $sender,
                 $recipient->email,
                 600,
@@ -329,7 +331,7 @@ class UserLevelPolicyTest extends TestCase
         ]);
 
         try {
-            app(\App\Services\Wallets\BankPayoutService::class)->requestPayout($user, $beneficiary->id, 2000, 'tier-payout-limit-001');
+            app(BankPayoutService::class)->requestPayout($user, $beneficiary->id, 2000, 'tier-payout-limit-001');
             $this->fail('The configured tier single-transaction limit must block a payout.');
         } catch (InvalidArgumentException $exception) {
             $this->assertStringContainsString('single-transaction limit', $exception->getMessage());
