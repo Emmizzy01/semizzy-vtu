@@ -61,6 +61,33 @@ class PasswordResetWorkflowTest extends TestCase
         ]);
     }
 
+    public function test_successfully_used_reset_token_cannot_be_replayed(): void
+    {
+        $user = User::query()->create([
+            'name' => 'Reset Replay User',
+            'email' => 'reset-replay@example.test',
+            'password' => 'OriginalPassword123',
+        ]);
+        $token = Password::createToken($user);
+
+        $this->post('/reset-password', [
+            'token' => $token,
+            'email' => $user->email,
+            'password' => 'ChangedPassword456',
+            'password_confirmation' => 'ChangedPassword456',
+        ])->assertRedirect('/login')->assertSessionHas('status');
+
+        $this->from('/reset-password/'.$token)->post('/reset-password', [
+            'token' => $token,
+            'email' => $user->email,
+            'password' => 'ReplayPassword789',
+            'password_confirmation' => 'ReplayPassword789',
+        ])->assertRedirect('/reset-password/'.$token)->assertSessionHasErrors('email');
+
+        $this->assertTrue(Hash::check('ChangedPassword456', $user->fresh()->password));
+        $this->assertFalse(Hash::check('ReplayPassword789', $user->fresh()->password));
+    }
+
     public function test_invalid_reset_token_is_rejected_without_changing_password(): void
     {
         $user = User::query()->create(['name' => 'Reset User', 'email' => 'reset-invalid@example.test', 'password' => 'OriginalPassword123']);
