@@ -5,6 +5,9 @@ namespace Tests\Feature;
 use App\Models\User;
 use App\Models\UserPermission;
 use App\Models\VtuProduct;
+use App\Models\PlatformAddon;
+use App\Models\PlatformFeatureControl;
+use App\Services\IntegrationSettings;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -14,6 +17,16 @@ class VtuProductActivationGateTest extends TestCase
 
     private function adminWithCataloguePermission(): User
     {
+        PlatformFeatureControl::query()->updateOrCreate(
+            ['feature_key' => 'service.data'],
+            ['is_enabled' => true, 'is_implemented' => true],
+        );
+        PlatformAddon::query()->updateOrCreate(
+            ['addon_key' => 'service.data'],
+            ['name' => 'Data', 'version' => '1.0.0', 'minimum_core_version' => '1.0.0', 'status' => 'enabled', 'is_core_owned' => false, 'compatibility_status' => 'compatible'],
+        );
+        app(IntegrationSettings::class)->set('service.data.enabled', '1', null);
+
         $admin = User::factory()->create();
 
         UserPermission::query()->create([
