@@ -2,7 +2,19 @@
 
 This register tracks implementation against `docs/SEMIZZY-BLUEPRINT.md` and the owner-approved core requirements. It is not a test report. **No item is accepted solely because a file or route exists**; final acceptance happens after implementation is complete and the planned test sweep is run.
 
-## Current verification update — 2026-10-22
+## Current verification update — 2026-10-22 (supersedes earlier CI status below)
+
+Latest executable-code commit verified by all three requested workflows: `318621c3641f93c0c2f9e9619f6f8b2c16a53326` on `main`. The current `main` head was checked and matched this SHA at verification time.
+
+- [Laravel and frontend checks](https://github.com/Emmizzy01/semizzy-vtu/actions/runs/39747957676): terminal conclusion **success**. Frontend build, PHP 8.3 full suite, PHP 8.4 full suite, and both MariaDB error-123 diagnostic jobs passed.
+- [Phase 1 security verification](https://github.com/Emmizzy01/semizzy-vtu/actions/runs/39747957614): terminal conclusion **success**. SQLite and MariaDB security suites passed.
+- [Frontend asset build/publication](https://github.com/Emmizzy01/semizzy-vtu/actions/runs/39747957707): terminal conclusion **success**.
+- Commit `318621c3...` fixes malformed namespace syntax in `PasskeySecurityFoundationTest.php` by importing and using the DB facade. All three workflows now provide terminal-green evidence for that exact code SHA.
+- The authorization/ownership audit and reconciliation of all eight bulk actions remain open. Green CI does not close the route-by-route role matrix, all cross-user resource tests, full WebAuthn ceremony checks, or external production gates.
+
+**Phase 1 status: OPEN — not signed off.** No live payment, payout, refund, or provider purchase was initiated. Provider/device/HTTPS/cPanel checks remain separate release gates.
+
+## Historical verification update — 2026-10-22
 
 Latest **fully CI-verified executable-code** baseline: `5e41c5fe0cdd3ce951e1ce48616e5fc5a696c933` on `main`. Important correction: current `main` is now `5b328fe1141b8cbcaabf1dbf44af70ffb88a19e3`; comparison shows newer commits include additional authentication/account-status regression tests (`LoginChallengeTest.php`, `PasswordResetWorkflowTest.php`, and `UserAccountStatusTest.php`) as well as audit documentation, `.gitignore`, and removal of an accidentally tracked root application log. CI for current `main` is queued/in progress and must pass before those newest tests are accepted.
 
