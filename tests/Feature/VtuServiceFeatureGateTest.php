@@ -76,6 +76,10 @@ class VtuServiceFeatureGateTest extends TestCase
             ['addon_key' => 'service.electricity'],
             ['name' => 'Electricity', 'version' => '1.0.0', 'minimum_core_version' => '1.0.0', 'status' => 'enabled', 'is_core_owned' => false, 'compatibility_status' => 'compatible'],
         );
+        PlatformFeatureControl::query()->updateOrCreate(
+            ['feature_key' => 'service.electricity'],
+            ['label' => 'Electricity', 'is_enabled' => true, 'is_implemented' => false],
+        );
         $user = User::query()->create([
             'name' => 'Provider Gate Customer',
             'email' => 'provider-gate-customer@example.test',
@@ -104,8 +108,8 @@ class VtuServiceFeatureGateTest extends TestCase
             'meter_type' => 'prepaid',
             'contact_phone' => '08012345678',
             'amount' => 100,
-        ])->assertStatus(422)
-          ->assertJsonPath('message', 'This service is not yet enabled for customer purchases.');
+        ])->assertStatus(503)
+          ->assertJsonPath('message', 'This service add-on is disabled or unavailable for new purchases. Existing order recovery remains available.');
 
         $this->assertDatabaseCount('vtu_orders', 0);
         $this->assertDatabaseCount('wallet_transactions', 0);
