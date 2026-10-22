@@ -4,6 +4,12 @@
 **Canonical branch:** `main` only. Do not create or use feature branches.  
 **Status:** Living specification; a capability is development-complete when its implementation, authorization, UI, failure handling, automated tests, and documentation are verified. Checks that require the live server are recorded separately for execution during deployment and do not block unrelated development.
 
+## 1A. Production implementation standard — binding owner rule
+
+SEMIZZY ONE is a real production platform, not a mock/demo. All Core functions and approved service addons must be implemented as real, durable, auditable production workflows. Mocks, fakes, simulated outcomes, and fixtures are permitted only in isolated automated tests or explicitly identified provider sandboxes; never present them as live functionality or substitute them into production code paths.
+
+Every enabled action must have server-side validation and authorization, persistence, safe transaction handling where relevant, truthful failure states, idempotency/recovery for financial and provider operations, appropriate audit records, tests, and deployment/configuration instructions. Missing credentials or unverified integrations must produce a truthful unavailable state and keep the affected capability gated—not fabricated success. Do not send real transactions during development verification. Actual live verification is a controlled deployment matter. A pending deployment check must not be misreported as a development failure, and a green build alone does not prove live activation.
+
 ## 1. Product direction
 
 Semizzy is a modular Nigerian VTU and fintech platform for customers, resellers, agents, business teams, and authorised operations staff. The initial hosting target is Laravel on cPanel/shared hosting, with a path to managed VPS/cloud hosting. Stack: Laravel/PHP, Inertia.js, React, TypeScript, Vite, MySQL/MariaDB. UI must be mobile-first, accessible, and support both light/day and dark/night appearance.
