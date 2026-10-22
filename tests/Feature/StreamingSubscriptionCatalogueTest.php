@@ -73,7 +73,8 @@ class StreamingSubscriptionCatalogueTest extends TestCase
             $action = substr($route->getActionName(), strlen(StreamingSubscriptionController::class.'@'));
             $this->assertContains($action, ['index', 'adminIndex', 'store', 'update']);
             if (in_array($action, ['store', 'update'], true)) {
-                $this->assertContains('POST', $route->methods());
+                $expectedMethod = $action === 'store' ? 'POST' : 'PUT';
+                $this->assertContains($expectedMethod, $route->methods());
                 $this->assertStringStartsWith('/admin/streaming-subscriptions', '/'.$route->uri());
             }
         }
