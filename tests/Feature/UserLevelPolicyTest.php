@@ -256,7 +256,7 @@ class UserLevelPolicyTest extends TestCase
         ]);
 
         try {
-            app(\\App\\Services\\Wallets\\PeerWalletTransferService::class)->transfer(
+            app(\App\Services\Wallets\PeerWalletTransferService::class)->transfer(
                 $sender,
                 $recipient->email,
                 600,
