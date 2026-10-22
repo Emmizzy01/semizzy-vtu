@@ -58,6 +58,11 @@ class StreamingSubscriptionController extends Controller
             ->when($status === 'inactive', fn ($q) => $q->where('is_active', false))
             ->orderBy('platform')->orderBy('price_minor')->paginate(30)->withQueryString();
 
+        $feature = PlatformFeatureControl::query()->where('feature_key', 'service.streaming_subscriptions')->first();
+        $addon = PlatformAddon::query()->where('addon_key', 'service.streaming')->first();
+        $implementation = app(AddonImplementationRegistry::class)->find('service.streaming');
+        $operations = $implementation['operations'] ?? [];
+
         return Inertia::render('Admin/StreamingSubscriptions/Index', [
             'products' => $products->getCollection()->map(fn (StreamingSubscriptionProduct $p): array => [
                 'id' => $p->id, 'platform' => $p->platform, 'name' => $p->name, 'code' => $p->code,
@@ -68,8 +73,16 @@ class StreamingSubscriptionController extends Controller
             ])->values(),
             'pagination' => ['currentPage' => $products->currentPage(), 'lastPage' => $products->lastPage(), 'total' => $products->total()],
             'filters' => ['search' => $search, 'status' => $status],
+            'feature' => $feature ? ['is_enabled' => $feature->is_enabled, 'is_implemented' => $feature->is_implemented] : ['is_enabled' => false, 'is_implemented' => false],
+            'addonLifecycle' => [
+                'status' => $addon?->status ?? 'not_installed',
+                'compatibility_status' => $addon?->compatibility_status ?? 'unknown',
+                'implementation_registered' => $implementation !== null,
+                'catalogue_operation_registered' => in_array('streaming-subscriptions.index', $operations, true),
+                'purchase_operation_registered' => in_array('streaming-subscriptions.purchase', $operations, true),
+            ],
             'purchaseGate' => false,
-            'gateReason' => 'Purchases are locked until a provider contract, lookup/recovery behavior and end-to-end tests are verified.',
+            'gateReason' => 'Purchases are locked until a provider contract, transaction lookup and accepted-order recovery workflow are verified; no streaming purchase operation is registered.',
         ]);
     }
 
