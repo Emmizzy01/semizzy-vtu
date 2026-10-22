@@ -2,7 +2,8 @@
 
 namespace Tests\Feature;
 
-use App\Providers\ServiceAddonsProvider;
+use App\Services\Addons\Providers\EducationServiceAddonProvider;
+use App\Services\Addons\Providers\VtuServiceAddonProvider;
 use App\Services\Vtu\MultiProviderVtuRouter;
 use App\Services\Vtu\VtuProvider;
 use Tests\TestCase;
@@ -11,7 +12,8 @@ class ServiceAddonsProviderRegistrationTest extends TestCase
 {
     public function test_service_addon_provider_is_registered_and_preserves_legacy_adapter_bindings(): void
     {
-        $this->assertNotEmpty(app()->getProviders(ServiceAddonsProvider::class));
+        $this->assertNotEmpty(app()->getProviders(VtuServiceAddonProvider::class));
+        $this->assertNotEmpty(app()->getProviders(EducationServiceAddonProvider::class));
         $this->assertTrue(app()->bound('education.providers.sogo'));
         $this->assertTrue(app()->bound('education.providers.gsubz'));
         $this->assertTrue(app()->bound('education.providers.vtpass'));
