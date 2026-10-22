@@ -4,7 +4,6 @@ namespace Tests\Feature;
 
 use App\Models\EducationServiceProduct;
 use App\Models\PlatformAddon;
-use App\Models\PlatformAddon;
 use App\Models\PlatformFeatureControl;
 use App\Models\User;
 use App\Models\UserLevelPolicy;
@@ -32,9 +31,9 @@ class EducationPurchasePreflightTest extends TestCase
                 'compatibility_status' => 'compatible',
             ],
         );
-        $registry = \\Mockery::mock(AddonImplementationRegistry::class);
+        $registry = \Mockery::mock(AddonImplementationRegistry::class);
         $registry->shouldReceive('find')->with('service.education')->andReturn([
-            'handler' => \\App\\Http\\Controllers\\EducationServiceController::class,
+            'handler' => \App\Http\Controllers\EducationServiceController::class,
             'operations' => ['education-services.purchase'],
         ]);
         app()->instance(AddonImplementationRegistry::class, $registry);
@@ -94,18 +93,18 @@ class EducationPurchasePreflightTest extends TestCase
             'requires_candidate_validation' => true, 'is_active' => true, 'purchase_approved' => true,
         ]);
 
-        app()->instance('education.providers.lifecycle-provider', new class implements \\App\\Services\\Education\\EducationProvider {
+        app()->instance('education.providers.lifecycle-provider', new class implements \App\Services\Education\EducationProvider {
             public function assertConfigured(): void
             {
-                throw new \\RuntimeException('Provider must not be contacted before addon admission.');
+                throw new \RuntimeException('Provider must not be contacted before addon admission.');
             }
             public function validateCandidate(EducationServiceProduct $product, array $candidate): array
             {
-                throw new \\RuntimeException('External candidate validation must not run.');
+                throw new \RuntimeException('External candidate validation must not run.');
             }
             public function submit(string $orderReference, EducationServiceProduct $product, array $candidate): array
             {
-                throw new \\RuntimeException('Provider submission must not run.');
+                throw new \RuntimeException('Provider submission must not run.');
             }
             public function lookup(string $orderReference, EducationServiceProduct $product): array
             {
