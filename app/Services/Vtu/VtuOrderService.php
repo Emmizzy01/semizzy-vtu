@@ -3,6 +3,8 @@
 namespace App\Services\Vtu;
 
 use App\Enums\VtuOrderStatus;
+use App\Models\PlatformAddon;
+use App\Services\Addons\AddonLifecyclePolicy;
 use App\Models\User;
 use App\Models\BusinessWorkspaceStorefront;
 use App\Models\VtuOrder;
@@ -201,6 +203,7 @@ class VtuOrderService
 
                 $this->assertServiceFeatureEnabled($lockedProduct);
                 $this->provider->assertProductConfigured($lockedProduct);
+                $this->assertMappedAddonAdmission($lockedProduct);
                 $lockedStorefront = $storefrontSlug !== null
                     ? $this->assertStorefrontProductAvailable($storefrontSlug, $lockedProduct, true)
                     : null;
@@ -444,6 +447,44 @@ class VtuOrderService
         if (in_array($provider, ['sogo', 'gsubz', 'dataway'], true)
             && ($metadata['purchase_approved'] ?? false) !== true) {
             throw new InvalidArgumentException('This provider product is not approved for customer purchases.');
+        }
+    }
+
+    /**
+     * Enforce Core add-on lifecycle admission for catalogue products explicitly
+     * bound to a registered add-on. Legacy/unmapped products retain their
+     * existing feature/provider gates; a declared mapping fails closed.
+     */
+    private function assertMappedAddonAdmission(VtuProduct $product): void
+    {
+        $metadata = is_array($product->metadata) ? $product->metadata : [];
+        $addonKey = trim((string) ($metadata['addon_key'] ?? ''));
+        if ($addonKey === '') {
+            return;
+        }
+
+        // This allowlist is the reviewed implementation-registration catalogue.
+        // A manifest row alone must never authorize arbitrary executable code.
+        $registeredImplementations = [
+            'service.airtime_data' => ['airtime', 'data'],
+            'service.electricity' => ['electricity-bill'],
+            'service.tv' => ['tv-subscription'],
+        ];
+        $addon = PlatformAddon::query()->where('addon_key', $addonKey)->first();
+        $registered = isset($registeredImplementations[$addonKey])
+            && in_array($product->service_type, $registeredImplementations[$addonKey], true);
+        $featureEnabled = true; // assertServiceFeatureEnabled() has just passed.
+        $providerReady = true; // assertProductConfigured() has just passed.
+        $assessment = app(AddonLifecyclePolicy::class)->assessAdmission(
+            (string) ($addon?->status ?? 'missing'),
+            (string) ($addon?->compatibility_status ?? 'unchecked'),
+            $registered,
+            $providerReady,
+            $featureEnabled,
+        );
+
+        if (! $assessment['available']) {
+            throw new InvalidArgumentException('This add-on is not available for new purchases ('.$assessment['reason'].').');
         }
     }
 
