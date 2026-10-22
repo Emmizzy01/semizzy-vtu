@@ -12,7 +12,6 @@ use App\Services\Wallets\BankPayoutService;
 use App\Services\Wallets\WalletAccountService;
 use App\Services\Wallets\WalletLedgerService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use LogicException;
 use Mockery;
 use Tests\TestCase;
 
