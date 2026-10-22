@@ -95,6 +95,35 @@ class DashboardRoutingTest extends TestCase
         }
     }
 
+    public function test_authorized_admin_workspace_pages_render_without_route_only_shortcuts(): void
+    {
+        $staff = $this->account('admin-workspace-page-smoke@example.test');
+        $this->grant($staff, 'admin.dashboard');
+        $this->grant($staff, 'staff.permissions.manage');
+
+        foreach ([
+            '/admin/dashboard',
+            '/admin/staff',
+            '/admin/staff/users',
+            '/admin/staff/permission-audits',
+            '/admin/platform-settings',
+            '/admin/manual-deposits',
+            '/admin/manual-deposits/settings',
+            '/admin/payment-gateway',
+            '/admin/api-providers',
+            '/admin/education-services',
+            '/admin/vtu-products',
+            '/admin/streaming-subscriptions',
+            '/admin/refunds',
+            '/admin/payment-refunds',
+            '/admin/vtu-orders',
+            '/admin/kyc-reviews',
+            '/admin/support-pages',
+        ] as $path) {
+            $this->actingAs($staff)->get($path)->assertOk();
+        }
+    }
+
     public function test_regular_customer_sees_customer_dashboard(): void
     {
         $customer = $this->account('customer@example.test');
