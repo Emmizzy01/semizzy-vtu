@@ -24,7 +24,7 @@ $app->make(Kernel::class)->bootstrap();
 
 $mode = $argv[1] ?? '';
 $statePath = $argv[2] ?? '';
-if ($statePath === '' || ! in_array($mode, ['purchase', 'reconcile', 'open-wallet', 'review-deposit', 'refund-webhook', 'submit-deposit', 'process-webhooks', 'receive-webhook'], true)) {
+if ($statePath === '' || ! in_array($mode, ['purchase', 'reconcile', 'open-wallet', 'review-deposit', 'refund-webhook', 'submit-deposit', 'process-webhooks', 'receive-webhook', 'bulk-process'], true)) {
     fwrite(STDERR, "Invalid worker arguments.\n");
     exit(2);
 }
@@ -40,6 +40,20 @@ $provider = new ConcurrentVtuTestProvider($statePath);
 $app->instance(VtuProvider::class, $provider);
 
 try {
+    if ($mode === 'bulk-process') {
+        $batchId = (int) ($argv[3] ?? 0);
+        if ($batchId < 1) {
+            throw new RuntimeException('Missing bulk batch ID.');
+        }
+        if (($argv[4] ?? '') === 'race') {
+            $provider->arriveAndWait('bulk_job_barrier', 2);
+        }
+        app(\App\Jobs\ProcessVtuBulkPurchaseBatch::class, ['batchId' => $batchId])
+            ->handle(app(VtuOrderService::class));
+        fwrite(STDOUT, "processed\\n");
+        exit(0);
+    }
+
     if ($mode === 'receive-webhook') {
         $body = base64_decode((string) ($argv[3] ?? ''), true);
         $signature = (string) ($argv[4] ?? '');
