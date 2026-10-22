@@ -65,9 +65,15 @@ class BankPayoutSafetyTest extends TestCase
                 'provider_reference' => 'semizzy_stale_queued_'.$suffix,
                 'wallet_transaction_id' => null,
                 'metadata' => ['provider' => 'paystack'],
+            ]);
+
+            // Timestamps are intentionally not mass assignable on BankPayout.
+            $payout->forceFill([
                 'created_at' => $createdAt,
                 'updated_at' => $createdAt,
-            ]);
+            ])->save();
+
+            return $payout;
         };
 
         $stale = $makePayout('old', 'queued', now()->subHour());
