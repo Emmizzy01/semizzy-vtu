@@ -4,11 +4,10 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\Auth\LoginChallengeVerificationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Hash;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -40,7 +39,7 @@ class LoginChallengeController extends Controller
             return redirect()->route('login')->withErrors(['code' => 'This verification attempt has expired. Please sign in again.']);
         }
 
-        $result = app(\\App\\Services\\Auth\\LoginChallengeVerificationService::class)
+        $result = app(LoginChallengeVerificationService::class)
             ->verify($challengeId, $validated['code']);
 
         if ($result['status'] !== 'ok') {
