@@ -44,4 +44,23 @@ class AdminDirectUrlAuthorizationTest extends TestCase
                 ->assertStatus($refundsStatus);
         }
     }
+
+    public function test_suspended_staff_is_logged_out_before_accessing_admin_routes(): void
+    {
+        $staff = User::factory()->create([
+            'account_status' => 'suspended',
+        ]);
+        UserPermission::query()->create([
+            'user_id' => $staff->id,
+            'permission' => 'staff.permissions.manage',
+        ]);
+
+        $this->actingAs($staff)
+            ->get('/admin/platform-settings')
+            ->assertRedirect('/login')
+            ->assertSessionHasErrors('email');
+
+        $this->assertGuest();
+        $this->actingAs($staff)->get('/admin/dashboard')->assertRedirect('/login');
+    }
 }
