@@ -530,12 +530,13 @@ class VtuOrderService
         if ($addonKey !== null) {
             $addon = PlatformAddon::query()->where('addon_key', $addonKey)->first();
             $implementation = app(AddonImplementationRegistry::class)->find($addonKey);
+            $operation = 'wallet.vtu.orders.create';
             $assessment = $addon === null
                 ? ['available' => false, 'reason' => 'addon_manifest_missing']
                 : app(AddonLifecyclePolicy::class)->assessAdmission(
                     (string) $addon->status,
                     (string) $addon->compatibility_status,
-                    $implementation !== null,
+                    $implementation !== null && in_array($operation, $implementation['operations'], true),
                     true,
                     true,
                 );
