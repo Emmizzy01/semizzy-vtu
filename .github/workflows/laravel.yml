@@ -11,6 +11,32 @@ permissions:
   contents: read
 
 jobs:
+  resolve-dependency-lockfiles:
+    name: Resolve reproducible dependency lockfiles
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mbstring, pdo_mysql, bcmath, curl, dom, fileinfo, intl, json, openssl, tokenizer, xml
+          coverage: none
+      - name: Resolve Composer dependencies without installing packages
+        run: composer update --no-install --no-scripts --no-interaction --prefer-dist
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Resolve npm dependency lockfile without running package scripts
+        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+      - uses: actions/upload-artifact@v4
+        with:
+          name: semizzy-dependency-lockfiles
+          path: |
+            composer.lock
+            package-lock.json
+          if-no-files-found: error
+          retention-days: 3
+
   php-tests:
     name: PHP tests (PHP ${{ matrix.php-version }})
     strategy:
