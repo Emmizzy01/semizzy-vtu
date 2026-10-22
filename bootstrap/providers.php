@@ -2,5 +2,6 @@
 
 return [
     App\Providers\AppServiceProvider::class,
-    App\Providers\ServiceAddonsProvider::class,
+    App\Services\Addons\Providers\VtuServiceAddonProvider::class,
+    App\Services\Addons\Providers\EducationServiceAddonProvider::class,
 ];
