@@ -63,3 +63,12 @@
 - AUTH-05 remains open for independent-session/IP OTP abuse/race cases and actual authorised vendor/device delivery. AUTH-06 through AUTH-09 still need their full test matrix and/or production hosting evidence.
 - AUTH-10's CI portion is satisfied for the executable-code SHA above, but the audit as a whole remains open until the targeted route/auth tests and other findings are resolved. Any new executable code requires fresh CI on its exact SHA.
 - Keep SMS/WhatsApp delivery and passkeys disabled until vendor/device and HTTPS browser acceptance are completed. Do not perform live financial operations or use production credentials during this audit.
+
+
+## Execution update — 2026-10-22 (latest test additions)
+
+- Added `LoginChallengeTest::test_new_login_challenge_replaces_the_previous_unconsumed_challenge` in commit `a737b35ced960ae14ba9cc917f8e7b5ab001bbe9`. It verifies sequential re-authentication removes the previous pending challenge, binds the session to the replacement challenge, and does not authenticate before code verification. This is a replacement regression test, **not a proof of cross-process concurrent race safety**.
+- Added `UserAccountStatusTest::test_suspended_account_is_rejected_across_profile_wallet_and_session_routes` in commit `db895b5e876595996b93643ed62a9d5cb9760e70`. It checks that a suspended authenticated account is logged out when requesting profile, wallet transfer history, and session-management routes. CI has not yet reported results for these commits.
+- Existing route coverage checks every registered `/admin` route has authentication and an explicit capability middleware. Existing role matrix tests still cover only representative admin dashboard/refund routes; they do **not** constitute the requested all-route × four-role × HTTP-method matrix.
+- The repository tree does not contain `vendor/` or `composer.lock`, so the installed/resolved `laravel/passkeys` version and its actual vendor route middleware/ceremony code cannot be inspected from GitHub source alone. `config/passkeys.php` and project tests are not a substitute. Obtain the lockfile/vendor state from the actual build/deployment environment before closing AUTH-04.
+- Latest executable test commits: `a737b35ced960ae14ba9cc917f8e7b5ab001bbe9` and `db895b5e876595996b93643ed62a9d5cb9760e70`. Run full CI against the final tip of `main` and record actual results. Do not close AUTH-01, AUTH-02, AUTH-04, AUTH-05, AUTH-07, or AUTH-10 based on these targeted additions alone.
