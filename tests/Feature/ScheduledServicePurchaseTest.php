@@ -276,7 +276,7 @@ class ScheduledServicePurchaseTest extends TestCase
             'status' => 'awaiting_reconciliation',
         ]);
 
-        $orders = \\Mockery::mock(VtuOrderService::class);
+        $orders = \Mockery::mock(VtuOrderService::class);
         $orders->shouldReceive('purchase')
             ->once()
             ->withArgs(function ($purchaser, $productCode, $recipient, $idempotencyKey, $details, $amount) use ($user, $schedule, $dueAt): bool {
@@ -290,7 +290,7 @@ class ScheduledServicePurchaseTest extends TestCase
             ->andReturn($order);
         $this->app->instance(VtuOrderService::class, $orders);
 
-        $exitCode = \\Illuminate\\Support\\Facades\\Artisan::call('vtu:run-scheduled-purchases', ['--limit' => 100]);
+        $exitCode = \Illuminate\Support\Facades\Artisan::call('vtu:run-scheduled-purchases', ['--limit' => 100]);
 
         $this->assertSame(0, $exitCode);
         $this->assertSame('paused', $schedule->fresh()->status);
@@ -321,11 +321,11 @@ class ScheduledServicePurchaseTest extends TestCase
             'status' => 'awaiting_reconciliation',
         ]);
 
-        $orders = \\Mockery\\mock(VtuOrderService::class);
+        $orders = \Mockery\mock(VtuOrderService::class);
         $orders->shouldReceive('purchase')
             ->once()
             ->andReturnUsing(function () use ($schedule, $operatorReason, $order) {
-                \\Illuminate\\Support\\Facades\\DB::table('scheduled_service_purchases')
+                \Illuminate\Support\Facades\DB::table('scheduled_service_purchases')
                     ->where('id', $schedule->id)
                     ->update(['status' => 'paused', 'last_error' => $operatorReason]);
 
@@ -333,7 +333,7 @@ class ScheduledServicePurchaseTest extends TestCase
             });
         $this->app->instance(VtuOrderService::class, $orders);
 
-        $exitCode = \\Illuminate\\Support\\Facades\\Artisan::call('vtu:run-scheduled-purchases', ['--limit' => 100]);
+        $exitCode = \Illuminate\Support\Facades\Artisan::call('vtu:run-scheduled-purchases', ['--limit' => 100]);
 
         $this->assertSame(0, $exitCode);
         $this->assertSame('paused', $schedule->fresh()->status);
