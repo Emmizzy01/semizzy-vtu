@@ -130,4 +130,66 @@ class LoginOtpChannelDeliveryTest extends TestCase
         $this->assertGuest();
         $this->assertDatabaseCount('login_challenges', 0);
     }
+    public function test_sms_provider_rejection_fails_closed_without_leaving_a_usable_challenge(): void
+    {
+        config([
+            'auth_security.login_otp_channel' => 'sms',
+            'auth_security.sms_otp_enabled' => true,
+            'services.login_otp.sms.endpoint' => 'https://sms.example.test/messages',
+            'services.login_otp.sms.token' => 'test-token',
+        ]);
+        Http::fake(['sms.example.test/*' => Http::response(['accepted' => false], 503)]);
+
+        $user = User::query()->create([
+            'name' => 'SMS Provider Rejection',
+            'email' => 'sms-provider-rejection@example.test',
+            'mobile_number' => '+2348012345678',
+            'password' => 'CorrectPassword1234',
+        ]);
+        $user->forceFill(['mobile_verified_at' => now()])->save();
+        DB::table('verified_mobile_numbers')->insert([
+            'user_id' => $user->id,
+            'mobile_number' => '+2348012345678',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $this->from('/login')->post('/login', [
+            'identifier' => $user->email,
+            'password' => 'CorrectPassword1234',
+        ])->assertRedirect('/login')->assertSessionHasErrors('identifier');
+
+        $this->assertGuest();
+        $this->assertDatabaseCount('login_challenges', 0);
+        Http::assertSent(fn ($request) => $request->url() === 'https://sms.example.test/messages');
+    }
+
+    public function test_whatsapp_provider_rejection_fails_closed_without_fallback_to_authentication(): void
+    {
+        config([
+            'auth_security.login_otp_channel' => 'whatsapp',
+            'auth_security.whatsapp_otp_enabled' => true,
+            'services.login_otp.whatsapp.endpoint' => 'https://whatsapp.example.test/messages',
+            'services.login_otp.whatsapp.token' => 'test-token',
+        ]);
+        Http::fake(['whatsapp.example.test/*' => Http::response(['accepted' => false], 502)]);
+
+        $user = User::query()->create([
+            'name' => 'WhatsApp Provider Rejection',
+            'email' => 'whatsapp-provider-rejection@example.test',
+            'whatsapp_number' => '+2348098765432',
+            'whatsapp_verified_at' => now(),
+            'password' => 'CorrectPassword1234',
+        ]);
+
+        $this->from('/login')->post('/login', [
+            'identifier' => $user->email,
+            'password' => 'CorrectPassword1234',
+        ])->assertRedirect('/login')->assertSessionHasErrors('identifier');
+
+        $this->assertGuest();
+        $this->assertDatabaseCount('login_challenges', 0);
+        Http::assertSent(fn ($request) => $request->url() === 'https://whatsapp.example.test/messages');
+    }
+
 }
