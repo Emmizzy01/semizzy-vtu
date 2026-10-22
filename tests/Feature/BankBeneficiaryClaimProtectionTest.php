@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\User;
+use App\Models\IntegrationSetting;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -11,6 +12,15 @@ use Tests\TestCase;
 class BankBeneficiaryClaimProtectionTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        IntegrationSetting::query()->updateOrCreate(
+            ['key' => 'paystack.transfers_enabled'],
+            ['value' => '1', 'updated_by_user_id' => null],
+        );
+    }
 
     public function test_database_rejects_two_claims_for_the_same_bank_account_fingerprint(): void
     {
