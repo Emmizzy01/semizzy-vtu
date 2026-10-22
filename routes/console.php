@@ -5,6 +5,11 @@ use App\Models\UserPermission;
 use App\Models\StaffPermissionAudit;
 use App\Models\EducationOrder;
 use App\Models\ScheduledServicePurchase;
+use App\Models\PlatformAddon;
+use App\Models\PlatformFeatureControl;
+use App\Services\Addons\AddonImplementationRegistry;
+use App\Services\Addons\AddonLifecyclePolicy;
+use App\Services\IntegrationSettings;
 use App\Services\Vtu\VtuOrderService;
 use Illuminate\Support\Facades\DB;
 use App\Services\Education\EducationOrderCoordinator;
@@ -214,6 +219,58 @@ Artisan::command('vtu:run-scheduled-purchases {--limit=100}', function (VtuOrder
         if (!$schedule) continue;
 
         $dueAt = $schedule->next_run_at->copy();
+
+        // Lifecycle admission applies only before this runner submits a new order.
+        // It never cancels, rewrites, or replays an already accepted order.
+        $addonKey = match ($schedule->service_type) {
+            'airtime' => 'service.airtime',
+            'data' => 'service.data',
+            'electricity-bill' => 'service.electricity',
+            'tv-subscription' => 'service.tv',
+            default => null,
+        };
+        $admissionAvailable = false;
+        if ($addonKey !== null) {
+            $addon = PlatformAddon::query()->where('addon_key', $addonKey)->first();
+            $implementation = app(AddonImplementationRegistry::class)->find($addonKey);
+            $registered = $implementation !== null
+                && in_array('wallet.vtu.orders.create', $implementation['operations'], true);
+            if ($addon !== null) {
+                if (in_array($schedule->service_type, ['airtime', 'data'], true)) {
+                    $settings = app(IntegrationSettings::class);
+                    $independent = $settings->get('service.'.$schedule->service_type.'.enabled', null);
+                    $legacy = $settings->get('service.airtime_data.enabled', false);
+                    $featureEnabled = filter_var($independent ?? $legacy, FILTER_VALIDATE_BOOLEAN);
+                } else {
+                    $feature = PlatformFeatureControl::query()->where('feature_key', $addonKey)->first();
+                    $featureEnabled = $feature !== null && $feature->is_enabled && $feature->is_implemented;
+                }
+                $admissionAvailable = app(AddonLifecyclePolicy::class)->assessAdmission(
+                    (string) $addon->status,
+                    (string) $addon->compatibility_status,
+                    $registered,
+                    true,
+                    $featureEnabled,
+                )['available'];
+            }
+        }
+
+        if (! $admissionAvailable) {
+            DB::transaction(function () use ($schedule): void {
+                $current = ScheduledServicePurchase::query()->whereKey($schedule->id)->lockForUpdate()->first();
+                if ($current && $current->status === 'processing') {
+                    $current->update([
+                        'status' => 'paused',
+                        'last_run_at' => now(),
+                        'last_result' => 'addon_unavailable',
+                        'last_error' => 'Scheduled execution paused because the service add-on is disabled, unregistered, incompatible, or unavailable. No new order was submitted. Review lifecycle readiness before resuming.',
+                    ]);
+                }
+            });
+            $paused++;
+            continue;
+        }
+
         try {
             $order = $orders->purchase(
                 $schedule->user,
