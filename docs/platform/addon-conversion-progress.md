@@ -200,3 +200,18 @@ This is a bounded first map, not the final endpoint inventory: webhook/callback 
 - Follow-up queue audit found one job class, `ProcessVtuBulkPurchaseBatch` (3 attempts, 60-second timeout), which atomically claims batch items and quarantines uncertain/stale work as unknown for reconciliation. No app/Events or app/Listeners directories were present in the current recursive tree; a mail notification and OTP mailable exist, but queue dispatch/configuration still needs trace validation.
 - Route-group middleware has been mapped at source level: guest auth flows are throttled, customer service routes inherit the authenticated web group, admin routes inherit authentication plus staff permission, and refund approval remains separately permissioned. No addon admission middleware is currently wired in `bootstrap/app.php`.
 - The lifecycle policy has unit tests committed, but it is not yet verified. Current Actions state must be checked on the latest commit; no source-only test result is claimed.
+
+
+## 2026-10-22 — Runtime admission implementation checkpoint
+
+**Status: IMPLEMENTED IN SOURCE; CI verification pending for the exact commits. This does not complete the 20-phase roadmap.**
+
+- `AddonImplementationRegistry` now registers the existing VTU handler and compatibility keys for `service.airtime_data`, `service.electricity`, `service.tv`, and `service.bills`, alongside the previously registered Education, Streaming, and VTU Website Requests handlers. These are explicit reviewed-code mappings, not dynamic code loading.
+- `VtuOrderService::assertMappedAddonAdmission()` now resolves mapped addon keys through that registry and applies the Core lifecycle policy against the persisted addon status and compatibility state. A mapped addon must have a registered handler and the required purchase operation before a new order may pass admission.
+- The admission gate is run again on the locked catalogue row inside the same database transaction that creates/debits a new order, after feature and provider-product checks. This closes the race where addon state or catalogue state changes between preflight and wallet debit.
+- Existing idempotency handling remains before new-purchase admission: a retry matching an already accepted order returns the existing order rather than being blocked by later addon disablement. Provider reconciliation/recovery remains Core-owned and is not gated by addon admission.
+- Added workflow tests for (a) disabled mapped addon blocks a new purchase without order creation, wallet debit or provider submission, and (b) accepted order retry remains idempotent after its addon is disabled. Registry unit tests cover the VTU/bills mappings.
+- No new database migration was added in this slice: it uses the existing `platform_addons` schema and existing `vtu_products.metadata` JSON mapping. Avoiding an unnecessary schema migration reduces deployment risk. A future normalized addon-to-service mapping requires a separate backward-compatible migration proposal and tests before adoption.
+- Existing legacy catalogue products without an explicit `metadata.addon_key` continue under their current Core feature/provider gates until their mapping is migrated. This is a compatibility bridge, not the final addon-conversion state.
+- Relevant commits on `main`: `47d967b` (registry compatibility keys), `eed55ba` (purchase admission), `4b3ae9a` (registry tests), and `8afd986` (workflow tests).
+- Exact-commit Laravel/frontend checks, security workflow and asset build must be inspected before reporting verification. cPanel/runtime/provider checks remain on the deployment checklist and must not be represented as passed based on CI.
