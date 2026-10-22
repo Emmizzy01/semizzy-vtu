@@ -5,6 +5,8 @@ namespace Tests\Feature;
 use App\Models\PlatformFeatureControl;
 use App\Models\StreamingSubscriptionProduct;
 use App\Models\User;
+use App\Services\Addons\AddonImplementationRegistry;
+use App\Http\Controllers\StreamingSubscriptionController;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -50,6 +52,38 @@ class StreamingSubscriptionCatalogueTest extends TestCase
             'setting_key' => 'streaming_product.created.'.$product->id,
             'actor_user_id' => $staff->id,
         ]);
+    }
+
+    public function test_no_customer_purchase_route_or_registered_purchase_operation_exists(): void
+    {
+        $registry = app(AddonImplementationRegistry::class);
+        $implementation = $registry->find('service.streaming');
+
+        $this->assertNotNull($implementation);
+        $this->assertContains('streaming-subscriptions.index', $implementation['operations']);
+        $this->assertNotContains('streaming-subscriptions.purchase', $implementation['operations']);
+
+        $controllerRoutes = collect(app('router')->getRoutes()->getRoutes())
+            ->filter(fn ($route) => $route->getActionName() !== 'Closure')
+            ->filter(fn ($route) => str_starts_with($route->getActionName(), StreamingSubscriptionController::class.'@'));
+
+        $this->assertNotEmpty($controllerRoutes);
+
+        foreach ($controllerRoutes as $route) {
+            $action = substr($route->getActionName(), strlen(StreamingSubscriptionController::class.'@'));
+            $this->assertContains($action, ['index', 'adminIndex', 'store', 'update']);
+            if (in_array($action, ['store', 'update'], true)) {
+                $this->assertContains('POST', $route->methods());
+                $this->assertStringStartsWith('/admin/streaming-subscriptions', '/'.$route->uri());
+            }
+        }
+
+        $customerWriteRoutes = collect(app('router')->getRoutes()->getRoutes())
+            ->filter(fn ($route) => str_contains($route->uri(), 'streaming-subscriptions'))
+            ->filter(fn ($route) => ! str_starts_with($route->uri(), 'admin/'))
+            ->filter(fn ($route) => array_intersect($route->methods(), ['POST', 'PUT', 'PATCH', 'DELETE']) !== []);
+
+        $this->assertCount(0, $customerWriteRoutes);
     }
 
     public function test_streaming_feature_is_not_marked_implemented_by_catalogue_scaffolding(): void
