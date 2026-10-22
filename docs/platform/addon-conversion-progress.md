@@ -19,13 +19,14 @@ This document records evidence for the controlled 20-phase reconciliation and ad
 
 ## Latest verified checkpoint — Streaming addon boundary
 
-**Evidence date:** 2026-10-22. **Latest test correction:** `bb48dc296f4c3afebf5a80400dd37722aee8a9ec` on `main`. **Verification pending for this correction.**
+**Evidence date:** 2026-10-22. **Latest test correction:** `095b228daec70affcad0cd424c101a1bf3619d87` on `main`. **Verification pending for this correction.**
 
 - Test commit `3e17ff021e2be96828dbf7c4fce06fa376356bd4` added a regression test asserting that the customer streaming catalogue remains unavailable when the `service.streaming` addon is disabled, even if its feature flag is enabled.
 - GitHub Actions run [39818936774 — Laravel and frontend checks](https://github.com/Emmizzy01/semizzy-vtu/actions/runs/39818936774) reached terminal **failure** on that exact test commit. The frontend build passed; both MariaDB error-123 diagnostic jobs passed. The PHP 8.4 job failed at step **“Lint all PHP application, migration, route, and test files”** before environment preparation or Laravel tests, because `tests/Feature/StreamingSubscriptionCatalogueTest.php:44` contained an unexpected backslash in the fully qualified `PlatformAddon` class reference. This was a test-file syntax defect, not evidence of a runtime addon-gating defect.
 - First correction `edff4d28d796cac589e019600c425754821dc5ed` did not fully remove the escaped class reference; the asset workflow's Laravel test step exposed the same parse error at line 45. This was inspected from the actual job log.
-- Second targeted correction committed as `bb48dc296f4c3afebf5a80400dd37722aee8a9ec`: add the `App\\Models\\PlatformAddon` import and replace the malformed doubled-backslash reference with `PlatformAddon::query()`. No application source behavior or dashboard design was changed.
-- **Pending:** CI for `bb48dc296f4c3afebf5a80400dd37722aee8a9ec` must reach a terminal result. Do not count the streaming regression as passed until lint and the relevant Laravel test/full suite run successfully.
+- Second correction `bb48dc296f4c3afebf5a80400dd37722aee8a9ec` replaced the malformed reference but introduced a duplicate `PlatformAddon` import. The latest lint log identified the exact fatal error: `Cannot use App\\Models\\PlatformAddon as PlatformAddon because the name is already in use`.
+- Third targeted correction committed as `095b228daec70affcad0cd424c101a1bf3619d87`: remove the duplicate import, leaving one valid `App\\Models\\PlatformAddon` import and `PlatformAddon::query()`. No application source behavior or dashboard design was changed.
+- **Pending:** CI for `095b228daec70affcad0cd424c101a1bf3619d87` must reach a terminal result. Do not count the streaming regression as passed until lint and the relevant Laravel test/full suite run successfully.
 - Existing VTU accepted-order recovery, reconciliation, and refund-once protections remain in place; this test-only correction does not change them. Streaming customer purchases remain locked because provider and accepted-order recovery workflows have not been verified. No live provider or financial transactions were performed.
 
 
