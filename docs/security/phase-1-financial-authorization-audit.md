@@ -3,7 +3,7 @@
 **Review date:** 2026-10-22  
 **Branch policy:** `main` only  
 **Repository head at checkpoint:** `90bcaf45266419d815b9ce4d4e231788cd4cc2c2`  
-**Latest tested runtime-code SHA recorded by the completion register:** `bb558be45160d6794d1d469355bf2b3798869067`  
+**Latest tested runtime-code SHA:** `5e41c5fe0cdd3ce951e1ce48616e5fc5a696c933`  
 **Status:** Source review progressed; the blueprint-wide route/role verification is not yet complete. This document is not a penetration-test report or production sign-off.
 
 ## 1. Financial mutation source review
