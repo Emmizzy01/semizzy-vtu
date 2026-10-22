@@ -66,13 +66,15 @@ These rules apply to all future implementation, maintenance, database evolution,
 
 ## 7A. Development completion versus deployment-stage work — binding rule
 
-- **Live-server-dependent work is deployment-stage work, not an incomplete development task.** If a check or action can only be completed against the deployed cPanel/live environment, mark it as a deployment checklist item and defer execution until deployment/production verification. Do not count it as an unfinished development blocker or stop unrelated implementation because it cannot be checked locally or in CI.
-- Examples include inspecting production-only environment values, cPanel/PHP runtime and permissions, deployed asset/route smoke checks, live HTTPS passkey/browser behavior, real SMS/WhatsApp delivery to an authorised device, production scheduler/queue operation, and authorised live-provider contract checks.
-- During development, complete everything that can be completed without the live server: implementation, code/config validation, automated tests, static/security checks, build checks, provider mocks/sandbox tests, recovery/reconciliation logic, documentation, and a precise deployment checklist for the remaining live-only steps.
-- Keep deployment-stage items visible in a clearly labelled **Deployment checklist / deferred to deployment** section. Do not label them as failed, incomplete development, or release blockers to unrelated work merely because they require the live server.
-- A live-only check must not be claimed as passed before it is executed. This rule changes task classification, not truthfulness: report it as “deferred to deployment / not yet run on live environment.”
-- Deployment-stage items do not prevent completion of independent development batches. They may still govern whether a specific live capability (for example, provider purchases or payouts) can be activated at deployment.
-- Do not access or change the production server, alter production data, run migrations, or trigger real transactions merely to turn a deployment checklist item green during development. Live operations must follow the existing authorisation, backup, migration, and financial-safety rules.
+**Owner's explicit rule: anything that requires the live server, cPanel, or the deployed environment to test, inspect, or verify is a deployment matter. It is not an unfinished development task and must not keep a development phase or bulk action open.** Apply this classification consistently across every phase, audit, checklist, status report, and acceptance register.
+
+- Examples include cPanel deployment configuration, production PHP/extensions and permissions, deployed code/assets/routes, production database connectivity/schema/migration status, live logs, HTTPS/browser passkeys, authorised real-device SMS/WhatsApp delivery, cron/scheduler/queue operation, backups/restore validation, production smoke tests, and authorised live-provider checks.
+- During development, complete everything verifiable without live-server access: code, tests, static/security analysis, builds, sandbox/mock contracts, migration review, recovery logic, documentation, and a precise deployment checklist.
+- Record live-only checks under **Deployment checklist — execute during deployment** as **Deferred to deployment / not yet run** until actual evidence exists. Never call them development failures, and never claim them passed before execution.
+- Do not reopen or block unrelated development phases because a deployment-only check is pending. A particular capability can nevertheless remain disabled at deployment until its own safety gate is satisfied.
+- Do not access/change production, run migrations, alter production data, or trigger real financial/provider transactions just to change a checklist status. Follow backup, review, approval, and financial-safety requirements.
+- Deployment verification is still mandatory before claiming the deployed release is verified. A successful code push or CI run alone does not prove that cPanel is serving that commit.
+- Report development/CI gaps separately from deployment matters. Do not state “production-ready” as a blanket guarantee.
 
 ## 8. Verification and release acceptance
 
@@ -84,7 +86,10 @@ These rules apply to all future implementation, maintenance, database evolution,
 
 ## 9. Product continuity
 
-- Use `docs/SEMIZZY-BLUEPRINT.md` as the canonical product acceptance checklist.
-- Keep the core responsible for shared identity, users, wallet, pricing, settings, and add-on management. Add-ons must integrate with core contracts rather than duplicate these systems.
-- Preserve the agreed SEMIZZY ONE scope, roles, account types/levels, security controls, service catalogue, admin controls, themes, and deployment constraints unless the project owner explicitly changes the blueprint.
+- Use `docs/SEMIZZY-BLUEPRINT.md` as the canonical product acceptance checklist, alongside the owner's latest explicit decisions recorded in the project documents.
+- Keep Core responsible for shared identity, users, roles/permissions, tier policy, wallet and immutable ledger, payments/funding/payouts/transfers, pricing, global settings, security/audit, notifications, transaction recovery, and addon management. Service addons own service-specific catalogues, inputs, orders, provider adapters, service admin controls, and service recovery orchestration; addons must use Core contracts and must not duplicate Core-owned systems.
+- The agreed service architecture is conversion of every approved in-scope service to an independent addon under the agreed 20-phase roadmap. Continue from the current evidenced phase/checkpoint; do not restart completed work or invent a new roadmap. Verify the actual roadmap/source state before claiming any phase complete.
+- **Freeze the existing user and admin dashboard themes/design.** Do not redesign, restyle, replace layouts, or make theme changes during addon conversion unless the owner explicitly authorizes it. Functional changes must preserve existing routes, working behavior, and established dashboard layouts.
+- Preserve the agreed SEMIZZY ONE scope, roles, account types/levels, security controls, service catalogue, admin controls, and deployment constraints unless the project owner explicitly changes the blueprint.
 - Future updates must include any required schema/data migration and update tests/docs alongside the feature; do not leave the database behind the application code.
+
