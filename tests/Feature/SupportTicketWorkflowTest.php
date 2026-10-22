@@ -78,4 +78,49 @@ class SupportTicketWorkflowTest extends TestCase
         ]);
     }
 
+
+    public function test_customer_cannot_mutate_ticket_through_admin_reply_or_status_routes(): void
+    {
+        $customer = User::query()->create([
+            'name' => 'Ticket Route Outsider',
+            'email' => 'ticket-route-outsider@example.test',
+            'password' => 'not-a-real-password',
+        ]);
+        $owner = User::query()->create([
+            'name' => 'Ticket Route Owner',
+            'email' => 'ticket-route-owner@example.test',
+            'password' => 'not-a-real-password',
+        ]);
+        $ticket = SupportTicket::query()->create([
+            'public_id' => 'SUP-ROUTEGUARD123',
+            'user_id' => $owner->id,
+            'category' => 'account',
+            'subject' => 'Private route authorization check',
+            'status' => 'open',
+            'priority' => 'normal',
+        ]);
+        $ticket->messages()->create([
+            'author_user_id' => $owner->id,
+            'is_staff' => false,
+            'body' => 'Private customer message.',
+        ]);
+
+        $this->actingAs($customer)->post('/admin/support/'.$ticket->id.'/reply', [
+            'body' => 'Unauthorized staff reply attempt.',
+        ])->assertForbidden();
+
+        $this->actingAs($customer)->put('/admin/support/'.$ticket->id.'/status', [
+            'status' => 'closed',
+            'reason' => 'Unauthorized status change attempt',
+        ])->assertForbidden();
+
+        $this->assertSame('open', $ticket->fresh()->status);
+        $this->assertDatabaseCount('support_ticket_messages', 1);
+        $this->assertDatabaseMissing('support_ticket_audits', [
+            'ticket_id' => $ticket->id,
+            'actor_user_id' => $customer->id,
+            'action' => 'status_changed',
+        ]);
+    }
+
 }
