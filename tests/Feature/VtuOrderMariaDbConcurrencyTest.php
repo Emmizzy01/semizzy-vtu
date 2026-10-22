@@ -696,6 +696,80 @@ class VtuOrderMariaDbConcurrencyTest extends TestCase
         @unlink($state);
     }
 
+    public function test_two_independent_workers_deliver_one_bulk_item_once(): void
+    {
+        [$user, $wallet, $product, $batch, $item] = $this->preparedBulkBatch();
+        $state = $this->newStateFile();
+        $results = $this->runWorkers([
+            ['bulk-process', $state, (string) $batch->id, 'race'],
+            ['bulk-process', $state, (string) $batch->id, 'race'],
+        ]);
+
+        $this->assertSame(2, $this->readState($state, 'bulk_job_barrier'),
+            'Both independent PHP processes must reach the barrier before either job starts.');
+        $this->assertSame(1, $this->readState($state, 'submissions'),
+            'Only the worker that claims the pending item may submit it to the provider.');
+        $this->assertSame(1, VtuOrder::query()->where('idempotency_key', $item->idempotency_key)->count());
+        $this->assertContains($item->fresh()->status, ['unknown', 'successful', 'failed']);
+        $this->assertNotSame('pending', $item->fresh()->status);
+
+        @unlink($state);
+    }
+
+    public function test_interrupted_bulk_item_is_quarantined_without_provider_resubmission(): void
+    {
+        [$user, $wallet, $product, $batch, $item] = $this->preparedBulkBatch();
+        $state = $this->newStateFile(['crash_after_submit' => 1]);
+        $crashed = $this->runWorkers([
+            ['bulk-process', $state, (string) $batch->id],
+        ], false);
+
+        $this->assertSame(86, $crashed[0]['exit'],
+            'The test provider terminates the worker immediately after simulated provider acceptance.');
+        $this->assertSame(1, $this->readState($state, 'submissions'));
+        $item->refresh();
+        $this->assertSame('processing', $item->status);
+
+        $item->forceFill(['started_at' => now()->subMinutes(31)])->save();
+        $this->runWorkers([
+            ['bulk-process', $state, (string) $batch->id],
+        ]);
+
+        $this->assertSame('unknown', $item->fresh()->status);
+        $this->assertSame(1, $this->readState($state, 'submissions'),
+            'Recovery must quarantine the uncertain item and must not submit it again.');
+        $this->assertSame(1, VtuOrder::query()->where('idempotency_key', $item->idempotency_key)->count());
+
+        @unlink($state);
+    }
+
+    /** @return array{User, \\App\\Models\\Wallet, VtuProduct, \\App\\Models\\VtuBulkPurchaseBatch, \\App\\Models\\VtuBulkPurchaseItem} */
+    private function preparedBulkBatch(): array
+    {
+        [$user, $wallet, $product] = $this->preparedCustomer(1000, 10000);
+        $batch = \\App\\Models\\VtuBulkPurchaseBatch::query()->create([
+            'public_id' => (string) Str::uuid(),
+            'user_id' => $user->getKey(),
+            'batch_key' => 'mariadb-bulk-'.Str::uuid(),
+            'request_hash' => hash('sha256', (string) Str::uuid()),
+            'status' => 'queued',
+            'item_count' => 1,
+            'total_amount_minor' => 1000,
+            'currency' => 'NGN',
+        ]);
+        $item = $batch->items()->create([
+            'item_index' => 0,
+            'idempotency_key' => hash('sha256', 'mariadb-bulk-item:'.$batch->public_id),
+            'product_code' => $product->code,
+            'service_type' => 'airtime',
+            'recipient' => '08012345678',
+            'amount_minor' => 1000,
+            'status' => 'pending',
+        ]);
+
+        return [$user, $wallet, $product, $batch, $item];
+    }
+
     private function preparedCustomer(int $priceMinor, int $initialBalanceMinor): array
     {
         $user = User::query()->create([
