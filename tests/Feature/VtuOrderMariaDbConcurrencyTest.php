@@ -769,11 +769,11 @@ class VtuOrderMariaDbConcurrencyTest extends TestCase
         @unlink($state);
     }
 
-    /** @return array{User, \\App\\Models\\Wallet, VtuProduct, \\App\\Models\\VtuBulkPurchaseBatch, \\App\\Models\\VtuBulkPurchaseItem} */
+    /** @return array{User, \App\Models\Wallet, VtuProduct, \App\Models\VtuBulkPurchaseBatch, \App\Models\VtuBulkPurchaseItem} */
     private function preparedBulkBatch(): array
     {
         [$user, $wallet, $product] = $this->preparedCustomer(1000, 10000);
-        $batch = \\App\\Models\\VtuBulkPurchaseBatch::query()->create([
+        $batch = \App\Models\VtuBulkPurchaseBatch::query()->create([
             'public_id' => (string) Str::uuid(),
             'user_id' => $user->getKey(),
             'batch_key' => 'mariadb-bulk-'.Str::uuid(),
