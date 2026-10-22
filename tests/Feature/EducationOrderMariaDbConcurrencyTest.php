@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\EducationOrder;
 use App\Models\EducationServiceProduct;
 use App\Models\PlatformFeatureControl;
+use App\Models\PlatformAddon;
 use App\Models\User;
 use App\Models\Wallet;
 use App\Services\Wallets\WalletLedgerService;
@@ -44,6 +45,17 @@ class EducationOrderMariaDbConcurrencyTest extends TestCase
                 'is_enabled' => true,
                 'is_core' => false,
                 'is_implemented' => true,
+            ],
+        );
+        PlatformAddon::query()->updateOrCreate(
+            ['addon_key' => 'service.education'],
+            [
+                'name' => 'Education test addon',
+                'version' => '1.0.0',
+                'minimum_core_version' => '1.0.0',
+                'status' => 'enabled',
+                'is_core_owned' => false,
+                'compatibility_status' => 'compatible',
             ],
         );
     }
