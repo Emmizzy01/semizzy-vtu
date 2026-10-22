@@ -223,7 +223,7 @@ jobs:
             if [ "$test_status" -ne 0 ]; then exit "$test_status"; fi
           done
           echo "SQL statements for connections that emitted error 123:"
-          thread_ids="$(docker logs "$container_id" 2>&1 | sed -n "s/.*[0-9][0-9]:[0-9][0-9]:[0-9][0-9][[:space:]][[:space:]]*\\([0-9][0-9]*\\)[[:space:]][[:space:]]*\\[ERROR\\] Got error 123 when reading table.*/\\1/p" | sort -u | paste -sd, -)"
+          thread_ids="$(docker logs "$container_id" 2>&1 | sed -n "s/.*[0-9][0-9]*:[0-9][0-9]:[0-9][0-9][[:space:]][[:space:]]*\\([0-9][0-9]*\\)[[:space:]][[:space:]]*\\[ERROR\\] Got error 123 when reading table.*/\\1/p" | sort -u | paste -sd, -)"
           if [ -n "$thread_ids" ]; then
             docker exec "$container_id" mariadb -uroot -proot -e "SELECT event_time, thread_id, command_type, LEFT(argument, 500) AS statement FROM mysql.general_log WHERE thread_id IN ($thread_ids) ORDER BY event_time DESC LIMIT 100;"
           else
