@@ -21,8 +21,17 @@ class AddonImplementationRegistry
             'handler' => VtuOrderController::class,
             'operations' => ['wallet.vtu.products', 'wallet.vtu.orders.create', 'wallet.vtu.orders.bulk'],
         ],
-        // Compatibility keys preserve existing catalogue metadata while those
-        // services are migrated into their final independent addon manifests.
+        // Independent service manifests share the reviewed VTU handler while
+        // retaining Core-owned wallet, pricing, and provider safeguards.
+        'service.airtime' => [
+            'handler' => VtuOrderController::class,
+            'operations' => ['wallet.vtu.products', 'wallet.vtu.orders.create', 'wallet.vtu.orders.bulk'],
+        ],
+        'service.data' => [
+            'handler' => VtuOrderController::class,
+            'operations' => ['wallet.vtu.products', 'wallet.vtu.orders.create', 'wallet.vtu.orders.bulk'],
+        ],
+        // Legacy catalogue key remains registered during the compatibility window.
         'service.airtime_data' => [
             'handler' => VtuOrderController::class,
             'operations' => ['wallet.vtu.products', 'wallet.vtu.orders.create', 'wallet.vtu.orders.bulk'],
