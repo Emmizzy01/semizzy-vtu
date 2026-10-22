@@ -45,9 +45,9 @@ class EducationOrderCoordinatorTest extends TestCase
                 'compatibility_status' => 'compatible',
             ],
         );
-        $registry = \\Mockery::mock(AddonImplementationRegistry::class);
+        $registry = \Mockery::mock(AddonImplementationRegistry::class);
         $registry->shouldReceive('find')->with('service.education')->andReturn([
-            'handler' => \\App\\Http\\Controllers\\EducationServiceController::class,
+            'handler' => \App\Http\Controllers\EducationServiceController::class,
             'operations' => ['education-services.purchase'],
         ]);
         app()->instance(AddonImplementationRegistry::class, $registry);
@@ -115,7 +115,7 @@ class EducationOrderCoordinatorTest extends TestCase
         };
         app()->instance('education.providers.test-education', $provider);
 
-        $policy = \\Mockery::mock(AddonLifecyclePolicy::class);
+        $policy = \Mockery::mock(AddonLifecyclePolicy::class);
         $policy->shouldReceive('assessAdmission')->times(3)->andReturn(
             ['available' => true, 'reason' => 'available'],
             ['available' => true, 'reason' => 'available'],
