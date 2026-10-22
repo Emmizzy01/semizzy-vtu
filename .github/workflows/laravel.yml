@@ -49,6 +49,10 @@ jobs:
       - name: Prepare writable Laravel runtime directories
         run: mkdir -p bootstrap/cache storage/framework/cache storage/framework/sessions storage/framework/views storage/logs
       - uses: ramsey/composer-install@v3
+      - name: Record resolved passkey and WebAuthn dependency versions
+        run: |
+          composer show laravel/passkeys --format=json
+          composer show web-auth/webauthn-lib --format=json
       - name: Lint all PHP application, migration, route, and test files
         run: find app bootstrap config database routes tests -type f -name '*.php' -print0 | xargs -0 -n1 php -l
       - name: Prepare test environment
