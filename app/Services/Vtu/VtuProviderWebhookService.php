@@ -101,9 +101,7 @@ class VtuProviderWebhookService
                 ['transaction.completed', 'completed'],
                 ['transaction.completed', 'success'],
                 ['transaction.completed', 'successful'] => 'success',
-                ['transaction.failed', 'failed'],
-                ['transaction.refunded', 'refunded'],
-                ['transaction.cancelled', 'cancelled'] => 'failed',
+                ['transaction.failed', 'failed'] => 'failed',
                 default => null,
             };
         }
