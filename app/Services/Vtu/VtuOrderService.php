@@ -75,7 +75,7 @@ class VtuOrderService
         $amountMinor = $preparedOrder['amount_minor'];
 
         if (in_array($product->service_type, ['airtime', 'data'], true)
-            && ! preg_match('/^\\+?[0-9]{10,15}$/', $recipient)) {
+            && ! preg_match('/^\+?[0-9]{10,15}$/', $recipient)) {
             throw new InvalidArgumentException('Recipient must be a valid phone number.');
         }
 
