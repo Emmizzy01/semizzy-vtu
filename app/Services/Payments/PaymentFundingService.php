@@ -370,7 +370,63 @@ class PaymentFundingService
             }
 
             if (! hash_equals($existing->payload_hash, $payloadHash)) {
-                throw new ConflictHttpException('Webhook event ID was replayed with a different payload.');
+                // The original event is immutable. Persist the conflicting replay separately
+                // so its evidence survives the duplicate-key rollback of the attempted insert.
+                $incomingReference = is_string($data['reference'] ?? null) ? $data['reference'] : null;
+                $incomingTransactionId = is_string($data['transaction_id'] ?? null)
+                    ? $data['transaction_id'] : null;
+                $intent = $existing->payment_intent_id !== null
+                    ? PaymentIntent::query()->find($existing->payment_intent_id)
+                    : ($incomingReference !== null
+                        ? PaymentIntent::query()->where('reference', $incomingReference)->where('provider', $provider)->first()
+                        : null);
+                $caseKey = hash('sha256', implode('|', [
+                    $provider,
+                    $eventId,
+                    'webhook_payload_replay_conflict',
+                    $payloadHash,
+                ]));
+
+                DB::transaction(function () use (
+                    $provider, $eventId, $payloadHash, $existing, $intent,
+                    $incomingReference, $incomingTransactionId, $caseKey
+                ): void {
+                    PaymentReconciliationCase::query()->firstOrCreate(
+                        ['case_key' => $caseKey],
+                        [
+                            'provider' => $provider,
+                            'reference' => $incomingReference ?? $existing->reference ?? $intent?->reference ?? 'unknown',
+                            'payment_intent_id' => $intent?->id ?? $existing->payment_intent_id,
+                            'case_type' => 'webhook_payload_replay_conflict',
+                            'provider_status' => 'conflicting_replay',
+                            'provider_transaction_id' => $incomingTransactionId,
+                            'expected_amount_minor' => $intent?->amount_minor,
+                            'expected_currency' => $intent?->currency,
+                            'details' => [
+                                'reason' => 'The same provider event ID was delivered with a different payload hash. The original event was not overwritten and no wallet credit was attempted.',
+                                'event_id' => $eventId,
+                                'original_payload_hash' => $existing->payload_hash,
+                                'observed_payload_hash' => $payloadHash,
+                                'original_event_outcome' => $existing->outcome,
+                                'observed_provider_transaction_id' => $incomingTransactionId,
+                                'requires_manual_review' => true,
+                            ],
+                            'status' => 'open',
+                            'last_checked_at' => now(),
+                        ],
+                    );
+                }, attempts: 3);
+
+                throw new ConflictHttpException('Webhook event ID was replayed with a different payload; the conflict was recorded for review.');
+            }
+
+            // A previously committed "received" event should not permanently suppress
+            // processing. Current settlements update the event in the same transaction,
+            // so this branch is a safe recovery for legacy/incomplete records only.
+            if ($existing->outcome === 'received') {
+                $existing->delete();
+
+                return $this->processVerifiedEvent($provider, $payload);
             }
 
             // Older deployments may have recorded a verified Paystack success as rejected
