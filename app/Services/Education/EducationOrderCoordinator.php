@@ -48,8 +48,15 @@ class EducationOrderCoordinator
             ->first();
 
         if ($existing !== null) {
+            // Existing idempotent orders remain readable for recovery even when
+            // new-purchase admission has since been disabled.
             return $this->returnExisting($existing, $requestHash);
         }
+
+        // Reject a new purchase before preflight can call a provider for
+        // candidate validation. Keep the in-transaction check below as well,
+        // because admission may change while preflight is in flight.
+        app(EducationPurchaseAdmissionPolicy::class)->assertAvailable();
 
         $product = $this->preflight->preflight($user, $productCode, $idempotencyKey, $candidate);
         $provider = $this->providers->forProduct($product);
