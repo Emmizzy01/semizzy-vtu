@@ -86,20 +86,9 @@ class PaymentReconciliationService
                             try {
                                 $result = $this->funding->recoverVerifiedReview($intent, $transaction);
                                 if (in_array($result['outcome'], ['credited', 'duplicate_payment'], true)) {
+                                    // The funding service resolves matching cases in the same
+                                    // transaction as settlement, avoiding a post-credit crash gap.
                                     $stats['credited']++;
-                                    PaymentReconciliationCase::query()
-                                        ->where('provider', 'paystack')
-                                        ->where('reference', $intent->reference)
-                                        ->where('provider_transaction_id', $transactionId)
-                                        ->where('case_type', 'late_success_review')
-                                        ->where('status', 'open')
-                                        ->get()
-                                        ->each(function (PaymentReconciliationCase $case): void {
-                                            $details = is_array($case->details) ? $case->details : [];
-                                            $details['resolution'] = 'Canonical Paystack verification matched and wallet settlement is confirmed.';
-                                            $details['resolved_at'] = now()->toISOString();
-                                            $case->forceFill(['status' => 'resolved', 'details' => $details])->save();
-                                        });
                                 } else {
                                     $this->recordCase($intent, $result['outcome'] === 'wallet_limit_review'
                                         ? 'wallet_limit_review' : 'late_success_review', $transaction, [
