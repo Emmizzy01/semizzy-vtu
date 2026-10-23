@@ -27,6 +27,13 @@ class AddonImplementationRegistryTest extends TestCase
         $this->assertTrue($registry->isRegistered('service.streaming'));
         $this->assertTrue($registry->isRegistered('service.vtu-website-requests'));
         $this->assertFalse($registry->isRegistered('service.unreviewed'));
+        // These categories are intentionally unregistered until a genuine,
+        // reviewed purchase/verification workflow and provider contract exist.
+        $this->assertFalse($registry->isRegistered('service.government-verification'));
+        $this->assertFalse($registry->isRegistered('service.number-verification'));
+        $this->assertFalse($registry->isRegistered('service.social-media'));
+        $this->assertFalse($registry->isRegistered('service.smm'));
+        $this->assertFalse($registry->isRegistered('service.betting'));
         $this->assertFalse($registry->isRegistered('core.wallet'));
     }
 
