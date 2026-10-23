@@ -154,6 +154,33 @@ class VtuOrderWorkflowTest extends TestCase
         }
     }
 
+    public function test_disabled_airtime_feature_control_blocks_new_purchase_before_debit(): void
+    {
+        Http::fake();
+        [$user, $wallet, $product] = $this->preparedCustomer(1000, 1500);
+
+        PlatformFeatureControl::query()->where('feature_key', 'service.airtime')
+            ->update(['is_enabled' => false, 'is_implemented' => true]);
+
+        try {
+            app(VtuOrderService::class)->purchase(
+                $user,
+                $product->code,
+                '08012345678',
+                'disabled-airtime-feature-blocks-new-order',
+                [],
+                10000,
+            );
+            $this->fail('A disabled airtime feature control must reject new purchases.');
+        } catch (\\InvalidArgumentException $exception) {
+            $this->assertStringContainsString('add-on is disabled or unavailable', $exception->getMessage());
+            $this->assertSame(1500, (int) $wallet->fresh()->available_balance_minor);
+            $this->assertDatabaseCount('vtu_orders', 0);
+            $this->assertDatabaseCount('wallet_transactions', 1);
+            Http::assertNothingSent();
+        }
+    }
+
     public function test_purchase_rechecks_catalogue_price_under_lock_before_debiting(): void
     {
         [$user, $wallet, $product] = $this->preparedCustomer(1000, 1500);
