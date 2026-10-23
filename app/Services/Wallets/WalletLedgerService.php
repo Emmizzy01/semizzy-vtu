@@ -101,12 +101,19 @@ class WalletLedgerService
                         ->where('wallet_transaction_id', $existing->id)
                         ->first();
 
+                    $expectedBalanceAfter = $existing->type === 'credit'
+                        ? (int) $existing->balance_before_minor + (int) $existing->amount_minor
+                        : (int) $existing->balance_before_minor - (int) $existing->amount_minor;
+
                     if ($existing->status !== 'posted'
                         || $existing->posted_at === null
                         || $ledgerEntry === null
                         || (int) $ledgerEntry->wallet_id !== (int) $existing->wallet_id
+                        || (int) $ledgerEntry->wallet_transaction_id !== (int) $existing->id
                         || $ledgerEntry->entry_type !== $existing->type
                         || (int) $ledgerEntry->amount_minor !== (int) $existing->amount_minor
+                        || (int) $ledgerEntry->balance_after_minor !== (int) $existing->balance_after_minor
+                        || (int) $existing->balance_after_minor !== $expectedBalanceAfter
                         || $ledgerEntry->currency !== $existing->currency) {
                         throw new IdempotencyConflict(
                             'The existing idempotent wallet transaction is not a complete, consistent posted ledger credit.'
