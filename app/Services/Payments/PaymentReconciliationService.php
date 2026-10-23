@@ -264,6 +264,63 @@ class PaymentReconciliationService
                 ->lockForUpdate()
                 ->first();
 
+            if ($currentIntent !== null && $currentIntent->status === 'paid') {
+                // Close old operational noise once settlement is authoritative,
+                // but leave contradictory provider evidence open for investigation.
+                $staleCaseTypes = [
+                    'verification_unavailable',
+                    'provider_pending',
+                    'settlement_error',
+                    'settlement_not_applied',
+                    'wallet_limit_review',
+                ];
+
+                $staleCases = PaymentReconciliationCase::query()
+                    ->where('payment_intent_id', $currentIntent->id)
+                    ->where('provider', 'paystack')
+                    ->where('reference', $currentIntent->reference)
+                    ->where('status', 'open')
+                    ->whereIn('case_type', $staleCaseTypes)
+                    ->lockForUpdate()
+                    ->get();
+
+                foreach ($staleCases as $staleCase) {
+                    $staleDetails = is_array($staleCase->details) ? $staleCase->details : [];
+                    $staleDetails['resolution'] = 'Automatically resolved because the payment intent is now settled; historical observations are retained.';
+                    $staleDetails['resolved_at'] = $observedAt->toISOString();
+                    $staleDetails['resolved_after_settlement'] = true;
+                    $staleCase->forceFill([
+                        'status' => 'resolved',
+                        'details' => $staleDetails,
+                    ])->save();
+                }
+
+                // A late-success case is safe to resolve only when its recorded
+                // provider transaction matches the transaction that actually paid.
+                if ($transactionId !== null && $currentIntent->provider_transaction_id === $transactionId) {
+                    $matchingLateCases = PaymentReconciliationCase::query()
+                        ->where('payment_intent_id', $currentIntent->id)
+                        ->where('provider', 'paystack')
+                        ->where('reference', $currentIntent->reference)
+                        ->where('case_type', 'late_success_review')
+                        ->where('provider_transaction_id', $transactionId)
+                        ->where('status', 'open')
+                        ->lockForUpdate()
+                        ->get();
+
+                    foreach ($matchingLateCases as $lateCase) {
+                        $lateDetails = is_array($lateCase->details) ? $lateCase->details : [];
+                        $lateDetails['resolution'] = 'Provider transaction matches the settled payment intent; conflicting transaction IDs remain open for review.';
+                        $lateDetails['resolved_at'] = $observedAt->toISOString();
+                        $lateDetails['resolved_after_settlement'] = true;
+                        $lateCase->forceFill([
+                            'status' => 'resolved',
+                            'details' => $lateDetails,
+                        ])->save();
+                    }
+                }
+            }
+
             $caseType = $type;
             $caseDetails = $details;
             $initialCaseStatus = 'open';
