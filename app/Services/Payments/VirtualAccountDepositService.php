@@ -75,8 +75,10 @@ class VirtualAccountDepositService
                     ->first();
                 if ($existing !== null) {
                     if (!hash_equals($existing->payload_hash, $payloadHash)
-                        || $existing->user_virtual_account_id !== $account->id
-                        || $existing->amount_minor !== $amount
+                        || (int) $existing->user_virtual_account_id !== (int) $account->id
+                        || (int) $existing->user_id !== (int) $account->user_id
+                        || (int) $existing->amount_minor !== $amount
+                        || $existing->currency !== $currency
                         || $existing->provider_reference !== $reference) {
                         throw new ConflictHttpException('Provider transaction ID was reused with conflicting virtual-account details.');
                     }
