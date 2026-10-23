@@ -1,20 +1,21 @@
 <?php
 
-namespace App\Services\Addons\Providers;
+namespace App\\Services\\Addons\\Providers;
 
-use App\Services\IntegrationSettings;
-use App\Services\Addons\AirtimePurchaseRuntime;
-use App\Services\Addons\DataPurchaseRuntime;
-use App\Services\Addons\ElectricityPurchaseRuntime;
-use App\Services\Addons\TvPurchaseRuntime;
-use App\Services\Vtu\DatawayProviderClient;
-use App\Services\Vtu\GsubzProviderClient;
-use App\Services\Vtu\MultiProviderVtuRouter;
-use App\Services\Vtu\SogoProviderClient;
-use App\Services\Vtu\VtpassProviderClient;
-use App\Services\Vtu\VtuProvider;
-use App\Services\Vtu\VtuProviderClient;
-use Illuminate\Support\ServiceProvider;
+use App\\Services\\IntegrationSettings;
+use App\\Services\\Addons\\AirtimePurchaseRuntime;
+use App\\Services\\Addons\\DataPurchaseRuntime;
+use App\\Services\\Addons\\ElectricityPurchaseRuntime;
+use App\\Services\\Addons\\TvPurchaseRuntime;
+use App\\Services\\Vtu\\BillerVerificationProviderRegistry;
+use App\\Services\\Vtu\\DatawayProviderClient;
+use App\\Services\\Vtu\\GsubzProviderClient;
+use App\\Services\\Vtu\\MultiProviderVtuRouter;
+use App\\Services\\Vtu\\SogoProviderClient;
+use App\\Services\\Vtu\\VtpassProviderClient;
+use App\\Services\\Vtu\\VtuProvider;
+use App\\Services\\Vtu\\VtuProviderClient;
+use Illuminate\\Support\\ServiceProvider;
 
 /**
  * VTU addon composition root. This wires adapters only; Core admission,
@@ -30,6 +31,14 @@ class VtuServiceAddonProvider extends ServiceProvider
         $this->app->bind(DataPurchaseRuntime::class);
         $this->app->bind(ElectricityPurchaseRuntime::class);
         $this->app->bind(TvPurchaseRuntime::class);
+
+        // Only adapters implementing the real biller-verification contract are
+        // exposed. Do not infer support from a purchase adapter or provider name.
+        $this->app->singleton(BillerVerificationProviderRegistry::class, function ($app): BillerVerificationProviderRegistry {
+            return new BillerVerificationProviderRegistry([
+                'vtpass' => $app->make(VtpassProviderClient::class),
+            ]);
+        });
 
         $this->app->bind(VtuProvider::class, function ($app): VtuProvider {
             return new MultiProviderVtuRouter(

@@ -1,12 +1,15 @@
 <?php
 
-namespace App\Services\Vtu;
+namespace App\\Services\\Vtu;
 
-use App\Models\VtuProduct;
+use App\\Models\\VtuProduct;
 
 class BillerVerificationProviderRegistry
 {
-    public function __construct(private readonly VtpassProviderClient $vtpass)
+    /**
+     * @param array<string, BillerVerificationProvider> $adapters
+     */
+    public function __construct(private readonly array $adapters = [])
     {
     }
 
@@ -20,10 +23,10 @@ class BillerVerificationProviderRegistry
             $key = count($mappings) === 1 ? strtolower((string) array_key_first($mappings)) : '';
         }
 
-        // Add adapters here only when their actual biller-verification API
-        // contract is implemented and tested. Never fall back to another provider.
-        $adapters = ['vtpass' => $this->vtpass];
+        // Adapter ownership is supplied by the service addon composition root.
+        // Never guess a provider or fall back to a different provider.
+        $adapter = $this->adapters[$key] ?? null;
 
-        return $adapters[$key] ?? null;
+        return $adapter instanceof BillerVerificationProvider ? $adapter : null;
     }
 }
