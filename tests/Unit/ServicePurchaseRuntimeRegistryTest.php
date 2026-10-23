@@ -7,6 +7,7 @@ use App\Services\Addons\DataPurchaseRuntime;
 use App\Services\Addons\ElectricityPurchaseRuntime;
 use App\Services\Addons\TvPurchaseRuntime;
 use App\Services\Addons\ServicePurchaseRuntimeRegistry;
+use App\Services\Addons\ServiceFeatureAdmissionPolicy;
 use App\Models\VtuProduct;
 use App\Services\IntegrationSettings;
 use Mockery;
@@ -14,6 +15,16 @@ use Tests\TestCase;
 
 class ServicePurchaseRuntimeRegistryTest extends TestCase
 {
+    public function test_service_runtimes_expose_addon_owned_feature_admission(): void
+    {
+        $registry = app(ServicePurchaseRuntimeRegistry::class);
+
+        $this->assertInstanceOf(ServiceFeatureAdmissionPolicy::class, $registry->forService('airtime'));
+        $this->assertInstanceOf(ServiceFeatureAdmissionPolicy::class, $registry->forService('data'));
+        $this->assertInstanceOf(ServiceFeatureAdmissionPolicy::class, $registry->forService('electricity-bill'));
+        $this->assertInstanceOf(ServiceFeatureAdmissionPolicy::class, $registry->forService('tv-subscription'));
+    }
+
     public function test_registry_resolves_separate_airtime_and_data_runtime_policies(): void
     {
         $registry = app(ServicePurchaseRuntimeRegistry::class);
