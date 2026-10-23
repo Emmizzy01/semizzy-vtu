@@ -5,6 +5,7 @@ namespace App\Services\Payments;
 use App\Exceptions\Wallet\IdempotencyConflict;
 use App\Models\PaymentIntent;
 use App\Models\PaymentReconciliationCase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Throwable;
 
@@ -257,34 +258,86 @@ class PaymentReconciliationService
             'paystack', $intent->reference, $type, $transactionId ?? 'no-transaction-id',
         ]));
 
-        $attributes = [
-            'provider' => 'paystack',
-            'reference' => $intent->reference,
-            'payment_intent_id' => $intent->id,
-            'case_type' => $type,
+        $observedAt = now();
+        $observation = [
+            'observed_at' => $observedAt->toISOString(),
             'provider_status' => is_string($transaction['status'] ?? null) ? $transaction['status'] : null,
             'provider_transaction_id' => $transactionId,
-            'expected_amount_minor' => $intent->amount_minor,
             'observed_amount_minor' => is_int($transaction['amount'] ?? null) ? $transaction['amount'] : null,
-            'expected_currency' => $intent->currency,
             'observed_currency' => is_string($transaction['currency'] ?? null) ? strtoupper($transaction['currency']) : null,
             'details' => $details,
-            'last_checked_at' => now(),
         ];
 
-        // firstOrCreate uses create-or-first semantics: if concurrent workers race
-        // on the unique case_key index, the loser reloads the winner instead of
-        // failing the whole scheduled reconciliation batch. Updating an existing
-        // case deliberately leaves its operational status untouched, so a reviewed
-        // or resolved case cannot be silently reopened by a retry.
-        $case = PaymentReconciliationCase::query()->firstOrCreate(
-            ['case_key' => $key],
-            $attributes + ['status' => 'open'],
-        );
+        // Keep create-or-first semantics for unique-key races, then lock and merge
+        // the winner's row. Existing evidence is append-only; repeated checks may
+        // update last_checked_at but must not replace the original reason or status.
+        DB::transaction(function () use ($intent, $type, $transactionId, $key, $observedAt, $observation): void {
+            $attributes = [
+                'provider' => 'paystack',
+                'reference' => $intent->reference,
+                'payment_intent_id' => $intent->id,
+                'case_type' => $type,
+                'provider_status' => $observation['provider_status'],
+                'provider_transaction_id' => $transactionId,
+                'expected_amount_minor' => $intent->amount_minor,
+                'observed_amount_minor' => $observation['observed_amount_minor'],
+                'expected_currency' => $intent->currency,
+                'observed_currency' => $observation['observed_currency'],
+                'details' => [
+                    'reason' => $observation['details']['reason'] ?? 'Payment reconciliation requires review.',
+                    'observations' => [$observation],
+                ],
+                'last_checked_at' => $observedAt,
+            ];
 
-        if (! $case->wasRecentlyCreated) {
-            $case->fill($attributes);
-            $case->save();
-        }
-    }
-}
+            PaymentReconciliationCase::query()->firstOrCreate(
+                ['case_key' => $key],
+                $attributes + ['status' => 'open'],
+            );
+
+            $case = PaymentReconciliationCase::query()
+                ->where('case_key', $key)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            $existingDetails = is_array($case->details) ? $case->details : [];
+            $observations = is_array($existingDetails['observations'] ?? null)
+                ? $existingDetails['observations'] : [];
+
+            // Avoid appending an identical observation when a retried scheduler
+            // pass returns exactly the same evidence and details.
+            $observationHash = hash('sha256', json_encode($observation, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
+            $lastObservation = $observations === [] ? null : $observations[array_key_last($observations)];
+            $lastObservationHash = is_array($lastObservation)
+                ? hash('sha256', json_encode($lastObservation, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE))
+                : null;
+
+            if ($observationHash !== $lastObservationHash) {
+                $observations[] = $observation;
+            }
+
+            // Bound case-row growth while preserving the first observation and
+            // the most recent evidence needed for investigation.
+            if (count($observations) > 25) {
+                $observations = array_merge([$observations[0]], array_slice($observations, -24));
+            }
+
+            $existingDetails['observations'] = $observations;
+            $existingDetails['last_observed_at'] = $observedAt->toISOString();
+            if (! isset($existingDetails['reason']) && isset($observation['details']['reason'])) {
+                $existingDetails['reason'] = $observation['details']['reason'];
+            }
+
+            $case->forceFill([
+                // Preserve original identifying/expected evidence and terminal
+                // status. Only fill absent expected fields on legacy sparse rows.
+                'provider' => $case->provider ?: 'paystack',
+                'reference' => $case->reference ?: $intent->reference,
+                'payment_intent_id' => $case->payment_intent_id ?: $intent->id,
+                'expected_amount_minor' => $case->expected_amount_minor ?? $intent->amount_minor,
+                'expected_currency' => $case->expected_currency ?: $intent->currency,
+                'details' => $existingDetails,
+                'last_checked_at' => $observedAt,
+            ])->save();
+        }, attempts: 3);
+    }}
