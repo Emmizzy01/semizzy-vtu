@@ -82,8 +82,50 @@ class PaymentFundingService
                 }
 
 
-                // Validate financial fields before any duplicate or terminal-status shortcut.
+                // A financial mismatch on an already-settled intent is durable conflict evidence,
+                // not an exception that rolls back the webhook event and its audit trail.
                 if ($intent->amount_minor !== $amount || $intent->currency !== strtoupper($currency)) {
+                    if (in_array($intent->status, ['paid', 'test_paid'], true)) {
+                        $caseTransactionId = $providerTransactionId;
+                        $caseKey = hash('sha256', implode('|', [
+                            $provider,
+                            $intent->reference,
+                            'successful_payment_mismatch',
+                            $caseTransactionId,
+                        ]));
+                        PaymentReconciliationCase::query()->firstOrCreate(
+                            ['case_key' => $caseKey],
+                            [
+                                'provider' => $provider,
+                                'reference' => $intent->reference,
+                                'payment_intent_id' => $intent->id,
+                                'case_type' => 'successful_payment_mismatch',
+                                'provider_status' => 'success',
+                                'provider_transaction_id' => $caseTransactionId,
+                                'expected_amount_minor' => $intent->amount_minor,
+                                'observed_amount_minor' => $amount,
+                                'expected_currency' => $intent->currency,
+                                'observed_currency' => strtoupper($currency),
+                                'details' => [
+                                    'reason' => 'A successful provider event conflicts with the amount or currency of an already-settled intent. No additional wallet credit was attempted.',
+                                    'settled_provider_transaction_id' => $intent->provider_transaction_id,
+                                    'observed_provider_transaction_id' => $caseTransactionId,
+                                    'local_status' => $intent->status,
+                                    'requires_manual_review' => true,
+                                ],
+                                'status' => 'open',
+                                'last_checked_at' => now(),
+                            ],
+                        );
+                        $event->forceFill([
+                            'outcome' => 'successful_payment_mismatch',
+                            'payment_intent_id' => $intent->id,
+                            'processed_at' => now(),
+                        ])->save();
+
+                        return ['outcome' => 'successful_payment_mismatch', 'duplicate' => false];
+                    }
+
                     throw new ConflictHttpException('Payment amount or currency does not match the intent.');
                 }
 
