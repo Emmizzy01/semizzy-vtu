@@ -7,6 +7,7 @@ use App\Http\Controllers\StreamingSubscriptionController;
 use App\Http\Controllers\Vtu\VtuOrderController;
 use App\Http\Controllers\VtuWebsiteRequestController;
 use App\Services\Addons\AddonImplementationRegistry;
+use App\Services\Addons\ServicePurchaseAdmissionPolicy;
 use PHPUnit\Framework\TestCase;
 
 class AddonImplementationRegistryTest extends TestCase
@@ -52,5 +53,18 @@ class AddonImplementationRegistryTest extends TestCase
         $this->assertNotContains('service.tv.purchase', $registry->find('service.electricity')['operations']);
         $this->assertNotContains('service.electricity.purchase', $registry->find('service.tv')['operations']);
         $this->assertContains('wallet.vtu.orders.create', $registry->find('service.bills')['operations']);
+    }
+
+    public function test_purchase_admission_requires_the_service_specific_operation_and_core_order_operation(): void
+    {
+        $registry = new AddonImplementationRegistry();
+        $policy = new ServicePurchaseAdmissionPolicy();
+
+        $this->assertTrue($policy->isRegistered($registry->find('service.airtime'), 'service.airtime.purchase'));
+        $this->assertTrue($policy->isRegistered($registry->find('service.data'), 'service.data.purchase'));
+        $this->assertFalse($policy->isRegistered($registry->find('service.airtime'), 'service.data.purchase'));
+        $this->assertFalse($policy->isRegistered($registry->find('service.data'), 'service.airtime.purchase'));
+        $this->assertFalse($policy->isRegistered($registry->find('service.streaming'), 'streaming-subscriptions.purchase'));
+        $this->assertFalse($policy->isRegistered(null, 'service.airtime.purchase'));
     }
 }

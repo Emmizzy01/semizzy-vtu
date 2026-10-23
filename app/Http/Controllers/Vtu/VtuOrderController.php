@@ -203,9 +203,9 @@ class VtuOrderController extends Controller
                 'tv-subscription' => 'service.tv.purchase',
                 default => null,
             };
-            $registeredForPurchase = $implementation !== null
-                && $purchaseOperation !== null
-                && in_array($purchaseOperation, $implementation['operations'], true);
+            $registeredForPurchase = $purchaseOperation !== null
+                && app(\App\Services\Addons\ServicePurchaseAdmissionPolicy::class)
+                    ->isRegistered($implementation, $purchaseOperation);
             if (in_array($requestedService, ['airtime', 'data'], true)) {
                 $featureEnabled = $requestedService === 'airtime' ? $airtimeEnabled : $dataEnabled;
             } else {
@@ -581,8 +581,16 @@ class VtuOrderController extends Controller
 
         $addon = PlatformAddon::query()->where('addon_key', $addonKey)->first();
         $implementation = app(AddonImplementationRegistry::class)->find($addonKey);
-        $registered = $implementation !== null
-            && in_array('wallet.vtu.orders.create', $implementation['operations'], true);
+        $purchaseOperation = match ($product->service_type) {
+            'airtime' => 'service.airtime.purchase',
+            'data' => 'service.data.purchase',
+            'electricity-bill' => 'service.electricity.purchase',
+            'tv-subscription' => 'service.tv.purchase',
+            default => null,
+        };
+        $registered = $purchaseOperation !== null
+            && app(\App\Services\Addons\ServicePurchaseAdmissionPolicy::class)
+                ->isRegistered($implementation, $purchaseOperation);
 
         if ($addon === null) {
             return false;
