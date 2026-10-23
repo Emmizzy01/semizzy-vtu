@@ -412,8 +412,8 @@ class VtuOrderService
             $addonKey === 'service.tv' && $product->service_type === 'tv-subscription' => 'service.tv',
             in_array($addonKey, ['service.vtu', 'service.airtime_data'], true)
                 && in_array($product->service_type, ['airtime', 'data'], true) => 'service.airtime_data',
-            $addonKey === 'service.vtu' && $product->service_type === 'electricity-bill' => 'service.electricity',
-            $addonKey === 'service.vtu' && $product->service_type === 'tv-subscription' => 'service.tv',
+            in_array($addonKey, ['service.vtu', 'service.bills'], true) && $product->service_type === 'electricity-bill' => 'service.electricity',
+            in_array($addonKey, ['service.vtu', 'service.bills'], true) && $product->service_type === 'tv-subscription' => 'service.tv',
             default => '',
         };
         $feature = $featureKey === ''
