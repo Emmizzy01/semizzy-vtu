@@ -25,7 +25,7 @@ class PaymentRefundReconciliationService
         PaymentRefund::query()
             ->whereIn('status', ['processing', 'provider_pending', 'review_required'])
             ->where('status_changed_at', '<=', now()->subMinutes($threshold))
-            ->orderBy('status_changed_at')
+            ->orderBy('updated_at')
             ->orderBy('id')
             ->limit(max(1, min(500, $limit)))
             ->get()
