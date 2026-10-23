@@ -335,6 +335,7 @@ class PaymentReconciliationService
                     'failed_payment_mismatch',
                     'successful_payment_mismatch',
                     'idempotency_conflict',
+                    'settlement_error',
                     'late_success_review',
                 ];
 
