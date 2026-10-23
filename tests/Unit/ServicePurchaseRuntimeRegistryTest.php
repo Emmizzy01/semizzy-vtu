@@ -28,10 +28,10 @@ class ServicePurchaseRuntimeRegistryTest extends TestCase
     {
         $registry = app(ServicePurchaseRuntimeRegistry::class);
 
-        $this->assertInstanceOf(\\App\\Services\\Addons\\ServiceFeatureAdmissionPolicy::class, $registry->forService('airtime'));
-        $this->assertInstanceOf(\\App\\Services\\Addons\\ServiceFeatureAdmissionPolicy::class, $registry->forService('data'));
-        $this->assertInstanceOf(\\App\\Services\\Addons\\ServiceFeatureAdmissionPolicy::class, $registry->forService('electricity-bill'));
-        $this->assertInstanceOf(\\App\\Services\\Addons\\ServiceFeatureAdmissionPolicy::class, $registry->forService('tv-subscription'));
+        $this->assertInstanceOf(\App\Services\Addons\ServiceFeatureAdmissionPolicy::class, $registry->forService('airtime'));
+        $this->assertInstanceOf(\App\Services\Addons\ServiceFeatureAdmissionPolicy::class, $registry->forService('data'));
+        $this->assertInstanceOf(\App\Services\Addons\ServiceFeatureAdmissionPolicy::class, $registry->forService('electricity-bill'));
+        $this->assertInstanceOf(\App\Services\Addons\ServiceFeatureAdmissionPolicy::class, $registry->forService('tv-subscription'));
     }
 
     public function test_airtime_feature_admission_uses_independent_setting_then_legacy_fallback(): void
@@ -47,7 +47,7 @@ class ServicePurchaseRuntimeRegistryTest extends TestCase
         $disabled->shouldReceive('get')->with('service.airtime_data.enabled', false)->once()->andReturn(false);
         app()->instance(IntegrationSettings::class, $disabled);
 
-        $this->expectException(\\InvalidArgumentException::class);
+        $this->expectException(\InvalidArgumentException::class);
         app(AirtimePurchaseRuntime::class)->assertFeatureEnabled(new VtuProduct(['service_type' => 'airtime']));
     }
 
