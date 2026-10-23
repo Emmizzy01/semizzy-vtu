@@ -28,7 +28,7 @@ class PaymentReconciliationService
 
         PaymentIntent::query()
             ->where('provider', 'paystack')
-            ->whereIn('status', ['pending', 'failed'])
+            ->whereIn('status', ['pending', 'failed', 'review_required'])
             ->where('created_at', '<=', now()->subMinutes($graceMinutes))
             ->orderBy('updated_at')
             ->orderBy('id')
@@ -80,11 +80,52 @@ class PaymentReconciliationService
                             return;
                         }
 
-                        // A checkout expiry is not proof that the gateway payment failed.
-                        // Paystack's canonical verification has already matched reference,
-                        // amount, currency, and transaction ID above; let the funding service
-                        // apply its own locked status, idempotency, and live-funding gates.
-                        // A non-pending intent remains review-only and is never reopened here.
+                        // Only the wallet-cap review state has a guarded automatic recovery
+                        // path. Failed intents are never reopened by provider success.
+                        if ($intent->status === 'review_required') {
+                            try {
+                                $result = $this->funding->recoverVerifiedReview($intent, $transaction);
+                                if (in_array($result['outcome'], ['credited', 'duplicate_payment'], true)) {
+                                    $stats['credited']++;
+                                    PaymentReconciliationCase::query()
+                                        ->where('provider', 'paystack')
+                                        ->where('reference', $intent->reference)
+                                        ->where('provider_transaction_id', $transactionId)
+                                        ->where('case_type', 'late_success_review')
+                                        ->where('status', 'open')
+                                        ->get()
+                                        ->each(function (PaymentReconciliationCase $case): void {
+                                            $details = is_array($case->details) ? $case->details : [];
+                                            $details['resolution'] = 'Canonical Paystack verification matched and wallet settlement is confirmed.';
+                                            $details['resolved_at'] = now()->toISOString();
+                                            $case->forceFill(['status' => 'resolved', 'details' => $details])->save();
+                                        });
+                                } else {
+                                    $this->recordCase($intent, $result['outcome'] === 'wallet_limit_review'
+                                        ? 'wallet_limit_review' : 'late_success_review', $transaction, [
+                                        'reason' => 'Canonical provider success was verified but guarded wallet recovery was not applied.',
+                                        'funding_outcome' => $result['outcome'],
+                                        'local_status' => $intent->status,
+                                    ]);
+                                    $stats['exceptions']++;
+                                }
+                            } catch (Throwable $exception) {
+                                $this->recordCase($intent, 'settlement_error', $transaction, [
+                                    'reason' => 'Canonical provider success could not complete guarded wallet-limit recovery.',
+                                    'exception' => $exception::class,
+                                ]);
+                                Log::error('Paystack wallet-limit recovery failed.', [
+                                    'reference' => $intent->reference,
+                                    'exception' => $exception::class,
+                                ]);
+                                $stats['exceptions']++;
+                            }
+
+                            return;
+                        }
+
+                        // A failed intent remains review-only even when Paystack later reports
+                        // success. It requires an audited operational decision, not reopening.
                         if ($intent->status !== 'pending') {
                             $this->recordCase($intent, 'late_success_review', $transaction, [
                                 'reason' => 'Provider reports success while the local intent is no longer pending; automatic settlement was not attempted.',
