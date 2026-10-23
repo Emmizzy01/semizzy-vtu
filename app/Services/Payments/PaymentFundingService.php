@@ -410,7 +410,7 @@ class PaymentFundingService
                                 );
                             }, attempts: 3);
                         }
-                    } catch (\\Throwable $recoveryException) {
+                    } catch (\Throwable $recoveryException) {
                         // Do not mask the original database failure. If the database
                         // cannot persist the breadcrumb either, provider retry and the
                         // normal pending-intent reconciliation remain the recovery paths.
