@@ -4,6 +4,8 @@ namespace Tests\Unit;
 
 use App\Services\Addons\AirtimePurchaseRuntime;
 use App\Services\Addons\DataPurchaseRuntime;
+use App\Services\Addons\ElectricityPurchaseRuntime;
+use App\Services\Addons\TvPurchaseRuntime;
 use App\Services\Addons\ServicePurchaseRuntimeRegistry;
 use App\Services\IntegrationSettings;
 use Mockery;
@@ -17,8 +19,8 @@ class ServicePurchaseRuntimeRegistryTest extends TestCase
 
         $this->assertInstanceOf(AirtimePurchaseRuntime::class, $registry->forService('airtime'));
         $this->assertInstanceOf(DataPurchaseRuntime::class, $registry->forService('data'));
-        $this->assertNull($registry->forService('electricity-bill'));
-        $this->assertNull($registry->forService('tv-subscription'));
+        $this->assertInstanceOf(ElectricityPurchaseRuntime::class, $registry->forService('electricity-bill'));
+        $this->assertInstanceOf(TvPurchaseRuntime::class, $registry->forService('tv-subscription'));
     }
 
     public function test_airtime_runtime_requires_amount_before_purchase_can_continue(): void
@@ -60,6 +62,34 @@ class ServicePurchaseRuntimeRegistryTest extends TestCase
         $settings->shouldReceive('get')->with('service.airtime_data.enabled', false)->once()->andReturn(false);
 
         $this->assertSame(503, $runtime->unavailableError($settings)['status']);
+    }
+
+    public function test_electricity_runtime_preserves_required_contact_meter_and_amount_checks(): void
+    {
+        $runtime = app(ElectricityPurchaseRuntime::class);
+
+        $this->assertSame('Enter a valid contact phone number for the provider transaction.', $runtime->serviceInputError([])['message']);
+        $this->assertSame('Select prepaid or postpaid for the electricity meter.', $runtime->serviceInputError(['contact_phone' => '08012345678'])['message']);
+        $this->assertSame('Enter a valid electricity purchase amount.', $runtime->serviceInputError([
+            'contact_phone' => '08012345678',
+            'meter_type' => 'prepaid',
+        ])['message']);
+        $this->assertNull($runtime->serviceInputError([
+            'contact_phone' => '08012345678',
+            'meter_type' => 'prepaid',
+            'amount' => 100,
+        ]));
+    }
+
+    public function test_tv_runtime_requires_contact_phone_and_only_supports_bouquet_change(): void
+    {
+        $runtime = app(TvPurchaseRuntime::class);
+
+        $this->assertSame('Enter a valid contact phone number for the provider transaction.', $runtime->serviceInputError([])['message']);
+        $this->assertNull($runtime->serviceInputError([
+            'contact_phone' => '08012345678',
+            'subscription_type' => 'change',
+        ]));
     }
 
     public function test_data_runtime_uses_its_own_setting_before_legacy_fallback(): void

@@ -266,6 +266,11 @@ class VtuOrderController extends Controller
         if ($pinStatus === 'locked') return response()->json(['message' => 'Transaction PIN is locked for 15 minutes after repeated failures.'], 423);
         if ($pinStatus !== 'verified') return response()->json(['message' => 'Transaction PIN is incorrect.'], 422);
 
+        $serviceInputError = $purchaseRuntime?->serviceInputError($validated);
+        if ($serviceInputError !== null) {
+            return response()->json(['message' => $serviceInputError['message']], $serviceInputError['status']);
+        }
+
         $availabilityError = $purchaseRuntime?->unavailableError(app(IntegrationSettings::class));
         if ($availabilityError !== null) {
             return response()->json(['message' => $availabilityError['message']], $availabilityError['status']);

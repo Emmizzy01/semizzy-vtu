@@ -4,7 +4,7 @@ namespace App\Services\Addons;
 
 use App\Services\IntegrationSettings;
 
-final class AirtimePurchaseRuntime
+final class AirtimePurchaseRuntime implements ServicePurchaseRuntimeContract
 {
     /** @param array<string, mixed> $validated
      *  @return array{message: string, status: int}|null
@@ -14,6 +14,14 @@ final class AirtimePurchaseRuntime
         return isset($validated['amount'])
             ? null
             : ['message' => 'Enter the airtime amount you want to purchase.', 'status' => 422];
+    }
+
+    /** @param array<string, mixed> $validated
+     *  @return array{message: string, status: int}|null
+     */
+    public function serviceInputError(array $validated): ?array
+    {
+        return null;
     }
 
     /** @return array{message: string, status: int}|null */

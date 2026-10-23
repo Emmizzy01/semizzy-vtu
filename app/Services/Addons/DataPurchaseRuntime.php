@@ -4,7 +4,7 @@ namespace App\Services\Addons;
 
 use App\Services\IntegrationSettings;
 
-final class DataPurchaseRuntime
+final class DataPurchaseRuntime implements ServicePurchaseRuntimeContract
 {
     /** @param array<string, mixed> $validated
      *  @return array{message: string, status: int}|null
@@ -12,6 +12,14 @@ final class DataPurchaseRuntime
     public function missingAmountError(array $validated): ?array
     {
         // Data plans are priced by catalogue option; only airtime uses a free-form amount.
+        return null;
+    }
+
+    /** @param array<string, mixed> $validated
+     *  @return array{message: string, status: int}|null
+     */
+    public function serviceInputError(array $validated): ?array
+    {
         return null;
     }
 

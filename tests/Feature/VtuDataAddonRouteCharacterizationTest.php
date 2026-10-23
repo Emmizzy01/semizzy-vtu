@@ -6,6 +6,8 @@ use App\Http\Controllers\Vtu\VtuOrderController;
 use App\Services\Addons\AddonImplementationRegistry;
 use App\Services\Addons\AirtimePurchaseRuntime;
 use App\Services\Addons\DataPurchaseRuntime;
+use App\Services\Addons\ElectricityPurchaseRuntime;
+use App\Services\Addons\TvPurchaseRuntime;
 use App\Services\Addons\ServicePurchaseRuntimeRegistry;
 use Illuminate\Routing\Route;
 use Tests\TestCase;
@@ -79,6 +81,8 @@ class VtuDataAddonRouteCharacterizationTest extends TestCase
 
         $this->assertInstanceOf(AirtimePurchaseRuntime::class, $runtimeRegistry->forService('airtime'));
         $this->assertInstanceOf(DataPurchaseRuntime::class, $runtimeRegistry->forService('data'));
+        $this->assertInstanceOf(ElectricityPurchaseRuntime::class, $runtimeRegistry->forService('electricity-bill'));
+        $this->assertInstanceOf(TvPurchaseRuntime::class, $runtimeRegistry->forService('tv-subscription'));
 
         // Public purchase and recovery routes intentionally retain their existing
         // shared endpoint contracts while only service-specific policy is extracted.
