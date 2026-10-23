@@ -136,16 +136,27 @@ class PaymentRefundService
                 return $refund->fresh();
             }, attempts: 3);
         } catch (InsufficientWalletFunds $exception) {
-            $blocked = PaymentRefund::query()->where('public_id', $publicId)->where('status', 'requested')->first();
-            if ($blocked !== null) {
+            // Re-read and lock before recording the insufficient-funds result.
+            // Another approver may have advanced the refund after the ledger debit
+            // failed; a stale model save must never overwrite that newer state.
+            DB::transaction(function () use ($publicId): void {
+                $blocked = PaymentRefund::query()
+                    ->where('public_id', $publicId)
+                    ->lockForUpdate()
+                    ->firstOrFail();
+
+                if ($blocked->status !== 'requested') {
+                    return;
+                }
+
                 $metadata = $blocked->metadata ?? [];
                 $metadata['settlement_block'] = 'insufficient_available_balance';
                 $blocked->forceFill([
                     'status' => 'blocked_insufficient_wallet_funds',
-                    'status_changed_at' => $blocked->status === 'blocked_insufficient_wallet_funds' ? $blocked->status_changed_at : now(),
+                    'status_changed_at' => now(),
                     'metadata' => $metadata,
                 ])->save();
-            }
+            }, attempts: 3);
 
             $blockedRefund = PaymentRefund::query()->where('public_id', $publicId)->firstOrFail();
             $blockedIntent = $blockedRefund->paymentIntent()->firstOrFail();
