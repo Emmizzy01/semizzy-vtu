@@ -100,10 +100,9 @@ class ServiceBeneficiaryController extends Controller
             'id', 'service_type', 'label', 'recipient', 'network',
             'product_code', 'service_details', 'created_at',
         ]) + [
-            'purchase_workflow_status' => $runtimeRegistered
-                ? 'runtime_admission_required'
+            'purchase_readiness' => $runtimeRegistered
+                ? 'must_recheck_admission_at_purchase'
                 : 'not_verified',
-            'purchase_available' => false,
         ];
     }
 

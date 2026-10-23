@@ -63,13 +63,11 @@ class ServiceBeneficiaryTest extends TestCase
             'label' => 'Document recipient',
             'recipient' => 'ABC12345678',
         ])->assertCreated()
-            ->assertJsonPath('data.purchase_workflow_status', 'not_verified')
-            ->assertJsonPath('data.purchase_available', false);
+            ->assertJsonPath('data.purchase_readiness', 'not_verified');
 
         $this->actingAs($user)->getJson('/wallet/service-beneficiaries?service_type=government-service')
             ->assertOk()
-            ->assertJsonPath('data.0.purchase_workflow_status', 'not_verified')
-            ->assertJsonPath('data.0.purchase_available', false);
+            ->assertJsonPath('data.0.purchase_readiness', 'not_verified');
     }
 
     public function test_beneficiary_cannot_be_removed_or_viewed_by_another_user(): void
