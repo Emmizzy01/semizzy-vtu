@@ -129,8 +129,24 @@ class VirtualAccountDepositService
                 ->where('provider', 'paystack')
                 ->where('provider_transaction_id', $transactionId)
                 ->first();
-            if ($existing && hash_equals($existing->payload_hash, $payloadHash)
-                && $existing->amount_minor === $amount && $existing->provider_reference === $reference) {
+
+            // A unique-key race is a safe duplicate only when the transaction still
+            // resolves to the same active account assignment. Matching transaction
+            // payload fields alone must not hide an account/customer reassignment.
+            $matchingAccount = UserVirtualAccount::query()
+                ->where('provider', 'paystack')
+                ->where('account_number', $receiverAccount)
+                ->where('provider_customer_reference', $customerCode)
+                ->where('status', 'active')
+                ->whereNull('disabled_at')
+                ->first();
+
+            if ($existing && $matchingAccount
+                && (int) $existing->user_virtual_account_id === (int) $matchingAccount->id
+                && hash_equals($existing->payload_hash, $payloadHash)
+                && $existing->amount_minor === $amount
+                && $existing->currency === $currency
+                && $existing->provider_reference === $reference) {
                 return ['outcome' => $existing->status, 'duplicate' => true];
             }
 
