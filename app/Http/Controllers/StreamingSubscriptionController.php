@@ -39,6 +39,18 @@ class StreamingSubscriptionController extends Controller
      */
     public function purchase(Request $request): JsonResponse
     {
+        // Reject the closed operation before validating purchase payloads. This
+        // endpoint is intentionally fail-closed while provider submission,
+        // lookup, and accepted-order recovery remain unimplemented.
+        $admission = app(StreamingPurchaseAdmissionPolicy::class)->snapshot();
+
+        if (! $admission['available']) {
+            return response()->json([
+                'message' => 'Streaming purchases are temporarily unavailable until provider fulfilment and recovery are verified.',
+                'reason' => $admission['reason'],
+            ], 503)->header('Cache-Control', 'no-store');
+        }
+
         $request->validate([
             'product_code' => ['required', 'string', 'max:100'],
             'idempotency_key' => ['required', 'string', 'min:1', 'max:128'],
@@ -46,6 +58,8 @@ class StreamingSubscriptionController extends Controller
             'account.*' => ['nullable', 'string', 'max:255'],
         ]);
 
+        // Recheck after validation so a future admission change cannot turn a
+        // stale initial snapshot into authorization for a new purchase.
         $admission = app(StreamingPurchaseAdmissionPolicy::class)->snapshot();
 
         if (! $admission['available']) {
