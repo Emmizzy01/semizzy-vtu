@@ -341,14 +341,21 @@ class PaymentReconciliationService
                 ->where('payment_intent_id', $current->id)
                 ->where('reference', $current->reference)
                 ->where('case_type', 'webhook_processing_retry')
-                ->where('provider_transaction_id', $transactionId)
+                // A retry breadcrumb can lack a transaction ID if the original webhook
+                // failed before all normalized fields were persisted. Only this path,
+                // after canonical verification and a locked paid-intent/transaction match,
+                // may resolve that unknown-ID evidence. A different non-null ID stays open.
+                ->where(function ($query) use ($transactionId): void {
+                    $query->where('provider_transaction_id', $transactionId)
+                        ->orWhereNull('provider_transaction_id');
+                })
                 ->where('status', 'open')
                 ->lockForUpdate()
                 ->get();
 
             foreach ($cases as $case) {
                 $details = is_array($case->details) ? $case->details : [];
-                $details['resolution'] = 'Canonical provider verification matches the already-settled payment transaction; no additional wallet credit was posted.';
+                $details['resolution'] = 'Canonical provider verification matches the already-settled payment transaction; this retry evidence had no conflicting transaction ID. No additional wallet credit was posted.';
                 $details['resolved_at'] = now()->toISOString();
                 $details['resolved_after_settlement'] = true;
                 $case->forceFill([
