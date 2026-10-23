@@ -10,12 +10,20 @@ final class ServicePurchaseRuntimeRegistry
      */
     public function forService(?string $serviceType): ?ServicePurchaseRuntimeContract
     {
-        return match ($serviceType) {
-            'airtime' => app(AirtimePurchaseRuntime::class),
-            'data' => app(DataPurchaseRuntime::class),
-            'electricity-bill' => app(ElectricityPurchaseRuntime::class),
-            'tv-subscription' => app(TvPurchaseRuntime::class),
+        $binding = match ($serviceType) {
+            'airtime' => AirtimePurchaseRuntime::class,
+            'data' => DataPurchaseRuntime::class,
+            'electricity-bill' => ElectricityPurchaseRuntime::class,
+            'tv-subscription' => TvPurchaseRuntime::class,
             default => null,
         };
+
+        if ($binding === null || ! app()->bound($binding)) {
+            return null;
+        }
+
+        $runtime = app($binding);
+
+        return $runtime instanceof ServicePurchaseRuntimeContract ? $runtime : null;
     }
 }

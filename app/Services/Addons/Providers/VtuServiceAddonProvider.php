@@ -3,6 +3,10 @@
 namespace App\Services\Addons\Providers;
 
 use App\Services\IntegrationSettings;
+use App\Services\Addons\AirtimePurchaseRuntime;
+use App\Services\Addons\DataPurchaseRuntime;
+use App\Services\Addons\ElectricityPurchaseRuntime;
+use App\Services\Addons\TvPurchaseRuntime;
 use App\Services\Vtu\DatawayProviderClient;
 use App\Services\Vtu\GsubzProviderClient;
 use App\Services\Vtu\MultiProviderVtuRouter;
@@ -20,6 +24,13 @@ class VtuServiceAddonProvider extends ServiceProvider
 {
     public function register(): void
     {
+        // Service-specific request policies are composed at the addon boundary.
+        // Core keeps order admission, locking, idempotency and financial execution.
+        $this->app->bind(AirtimePurchaseRuntime::class);
+        $this->app->bind(DataPurchaseRuntime::class);
+        $this->app->bind(ElectricityPurchaseRuntime::class);
+        $this->app->bind(TvPurchaseRuntime::class);
+
         $this->app->bind(VtuProvider::class, function ($app): VtuProvider {
             return new MultiProviderVtuRouter(
                 $app->make(VtuProviderClient::class),
