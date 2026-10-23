@@ -6,13 +6,10 @@ use App\Exceptions\Wallet\IdempotencyConflict;
 use App\Models\EducationOrder;
 use App\Models\EducationProviderAttempt;
 use App\Models\EducationServiceProduct;
-use App\Models\PlatformAddon;
-use App\Models\PlatformFeatureControl;
-use App\Services\Addons\AddonImplementationRegistry;
-use App\Services\Addons\AddonLifecyclePolicy;
 use App\Models\User;
 use App\Models\Wallet;
 use App\Services\Security\UserLevelPolicyService;
+use App\Services\Addons\EducationPurchaseAdmissionPolicy;
 use App\Services\Wallets\WalletAccountService;
 use App\Services\Wallets\WalletLedgerService;
 use Illuminate\Database\QueryException;
@@ -73,7 +70,7 @@ class EducationOrderCoordinator
                 // Admission can change after preflight (which may contact the
                 // provider for candidate validation). Recheck inside the reservation
                 // transaction before any order, debit, or provider-attempt record exists.
-                $this->assertPurchaseAdmission();
+                app(EducationPurchaseAdmissionPolicy::class)->assertAvailable();
 
                 $lockedProduct = EducationServiceProduct::query()->whereKey($product->getKey())->lockForUpdate()->firstOrFail();
                 if (! $lockedProduct->is_active || ! $lockedProduct->purchase_approved || $lockedProduct->currency !== 'NGN'
@@ -243,35 +240,6 @@ class EducationOrderCoordinator
             isset($result['message_code']) ? (string) $result['message_code'] : null,
             is_array($result['delivery_payload'] ?? null) ? $result['delivery_payload'] : null,
         );
-    }
-
-    /**
-     * Server-side admission check shared by the reservation and submission
-     * boundaries. It deliberately does not apply to reconcile() or delivery.
-     */
-    private function assertPurchaseAdmission(): void
-    {
-        $feature = PlatformFeatureControl::query()->where('feature_key', 'service.education')->first();
-        $addon = PlatformAddon::query()->where('addon_key', 'service.education')->first();
-        $implementation = app(AddonImplementationRegistry::class)->find('service.education');
-        $registered = $implementation !== null
-            && in_array('education-services.purchase', $implementation['operations'], true);
-
-        $assessment = $addon === null || $feature === null
-            ? ['available' => false, 'reason' => 'addon_or_feature_control_missing']
-            : app(AddonLifecyclePolicy::class)->assessAdmission(
-                (string) $addon->status,
-                (string) $addon->compatibility_status,
-                $registered,
-                true,
-                (bool) $feature->is_enabled && (bool) $feature->is_implemented,
-            );
-
-        if (! ($assessment['available'] ?? false)) {
-            throw new \LogicException(
-                'Education purchases are disabled at the addon execution boundary: '.($assessment['reason'] ?? 'admission_unavailable').'.'
-            );
-        }
     }
 
     private function returnExisting(EducationOrder $order, string $requestHash): EducationOrder

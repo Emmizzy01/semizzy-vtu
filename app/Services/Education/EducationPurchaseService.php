@@ -3,13 +3,10 @@
 namespace App\Services\Education;
 
 use App\Models\EducationServiceProduct;
-use App\Models\PlatformAddon;
-use App\Models\PlatformFeatureControl;
 use App\Models\User;
 use App\Models\Wallet;
 use App\Services\Security\UserLevelPolicyService;
-use App\Services\Addons\AddonImplementationRegistry;
-use App\Services\Addons\AddonLifecyclePolicy;
+use App\Services\Addons\EducationPurchaseAdmissionPolicy;
 use InvalidArgumentException;
 use LogicException;
 
@@ -30,32 +27,8 @@ class EducationPurchaseService
             throw new InvalidArgumentException('Idempotency key must contain 1 to 128 characters.');
         }
 
-        // This is a server-side execution boundary, not just a page/UI gate.
-        // Candidate validation may call an external provider, so admission must
-        // be checked before resolving or contacting any provider adapter.
-        $feature = PlatformFeatureControl::query()->where('feature_key', 'service.education')->first();
-        $addon = PlatformAddon::query()->where('addon_key', 'service.education')->first();
-        $implementation = app(AddonImplementationRegistry::class)->find('service.education');
-        $purchaseOperationRegistered = $implementation !== null
-            && in_array('education-services.purchase', $implementation['operations'], true);
-        $assessment = $addon === null || $feature === null
-            ? ['available' => false, 'reason' => 'addon_or_feature_control_missing']
-            : app(AddonLifecyclePolicy::class)->assessAdmission(
-                (string) $addon->status,
-                (string) $addon->compatibility_status,
-                $purchaseOperationRegistered,
-                true,
-                (bool) $feature->is_enabled && (bool) $feature->is_implemented,
-            );
-
-        // Provider readiness remains false until the education purchase
-        // contract is explicitly registered and verified. This deliberately
-        // blocks the currently unregistered purchase operation.
-        if (! $assessment['available']) {
-            throw new LogicException(
-                'Education purchases are disabled at the addon execution boundary: '.$assessment['reason'].'.'
-            );
-        }
+        // Admission is owned by the education addon and checked before any provider contact.
+        app(EducationPurchaseAdmissionPolicy::class)->assertAvailable();
 
         $product = EducationServiceProduct::query()->where('code', $productCode)->firstOrFail();
         if (! $product->is_active || ! $product->purchase_approved || $product->currency !== 'NGN') {

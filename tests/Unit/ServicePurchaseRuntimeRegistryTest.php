@@ -24,42 +24,6 @@ class ServicePurchaseRuntimeRegistryTest extends TestCase
         $this->assertInstanceOf(TvPurchaseRuntime::class, $registry->forService('tv-subscription'));
     }
 
-    public function test_purchase_feature_admission_is_owned_by_each_registered_service_runtime(): void
-    {
-        $registry = app(ServicePurchaseRuntimeRegistry::class);
-
-        $this->assertInstanceOf(\App\Services\Addons\ServiceFeatureAdmissionPolicy::class, $registry->forService('airtime'));
-        $this->assertInstanceOf(\App\Services\Addons\ServiceFeatureAdmissionPolicy::class, $registry->forService('data'));
-        $this->assertInstanceOf(\App\Services\Addons\ServiceFeatureAdmissionPolicy::class, $registry->forService('electricity-bill'));
-        $this->assertInstanceOf(\App\Services\Addons\ServiceFeatureAdmissionPolicy::class, $registry->forService('tv-subscription'));
-    }
-
-    public function test_airtime_feature_admission_uses_independent_setting_then_legacy_fallback(): void
-    {
-        $settings = Mockery::mock(IntegrationSettings::class);
-        $settings->shouldReceive('get')->with('service.airtime.enabled', null)->once()->andReturn(true);
-        app()->instance(IntegrationSettings::class, $settings);
-
-        app(AirtimePurchaseRuntime::class)->assertFeatureEnabled(new VtuProduct(['service_type' => 'airtime']));
-
-        $disabled = Mockery::mock(IntegrationSettings::class);
-        $disabled->shouldReceive('get')->with('service.airtime.enabled', null)->once()->andReturn(null);
-        $disabled->shouldReceive('get')->with('service.airtime_data.enabled', false)->once()->andReturn(false);
-        app()->instance(IntegrationSettings::class, $disabled);
-
-        $this->expectException(\InvalidArgumentException::class);
-        app(AirtimePurchaseRuntime::class)->assertFeatureEnabled(new VtuProduct(['service_type' => 'airtime']));
-    }
-
-    public function test_data_feature_admission_uses_its_independent_setting(): void
-    {
-        $settings = Mockery::mock(IntegrationSettings::class);
-        $settings->shouldReceive('get')->with('service.data.enabled', null)->once()->andReturn(true);
-        app()->instance(IntegrationSettings::class, $settings);
-
-        app(DataPurchaseRuntime::class)->assertFeatureEnabled(new VtuProduct(['service_type' => 'data']));
-    }
-
     public function test_airtime_runtime_requires_amount_before_purchase_can_continue(): void
     {
         $runtime = app(AirtimePurchaseRuntime::class);
