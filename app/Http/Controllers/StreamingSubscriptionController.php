@@ -46,12 +46,7 @@ class StreamingSubscriptionController extends Controller
             'account.*' => ['nullable', 'string', 'max:255'],
         ]);
 
-        $admission = app(\\App\\Services\\Addons\\AddonOperationAdmissionPolicy::class)->assess(
-            'service.streaming',
-            'service.streaming_subscriptions',
-            'streaming-subscriptions.purchase',
-            false,
-        );
+        $admission = app(StreamingPurchaseAdmissionPolicy::class)->snapshot();
 
         if (! $admission['available']) {
             return response()->json([
