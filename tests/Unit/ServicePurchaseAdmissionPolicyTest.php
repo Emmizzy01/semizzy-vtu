@@ -47,6 +47,26 @@ class ServicePurchaseAdmissionPolicyTest extends TestCase
         }
     }
 
+    public function test_service_purchase_requires_both_addon_operation_and_core_order_operation(): void
+    {
+        $policy = app(ServicePurchaseAdmissionPolicy::class);
+
+        $this->assertTrue($policy->isRegistered([
+            'handler' => \\App\\Http\\Controllers\\Vtu\\VtuOrderController::class,
+            'operations' => ['service.data.purchase', 'wallet.vtu.orders.create'],
+        ], 'service.data.purchase'));
+
+        $this->assertFalse($policy->isRegistered([
+            'handler' => \\App\\Http\\Controllers\\Vtu\\VtuOrderController::class,
+            'operations' => ['service.data.purchase'],
+        ], 'service.data.purchase'));
+
+        $this->assertFalse($policy->isRegistered([
+            'handler' => \\App\\Http\\Controllers\\Vtu\\VtuOrderController::class,
+            'operations' => ['wallet.vtu.orders.create'],
+        ], 'service.data.purchase'));
+    }
+
     public function test_unknown_service_does_not_receive_an_addon_mapping(): void
     {
         $this->expectException(InvalidArgumentException::class);
