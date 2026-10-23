@@ -62,6 +62,8 @@ class AddonImplementationRegistryTest extends TestCase
 
         $this->assertTrue($policy->isRegistered($registry->find('service.airtime'), 'service.airtime.purchase'));
         $this->assertTrue($policy->isRegistered($registry->find('service.data'), 'service.data.purchase'));
+        $this->assertTrue($policy->isRegistered($registry->find('service.vtu'), 'wallet.vtu.orders.create'));
+        $this->assertTrue($policy->isRegistered($registry->find('service.airtime_data'), 'wallet.vtu.orders.create'));
         $this->assertFalse($policy->isRegistered($registry->find('service.airtime'), 'service.data.purchase'));
         $this->assertFalse($policy->isRegistered($registry->find('service.data'), 'service.airtime.purchase'));
         $this->assertFalse($policy->isRegistered($registry->find('service.streaming'), 'streaming-subscriptions.purchase'));

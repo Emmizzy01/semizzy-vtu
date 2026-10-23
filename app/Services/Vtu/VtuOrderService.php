@@ -464,8 +464,9 @@ class VtuOrderService
         $assessment = app(AddonLifecyclePolicy::class)->assessAdmission(
             (string) ($addon?->status ?? 'missing'),
             (string) ($addon?->compatibility_status ?? 'unchecked'),
-            $implementation !== null && $operation !== null
-                && in_array($operation, $implementation['operations'], true),
+            $operation !== null
+                && app(\App\Services\Addons\ServicePurchaseAdmissionPolicy::class)
+                    ->isRegistered($implementation, $operation),
             true, // assertProductConfigured() has already passed for this locked product.
             true, // assertServiceFeatureEnabled() has already passed.
         );
