@@ -74,7 +74,7 @@ final class TvPurchaseRuntime implements ServicePurchaseRuntimeContract, LockedP
     public function assertLockedPriceUnchanged(VtuProduct $product, int $requestedAmountMinor, int $lockedAmountMinor): void
     {
         if ($requestedAmountMinor !== $lockedAmountMinor) {
-            throw new \\InvalidArgumentException('The TV subscription price changed. Please review the price and try again.');
+            throw new \InvalidArgumentException('The TV subscription price changed. Please review the price and try again.');
         }
     }
 
