@@ -2,9 +2,6 @@
 
 namespace App\Services\Addons;
 
-use App\Models\PlatformAddon;
-use App\Models\PlatformFeatureControl;
-
 /**
  * Streaming addon admission snapshot. Catalogue management is not purchase
  * authorization; customer purchase stays unavailable until a reviewed purchase
@@ -12,44 +9,23 @@ use App\Models\PlatformFeatureControl;
  */
 final class StreamingPurchaseAdmissionPolicy
 {
-    /** @return array{
-     *   available:bool,
-     *   feature:array{is_enabled:bool,is_implemented:bool},
-     *   addon_lifecycle:array{status:string,compatibility_status:string,implementation_registered:bool,catalogue_operation_registered:bool,purchase_operation_registered:bool},
-     *   gate_reason:string
-     * }
-     */
     public function snapshot(): array
     {
-        $feature = PlatformFeatureControl::query()
-            ->where('feature_key', 'service.streaming_subscriptions')
-            ->first();
-        $addon = PlatformAddon::query()->where('addon_key', 'service.streaming')->first();
-        $implementation = app(AddonImplementationRegistry::class)->find('service.streaming');
-        $operations = $implementation['operations'] ?? [];
-        $purchaseRegistered = in_array('streaming-subscriptions.purchase', $operations, true);
-        $assessment = $addon === null
-            ? ['available' => false]
-            : app(AddonLifecyclePolicy::class)->assessAdmission(
-                (string) $addon->status,
-                (string) $addon->compatibility_status,
-                $purchaseRegistered,
-                false,
-                $feature !== null && (bool) $feature->is_enabled && (bool) $feature->is_implemented,
-            );
+        $assessment = app(AddonOperationAdmissionPolicy::class)->assess(
+            'service.streaming',
+            'service.streaming_subscriptions',
+            'streaming-subscriptions.purchase',
+            false,
+        );
+        $operations = $assessment['operations'];
 
         return [
-            'available' => (bool) ($assessment['available'] ?? false),
-            'feature' => [
-                'is_enabled' => (bool) ($feature?->is_enabled ?? false),
-                'is_implemented' => (bool) ($feature?->is_implemented ?? false),
-            ],
+            'available' => $assessment['available'],
+            'feature' => $assessment['feature'],
             'addon_lifecycle' => [
-                'status' => (string) ($addon?->status ?? 'not_installed'),
-                'compatibility_status' => (string) ($addon?->compatibility_status ?? 'unknown'),
-                'implementation_registered' => $implementation !== null,
+                ...$assessment['addon_lifecycle'],
                 'catalogue_operation_registered' => in_array('streaming-subscriptions.index', $operations, true),
-                'purchase_operation_registered' => $purchaseRegistered,
+                'purchase_operation_registered' => $assessment['addon_lifecycle']['operation_registered'],
             ],
             'gate_reason' => 'Purchases are locked until a provider contract, transaction lookup and accepted-order recovery workflow are verified; no streaming purchase operation is registered.',
         ];
