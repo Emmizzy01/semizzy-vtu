@@ -32,10 +32,8 @@ class BankPayoutReconciliationService
         if (! $payout) {
             return ['outcome' => 'unmatched', 'duplicate' => false];
         }
-        if ($payout->status === 'failed_refunded'
-            || ($payout->status === 'succeeded' && $eventType !== 'transfer.reversed')) {
-            return ['outcome' => $payout->status, 'duplicate' => true];
-        }
+        // Even terminal payouts pass provider verification so contradictory definitive
+        // observations can be recorded without changing the settled financial outcome.
 
         $transferCode = $data['transfer_code'] ?? $payout->provider_transfer_code;
         if (! is_string($transferCode) || $transferCode === '') {
@@ -96,6 +94,32 @@ class BankPayoutReconciliationService
             $locked = BankPayout::query()->whereKey($payout->id)->lockForUpdate()->firstOrFail();
             if ($locked->status === 'failed_refunded'
                 || ($locked->status === 'succeeded' && $eventType !== 'transfer.reversed')) {
+                $contradictsTerminal = ($locked->status === 'failed_refunded' && $providerStatus === 'success')
+                    || ($locked->status === 'succeeded' && in_array($providerStatus, ['failed', 'reversed'], true));
+                if ($contradictsTerminal) {
+                    $metadata = $locked->metadata ?? [];
+                    $conflict = [
+                        'stored_status' => $locked->status,
+                        'observed_provider_status' => $providerStatus,
+                        'event_type' => $eventType,
+                        'provider_transfer_code' => $transferCode,
+                        'observed_at' => now()->toISOString(),
+                    ];
+                    $history = is_array($metadata['terminal_status_conflicts'] ?? null)
+                        ? $metadata['terminal_status_conflicts']
+                        : [];
+                    $last = $history === [] ? null : $history[array_key_last($history)];
+                    if (! is_array($last)
+                        || ($last['stored_status'] ?? null) !== $locked->status
+                        || ($last['observed_provider_status'] ?? null) !== $providerStatus
+                        || ($last['event_type'] ?? null) !== $eventType) {
+                        $history[] = $conflict;
+                    }
+                    $metadata['terminal_status_conflicts'] = array_slice($history, -10);
+                    $metadata['terminal_status_conflict'] = $conflict;
+                    $locked->forceFill(['metadata' => $metadata])->save();
+                }
+
                 return ['outcome' => $locked->status, 'duplicate' => true];
             }
 
