@@ -262,6 +262,14 @@ class EducationOrderCoordinator
                 return $locked;
             }
 
+            // A concurrent lookup can return an indeterminate result after another
+            // worker has already recorded a provider-confirmed pending state. Keep
+            // the stronger observation and its attempt metadata rather than regressing
+            // the order to unknown; a later canonical lookup can still resolve it.
+            if ($locked->status === 'pending' && $status === 'unknown') {
+                return $locked;
+            }
+
             $attempt = EducationProviderAttempt::query()
                 ->where('education_order_id', $locked->getKey())
                 ->where('attempt_number', 1)
