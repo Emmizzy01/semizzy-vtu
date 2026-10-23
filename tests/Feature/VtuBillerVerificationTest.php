@@ -162,6 +162,39 @@ class VtuBillerVerificationTest extends TestCase
         Http::assertNotSent(fn ($request) => str_ends_with($request->url(), '/pay'));
     }
 
+    public function test_disabled_service_addon_blocks_biller_verification_before_provider_call(): void
+    {
+        Http::fake();
+        $user = User::query()->create([
+            'name' => 'Disabled Biller User',
+            'email' => 'disabled-biller@example.test',
+            'password' => 'not-a-real-password',
+        ]);
+        $product = VtuProduct::query()->create([
+            'service_type' => 'electricity-bill',
+            'network' => 'ikeja-electric',
+            'code' => 'disabled-addon-meter-check',
+            'name' => 'Ikeja Electric',
+            'price_minor' => 0,
+            'currency' => 'NGN',
+            'is_active' => true,
+            'metadata' => ['catalog_source' => 'vtpass', 'provider_service_id' => 'ikeja-electric'],
+        ]);
+        PlatformFeatureControl::query()->where('feature_key', 'service.electricity')->update([
+            'is_enabled' => false,
+        ]);
+
+        $this->actingAs($user)->postJson('/wallet/vtu/verify-biller', [
+            'product_code' => $product->code,
+            'biller_code' => '12345678901',
+            'meter_type' => 'prepaid',
+        ])->assertStatus(503)
+            ->assertJsonPath('reason', 'feature_disabled');
+
+        Http::assertNothingSent();
+        $this->assertDatabaseCount('vtu_orders', 0);
+    }
+
     public function test_verification_never_falls_back_to_vtpass_for_a_different_active_provider(): void
     {
         Http::fake();
