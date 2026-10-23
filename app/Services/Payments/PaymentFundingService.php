@@ -326,12 +326,46 @@ class PaymentFundingService
                     }
 
                     // The gateway payment is verified but could not be credited.
-                    // Persist it for reconciliation instead of losing it or calling it settled.
+                    // Persist the intent state, webhook outcome, and durable review case
+                    // atomically. If case persistence also fails, this transaction rolls
+                    // back to pending; aged-intent reconciliation can rediscover it without
+                    // relying on a webhook retry breadcrumb.
                     $intent->forceFill([
                         'status' => 'review_required',
                         'provider_transaction_id' => $providerTransactionId,
                         'paid_at' => now(),
                     ])->save();
+
+                    $caseKey = hash('sha256', implode('|', [
+                        $provider,
+                        $intent->reference,
+                        'wallet_limit_review',
+                        $providerTransactionId,
+                    ]));
+                    PaymentReconciliationCase::query()->firstOrCreate(
+                        ['case_key' => $caseKey],
+                        [
+                            'provider' => $provider,
+                            'reference' => $intent->reference,
+                            'payment_intent_id' => $intent->id,
+                            'case_type' => 'wallet_limit_review',
+                            'provider_status' => 'success',
+                            'provider_transaction_id' => $providerTransactionId,
+                            'expected_amount_minor' => $intent->amount_minor,
+                            'observed_amount_minor' => $amount,
+                            'expected_currency' => $intent->currency,
+                            'observed_currency' => strtoupper($currency),
+                            'details' => [
+                                'reason' => 'Canonical successful payment was verified, but wallet credit was blocked by the account-level balance limit. Automatic settlement remains pending review.',
+                                'exception' => $exception::class,
+                                'local_status' => 'review_required',
+                                'requires_review' => true,
+                            ],
+                            'status' => 'open',
+                            'last_checked_at' => now(),
+                        ],
+                    );
+
                     $event->forceFill([
                         'outcome' => 'wallet_limit_review',
                         'payment_intent_id' => $intent->id,
