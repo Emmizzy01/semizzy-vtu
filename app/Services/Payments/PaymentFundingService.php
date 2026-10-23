@@ -331,12 +331,14 @@ class PaymentFundingService
                     amountMinor: $intent->amount_minor,
                     idempotencyKey: 'funding:'.hash('sha256', 'paystack:'.$transactionId),
                     reference: $intent->reference,
-                    description: 'Verified wallet funding recovery',
+                    // Reuse the exact canonical request payload used by initial
+                    // settlement. The stable idempotency key must never be bypassed
+                    // with altered metadata or a second credit to work around a conflict.
+                    description: 'Verified wallet funding',
                     metadata: [
                         'payment_intent_id' => $intent->public_id,
                         'provider' => 'paystack',
                         'provider_transaction_id' => $transactionId,
-                        'recovery' => 'wallet_limit_review',
                     ],
                     correlationId: (string) Str::uuid(),
                 );
