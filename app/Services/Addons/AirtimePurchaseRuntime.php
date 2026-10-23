@@ -2,10 +2,24 @@
 
 namespace App\Services\Addons;
 
+use App\Models\VtuProduct;
 use App\Services\IntegrationSettings;
 
 final class AirtimePurchaseRuntime implements ServicePurchaseRuntimeContract
 {
+    /** @param array<string, mixed> $serviceDetails
+     *  @return array{service_details: array<string, mixed>, amount_minor: int|null}
+     */
+    public function prepareOrder(VtuProduct $product, array $serviceDetails, ?int $amountMinor): array
+    {
+        $amountMinor ??= (int) $product->price_minor;
+        if ($amountMinor < 100 || $amountMinor > 100000000 || $amountMinor % 100 !== 0) {
+            throw new \\InvalidArgumentException('Airtime amount must be a whole-naira amount between ₦1 and ₦1,000,000.');
+        }
+
+        return ['service_details' => $serviceDetails, 'amount_minor' => $amountMinor];
+    }
+
     /** @param array<string, mixed> $validated
      *  @return array{message: string, status: int}|null
      */

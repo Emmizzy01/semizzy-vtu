@@ -66,53 +66,17 @@ class VtuOrderService
             ->where('currency', 'NGN')
             ->firstOrFail();
 
-        if (! in_array($product->service_type, ['airtime', 'data'], true)) {
-            if (($product->metadata['purchase_supported'] ?? null) !== true) {
-                throw new InvalidArgumentException('This service is not yet enabled for customer purchases.');
-            }
-            $contactPhone = preg_replace('/[\s-]+/', '', (string) ($serviceDetails['contact_phone'] ?? '')) ?? '';
-            if (! preg_match('/^\+?[0-9]{10,15}$/', $contactPhone)) {
-                throw new InvalidArgumentException('Enter a valid contact phone number for the provider transaction.');
-            }
-            $serviceDetails['contact_phone'] = $contactPhone;
-            if ($product->service_type === 'electricity-bill') {
-                if (! in_array($serviceDetails['meter_type'] ?? null, ['prepaid', 'postpaid'], true)) {
-                    throw new InvalidArgumentException('Select prepaid or postpaid for the electricity meter.');
-                }
-                if ($amountMinor === null || $amountMinor < 100) {
-                    throw new InvalidArgumentException('Enter a valid electricity purchase amount.');
-                }
-                $minimum = (int) round((float) ($product->metadata['provider_minimum_amount'] ?? 1) * 100);
-                $maximum = (int) round((float) ($product->metadata['provider_maximum_amount'] ?? 1000000) * 100);
-                if ($amountMinor < $minimum || $amountMinor > $maximum) {
-                    throw new InvalidArgumentException('The electricity amount is outside the provider limits.');
-                }
-            } elseif ($product->service_type === 'tv-subscription') {
-                // Bouquet changes are supported by the current checkout flow.
-                // Renewal needs the provider-verified Renewal_Amount and remains
-                // blocked until that value is carried through verification safely.
-                $subscriptionType = $serviceDetails['subscription_type'] ?? 'change';
-                if ($subscriptionType !== 'change') {
-                    throw new InvalidArgumentException('Only verified TV bouquet changes are available right now. Renewal is not enabled.');
-                }
-                $serviceDetails['subscription_type'] = 'change';
-                $amountMinor = (int) $product->price_minor;
-                if ($amountMinor < 1) {
-                    throw new InvalidArgumentException('This TV subscription has no valid provider price.');
-                }
-            }
-        } else {
-            if (! preg_match('/^\+?[0-9]{10,15}$/', $recipient)) {
-                throw new InvalidArgumentException('Recipient must be a valid phone number.');
-            }
-            if ($product->service_type === 'airtime') {
-                $amountMinor ??= (int) $product->price_minor;
-                if ($amountMinor < 100 || $amountMinor > 100000000 || $amountMinor % 100 !== 0) {
-                    throw new InvalidArgumentException('Airtime amount must be a whole-naira amount between ₦1 and ₦1,000,000.');
-                }
-            } else {
-                $amountMinor = (int) $product->price_minor;
-            }
+        $runtime = app(\\App\\Services\\Addons\\ServicePurchaseRuntimeRegistry::class)->forService($product->service_type);
+        if ($runtime === null) {
+            throw new InvalidArgumentException('This service has no registered purchase runtime.');
+        }
+        $preparedOrder = $runtime->prepareOrder($product, $serviceDetails, $amountMinor);
+        $serviceDetails = $preparedOrder['service_details'];
+        $amountMinor = $preparedOrder['amount_minor'];
+
+        if (in_array($product->service_type, ['airtime', 'data'], true)
+            && ! preg_match('/^\\+?[0-9]{10,15}$/', $recipient)) {
+            throw new InvalidArgumentException('Recipient must be a valid phone number.');
         }
 
         $requestHash = hash('sha256', json_encode(
@@ -212,25 +176,22 @@ class VtuOrderService
                 $lockedStorefront = $storefrontSlug !== null
                     ? $this->assertStorefrontProductAvailable($storefrontSlug, $lockedProduct, true)
                     : null;
-                $lockedAmountMinor = in_array($lockedProduct->service_type, ['electricity-bill', 'airtime'], true)
-                    ? $amountMinor
-                    : (int) $lockedProduct->price_minor;
+                $lockedRuntime = app(\\App\\Services\\Addons\\ServicePurchaseRuntimeRegistry::class)->forService($lockedProduct->service_type);
+                if ($lockedRuntime === null) {
+                    throw new InvalidArgumentException('This service has no registered purchase runtime.');
+                }
+                $lockedPreparedOrder = $lockedRuntime->prepareOrder($lockedProduct, $serviceDetails, $amountMinor);
+                $lockedServiceDetails = $lockedPreparedOrder['service_details'];
+                $lockedAmountMinor = $lockedPreparedOrder['amount_minor'];
                 if (! is_int($lockedAmountMinor) || $lockedAmountMinor < 1) {
                     throw new InvalidArgumentException('The locked product price or purchase amount is invalid.');
                 }
-                // Re-check provider-specific electricity limits against the locked
-                // catalogue row; admin changes between preflight and debit must not
-                // allow an amount outside the currently approved range.
-                if ($lockedProduct->service_type === 'airtime'
-                    && ($lockedAmountMinor < 100 || $lockedAmountMinor > 100000000 || $lockedAmountMinor % 100 !== 0)) {
-                    throw new InvalidArgumentException('Airtime amount must be a whole-naira amount between ₦1 and ₦1,000,000.');
-                }
-                if ($lockedProduct->service_type === 'electricity-bill') {
-                    $minimumMinor = (int) round((float) ($lockedProduct->metadata['provider_minimum_amount'] ?? 1) * 100);
-                    $maximumMinor = (int) round((float) ($lockedProduct->metadata['provider_maximum_amount'] ?? 1000000) * 100);
-                    if ($lockedAmountMinor < $minimumMinor || $lockedAmountMinor > $maximumMinor) {
-                        throw new InvalidArgumentException('The electricity amount is outside the provider limits.');
-                    }
+                // A TV price change between preflight and the locked debit would
+                // make the request hash disagree with the amount being charged.
+                // Fail closed and require a fresh request instead of charging a
+                // different bouquet price under the original idempotency key.
+                if ($lockedProduct->service_type === 'tv-subscription' && $lockedAmountMinor !== $amountMinor) {
+                    throw new InvalidArgumentException('The TV subscription price changed. Please review the price and try again.');
                 }
                 $lockedWallet = Wallet::query()->whereKey($wallet->getKey())->lockForUpdate()->firstOrFail();
                 $policyRejection = $this->levelPolicies->rejectionReason($user, $lockedProduct, (int) $lockedWallet->getKey(), $lockedAmountMinor);
@@ -249,7 +210,7 @@ class VtuOrderService
                     'product_code' => $lockedProduct->code,
                     'recipient' => $recipient,
                     'amount_minor' => $lockedAmountMinor,
-                    'service_details' => $serviceDetails,
+                    'service_details' => $lockedServiceDetails,
                     'currency' => $lockedProduct->currency,
                     'status' => VtuOrderStatus::Pending->value,
                     'provider' => $this->provider instanceof MultiProviderVtuRouter

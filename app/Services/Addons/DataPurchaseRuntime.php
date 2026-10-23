@@ -2,10 +2,19 @@
 
 namespace App\Services\Addons;
 
+use App\Models\VtuProduct;
 use App\Services\IntegrationSettings;
 
 final class DataPurchaseRuntime implements ServicePurchaseRuntimeContract
 {
+    /** @param array<string, mixed> $serviceDetails
+     *  @return array{service_details: array<string, mixed>, amount_minor: int|null}
+     */
+    public function prepareOrder(VtuProduct $product, array $serviceDetails, ?int $amountMinor): array
+    {
+        return ['service_details' => $serviceDetails, 'amount_minor' => (int) $product->price_minor];
+    }
+
     /** @param array<string, mixed> $validated
      *  @return array{message: string, status: int}|null
      */

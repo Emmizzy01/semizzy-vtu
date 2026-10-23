@@ -101,4 +101,47 @@ class ServicePurchaseRuntimeRegistryTest extends TestCase
 
         $this->assertNull($runtime->unavailableError($settings));
     }
+
+    public function test_electricity_runtime_rechecks_locked_catalogue_provider_limits(): void
+    {
+        $runtime = app(ElectricityPurchaseRuntime::class);
+        $product = new VtuProduct([
+            'service_type' => 'electricity-bill',
+            'price_minor' => 10000,
+            'metadata' => [
+                'purchase_supported' => true,
+                'provider_minimum_amount' => 500,
+                'provider_maximum_amount' => 5000,
+            ],
+        ]);
+
+        $this->expectException(\\InvalidArgumentException::class);
+        $this->expectExceptionMessage('The electricity amount is outside the provider limits.');
+        $runtime->prepareOrder($product, [
+            'contact_phone' => '08012345678',
+            'meter_type' => 'prepaid',
+        ], 600000);
+    }
+
+    public function test_tv_runtime_uses_catalogue_price_and_rejects_unverified_renewal(): void
+    {
+        $runtime = app(TvPurchaseRuntime::class);
+        $product = new VtuProduct([
+            'service_type' => 'tv-subscription',
+            'price_minor' => 125000,
+            'metadata' => ['purchase_supported' => true],
+        ]);
+
+        $prepared = $runtime->prepareOrder($product, ['contact_phone' => '08012345678'], 1);
+        $this->assertSame(125000, $prepared['amount_minor']);
+        $this->assertSame('change', $prepared['service_details']['subscription_type']);
+
+        $this->expectException(\\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Only verified TV bouquet changes are available right now. Renewal is not enabled.');
+        $runtime->prepareOrder($product, [
+            'contact_phone' => '08012345678',
+            'subscription_type' => 'renewal',
+        ], 125000);
+    }
+
 }

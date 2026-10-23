@@ -2,10 +2,41 @@
 
 namespace App\Services\Addons;
 
+use App\Models\VtuProduct;
 use App\Services\IntegrationSettings;
 
 final class ElectricityPurchaseRuntime implements ServicePurchaseRuntimeContract
 {
+    /** @param array<string, mixed> $serviceDetails
+     *  @return array{service_details: array<string, mixed>, amount_minor: int|null}
+     */
+    public function prepareOrder(VtuProduct $product, array $serviceDetails, ?int $amountMinor): array
+    {
+        if (($product->metadata['purchase_supported'] ?? null) !== true) {
+            throw new \\InvalidArgumentException('This service is not yet enabled for customer purchases.');
+        }
+
+        $contactPhone = preg_replace('/[\\s-]+/', '', (string) ($serviceDetails['contact_phone'] ?? '')) ?? '';
+        if (! preg_match('/^\\+?[0-9]{10,15}$/', $contactPhone)) {
+            throw new \\InvalidArgumentException('Enter a valid contact phone number for the provider transaction.');
+        }
+        $serviceDetails['contact_phone'] = $contactPhone;
+
+        if (! in_array($serviceDetails['meter_type'] ?? null, ['prepaid', 'postpaid'], true)) {
+            throw new \\InvalidArgumentException('Select prepaid or postpaid for the electricity meter.');
+        }
+        if ($amountMinor === null || $amountMinor < 100) {
+            throw new \\InvalidArgumentException('Enter a valid electricity purchase amount.');
+        }
+        $minimum = (int) round((float) ($product->metadata['provider_minimum_amount'] ?? 1) * 100);
+        $maximum = (int) round((float) ($product->metadata['provider_maximum_amount'] ?? 1000000) * 100);
+        if ($amountMinor < $minimum || $amountMinor > $maximum) {
+            throw new \\InvalidArgumentException('The electricity amount is outside the provider limits.');
+        }
+
+        return ['service_details' => $serviceDetails, 'amount_minor' => $amountMinor];
+    }
+
     /** @param array<string, mixed> $validated
      *  @return array{message: string, status: int}|null
      */
