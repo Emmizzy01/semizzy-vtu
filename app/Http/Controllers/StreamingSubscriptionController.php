@@ -2,11 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\PlatformAddon;
-use App\Models\PlatformFeatureControl;
-use App\Services\Addons\AddonImplementationRegistry;
-use App\Services\Addons\AddonLifecyclePolicy;
 use App\Models\PlatformSettingAudit;
+use App\Services\Addons\StreamingPurchaseAdmissionPolicy;
 use App\Models\StreamingSubscriptionProduct;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -19,21 +16,8 @@ class StreamingSubscriptionController extends Controller
 {
     public function index(): InertiaResponse
     {
-        $feature = PlatformFeatureControl::query()->where('feature_key', 'service.streaming_subscriptions')->first();
-        $addon = PlatformAddon::query()->where('addon_key', 'service.streaming')->first();
-        $implementation = app(AddonImplementationRegistry::class)->find('service.streaming');
-        // A catalogue handler is not a purchase implementation. Keep the
-        // customer service unavailable until a reviewed purchase operation
-        // and provider fulfilment/recovery adapter are registered.
-        $purchaseRegistered = $implementation !== null
-            && in_array('streaming-subscriptions.purchase', $implementation['operations'], true);
-        $available = $addon !== null && app(AddonLifecyclePolicy::class)->assessAdmission(
-            (string) $addon->status,
-            (string) $addon->compatibility_status,
-            $purchaseRegistered,
-            false,
-            $feature !== null && $feature->is_enabled && $feature->is_implemented,
-        )['available'];
+        $admission = app(StreamingPurchaseAdmissionPolicy::class)->snapshot();
+        $available = $admission['available'];
         $products = $available
             ? StreamingSubscriptionProduct::query()->where('is_active', true)->where('purchase_approved', true)->orderBy('platform')->orderBy('price_minor')->get()
             : collect();
@@ -62,10 +46,7 @@ class StreamingSubscriptionController extends Controller
             ->when($status === 'inactive', fn ($q) => $q->where('is_active', false))
             ->orderBy('platform')->orderBy('price_minor')->paginate(30)->withQueryString();
 
-        $feature = PlatformFeatureControl::query()->where('feature_key', 'service.streaming_subscriptions')->first();
-        $addon = PlatformAddon::query()->where('addon_key', 'service.streaming')->first();
-        $implementation = app(AddonImplementationRegistry::class)->find('service.streaming');
-        $operations = $implementation['operations'] ?? [];
+        $admission = app(StreamingPurchaseAdmissionPolicy::class)->snapshot();
 
         return Inertia::render('Admin/StreamingSubscriptions/Index', [
             'products' => $products->getCollection()->map(fn (StreamingSubscriptionProduct $p): array => [
@@ -77,16 +58,10 @@ class StreamingSubscriptionController extends Controller
             ])->values(),
             'pagination' => ['currentPage' => $products->currentPage(), 'lastPage' => $products->lastPage(), 'total' => $products->total()],
             'filters' => ['search' => $search, 'status' => $status],
-            'feature' => $feature ? ['is_enabled' => $feature->is_enabled, 'is_implemented' => $feature->is_implemented] : ['is_enabled' => false, 'is_implemented' => false],
-            'addonLifecycle' => [
-                'status' => $addon?->status ?? 'not_installed',
-                'compatibility_status' => $addon?->compatibility_status ?? 'unknown',
-                'implementation_registered' => $implementation !== null,
-                'catalogue_operation_registered' => in_array('streaming-subscriptions.index', $operations, true),
-                'purchase_operation_registered' => in_array('streaming-subscriptions.purchase', $operations, true),
-            ],
+            'feature' => $admission['feature'],
+            'addonLifecycle' => $admission['addon_lifecycle'],
             'purchaseGate' => false,
-            'gateReason' => 'Purchases are locked until a provider contract, transaction lookup and accepted-order recovery workflow are verified; no streaming purchase operation is registered.',
+            'gateReason' => $admission['gate_reason'],
         ]);
     }
 
