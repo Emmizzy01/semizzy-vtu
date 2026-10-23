@@ -14,7 +14,7 @@ final class AirtimePurchaseRuntime implements ServicePurchaseRuntimeContract
     {
         $amountMinor ??= (int) $product->price_minor;
         if ($amountMinor < 100 || $amountMinor > 100000000 || $amountMinor % 100 !== 0) {
-            throw new \\InvalidArgumentException('Airtime amount must be a whole-naira amount between ₦1 and ₦1,000,000.');
+            throw new \InvalidArgumentException('Airtime amount must be a whole-naira amount between ₦1 and ₦1,000,000.');
         }
 
         return ['service_details' => $serviceDetails, 'amount_minor' => $amountMinor];
