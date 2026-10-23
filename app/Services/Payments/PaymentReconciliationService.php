@@ -125,12 +125,40 @@ class PaymentReconciliationService
                     }
 
                     if (in_array($providerStatus, ['failed', 'abandoned'], true)) {
+                        $settledByThisWorker = false;
+
                         if ($intent->status === 'pending') {
-                            PaymentIntent::query()->whereKey($intent->id)->where('status', 'pending')->update([
-                                'status' => 'failed',
-                                'updated_at' => now(),
-                            ]);
+                            $settledByThisWorker = PaymentIntent::query()
+                                ->whereKey($intent->id)
+                                ->where('status', 'pending')
+                                ->update([
+                                    'status' => 'failed',
+                                    'updated_at' => now(),
+                                ]) === 1;
                         }
+
+                        // Provider verification can race with a successful webhook or
+                        // another reconciliation worker. Never label the intent failed
+                        // merely because our earlier snapshot was pending.
+                        $currentStatus = PaymentIntent::query()->whereKey($intent->id)->value('status');
+                        if ($currentStatus === 'paid') {
+                            $this->recordCase($intent, 'provider_terminal_status_conflict', $transaction, [
+                                'reason' => 'Provider verification reported failure after the local intent was already paid; manual reconciliation is required.',
+                                'local_status' => $currentStatus,
+                            ]);
+                            $stats['exceptions']++;
+                            return;
+                        }
+
+                        if ($currentStatus !== 'failed' && ! $settledByThisWorker) {
+                            $this->recordCase($intent, 'provider_terminal_status_conflict', $transaction, [
+                                'reason' => 'Provider verification reported failure while the local intent was in a competing state.',
+                                'local_status' => $currentStatus,
+                            ]);
+                            $stats['exceptions']++;
+                            return;
+                        }
+
                         $this->recordCase($intent, 'provider_failed', $transaction, [
                             'reason' => 'Provider verification reports a failed or abandoned transaction.',
                         ]);
