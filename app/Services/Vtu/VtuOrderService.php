@@ -400,11 +400,9 @@ class VtuOrderService
         $mapping = app(\App\Services\Addons\ServicePurchaseAdmissionPolicy::class)->mappingForProduct($product);
         $addonKey = $mapping['addon_key'];
         $operation = $mapping['operation'];
-        $implementation = app(AddonImplementationRegistry::class)->find($addonKey);
-        $addon = PlatformAddon::query()->where('addon_key', $addonKey)->first();
-
-        // Keep the legacy aggregate gate as defence in depth, while also
-        // enforcing independent feature controls for converted service addons.
+        // Keep legacy addon-key aliases mapped to the feature toggle that owns
+        // this service. The shared policy is the single lifecycle/registration
+        // decision used at preflight and the locked debit boundary.
         $featureKey = match (true) {
             $addonKey === 'service.airtime' && $product->service_type === 'airtime' => 'service.airtime',
             $addonKey === 'service.data' && $product->service_type === 'data' => 'service.data',
@@ -416,21 +414,16 @@ class VtuOrderService
             in_array($addonKey, ['service.vtu', 'service.bills'], true) && $product->service_type === 'tv-subscription' => 'service.tv',
             default => '',
         };
-        $feature = $featureKey === ''
-            ? null
-            : \App\Models\PlatformFeatureControl::query()->where('feature_key', $featureKey)->first();
-        $featureEnabled = $feature !== null
-            && (bool) $feature->is_enabled
-            && (bool) $feature->is_implemented;
 
-        $assessment = app(AddonLifecyclePolicy::class)->assessAdmission(
-            (string) ($addon?->status ?? 'missing'),
-            (string) ($addon?->compatibility_status ?? 'unchecked'),
-            $operation !== null
-                && app(\App\Services\Addons\ServicePurchaseAdmissionPolicy::class)
-                    ->isRegistered($implementation, $operation),
-            true, // assertProductConfigured() has already passed for this locked product.
-            $featureEnabled,
+        if ($featureKey === '') {
+            throw new InvalidArgumentException('This add-on is not available for new purchases (feature_mapping_missing).');
+        }
+
+        $assessment = app(\\App\\Services\\Addons\\AddonOperationAdmissionPolicy::class)->assess(
+            $addonKey,
+            $featureKey,
+            $operation,
+            true, // Provider readiness is checked separately before the debit/dispatch boundary.
         );
 
         if (! $assessment['available']) {
