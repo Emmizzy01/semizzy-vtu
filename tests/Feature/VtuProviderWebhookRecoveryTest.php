@@ -72,6 +72,35 @@ class VtuProviderWebhookRecoveryTest extends TestCase
         $this->assertSame('processing', $order->fresh()->status);
     }
 
+    public function test_provider_refund_notification_is_not_misclassified_as_purchase_failure(): void
+    {
+        $order = $this->createMatchedOrder('SOGO-REFUND-NOTIFICATION-1');
+        $event = $this->createEvent('evt-refund-notification-1', 'SOGO-REFUND-NOTIFICATION-1');
+        $event->forceFill([
+            'event_type' => 'transaction.refunded',
+            'payload' => [
+                'id' => 'evt-refund-notification-1',
+                'event' => 'transaction.refunded',
+                'data' => [
+                    'reference' => 'SOGO-REFUND-NOTIFICATION-1',
+                    'status' => 'refunded',
+                ],
+            ],
+        ])->save();
+
+        $this->mock(VtuOrderService::class, function ($mock): void {
+            $mock->shouldNotReceive('applyVerifiedWebhookResult');
+        });
+
+        $stats = app(VtuProviderWebhookService::class)->process();
+
+        $this->assertSame(1, $stats['checked']);
+        $this->assertSame(1, $stats['ignored']);
+        $this->assertSame(0, $stats['processed']);
+        $this->assertNotNull($event->fresh()->processed_at);
+        $this->assertSame('processing', $order->fresh()->status);
+    }
+
     public function test_worker_skips_event_already_claimed_within_backoff_window(): void
     {
         $this->createMatchedOrder('SOGO-COMPETING-1');
