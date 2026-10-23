@@ -1,21 +1,21 @@
 <?php
 
-namespace App\\Services\\Addons\\Providers;
+namespace App\Services\Addons\Providers;
 
-use App\\Services\\IntegrationSettings;
-use App\\Services\\Addons\\AirtimePurchaseRuntime;
-use App\\Services\\Addons\\DataPurchaseRuntime;
-use App\\Services\\Addons\\ElectricityPurchaseRuntime;
-use App\\Services\\Addons\\TvPurchaseRuntime;
-use App\\Services\\Vtu\\BillerVerificationProviderRegistry;
-use App\\Services\\Vtu\\DatawayProviderClient;
-use App\\Services\\Vtu\\GsubzProviderClient;
-use App\\Services\\Vtu\\MultiProviderVtuRouter;
-use App\\Services\\Vtu\\SogoProviderClient;
-use App\\Services\\Vtu\\VtpassProviderClient;
-use App\\Services\\Vtu\\VtuProvider;
-use App\\Services\\Vtu\\VtuProviderClient;
-use Illuminate\\Support\\ServiceProvider;
+use App\Services\IntegrationSettings;
+use App\Services\Addons\AirtimePurchaseRuntime;
+use App\Services\Addons\DataPurchaseRuntime;
+use App\Services\Addons\ElectricityPurchaseRuntime;
+use App\Services\Addons\TvPurchaseRuntime;
+use App\Services\Vtu\BillerVerificationProviderRegistry;
+use App\Services\Vtu\DatawayProviderClient;
+use App\Services\Vtu\GsubzProviderClient;
+use App\Services\Vtu\MultiProviderVtuRouter;
+use App\Services\Vtu\SogoProviderClient;
+use App\Services\Vtu\VtpassProviderClient;
+use App\Services\Vtu\VtuProvider;
+use App\Services\Vtu\VtuProviderClient;
+use Illuminate\Support\ServiceProvider;
 
 /**
  * VTU addon composition root. This wires adapters only; Core admission,
