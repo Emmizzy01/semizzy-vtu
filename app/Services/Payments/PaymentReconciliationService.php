@@ -254,29 +254,60 @@ class PaymentReconciliationService
     {
         $transactionId = isset($transaction['id']) && is_numeric($transaction['id'])
             ? (string) $transaction['id'] : null;
-        $key = hash('sha256', implode('|', [
-            'paystack', $intent->reference, $type, $transactionId ?? 'no-transaction-id',
-        ]));
-
         $observedAt = now();
-        $observation = [
-            'observed_at' => $observedAt->toISOString(),
-            'provider_status' => is_string($transaction['status'] ?? null) ? $transaction['status'] : null,
-            'provider_transaction_id' => $transactionId,
-            'observed_amount_minor' => is_int($transaction['amount'] ?? null) ? $transaction['amount'] : null,
-            'observed_currency' => is_string($transaction['currency'] ?? null) ? strtoupper($transaction['currency']) : null,
-            'details' => $details,
-        ];
 
-        // Keep create-or-first semantics for unique-key races, then lock and merge
-        // the winner's row. Existing evidence is append-only; repeated checks may
-        // update last_checked_at but must not replace the original reason or status.
-        DB::transaction(function () use ($intent, $type, $transactionId, $key, $observedAt, $observation): void {
+        DB::transaction(function () use ($intent, $type, $transactionId, $observedAt, $transaction, $details): void {
+            // Match settlement's intent-first lock order. If settlement wins the
+            // race, classify stale failure/conflict evidence against the paid row.
+            $currentIntent = PaymentIntent::query()
+                ->whereKey($intent->id)
+                ->lockForUpdate()
+                ->first();
+
+            $caseType = $type;
+            $caseDetails = $details;
+            $staleAfterSettlementTypes = [
+                'provider_failed',
+                'provider_terminal_status_conflict',
+                'failed_payment_mismatch',
+                'successful_payment_mismatch',
+                'idempotency_conflict',
+                'settlement_error',
+                'settlement_not_applied',
+                'wallet_limit_review',
+                'late_success_review',
+            ];
+
+            if ($currentIntent !== null
+                && $currentIntent->status === 'paid'
+                && in_array($type, $staleAfterSettlementTypes, true)) {
+                $caseType = 'post_settlement_provider_conflict';
+                $caseDetails['observed_case_type'] = $type;
+                $caseDetails['local_status_at_recording'] = 'paid';
+                $caseDetails['reason'] = 'Provider/reconciliation evidence conflicted with an intent that was already settled; the original provider evidence is retained for manual review.';
+            }
+
+            $key = hash('sha256', implode('|', [
+                'paystack',
+                $intent->reference,
+                $caseType,
+                $transactionId ?? 'no-transaction-id',
+            ]));
+
+            $observation = [
+                'observed_at' => $observedAt->toISOString(),
+                'provider_status' => is_string($transaction['status'] ?? null) ? $transaction['status'] : null,
+                'provider_transaction_id' => $transactionId,
+                'observed_amount_minor' => is_int($transaction['amount'] ?? null) ? $transaction['amount'] : null,
+                'observed_currency' => is_string($transaction['currency'] ?? null) ? strtoupper($transaction['currency']) : null,
+                'details' => $caseDetails,
+            ];
+
             $attributes = [
                 'provider' => 'paystack',
                 'reference' => $intent->reference,
                 'payment_intent_id' => $intent->id,
-                'case_type' => $type,
+                'case_type' => $caseType,
                 'provider_status' => $observation['provider_status'],
                 'provider_transaction_id' => $transactionId,
                 'expected_amount_minor' => $intent->amount_minor,
@@ -284,7 +315,7 @@ class PaymentReconciliationService
                 'expected_currency' => $intent->currency,
                 'observed_currency' => $observation['observed_currency'],
                 'details' => [
-                    'reason' => $observation['details']['reason'] ?? 'Payment reconciliation requires review.',
+                    'reason' => $caseDetails['reason'] ?? 'Payment reconciliation requires review.',
                     'observations' => [$observation],
                 ],
                 'last_checked_at' => $observedAt,
@@ -304,8 +335,6 @@ class PaymentReconciliationService
             $observations = is_array($existingDetails['observations'] ?? null)
                 ? $existingDetails['observations'] : [];
 
-            // Avoid appending an identical observation when a retried scheduler
-            // pass returns exactly the same evidence and details.
             $observationHash = hash('sha256', json_encode($observation, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
             $lastObservation = $observations === [] ? null : $observations[array_key_last($observations)];
             $lastObservationHash = is_array($lastObservation)
@@ -316,21 +345,17 @@ class PaymentReconciliationService
                 $observations[] = $observation;
             }
 
-            // Bound case-row growth while preserving the first observation and
-            // the most recent evidence needed for investigation.
             if (count($observations) > 25) {
                 $observations = array_merge([$observations[0]], array_slice($observations, -24));
             }
 
             $existingDetails['observations'] = $observations;
             $existingDetails['last_observed_at'] = $observedAt->toISOString();
-            if (! isset($existingDetails['reason']) && isset($observation['details']['reason'])) {
-                $existingDetails['reason'] = $observation['details']['reason'];
+            if (! isset($existingDetails['reason']) && isset($caseDetails['reason'])) {
+                $existingDetails['reason'] = $caseDetails['reason'];
             }
 
             $case->forceFill([
-                // Preserve original identifying/expected evidence and terminal
-                // status. Only fill absent expected fields on legacy sparse rows.
                 'provider' => $case->provider ?: 'paystack',
                 'reference' => $case->reference ?: $intent->reference,
                 'payment_intent_id' => $case->payment_intent_id ?: $intent->id,
@@ -340,5 +365,5 @@ class PaymentReconciliationService
                 'last_checked_at' => $observedAt,
             ])->save();
         }, attempts: 3);
-     }
+    }
 }
