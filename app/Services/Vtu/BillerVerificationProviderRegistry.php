@@ -1,8 +1,8 @@
 <?php
 
-namespace App\\Services\\Vtu;
+namespace App\Services\Vtu;
 
-use App\\Models\\VtuProduct;
+use App\Models\VtuProduct;
 
 class BillerVerificationProviderRegistry
 {
