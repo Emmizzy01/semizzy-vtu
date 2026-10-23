@@ -80,9 +80,15 @@ class PaymentReconciliationService
                             return;
                         }
 
-                        if ($intent->status !== 'pending' || ($intent->expires_at && $intent->expires_at->isPast())) {
+                        // A checkout expiry is not proof that the gateway payment failed.
+                        // Paystack's canonical verification has already matched reference,
+                        // amount, currency, and transaction ID above; let the funding service
+                        // apply its own locked status, idempotency, and live-funding gates.
+                        // A non-pending intent remains review-only and is never reopened here.
+                        if ($intent->status !== 'pending') {
                             $this->recordCase($intent, 'late_success_review', $transaction, [
-                                'reason' => 'Provider reports success after the intent was no longer eligible for automatic settlement.',
+                                'reason' => 'Provider reports success while the local intent is no longer pending; automatic settlement was not attempted.',
+                                'local_status' => $intent->status,
                             ]);
                             $stats['exceptions']++;
                             return;
