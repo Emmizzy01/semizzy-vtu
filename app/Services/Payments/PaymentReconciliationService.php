@@ -165,6 +165,10 @@ class PaymentReconciliationService
                             ]);
                             if (in_array($result['outcome'], ['credited', 'duplicate_payment'], true)) {
                                 $stats['credited']++;
+                            } elseif ($result['outcome'] === 'idempotency_conflict') {
+                                // Funding persisted the conflict case atomically with the
+                                // webhook event; do not relabel it as a generic settlement miss.
+                                $stats['exceptions']++;
                             } else {
                                 $this->recordCase($intent, 'settlement_not_applied', $transaction, [
                                     'reason' => 'Verified success was not automatically settled.',
