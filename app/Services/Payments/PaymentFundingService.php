@@ -652,7 +652,25 @@ class PaymentFundingService
     private function isUniqueConstraintViolation(QueryException $exception): bool
     {
         $sqlState = (string) ($exception->errorInfo[0] ?? $exception->getCode());
+        $driverCode = isset($exception->errorInfo[1]) ? (int) $exception->errorInfo[1] : null;
+        $driverMessage = strtolower((string) ($exception->errorInfo[2] ?? $exception->getMessage()));
 
-        return in_array($sqlState, ['23000', '23505'], true);
+        // SQLSTATE 23000 is a broad integrity-constraint category on MySQL:
+        // it also covers foreign-key and NOT NULL failures. Treating all of those
+        // as duplicate webhook delivery would skip the retry breadcrumb entirely.
+        if ($sqlState === '23505') {
+            return true;
+        }
+
+        if ($sqlState !== '23000') {
+            return false;
+        }
+
+        // MySQL/MariaDB duplicate entry; SQLite's extended message is the only
+        // portable discriminator available through PDO for its constraint code.
+        return $driverCode === 1062
+            || str_contains($driverMessage, 'unique constraint failed')
+            || str_contains($driverMessage, 'primary key constraint failed')
+            || str_contains($driverMessage, 'duplicate entry');
     }
 }
