@@ -959,7 +959,46 @@ class VtuOrderService
                 VtuOrderStatus::Successful->value,
                 VtuOrderStatus::Failed->value,
                 VtuOrderStatus::Cancelled->value,
-            ], true) || ($sourceAttempt !== null && ! $this->isLatestAttemptLocked($locked, $sourceAttempt))) {
+            ], true)) {
+                $storedTerminal = match ($locked->status) {
+                    VtuOrderStatus::Successful->value => 'success',
+                    VtuOrderStatus::Failed->value => 'failed',
+                    VtuOrderStatus::Cancelled->value => 'cancelled',
+                    default => $locked->status,
+                };
+
+                if ($providerStatus !== $storedTerminal) {
+                    $safeResponse = is_array($locked->safe_provider_response) ? $locked->safe_provider_response : [];
+                    $conflict = [
+                        'stored_status' => $storedTerminal,
+                        'observed_status' => $providerStatus,
+                        'observed_at' => now()->toIso8601String(),
+                        'provider_reference' => is_string($result['provider_reference'] ?? null)
+                            ? substr($result['provider_reference'], 0, 150)
+                            : null,
+                        'message_code' => is_string($result['message_code'] ?? null)
+                            ? substr($result['message_code'], 0, 80)
+                            : null,
+                    ];
+                    $history = is_array($safeResponse['terminal_status_conflicts'] ?? null)
+                        ? $safeResponse['terminal_status_conflicts']
+                        : [];
+                    $lastConflict = $history === [] ? null : $history[array_key_last($history)];
+                    if (! is_array($lastConflict)
+                        || ($lastConflict['stored_status'] ?? null) !== $storedTerminal
+                        || ($lastConflict['observed_status'] ?? null) !== $providerStatus
+                        || ($lastConflict['message_code'] ?? null) !== ($conflict['message_code'] ?? null)) {
+                        $history[] = $conflict;
+                    }
+                    $safeResponse['terminal_status_conflicts'] = array_slice($history, -10);
+                    $safeResponse['terminal_status_conflict'] = $conflict;
+                    $locked->forceFill(['safe_provider_response' => $safeResponse])->save();
+                }
+
+                return $locked->fresh();
+            }
+
+            if ($sourceAttempt !== null && ! $this->isLatestAttemptLocked($locked, $sourceAttempt)) {
                 return $locked;
             }
 
