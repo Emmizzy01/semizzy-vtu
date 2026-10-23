@@ -268,6 +268,92 @@ class PaymentFundingService
         }
     }
 
+    /**
+     * Recover only a wallet-limit review after the caller has independently verified
+     * Paystack's canonical transaction. Failed intents deliberately remain review-only.
+     *
+     * @param array<string, mixed> $transaction Canonical Paystack transaction data.
+     * @return array{outcome:string, duplicate:bool}
+     */
+    public function recoverVerifiedReview(PaymentIntent $candidate, array $transaction): array
+    {
+        $reference = $transaction['reference'] ?? null;
+        $transactionId = isset($transaction['id']) && is_numeric($transaction['id'])
+            ? (string) $transaction['id'] : null;
+        $amount = is_int($transaction['amount'] ?? null) ? $transaction['amount'] : null;
+        $currency = is_string($transaction['currency'] ?? null) ? strtoupper($transaction['currency']) : null;
+        $status = is_string($transaction['status'] ?? null) ? strtolower($transaction['status']) : null;
+
+        if ($candidate->provider !== 'paystack'
+            || $status !== 'success'
+            || $reference !== $candidate->reference
+            || $amount !== $candidate->amount_minor
+            || $currency !== $candidate->currency
+            || $transactionId === null) {
+            throw new ConflictHttpException('Canonical Paystack transaction does not match the payment intent.');
+        }
+
+        return DB::transaction(function () use ($candidate, $transactionId): array {
+            /** @var PaymentIntent|null $intent */
+            $intent = PaymentIntent::query()->whereKey($candidate->id)->lockForUpdate()->first();
+            if ($intent === null || $intent->provider !== 'paystack') {
+                throw new ConflictHttpException('Payment intent is no longer available for recovery.');
+            }
+
+            if (in_array($intent->status, ['paid', 'test_paid'], true)) {
+                if ($intent->provider_transaction_id !== $transactionId) {
+                    throw new ConflictHttpException('Payment intent was settled by a different provider transaction.');
+                }
+
+                return ['outcome' => 'duplicate_payment', 'duplicate' => true];
+            }
+
+            // This recovery is intentionally limited to the known wallet-cap exception.
+            // It never changes a failed intent back to pending or paid.
+            if ($intent->status !== 'review_required'
+                || $intent->provider_transaction_id !== $transactionId) {
+                return ['outcome' => 'late_success_review', 'duplicate' => false];
+            }
+
+            if (($intent->metadata['gateway_mode'] ?? null) !== 'live'
+                || ! config('services.semizzy_payments.live_funding_enabled', false)) {
+                return ['outcome' => 'funding_gate_closed', 'duplicate' => false];
+            }
+
+            try {
+                $this->ledger->post(
+                    walletId: $intent->wallet_id,
+                    type: 'credit',
+                    amountMinor: $intent->amount_minor,
+                    idempotencyKey: 'funding:'.hash('sha256', 'paystack:'.$transactionId),
+                    reference: $intent->reference,
+                    description: 'Verified wallet funding recovery',
+                    metadata: [
+                        'payment_intent_id' => $intent->public_id,
+                        'provider' => 'paystack',
+                        'provider_transaction_id' => $transactionId,
+                        'recovery' => 'wallet_limit_review',
+                    ],
+                    correlationId: (string) Str::uuid(),
+                );
+            } catch (DomainException $exception) {
+                if (! str_contains($exception->getMessage(), 'account level would be exceeded')) {
+                    throw $exception;
+                }
+
+                return ['outcome' => 'wallet_limit_review', 'duplicate' => false];
+            }
+
+            $intent->forceFill([
+                'status' => 'paid',
+                'provider_transaction_id' => $transactionId,
+                'paid_at' => $intent->paid_at ?? now(),
+            ])->save();
+
+            return ['outcome' => 'credited', 'duplicate' => false];
+        }, attempts: 3);
+    }
+
     private function isUniqueConstraintViolation(QueryException $exception): bool
     {
         $sqlState = (string) ($exception->errorInfo[0] ?? $exception->getCode());
