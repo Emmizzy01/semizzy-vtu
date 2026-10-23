@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\ScheduledServicePurchase;
 use App\Models\User;
 use App\Models\PlatformAddon;
+use App\Models\PlatformFeatureControl;
 use App\Services\IntegrationSettings;
 use App\Models\VtuProduct;
 use App\Models\VtuOrder;
@@ -25,6 +26,48 @@ class ScheduledServicePurchaseTest extends TestCase
                     ['name' => 'Data', 'version' => '1.0.0', 'minimum_core_version' => '1.0.0', 'status' => 'enabled', 'is_core_owned' => false, 'compatibility_status' => 'compatible'],
                 );
                 app(IntegrationSettings::class)->set('service.data.enabled', '1', null);
+                PlatformFeatureControl::query()->updateOrCreate(
+                    ['feature_key' => 'service.data'],
+                    ['is_enabled' => true, 'is_implemented' => true],
+                );
+    }
+
+    public function test_disabled_platform_feature_blocks_new_scheduled_purchase_even_when_integration_setting_is_enabled(): void
+    {
+        PlatformFeatureControl::query()->updateOrCreate(
+            ['feature_key' => 'service.data'],
+            ['is_enabled' => false, 'is_implemented' => true],
+        );
+
+        $user = User::query()->create([
+            'name' => 'Feature Gate Schedule User',
+            'email' => 'feature-gate-schedule@example.test',
+            'password' => 'not-a-real-password',
+        ]);
+        $user->forceFill(['transaction_pin_hash' => Hash::make('1234')])->save();
+
+        VtuProduct::query()->create([
+            'service_type' => 'data',
+            'network' => 'mtn',
+            'code' => 'feature-gated-schedule-data',
+            'name' => 'MTN Data Plan',
+            'price_minor' => 100000,
+            'currency' => 'NGN',
+            'is_active' => true,
+            'metadata' => ['catalog_source' => 'sogo', 'provider_mappings' => ['sogo' => ['network' => 'mtn', 'variation_code' => 'plan-1']]],
+        ]);
+
+        $this->actingAs($user)->postJson('/wallet/scheduled-purchases', [
+            'service_type' => 'data',
+            'product_code' => 'feature-gated-schedule-data',
+            'recipient' => '08012345678',
+            'frequency' => 'weekly',
+            'next_run_at' => now()->addDay()->toIso8601String(),
+            'idempotency_key' => 'schedule-feature-gate-0001',
+            'transaction_pin' => '1234',
+        ])->assertStatus(503);
+
+        $this->assertDatabaseCount('scheduled_service_purchases', 0);
     }
 
     public function test_user_can_schedule_a_supported_service_with_pin_and_cancel_it(): void

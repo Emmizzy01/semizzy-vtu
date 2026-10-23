@@ -209,14 +209,21 @@ class ScheduledServicePurchaseController extends Controller
             && in_array('wallet.vtu.orders.create', $implementation['operations'], true);
         if ($addon === null || ! $registered) return false;
 
+        $feature = PlatformFeatureControl::query()->where('feature_key', $addonKey)->first();
+        $platformFeatureEnabled = $feature !== null
+            && (bool) $feature->is_enabled
+            && (bool) $feature->is_implemented;
+
         if (in_array($product->service_type, ['airtime', 'data'], true)) {
             $settings = app(IntegrationSettings::class);
             $independent = $settings->get('service.'.$product->service_type.'.enabled', null);
             $legacy = $settings->get('service.airtime_data.enabled', false);
-            $featureEnabled = filter_var($independent ?? $legacy, FILTER_VALIDATE_BOOLEAN);
+            $integrationEnabled = filter_var($independent ?? $legacy, FILTER_VALIDATE_BOOLEAN);
+            // The legacy integration switch can further restrict admission,
+            // but cannot override the platform's independent addon feature gate.
+            $featureEnabled = $platformFeatureEnabled && $integrationEnabled;
         } else {
-            $feature = PlatformFeatureControl::query()->where('feature_key', $addonKey)->first();
-            $featureEnabled = $feature !== null && $feature->is_enabled && $feature->is_implemented;
+            $featureEnabled = $platformFeatureEnabled;
         }
 
         return app(AddonLifecyclePolicy::class)->assessAdmission(
