@@ -145,4 +145,69 @@ class ServicePurchaseRuntimeRegistryTest extends TestCase
         ], 125000);
     }
 
+
+    public function test_electricity_runtime_requires_verified_provider_meter_before_purchase(): void
+    {
+        $product = new VtuProduct([
+            'service_type' => 'electricity-bill',
+            'price_minor' => 10000,
+            'metadata' => ['purchase_supported' => true],
+        ]);
+        $provider = Mockery::mock(VtuProvider::class, BillerVerificationProvider::class);
+        $provider->shouldReceive('verifyElectricityMeter')
+            ->once()
+            ->with($product, '12345678901', 'prepaid')
+            ->andReturn(['status' => 'verified']);
+
+        app(ElectricityPurchaseRuntime::class)->verifyBeforePurchase(
+            $product,
+            '12345678901',
+            ['meter_type' => 'prepaid'],
+            $provider,
+        );
+    }
+
+    public function test_electricity_runtime_rejects_unverified_meter_before_order_creation(): void
+    {
+        $product = new VtuProduct([
+            'service_type' => 'electricity-bill',
+            'price_minor' => 10000,
+            'metadata' => ['purchase_supported' => true],
+        ]);
+        $provider = Mockery::mock(VtuProvider::class, BillerVerificationProvider::class);
+        $provider->shouldReceive('verifyElectricityMeter')
+            ->once()
+            ->andReturn(['status' => 'unverified']);
+
+        $this->expectException(\\InvalidArgumentException::class);
+        $this->expectExceptionMessage('The provider could not confirm this meter. No purchase was created.');
+        app(ElectricityPurchaseRuntime::class)->verifyBeforePurchase(
+            $product,
+            '12345678901',
+            ['meter_type' => 'prepaid'],
+            $provider,
+        );
+    }
+
+    public function test_tv_runtime_requires_verified_provider_smartcard_before_purchase(): void
+    {
+        $product = new VtuProduct([
+            'service_type' => 'tv-subscription',
+            'price_minor' => 125000,
+            'metadata' => ['purchase_supported' => true],
+        ]);
+        $provider = Mockery::mock(VtuProvider::class, BillerVerificationProvider::class);
+        $provider->shouldReceive('verifyTvSmartcard')
+            ->once()
+            ->with($product, '123456789012')
+            ->andReturn(['status' => 'verified']);
+
+        app(TvPurchaseRuntime::class)->verifyBeforePurchase(
+            $product,
+            '123456789012',
+            ['subscription_type' => 'change'],
+            $provider,
+        );
+    }
+
 }
