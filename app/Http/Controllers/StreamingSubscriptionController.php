@@ -22,12 +22,16 @@ class StreamingSubscriptionController extends Controller
         $feature = PlatformFeatureControl::query()->where('feature_key', 'service.streaming_subscriptions')->first();
         $addon = PlatformAddon::query()->where('addon_key', 'service.streaming')->first();
         $implementation = app(AddonImplementationRegistry::class)->find('service.streaming');
-        $registered = $implementation !== null && in_array('streaming-subscriptions.index', $implementation['operations'], true);
+        // A catalogue handler is not a purchase implementation. Keep the
+        // customer service unavailable until a reviewed purchase operation
+        // and provider fulfilment/recovery adapter are registered.
+        $purchaseRegistered = $implementation !== null
+            && in_array('streaming-subscriptions.purchase', $implementation['operations'], true);
         $available = $addon !== null && app(AddonLifecyclePolicy::class)->assessAdmission(
             (string) $addon->status,
             (string) $addon->compatibility_status,
-            $registered,
-            true,
+            $purchaseRegistered,
+            false,
             $feature !== null && $feature->is_enabled && $feature->is_implemented,
         )['available'];
         $products = $available
