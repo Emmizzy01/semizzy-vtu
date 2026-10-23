@@ -441,6 +441,35 @@ class PaymentRefundService
             };
 
             if (in_array($refund->status, ['succeeded', 'failed'], true)) {
+                // A contradictory definitive provider observation must not rewrite
+                // a settled refund or reverse its wallet compensation. Preserve bounded
+                // evidence so reconciliation can investigate the provider disagreement.
+                if (in_array($normalized, ['succeeded', 'failed'], true)
+                    && $normalized !== $refund->status) {
+                    $combined = $refund->metadata ?? [];
+                    $conflict = [
+                        'stored_status' => $refund->status,
+                        'observed_status' => $normalized,
+                        'provider_status' => substr($providerStatus, 0, 40),
+                        'provider_refund_reference' => $providerRef,
+                        'observed_at' => now()->toISOString(),
+                    ];
+                    $history = is_array($combined['terminal_status_conflicts'] ?? null)
+                        ? $combined['terminal_status_conflicts']
+                        : [];
+                    $last = $history === [] ? null : $history[array_key_last($history)];
+                    if (! is_array($last)
+                        || ($last['stored_status'] ?? null) !== $refund->status
+                        || ($last['observed_status'] ?? null) !== $normalized
+                        || ($last['provider_refund_reference'] ?? null) !== $providerRef) {
+                        $history[] = $conflict;
+                    }
+                    $combined['terminal_status_conflicts'] = array_slice($history, -10);
+                    $combined['terminal_status_conflict'] = $conflict;
+                    $refund->forceFill(['metadata' => $combined])->save();
+                    return $refund->fresh();
+                }
+
                 return $refund;
             }
 
