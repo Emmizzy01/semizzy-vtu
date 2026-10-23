@@ -46,10 +46,13 @@ class AddonImplementationRegistryTest extends TestCase
         $this->assertNotContains('service.airtime.purchase', $registry->find('service.data')['operations']);
         $this->assertContains('wallet.vtu.orders.create', $registry->find('service.airtime')['operations']);
         $this->assertContains('wallet.vtu.orders.bulk', $registry->find('service.data')['operations']);
-        $this->assertContains('wallet.vtu.orders.create', $registry->find('service.airtime_data')['operations']);
+        $this->assertContains('service.airtime.purchase', $registry->find('service.airtime_data')['operations']);
+        $this->assertContains('service.data.purchase', $registry->find('service.airtime_data')['operations']);
         $this->assertContains('wallet.vtu.billers.verify', $registry->find('service.bills')['operations']);
         $this->assertContains('service.electricity.purchase', $registry->find('service.electricity')['operations']);
         $this->assertContains('service.tv.purchase', $registry->find('service.tv')['operations']);
+        $this->assertContains('service.electricity.purchase', $registry->find('service.bills')['operations']);
+        $this->assertContains('service.tv.purchase', $registry->find('service.bills')['operations']);
         $this->assertNotContains('service.tv.purchase', $registry->find('service.electricity')['operations']);
         $this->assertNotContains('service.electricity.purchase', $registry->find('service.tv')['operations']);
         $this->assertContains('wallet.vtu.orders.create', $registry->find('service.bills')['operations']);
@@ -62,8 +65,9 @@ class AddonImplementationRegistryTest extends TestCase
 
         $this->assertTrue($policy->isRegistered($registry->find('service.airtime'), 'service.airtime.purchase'));
         $this->assertTrue($policy->isRegistered($registry->find('service.data'), 'service.data.purchase'));
-        $this->assertTrue($policy->isRegistered($registry->find('service.vtu'), 'wallet.vtu.orders.create'));
-        $this->assertTrue($policy->isRegistered($registry->find('service.airtime_data'), 'wallet.vtu.orders.create'));
+        $this->assertTrue($policy->isRegistered($registry->find('service.vtu'), 'service.airtime.purchase'));
+        $this->assertTrue($policy->isRegistered($registry->find('service.airtime_data'), 'service.data.purchase'));
+        $this->assertTrue($policy->isRegistered($registry->find('service.bills'), 'service.electricity.purchase'));
         $this->assertFalse($policy->isRegistered($registry->find('service.airtime'), 'service.data.purchase'));
         $this->assertFalse($policy->isRegistered($registry->find('service.data'), 'service.airtime.purchase'));
         $this->assertFalse($policy->isRegistered($registry->find('service.streaming'), 'streaming-subscriptions.purchase'));

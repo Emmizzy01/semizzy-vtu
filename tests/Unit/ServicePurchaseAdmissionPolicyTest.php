@@ -27,15 +27,24 @@ class ServicePurchaseAdmissionPolicyTest extends TestCase
         }
     }
 
-    public function test_legacy_aggregate_mappings_remain_explicit_and_service_scoped(): void
+    public function test_legacy_addon_keys_still_require_the_matching_service_operation(): void
     {
         $policy = app(ServicePurchaseAdmissionPolicy::class);
-        $product = new VtuProduct(['service_type' => 'airtime', 'metadata' => ['addon_key' => 'service.airtime_data']]);
 
-        $this->assertSame(
-            ['addon_key' => 'service.airtime_data', 'operation' => 'wallet.vtu.orders.create'],
-            $policy->mappingForProduct($product),
-        );
+        foreach ([
+            ['airtime', 'service.airtime_data', 'service.airtime.purchase'],
+            ['data', 'service.vtu', 'service.data.purchase'],
+            ['electricity-bill', 'service.bills', 'service.electricity.purchase'],
+            ['tv-subscription', 'service.vtu', 'service.tv.purchase'],
+        ] as [$serviceType, $addonKey, $operation]) {
+            $this->assertSame(
+                ['addon_key' => $addonKey, 'operation' => $operation],
+                $policy->mappingForProduct(new VtuProduct([
+                    'service_type' => $serviceType,
+                    'metadata' => ['addon_key' => $addonKey],
+                ])),
+            );
+        }
     }
 
     public function test_unknown_service_does_not_receive_an_addon_mapping(): void

@@ -19,7 +19,7 @@ class AddonImplementationRegistry
     private const IMPLEMENTATIONS = [
         'service.vtu' => [
             'handler' => VtuOrderController::class,
-            'operations' => ['wallet.vtu.products', 'wallet.vtu.orders.create', 'wallet.vtu.orders.bulk'],
+            'operations' => ['wallet.vtu.products', 'wallet.vtu.orders.create', 'wallet.vtu.orders.bulk', 'service.airtime.purchase', 'service.data.purchase', 'service.electricity.purchase', 'service.tv.purchase'],
         ],
         // Independent service manifests share the reviewed VTU handler while
         // retaining Core-owned wallet, pricing, and provider safeguards.
@@ -34,7 +34,7 @@ class AddonImplementationRegistry
         // Legacy catalogue key remains registered during the compatibility window.
         'service.airtime_data' => [
             'handler' => VtuOrderController::class,
-            'operations' => ['wallet.vtu.products', 'wallet.vtu.orders.create', 'wallet.vtu.orders.bulk'],
+            'operations' => ['service.airtime.purchase', 'service.data.purchase', 'wallet.vtu.products', 'wallet.vtu.orders.create', 'wallet.vtu.orders.bulk'],
         ],
         'service.electricity' => [
             'handler' => VtuOrderController::class,
@@ -46,7 +46,7 @@ class AddonImplementationRegistry
         ],
         'service.bills' => [
             'handler' => VtuOrderController::class,
-            'operations' => ['wallet.vtu.products', 'wallet.vtu.orders.create', 'wallet.vtu.orders.bulk', 'wallet.vtu.billers.verify'],
+            'operations' => ['service.electricity.purchase', 'service.tv.purchase', 'wallet.vtu.products', 'wallet.vtu.orders.create', 'wallet.vtu.orders.bulk', 'wallet.vtu.billers.verify'],
         ],
         'service.education' => [
             'handler' => EducationServiceController::class,
