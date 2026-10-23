@@ -11,9 +11,9 @@ final class AirtimePurchaseRuntime implements ServicePurchaseRuntimeContract, Pu
 
     public function assertFeatureEnabled(VtuProduct $product): void
     {
-        // The shared feature control is authoritative. Legacy integration settings
-        // may narrow access further, but must never bypass a platform-level disable.
-        $feature = PlatformFeatureControl::query()->where('feature_key', 'service.airtime_data')->first();
+        // This service's feature control is authoritative. The legacy aggregate
+        // setting may narrow access further, but cannot override this service's toggle.
+        $feature = PlatformFeatureControl::query()->where('feature_key', 'service.airtime')->first();
         if ($feature === null || ! $feature->is_enabled || ! $feature->is_implemented) {
             throw new \InvalidArgumentException('This service is not yet enabled for customer purchases.');
         }
@@ -84,7 +84,7 @@ final class AirtimePurchaseRuntime implements ServicePurchaseRuntimeContract, Pu
     /** @return array{message: string, status: int}|null */
     public function unavailableError(IntegrationSettings $settings): ?array
     {
-        $feature = PlatformFeatureControl::query()->where('feature_key', 'service.airtime_data')->first();
+        $feature = PlatformFeatureControl::query()->where('feature_key', 'service.airtime')->first();
         $featureEnabled = $feature !== null && $feature->is_enabled && $feature->is_implemented;
         $independent = $settings->get('service.airtime.enabled', null);
         $enabled = $independent ?? $settings->get('service.airtime_data.enabled', false);
