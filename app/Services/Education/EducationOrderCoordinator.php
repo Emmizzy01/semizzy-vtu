@@ -265,10 +265,11 @@ class EducationOrderCoordinator
                     'cancelled' => 'cancelled',
                     default => $locked->status,
                 };
-                if ($status !== $terminalStatus) {
-                    // Preserve the terminal financial state, but retain evidence when
-                    // a competing provider observation contradicts it. Never issue a
-                    // second refund or rewrite a completed order from a stale lookup.
+                if (in_array($status, ['success', 'failed'], true) && $status !== $terminalStatus) {
+                    // Only a definitive success/failure disagreement is a terminal
+                    // conflict. Pending or unknown lookups are weaker observations and
+                    // must not repeatedly replace the conflict evidence on a completed order.
+                    // Never issue a second refund or rewrite a completed order from a stale lookup.
                     $safeResponse = is_array($locked->safe_provider_response) ? $locked->safe_provider_response : [];
                     $safeResponse['terminal_status_conflict'] = [
                         'stored_status' => $terminalStatus,
