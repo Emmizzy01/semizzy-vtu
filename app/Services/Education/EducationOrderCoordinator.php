@@ -259,7 +259,27 @@ class EducationOrderCoordinator
         return DB::transaction(function () use ($order, $status, $providerReference, $messageCode, $deliveryPayload): EducationOrder {
             $locked = EducationOrder::query()->whereKey($order->getKey())->lockForUpdate()->firstOrFail();
             if (in_array($locked->status, ['successful', 'failed', 'cancelled'], true)) {
-                return $locked;
+                $terminalStatus = match ($locked->status) {
+                    'successful' => 'success',
+                    'failed' => 'failed',
+                    'cancelled' => 'cancelled',
+                    default => $locked->status,
+                };
+                if ($status !== $terminalStatus) {
+                    // Preserve the terminal financial state, but retain evidence when
+                    // a competing provider observation contradicts it. Never issue a
+                    // second refund or rewrite a completed order from a stale lookup.
+                    $safeResponse = is_array($locked->safe_provider_response) ? $locked->safe_provider_response : [];
+                    $safeResponse['terminal_status_conflict'] = [
+                        'stored_status' => $terminalStatus,
+                        'observed_status' => $status,
+                        'observed_at' => now()->toIso8601String(),
+                        'message_code' => $messageCode,
+                    ];
+                    $locked->forceFill(['safe_provider_response' => $safeResponse])->save();
+                }
+
+                return $locked->fresh();
             }
 
             // A concurrent lookup can return an indeterminate result after another
