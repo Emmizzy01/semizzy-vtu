@@ -7,6 +7,7 @@ use App\Services\Addons\DataPurchaseRuntime;
 use App\Services\Addons\ElectricityPurchaseRuntime;
 use App\Services\Addons\TvPurchaseRuntime;
 use App\Services\Addons\ServicePurchaseRuntimeRegistry;
+use App\Models\VtuProduct;
 use App\Services\IntegrationSettings;
 use Mockery;
 use Tests\TestCase;
@@ -115,7 +116,7 @@ class ServicePurchaseRuntimeRegistryTest extends TestCase
             ],
         ]);
 
-        $this->expectException(\\InvalidArgumentException::class);
+        $this->expectException(\InvalidArgumentException::class);
         $this->expectExceptionMessage('The electricity amount is outside the provider limits.');
         $runtime->prepareOrder($product, [
             'contact_phone' => '08012345678',
@@ -136,7 +137,7 @@ class ServicePurchaseRuntimeRegistryTest extends TestCase
         $this->assertSame(125000, $prepared['amount_minor']);
         $this->assertSame('change', $prepared['service_details']['subscription_type']);
 
-        $this->expectException(\\InvalidArgumentException::class);
+        $this->expectException(\InvalidArgumentException::class);
         $this->expectExceptionMessage('Only verified TV bouquet changes are available right now. Renewal is not enabled.');
         $runtime->prepareOrder($product, [
             'contact_phone' => '08012345678',

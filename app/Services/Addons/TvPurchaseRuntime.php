@@ -13,21 +13,21 @@ final class TvPurchaseRuntime implements ServicePurchaseRuntimeContract
     public function prepareOrder(VtuProduct $product, array $serviceDetails, ?int $amountMinor): array
     {
         if (($product->metadata['purchase_supported'] ?? null) !== true) {
-            throw new \\InvalidArgumentException('This service is not yet enabled for customer purchases.');
+            throw new \InvalidArgumentException('This service is not yet enabled for customer purchases.');
         }
 
         $contactPhone = preg_replace('/[\\s-]+/', '', (string) ($serviceDetails['contact_phone'] ?? '')) ?? '';
         if (! preg_match('/^\\+?[0-9]{10,15}$/', $contactPhone)) {
-            throw new \\InvalidArgumentException('Enter a valid contact phone number for the provider transaction.');
+            throw new \InvalidArgumentException('Enter a valid contact phone number for the provider transaction.');
         }
         $serviceDetails['contact_phone'] = $contactPhone;
         if (($serviceDetails['subscription_type'] ?? 'change') !== 'change') {
-            throw new \\InvalidArgumentException('Only verified TV bouquet changes are available right now. Renewal is not enabled.');
+            throw new \InvalidArgumentException('Only verified TV bouquet changes are available right now. Renewal is not enabled.');
         }
         $serviceDetails['subscription_type'] = 'change';
         $amountMinor = (int) $product->price_minor;
         if ($amountMinor < 1) {
-            throw new \\InvalidArgumentException('This TV subscription has no valid provider price.');
+            throw new \InvalidArgumentException('This TV subscription has no valid provider price.');
         }
 
         return ['service_details' => $serviceDetails, 'amount_minor' => $amountMinor];

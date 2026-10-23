@@ -66,7 +66,7 @@ class VtuOrderService
             ->where('currency', 'NGN')
             ->firstOrFail();
 
-        $runtime = app(\\App\\Services\\Addons\\ServicePurchaseRuntimeRegistry::class)->forService($product->service_type);
+        $runtime = app(\App\Services\Addons\ServicePurchaseRuntimeRegistry::class)->forService($product->service_type);
         if ($runtime === null) {
             throw new InvalidArgumentException('This service has no registered purchase runtime.');
         }
@@ -176,7 +176,7 @@ class VtuOrderService
                 $lockedStorefront = $storefrontSlug !== null
                     ? $this->assertStorefrontProductAvailable($storefrontSlug, $lockedProduct, true)
                     : null;
-                $lockedRuntime = app(\\App\\Services\\Addons\\ServicePurchaseRuntimeRegistry::class)->forService($lockedProduct->service_type);
+                $lockedRuntime = app(\App\Services\Addons\ServicePurchaseRuntimeRegistry::class)->forService($lockedProduct->service_type);
                 if ($lockedRuntime === null) {
                     throw new InvalidArgumentException('This service has no registered purchase runtime.');
                 }

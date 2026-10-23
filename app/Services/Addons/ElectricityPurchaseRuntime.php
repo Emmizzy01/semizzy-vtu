@@ -13,25 +13,25 @@ final class ElectricityPurchaseRuntime implements ServicePurchaseRuntimeContract
     public function prepareOrder(VtuProduct $product, array $serviceDetails, ?int $amountMinor): array
     {
         if (($product->metadata['purchase_supported'] ?? null) !== true) {
-            throw new \\InvalidArgumentException('This service is not yet enabled for customer purchases.');
+            throw new \InvalidArgumentException('This service is not yet enabled for customer purchases.');
         }
 
         $contactPhone = preg_replace('/[\\s-]+/', '', (string) ($serviceDetails['contact_phone'] ?? '')) ?? '';
         if (! preg_match('/^\\+?[0-9]{10,15}$/', $contactPhone)) {
-            throw new \\InvalidArgumentException('Enter a valid contact phone number for the provider transaction.');
+            throw new \InvalidArgumentException('Enter a valid contact phone number for the provider transaction.');
         }
         $serviceDetails['contact_phone'] = $contactPhone;
 
         if (! in_array($serviceDetails['meter_type'] ?? null, ['prepaid', 'postpaid'], true)) {
-            throw new \\InvalidArgumentException('Select prepaid or postpaid for the electricity meter.');
+            throw new \InvalidArgumentException('Select prepaid or postpaid for the electricity meter.');
         }
         if ($amountMinor === null || $amountMinor < 100) {
-            throw new \\InvalidArgumentException('Enter a valid electricity purchase amount.');
+            throw new \InvalidArgumentException('Enter a valid electricity purchase amount.');
         }
         $minimum = (int) round((float) ($product->metadata['provider_minimum_amount'] ?? 1) * 100);
         $maximum = (int) round((float) ($product->metadata['provider_maximum_amount'] ?? 1000000) * 100);
         if ($amountMinor < $minimum || $amountMinor > $maximum) {
-            throw new \\InvalidArgumentException('The electricity amount is outside the provider limits.');
+            throw new \InvalidArgumentException('The electricity amount is outside the provider limits.');
         }
 
         return ['service_details' => $serviceDetails, 'amount_minor' => $amountMinor];
