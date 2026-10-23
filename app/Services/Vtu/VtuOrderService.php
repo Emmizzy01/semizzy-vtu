@@ -419,7 +419,7 @@ class VtuOrderService
             throw new InvalidArgumentException('This add-on is not available for new purchases (feature_mapping_missing).');
         }
 
-        $assessment = app(\\App\\Services\\Addons\\AddonOperationAdmissionPolicy::class)->assess(
+        $assessment = app(\App\Services\Addons\AddonOperationAdmissionPolicy::class)->assess(
             $addonKey,
             $featureKey,
             $operation,
