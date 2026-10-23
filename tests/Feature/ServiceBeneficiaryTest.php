@@ -50,6 +50,28 @@ class ServiceBeneficiaryTest extends TestCase
         $this->assertDatabaseMissing('service_beneficiaries', ['id' => $id]);
     }
 
+    public function test_saved_beneficiary_does_not_imply_purchase_readiness_for_unverified_services(): void
+    {
+        $user = User::query()->create([
+            'name' => 'Unverified Beneficiary User',
+            'email' => 'unverified-beneficiary@example.test',
+            'password' => 'not-a-real-password',
+        ]);
+
+        $created = $this->actingAs($user)->postJson('/wallet/service-beneficiaries', [
+            'service_type' => 'government-service',
+            'label' => 'Document recipient',
+            'recipient' => 'ABC12345678',
+        ])->assertCreated()
+            ->assertJsonPath('data.purchase_workflow_status', 'not_verified')
+            ->assertJsonPath('data.purchase_available', false);
+
+        $this->actingAs($user)->getJson('/wallet/service-beneficiaries?service_type=government-service')
+            ->assertOk()
+            ->assertJsonPath('data.0.purchase_workflow_status', 'not_verified')
+            ->assertJsonPath('data.0.purchase_available', false);
+    }
+
     public function test_beneficiary_cannot_be_removed_or_viewed_by_another_user(): void
     {
         $owner = User::query()->create([

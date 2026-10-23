@@ -29,7 +29,9 @@ class ServiceBeneficiaryController extends Controller
             ->orderBy('service_type')->orderBy('label')
             ->get(['id', 'service_type', 'label', 'recipient', 'network', 'product_code', 'service_details', 'created_at']);
 
-        return response()->json(['data' => $items]);
+        return response()->json(['data' => $items->map(
+            fn (ServiceBeneficiary $item): array => $this->present($item)
+        )->values()]);
     }
 
     public function store(Request $request): JsonResponse
@@ -79,9 +81,30 @@ class ServiceBeneficiaryController extends Controller
             throw $exception;
         }
 
-        return response()->json(['data' => $beneficiary->only([
-            'id', 'service_type', 'label', 'recipient', 'network', 'product_code', 'service_details', 'created_at',
-        ])], 201);
+        return response()->json(['data' => $this->present($beneficiary)], 201);
+    }
+
+    /**
+     * A saved recipient is reusable customer data, not proof that a service
+     * can currently be purchased. Only services with an implemented purchase
+     * runtime are marked for runtime admission checks; all others remain
+     * explicitly unverified and still require separate purchase admission.
+     */
+    private function present(ServiceBeneficiary $item): array
+    {
+        $runtimeRegistered = in_array($item->service_type, [
+            'airtime', 'data', 'electricity-bill', 'tv-subscription',
+        ], true);
+
+        return $item->only([
+            'id', 'service_type', 'label', 'recipient', 'network',
+            'product_code', 'service_details', 'created_at',
+        ]) + [
+            'purchase_workflow_status' => $runtimeRegistered
+                ? 'runtime_admission_required'
+                : 'not_verified',
+            'purchase_available' => false,
+        ];
     }
 
     public function destroy(Request $request, int $beneficiary): JsonResponse
