@@ -266,25 +266,36 @@ class PaymentReconciliationService
 
             $caseType = $type;
             $caseDetails = $details;
-            $staleAfterSettlementTypes = [
-                'provider_failed',
-                'provider_terminal_status_conflict',
-                'failed_payment_mismatch',
-                'successful_payment_mismatch',
-                'idempotency_conflict',
-                'settlement_error',
-                'settlement_not_applied',
-                'wallet_limit_review',
-                'late_success_review',
-            ];
+            $initialCaseStatus = 'open';
 
-            if ($currentIntent !== null
-                && $currentIntent->status === 'paid'
-                && in_array($type, $staleAfterSettlementTypes, true)) {
-                $caseType = 'post_settlement_provider_conflict';
+            if ($currentIntent !== null && $currentIntent->status === 'paid') {
+                // Only contradictory payment evidence needs an open investigation.
+                // A stale timeout/provider-pending observation after successful
+                // settlement is retained as resolved information, not a false alert.
+                $contradictoryTypes = [
+                    'provider_failed',
+                    'provider_terminal_status_conflict',
+                    'failed_payment_mismatch',
+                    'successful_payment_mismatch',
+                    'idempotency_conflict',
+                    'late_success_review',
+                ];
+
+                $caseType = in_array($type, $contradictoryTypes, true)
+                    ? 'post_settlement_provider_conflict'
+                    : 'post_settlement_observation';
+
                 $caseDetails['observed_case_type'] = $type;
                 $caseDetails['local_status_at_recording'] = 'paid';
-                $caseDetails['reason'] = 'Provider/reconciliation evidence conflicted with an intent that was already settled; the original provider evidence is retained for manual review.';
+
+                if ($caseType === 'post_settlement_provider_conflict') {
+                    $caseDetails['reason'] = 'Provider evidence conflicts with an already-settled intent; the original provider evidence is retained for manual review.';
+                } else {
+                    $caseDetails['reason'] = 'This reconciliation observation was recorded after the intent had already settled; retained for audit without opening a misleading unresolved case.';
+                    $caseDetails['resolution'] = 'Intent was already paid when this observation was recorded.';
+                    $caseDetails['resolved_at'] = $observedAt->toISOString();
+                    $initialCaseStatus = 'resolved';
+                }
             }
 
             $key = hash('sha256', implode('|', [
@@ -323,7 +334,7 @@ class PaymentReconciliationService
 
             PaymentReconciliationCase::query()->firstOrCreate(
                 ['case_key' => $key],
-                $attributes + ['status' => 'open'],
+                $attributes + ['status' => $initialCaseStatus],
             );
 
             $case = PaymentReconciliationCase::query()
