@@ -91,7 +91,46 @@ class PaymentFundingService
                 // serializes them; only the original settlement may credit the wallet.
                 if (in_array($intent->status, ['paid', 'test_paid'], true)) {
                     if ($intent->provider_transaction_id !== $providerTransactionId) {
-                        throw new ConflictHttpException('Payment intent was already settled by another provider transaction.');
+                        // Persist contradictory provider evidence in the same transaction as
+                        // the webhook observation. Throwing here would roll back both records,
+                        // losing the conflict precisely when another worker already settled.
+                        $caseKey = hash('sha256', implode('|', [
+                            $provider,
+                            $intent->reference,
+                            'successful_payment_mismatch',
+                            $providerTransactionId,
+                        ]));
+                        PaymentReconciliationCase::query()->firstOrCreate(
+                            ['case_key' => $caseKey],
+                            [
+                                'provider' => $provider,
+                                'reference' => $intent->reference,
+                                'payment_intent_id' => $intent->id,
+                                'case_type' => 'successful_payment_mismatch',
+                                'provider_status' => 'success',
+                                'provider_transaction_id' => $providerTransactionId,
+                                'expected_amount_minor' => $intent->amount_minor,
+                                'observed_amount_minor' => $amount,
+                                'expected_currency' => $intent->currency,
+                                'observed_currency' => strtoupper($currency),
+                                'details' => [
+                                    'reason' => 'A successful provider event reported a different transaction ID after this intent was already settled. No additional wallet credit was attempted.',
+                                    'settled_provider_transaction_id' => $intent->provider_transaction_id,
+                                    'observed_provider_transaction_id' => $providerTransactionId,
+                                    'local_status' => $intent->status,
+                                    'requires_manual_review' => true,
+                                ],
+                                'status' => 'open',
+                                'last_checked_at' => now(),
+                            ],
+                        );
+                        $event->forceFill([
+                            'outcome' => 'successful_payment_mismatch',
+                            'payment_intent_id' => $intent->id,
+                            'processed_at' => now(),
+                        ])->save();
+
+                        return ['outcome' => 'successful_payment_mismatch', 'duplicate' => false];
                     }
 
                     $duplicateOutcome = $intent->status === 'test_paid' ? 'test_succeeded' : 'duplicate_payment';
