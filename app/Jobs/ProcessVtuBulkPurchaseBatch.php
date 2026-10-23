@@ -9,6 +9,7 @@ use App\Models\PlatformAddon;
 use App\Models\PlatformFeatureControl;
 use App\Services\Addons\AddonImplementationRegistry;
 use App\Services\Addons\AddonLifecyclePolicy;
+use App\Services\Addons\ServicePurchaseAdmissionPolicy;
 use App\Services\IntegrationSettings;
 use App\Services\Vtu\VtuOrderService;
 use Illuminate\Bus\Queueable;
@@ -223,8 +224,15 @@ class ProcessVtuBulkPurchaseBatch implements ShouldQueue
 
         $addon = PlatformAddon::query()->where('addon_key', $addonKey)->first();
         $implementation = app(AddonImplementationRegistry::class)->find($addonKey);
-        $registered = $implementation !== null
-            && in_array('wallet.vtu.orders.create', $implementation['operations'], true);
+        $purchaseOperation = match ($item->service_type) {
+            'airtime' => 'service.airtime.purchase',
+            'data' => 'service.data.purchase',
+            'electricity-bill' => 'service.electricity.purchase',
+            'tv-subscription' => 'service.tv.purchase',
+            default => null,
+        };
+        $registered = $purchaseOperation !== null
+            && app(ServicePurchaseAdmissionPolicy::class)->isRegistered($implementation, $purchaseOperation);
         if ($addon === null) {
             return false;
         }
