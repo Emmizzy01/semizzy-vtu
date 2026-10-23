@@ -2,6 +2,7 @@
 
 namespace App\Services\Addons;
 
+use App\Models\PlatformFeatureControl;
 use App\Models\VtuProduct;
 use App\Services\IntegrationSettings;
 
@@ -10,6 +11,13 @@ final class DataPurchaseRuntime implements ServicePurchaseRuntimeContract, Purch
 
     public function assertFeatureEnabled(VtuProduct $product): void
     {
+        // The shared feature control is authoritative. Legacy integration settings
+        // may narrow access further, but must never bypass a platform-level disable.
+        $feature = PlatformFeatureControl::query()->where('feature_key', 'service.airtime_data')->first();
+        if ($feature === null || ! $feature->is_enabled || ! $feature->is_implemented) {
+            throw new \InvalidArgumentException('This service is not yet enabled for customer purchases.');
+        }
+
         $settings = app(IntegrationSettings::class);
         $independent = $settings->get('service.data.enabled', null);
         $enabled = $independent ?? $settings->get('service.airtime_data.enabled', false);
@@ -70,10 +78,12 @@ final class DataPurchaseRuntime implements ServicePurchaseRuntimeContract, Purch
     /** @return array{message: string, status: int}|null */
     public function unavailableError(IntegrationSettings $settings): ?array
     {
+        $feature = PlatformFeatureControl::query()->where('feature_key', 'service.airtime_data')->first();
+        $featureEnabled = $feature !== null && $feature->is_enabled && $feature->is_implemented;
         $independent = $settings->get('service.data.enabled', null);
         $enabled = $independent ?? $settings->get('service.airtime_data.enabled', false);
 
-        return filter_var($enabled, FILTER_VALIDATE_BOOLEAN)
+        return $featureEnabled && filter_var($enabled, FILTER_VALIDATE_BOOLEAN)
             ? null
             : ['message' => 'Airtime and data purchases are temporarily unavailable.', 'status' => 503];
     }
