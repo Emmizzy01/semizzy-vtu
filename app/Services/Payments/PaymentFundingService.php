@@ -3,6 +3,7 @@
 namespace App\Services\Payments;
 
 use App\Models\PaymentIntent;
+use App\Models\PaymentReconciliationCase;
 use App\Models\PaymentWebhookEvent;
 use App\Services\Wallets\WalletLedgerService;
 use DomainException;
@@ -101,6 +102,48 @@ class PaymentFundingService
                     ])->save();
 
                     return ['outcome' => $duplicateOutcome, 'duplicate' => true];
+                }
+
+                // A late signed Paystack success must not disappear when an earlier
+                // reconciliation marked the intent failed or wallet-limit review was needed.
+                // Persist durable review evidence atomically with the webhook event; never
+                // reopen the intent or post a second credit from this late observation.
+                if ($provider === 'paystack' && in_array($intent->status, ['failed', 'review_required'], true)) {
+                    $caseKey = hash('sha256', implode('|', [
+                        'paystack',
+                        $intent->reference,
+                        'late_success_review',
+                        $providerTransactionId,
+                    ]));
+                    PaymentReconciliationCase::query()->firstOrCreate(
+                        ['case_key' => $caseKey],
+                        [
+                            'provider' => 'paystack',
+                            'reference' => $intent->reference,
+                            'payment_intent_id' => $intent->id,
+                            'case_type' => 'late_success_review',
+                            'provider_status' => 'success',
+                            'provider_transaction_id' => $providerTransactionId,
+                            'expected_amount_minor' => $intent->amount_minor,
+                            'observed_amount_minor' => $amount,
+                            'expected_currency' => $intent->currency,
+                            'observed_currency' => strtoupper($currency),
+                            'details' => [
+                                'reason' => 'Signed provider success arrived after the local intent entered a non-pending state; automatic settlement was withheld.',
+                                'local_status' => $intent->status,
+                                'requires_canonical_reconciliation' => true,
+                            ],
+                            'status' => 'open',
+                            'last_checked_at' => now(),
+                        ],
+                    );
+                    $event->forceFill([
+                        'outcome' => 'late_success_review',
+                        'payment_intent_id' => $intent->id,
+                        'processed_at' => now(),
+                    ])->save();
+
+                    return ['outcome' => 'late_success_review', 'duplicate' => false];
                 }
 
                 // A provider-verified Paystack success must still be reconciled after checkout expiry.
