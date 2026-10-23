@@ -2,6 +2,7 @@
 
 namespace App\Services\Payments;
 
+use App\Exceptions\Wallet\IdempotencyConflict;
 use App\Models\PaymentIntent;
 use App\Models\PaymentReconciliationCase;
 use Illuminate\Support\Facades\Log;
@@ -98,6 +99,17 @@ class PaymentReconciliationService
                                     ]);
                                     $stats['exceptions']++;
                                 }
+                            } catch (IdempotencyConflict $exception) {
+                                $this->recordCase($intent, 'idempotency_conflict', $transaction, [
+                                    'reason' => 'Verified payment recovery encountered an existing wallet transaction that conflicts with the canonical funding request or is not fully posted.',
+                                    'exception' => $exception::class,
+                                ]);
+                                Log::critical('Paystack wallet recovery blocked by ledger idempotency conflict.', [
+                                    'reference' => $intent->reference,
+                                    'provider_transaction_id' => $transactionId,
+                                    'exception' => $exception::class,
+                                ]);
+                                $stats['exceptions']++;
                             } catch (Throwable $exception) {
                                 $this->recordCase($intent, 'settlement_error', $transaction, [
                                     'reason' => 'Canonical provider success could not complete guarded wallet-limit recovery.',
@@ -145,6 +157,17 @@ class PaymentReconciliationService
                                 ]);
                                 $stats['exceptions']++;
                             }
+                        } catch (IdempotencyConflict $exception) {
+                            $this->recordCase($intent, 'idempotency_conflict', $transaction, [
+                                'reason' => 'Verified payment settlement encountered an existing wallet transaction that conflicts with the canonical funding request or is not fully posted.',
+                                'exception' => $exception::class,
+                            ]);
+                            Log::critical('Paystack settlement blocked by ledger idempotency conflict.', [
+                                'reference' => $intent->reference,
+                                'provider_transaction_id' => $transactionId,
+                                'exception' => $exception::class,
+                            ]);
+                            $stats['exceptions']++;
                         } catch (Throwable $exception) {
                             $this->recordCase($intent, 'settlement_error', $transaction, [
                                 'reason' => 'Verified success could not be automatically settled.',
