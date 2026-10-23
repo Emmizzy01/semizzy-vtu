@@ -136,10 +136,10 @@ class PaymentRefundService
                 return $refund->fresh();
             }, attempts: 3);
         } catch (InsufficientWalletFunds $exception) {
-            // Re-read and lock before recording the insufficient-funds result.
-            // Another approver may have advanced the refund after the ledger debit
-            // failed; a stale model save must never overwrite that newer state.
-            DB::transaction(function () use ($publicId): void {
+            // Only emit a rejection audit if this handler actually transitions a
+            // still-requested refund to the blocked state. A competing approver may
+            // have changed the refund while the ledger reservation was attempted.
+            DB::transaction(function () use ($publicId, $approver): void {
                 $blocked = PaymentRefund::query()
                     ->where('public_id', $publicId)
                     ->lockForUpdate()
@@ -156,25 +156,24 @@ class PaymentRefundService
                     'status_changed_at' => now(),
                     'metadata' => $metadata,
                 ])->save();
+
+                $intent = $blocked->paymentIntent()->firstOrFail();
+                WalletAuditEvent::query()->create([
+                    'wallet_id' => $intent->wallet_id,
+                    'actor_user_id' => $approver->id,
+                    'event_type' => 'wallet.refund.reservation_rejected',
+                    'outcome' => 'rejected',
+                    'correlation_id' => $blocked->public_id,
+                    'context' => [
+                        'payment_refund_id' => $blocked->public_id,
+                        'amount_minor' => $blocked->amount_minor,
+                        'reason' => 'insufficient_available_balance',
+                    ],
+                    'created_at' => now(),
+                ]);
             }, attempts: 3);
 
-            $blockedRefund = PaymentRefund::query()->where('public_id', $publicId)->firstOrFail();
-            $blockedIntent = $blockedRefund->paymentIntent()->firstOrFail();
-            WalletAuditEvent::query()->create([
-                'wallet_id' => $blockedIntent->wallet_id,
-                'actor_user_id' => $approver->id,
-                'event_type' => 'wallet.refund.reservation_rejected',
-                'outcome' => 'rejected',
-                'correlation_id' => $blockedRefund->public_id,
-                'context' => [
-                    'payment_refund_id' => $blockedRefund->public_id,
-                    'amount_minor' => $blockedRefund->amount_minor,
-                    'reason' => 'insufficient_available_balance',
-                ],
-                'created_at' => now(),
-            ]);
-
-            return $blockedRefund;
+            return PaymentRefund::query()->where('public_id', $publicId)->firstOrFail();
         }
 
         try {
