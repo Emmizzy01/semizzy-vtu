@@ -305,6 +305,10 @@ class PaymentFundingService
                     throw new ConflictHttpException('Payment intent was settled by a different provider transaction.');
                 }
 
+                if ($intent->status === 'paid') {
+                    $this->resolveLateSuccessCases($intent, $transactionId);
+                }
+
                 return ['outcome' => 'duplicate_payment', 'duplicate' => true];
             }
 
@@ -350,8 +354,30 @@ class PaymentFundingService
                 'paid_at' => $intent->paid_at ?? now(),
             ])->save();
 
+            // Case resolution shares the settlement transaction. A process interruption
+            // cannot leave a successfully recovered wallet credit with stale open cases.
+            $this->resolveLateSuccessCases($intent, $transactionId);
+
             return ['outcome' => 'credited', 'duplicate' => false];
         }, attempts: 3);
+    }
+
+    private function resolveLateSuccessCases(PaymentIntent $intent, string $transactionId): void
+    {
+        PaymentReconciliationCase::query()
+            ->where('provider', 'paystack')
+            ->where('payment_intent_id', $intent->id)
+            ->where('reference', $intent->reference)
+            ->where('provider_transaction_id', $transactionId)
+            ->where('case_type', 'late_success_review')
+            ->where('status', 'open')
+            ->get()
+            ->each(function (PaymentReconciliationCase $case): void {
+                $details = is_array($case->details) ? $case->details : [];
+                $details['resolution'] = 'Canonical Paystack verification matched and wallet settlement is confirmed.';
+                $details['resolved_at'] = now()->toISOString();
+                $case->forceFill(['status' => 'resolved', 'details' => $details])->save();
+            });
     }
 
     private function isUniqueConstraintViolation(QueryException $exception): bool
