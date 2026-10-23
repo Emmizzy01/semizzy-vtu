@@ -27,7 +27,7 @@ final class StreamingPurchaseAdmissionPolicy
                 'catalogue_operation_registered' => in_array('streaming-subscriptions.index', $operations, true),
                 'purchase_operation_registered' => $assessment['addon_lifecycle']['operation_registered'],
             ],
-            'gate_reason' => 'Purchases are locked until a provider contract, transaction lookup and accepted-order recovery workflow are verified; no streaming purchase operation is registered.',
+            'gate_reason' => 'Purchases are locked until a verified provider contract, transaction lookup, accepted-order recovery workflow and purchase coordinator are available.',
         ];
     }
 }

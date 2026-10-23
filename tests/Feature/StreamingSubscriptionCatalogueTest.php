@@ -118,13 +118,30 @@ class StreamingSubscriptionCatalogueTest extends TestCase
         $this->assertStringStartsWith('/admin/streaming-subscriptions', '/'.$adminCreateRoute->uri());
         $this->assertStringStartsWith('/admin/streaming-subscriptions', '/'.$adminUpdateRoute->uri());
 
+        PlatformFeatureControl::query()->where('feature_key', 'service.streaming_subscriptions')->update([
+            'is_enabled' => true,
+            'is_implemented' => true,
+        ]);
+        PlatformAddon::query()->updateOrCreate(
+            ['addon_key' => 'service.streaming'],
+            [
+                'name' => 'Streaming',
+                'version' => '1.0.0',
+                'minimum_core_version' => '1.0.0',
+                'status' => 'enabled',
+                'is_core_owned' => false,
+                'compatibility_status' => 'compatible',
+            ],
+        );
+
         $customer = User::query()->create(['name' => 'Streaming Buyer', 'email' => 'stream-buyer@example.test', 'password' => 'not-a-real-password']);
         $this->actingAs($customer)->postJson('/services/streaming-subscriptions/purchases', [
             'product_code' => 'monthly-plan',
             'idempotency_key' => 'streaming-gate-test-001',
             'account' => [],
         ])->assertStatus(503)
-          ->assertJsonPath('message', 'Streaming purchases are temporarily unavailable until provider fulfilment and recovery are verified.');
+          ->assertJsonPath('message', 'Streaming purchases are temporarily unavailable until provider fulfilment and recovery are verified.')
+          ->assertJsonPath('reason', 'provider_unavailable');
     }
 
     public function test_streaming_feature_is_not_marked_implemented_by_catalogue_scaffolding(): void
