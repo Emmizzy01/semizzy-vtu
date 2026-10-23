@@ -3,6 +3,7 @@
 namespace App\Services\Addons;
 
 use App\Models\VtuProduct;
+use App\Models\PlatformFeatureControl;
 use App\Services\IntegrationSettings;
 
 final class ElectricityPurchaseRuntime implements ServicePurchaseRuntimeContract, PurchaseRequestIdentityPolicy, ServiceFeatureAdmissionPolicy

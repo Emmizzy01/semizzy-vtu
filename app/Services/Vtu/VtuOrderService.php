@@ -11,7 +11,6 @@ use App\Models\BusinessWorkspaceStorefront;
 use App\Models\VtuOrder;
 use App\Models\VtuProviderAttempt;
 use App\Models\VtuProduct;
-use App\Models\PlatformFeatureControl;
 use App\Services\IntegrationSettings;
 use App\Models\Wallet;
 use App\Services\Wallets\WalletAccountService;
@@ -467,10 +466,10 @@ class VtuOrderService
 
     private function assertServiceFeatureEnabled(VtuProduct $product): void
     {
-        $runtime = app(\\App\\Services\\Addons\\ServicePurchaseRuntimeRegistry::class)
+        $runtime = app(\App\Services\Addons\ServicePurchaseRuntimeRegistry::class)
             ->forService($product->service_type);
 
-        if (! $runtime instanceof \\App\\Services\\Addons\\ServiceFeatureAdmissionPolicy) {
+        if (! $runtime instanceof \App\Services\Addons\ServiceFeatureAdmissionPolicy) {
             throw new InvalidArgumentException('This service has no registered feature-admission policy.');
         }
 

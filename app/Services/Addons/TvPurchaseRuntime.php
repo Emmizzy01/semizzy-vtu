@@ -3,9 +3,10 @@
 namespace App\Services\Addons;
 
 use App\Models\VtuProduct;
+use App\Models\PlatformFeatureControl;
 use App\Services\IntegrationSettings;
 
-final class TvPurchaseRuntime implements ServicePurchaseRuntimeContract, LockedPurchasePricePolicy, PurchaseRequestIdentityPolicy
+final class TvPurchaseRuntime implements ServicePurchaseRuntimeContract, LockedPurchasePricePolicy, PurchaseRequestIdentityPolicy, ServiceFeatureAdmissionPolicy
 {
     /** @param array<string, mixed> $serviceDetails
      *  @return array{service_details: array<string, mixed>, amount_minor: int|null}
