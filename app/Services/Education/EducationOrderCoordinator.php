@@ -201,8 +201,29 @@ class EducationOrderCoordinator
             return $order;
         }
 
+        // Do not race the original provider submission with an immediate lookup.
+        // A worker can observe the reserved order while the HTTP submission is still
+        // in flight; a transient "not found" response must not be treated as a final
+        // failure and trigger a refund. Stale "started" attempts are still recoverable
+        // after a bounded grace period, while pending/unknown attempts can be looked up.
+        $attempt = EducationProviderAttempt::query()
+            ->where('education_order_id', $order->getKey())
+            ->where('attempt_number', 1)
+            ->first();
+
+        if ($attempt === null) {
+            return $order->fresh();
+        }
+
+        $graceSeconds = max(30, (int) config('services.education.reconciliation_grace_seconds', 120));
+        if ($attempt->outcome === 'started'
+            && $attempt->started_at !== null
+            && $attempt->started_at->gt(now()->subSeconds($graceSeconds))) {
+            return $order->fresh();
+        }
+
         $order->loadMissing('product');
-        $provider = $this->providers->forProvider((string) $order->provider);
+        $provider = $this->providers->forProvider((string) $attempt->provider);
 
         try {
             $result = $provider->lookup($order->public_id, $order->product);
