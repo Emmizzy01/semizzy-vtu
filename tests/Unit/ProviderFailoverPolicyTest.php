@@ -23,6 +23,28 @@ class ProviderFailoverPolicyTest extends TestCase
         }
     }
 
+    public function test_definitive_failure_signal_must_be_a_strict_boolean(): void
+    {
+        config([
+            'services.vtu.multi_provider.failover_enabled' => true,
+            'services.vtu.multi_provider.definitive_failure_providers' => ['sogo'],
+        ]);
+
+        $policy = new ProviderFailoverPolicy();
+
+        foreach (['true', 1, '1', null] as $signal) {
+            $this->assertFalse(
+                $policy->isDefinitiveFailure('sogo', ['status' => 'failed', 'definitive_failure' => $signal]),
+                'Non-boolean definitive-failure signals must not authorize a refund or failover.'
+            );
+        }
+
+        $this->assertTrue($policy->isDefinitiveFailure('sogo', [
+            'status' => 'failed',
+            'definitive_failure' => true,
+        ]));
+    }
+
     public function test_failover_requires_explicit_definitive_failure_and_provider_allowlist(): void
     {
         $policy = new ProviderFailoverPolicy();
