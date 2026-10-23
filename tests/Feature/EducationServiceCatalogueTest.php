@@ -40,25 +40,35 @@ class EducationServiceCatalogueTest extends TestCase
                 ->has('products', 0));
     }
 
-    public function test_education_has_no_customer_purchase_route_and_purchase_operation_is_unregistered(): void
+    public function test_education_purchase_route_is_registered_but_fails_closed_until_provider_readiness_is_verified(): void
     {
+        $user = User::query()->create([
+            'name' => 'Education Purchase Gate',
+            'email' => 'education-purchase-gate@example.test',
+            'password' => 'not-a-real-password',
+        ]);
+
         $implementation = app(AddonImplementationRegistry::class)->find('service.education');
 
         $this->assertNotNull($implementation);
         $this->assertContains('education-services.index', $implementation['operations']);
+        $this->assertContains('education-services.purchase', $implementation['operations']);
         $this->assertContains('education-services.delivery', $implementation['operations']);
-        $this->assertNotContains('education-services.purchase', $implementation['operations']);
 
-        $routes = collect(app('router')->getRoutes()->getRoutes())
-            ->filter(fn ($route) => str_contains($route->uri(), 'education'));
+        $purchaseRoute = collect(app('router')->getRoutes()->getRoutes())
+            ->first(fn ($route) => $route->getName() === 'education-services.purchase');
+        $this->assertNotNull($purchaseRoute);
+        $this->assertContains('POST', $purchaseRoute->methods());
 
-        $customerWriteRoutes = $routes
-            ->filter(fn ($route) => ! str_starts_with($route->uri(), 'admin/') && ! str_starts_with($route->uri(), 'education-services'))
-            ->filter(fn ($route) => array_intersect($route->methods(), ['POST', 'PUT', 'PATCH', 'DELETE']) !== []);
+        $this->actingAs($user)->postJson('/services/education/purchases', [
+            'product_code' => 'waec-not-approved',
+            'idempotency_key' => 'education-gate-test-001',
+            'candidate' => [],
+        ])->assertStatus(503)
+          ->assertJsonPath('message', 'Education purchases are temporarily unavailable until provider fulfilment and recovery are verified.');
 
-        $this->assertCount(0, $customerWriteRoutes);
-
-        $deliveryRoute = $routes->first(fn ($route) => $route->getName() === 'education-services.delivery');
+        $deliveryRoute = collect(app('router')->getRoutes()->getRoutes())
+            ->first(fn ($route) => $route->getName() === 'education-services.delivery');
         $this->assertNotNull($deliveryRoute, 'Existing PIN delivery must remain reachable for accepted orders.');
         $this->assertContains('GET', $deliveryRoute->methods());
     }
