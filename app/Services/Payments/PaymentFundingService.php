@@ -355,8 +355,68 @@ class PaymentFundingService
                 return ['outcome' => 'credited', 'duplicate' => false];
             }, attempts: 3);
         } catch (QueryException $exception) {
-            // A concurrent delivery can win the unique (provider, event_id) insert.
+            // A database failure rolls back the settlement transaction, including any
+            // ledger writes made on this connection. If the database recovers enough to
+            // accept a separate case write, retain a durable retry breadcrumb; still
+            // rethrow so the provider receives a failure and retries delivery.
             if (! $this->isUniqueConstraintViolation($exception)) {
+                $reference = is_string($data['reference'] ?? null) ? $data['reference'] : null;
+                $transactionId = is_string($data['transaction_id'] ?? null) ? $data['transaction_id'] : null;
+
+                if ($eventType === 'payment.succeeded'
+                    && ($data['status'] ?? null) === 'succeeded'
+                    && $reference !== null && $reference !== '') {
+                    try {
+                        $intent = PaymentIntent::query()
+                            ->where('provider', $provider)
+                            ->where('reference', $reference)
+                            ->first();
+
+                        if ($intent !== null) {
+                            $caseKey = hash('sha256', implode('|', [
+                                $provider,
+                                $reference,
+                                'webhook_processing_retry',
+                                $eventId,
+                                $payloadHash,
+                            ]));
+
+                            DB::transaction(function () use (
+                                $provider, $reference, $transactionId, $eventId, $payloadHash, $exception, $intent, $caseKey
+                            ): void {
+                                PaymentReconciliationCase::query()->firstOrCreate(
+                                    ['case_key' => $caseKey],
+                                    [
+                                        'provider' => $provider,
+                                        'reference' => $reference,
+                                        'payment_intent_id' => $intent->id,
+                                        'case_type' => 'webhook_processing_retry',
+                                        'provider_status' => 'success',
+                                        'provider_transaction_id' => $transactionId,
+                                        'expected_amount_minor' => $intent->amount_minor,
+                                        'observed_amount_minor' => is_int($intent->amount_minor) ? $intent->amount_minor : null,
+                                        'expected_currency' => $intent->currency,
+                                        'observed_currency' => is_string($data['currency'] ?? null) ? strtoupper($data['currency']) : null,
+                                        'details' => [
+                                            'reason' => 'A verified success webhook could not finish its database transaction. Settlement was rolled back and must be retried/reconciled; no second credit key was generated.',
+                                            'event_id' => $eventId,
+                                            'payload_hash' => $payloadHash,
+                                            'database_exception' => $exception::class,
+                                            'retry_required' => true,
+                                        ],
+                                        'status' => 'open',
+                                        'last_checked_at' => now(),
+                                    ],
+                                );
+                            }, attempts: 3);
+                        }
+                    } catch (\\Throwable $recoveryException) {
+                        // Do not mask the original database failure. If the database
+                        // cannot persist the breadcrumb either, provider retry and the
+                        // normal pending-intent reconciliation remain the recovery paths.
+                    }
+                }
+
                 throw $exception;
             }
 
