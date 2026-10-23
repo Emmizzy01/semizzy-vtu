@@ -444,6 +444,15 @@ class PaymentRefundService
                 return $refund;
             }
 
+            // Webhooks can arrive out of order. Do not let a late pending/queued
+            // notification move an already-processing refund backwards. Canonical
+            // reconciliation remains authoritative and may resolve the stored state.
+            if (! $allowReviewResolution
+                && $refund->status === 'processing'
+                && $normalized === 'provider_pending') {
+                return $refund;
+            }
+
             // Enforce review_required under the same row lock as status changes. The
             // earlier webhook check alone cannot prevent a concurrent stale event from
             // downgrading a review decision after its initial read.
