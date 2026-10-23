@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\PlatformSettingAudit;
 use App\Services\Addons\StreamingPurchaseAdmissionPolicy;
 use App\Models\StreamingSubscriptionProduct;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -30,6 +31,41 @@ class StreamingSubscriptionController extends Controller
                 'price_minor' => $product->price_minor, 'currency' => $product->currency,
             ])->values(),
         ]);
+    }
+
+    /**
+     * Customer purchase admission endpoint. It intentionally remains fail-closed
+     * until a real provider submission, lookup and accepted-order recovery flow exists.
+     */
+    public function purchase(Request $request): JsonResponse
+    {
+        $request->validate([
+            'product_code' => ['required', 'string', 'max:100'],
+            'idempotency_key' => ['required', 'string', 'min:1', 'max:128'],
+            'account' => ['nullable', 'array'],
+            'account.*' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $admission = app(\\App\\Services\\Addons\\AddonOperationAdmissionPolicy::class)->assess(
+            'service.streaming',
+            'service.streaming_subscriptions',
+            'streaming-subscriptions.purchase',
+            false,
+        );
+
+        if (! $admission['available']) {
+            return response()->json([
+                'message' => 'Streaming purchases are temporarily unavailable until provider fulfilment and recovery are verified.',
+                'reason' => $admission['reason'],
+            ], 503)->header('Cache-Control', 'no-store');
+        }
+
+        // No order coordinator/provider contract is registered yet. Never report
+        // a purchase as accepted merely because admission configuration changes.
+        return response()->json([
+            'message' => 'Streaming purchase processing is not implemented.',
+            'reason' => 'purchase_coordinator_unavailable',
+        ], 503)->header('Cache-Control', 'no-store');
     }
 
     public function adminIndex(Request $request): InertiaResponse

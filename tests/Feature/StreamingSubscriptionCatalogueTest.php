@@ -91,19 +91,22 @@ class StreamingSubscriptionCatalogueTest extends TestCase
         ]);
     }
 
-    public function test_no_customer_purchase_route_or_registered_purchase_operation_exists(): void
+    public function test_customer_purchase_route_is_registered_but_fails_closed_until_provider_readiness_is_verified(): void
     {
         $registry = app(AddonImplementationRegistry::class);
         $implementation = $registry->find('service.streaming');
 
         $this->assertNotNull($implementation);
         $this->assertContains('streaming-subscriptions.index', $implementation['operations']);
-        $this->assertNotContains('streaming-subscriptions.purchase', $implementation['operations']);
+        $this->assertContains('streaming-subscriptions.purchase', $implementation['operations']);
 
         $catalogueRoute = app('router')->getRoutes()->getByName('streaming-subscriptions.index');
         $adminCreateRoute = app('router')->getRoutes()->getByName('admin.streaming-subscriptions.store');
         $adminUpdateRoute = app('router')->getRoutes()->getByName('admin.streaming-subscriptions.update');
 
+        $purchaseRoute = app('router')->getRoutes()->getByName('streaming-subscriptions.purchase');
+        $this->assertNotNull($purchaseRoute);
+        $this->assertContains('POST', $purchaseRoute->methods());
         $this->assertNotNull($catalogueRoute);
         $this->assertStringContainsString(StreamingSubscriptionController::class, $catalogueRoute->getActionName());
         $this->assertNotNull($adminCreateRoute);
@@ -115,12 +118,13 @@ class StreamingSubscriptionCatalogueTest extends TestCase
         $this->assertStringStartsWith('/admin/streaming-subscriptions', '/'.$adminCreateRoute->uri());
         $this->assertStringStartsWith('/admin/streaming-subscriptions', '/'.$adminUpdateRoute->uri());
 
-        $customerWriteRoutes = collect(app('router')->getRoutes()->getRoutes())
-            ->filter(fn ($route) => str_contains($route->uri(), 'streaming-subscriptions'))
-            ->filter(fn ($route) => ! str_starts_with($route->uri(), 'admin/'))
-            ->filter(fn ($route) => array_intersect($route->methods(), ['POST', 'PUT', 'PATCH', 'DELETE']) !== []);
-
-        $this->assertCount(0, $customerWriteRoutes);
+        $customer = User::query()->create(['name' => 'Streaming Buyer', 'email' => 'stream-buyer@example.test', 'password' => 'not-a-real-password']);
+        $this->actingAs($customer)->postJson('/services/streaming-subscriptions/purchases', [
+            'product_code' => 'monthly-plan',
+            'idempotency_key' => 'streaming-gate-test-001',
+            'account' => [],
+        ])->assertStatus(503)
+          ->assertJsonPath('message', 'Streaming purchases are temporarily unavailable until provider fulfilment and recovery are verified.');
     }
 
     public function test_streaming_feature_is_not_marked_implemented_by_catalogue_scaffolding(): void
