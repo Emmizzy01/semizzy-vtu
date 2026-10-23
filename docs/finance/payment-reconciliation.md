@@ -2,7 +2,7 @@
 
 ## What runs
 
-Run `php artisan payments:reconcile-paystack` to recheck aged pending and previously failed Paystack intents. Schedule this command every five minutes and configure the host's Laravel scheduler cron entry. The command uses the server-side Paystack transaction verification API; no browser-supplied status is trusted.
+Run `php artisan payments:reconcile-paystack` to recheck aged pending, previously failed, and wallet-limit `review_required` Paystack intents. Schedule this command every five minutes and configure the host's Laravel scheduler cron entry. The command uses the server-side Paystack transaction verification API; no browser-supplied status is trusted.
 
 The default grace period is five minutes (`PAYMENTS_RECONCILIATION_GRACE_MINUTES`). The command checks up to 100 intents per run by default; use `--limit=200` to adjust within the enforced 1–500 bound.
 
@@ -11,6 +11,8 @@ The default grace period is five minutes (`PAYMENTS_RECONCILIATION_GRACE_MINUTES
 - **Verified success, matching reference/amount/currency, intent still eligible:** the existing funding service posts the wallet credit and ledger entries atomically with idempotency.
 - **Provider pending/unknown:** create or refresh an open reconciliation case and check again on a later run.
 - **Provider failed/abandoned:** mark a pending intent failed and create an open exception case. Previously failed intents remain eligible for later rechecks, so a provider-side late success is not silently lost.
+- **Wallet-limit `review_required` with canonical success:** retry only when the recorded gateway mode is live, live funding is enabled, the canonical reference/amount/currency/transaction ID match, and the stored provider transaction ID matches. The normal ledger cap and idempotency protections still apply. On successful settlement, matching open late-success cases are resolved with evidence.
+- **Late success for a failed intent:** keep the intent failed and leave the case for audited staff review. Reconciliation never reopens a failed intent or credits it automatically.
 - **Amount, currency, reference, or transaction identity mismatch:** create an open exception case; never auto-credit.
 - **Success after intent expiry or after its state is no longer pending:** create a late-success review case; do not auto-credit.
 - **Provider/network/configuration error:** log only the reference and exception class, leave intent state unchanged, and retry on a future run.
