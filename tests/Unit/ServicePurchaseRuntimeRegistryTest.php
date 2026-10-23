@@ -179,7 +179,7 @@ class ServicePurchaseRuntimeRegistryTest extends TestCase
             ->once()
             ->andReturn(['status' => 'unverified']);
 
-        $this->expectException(\\InvalidArgumentException::class);
+        $this->expectException(\InvalidArgumentException::class);
         $this->expectExceptionMessage('The provider could not confirm this meter. No purchase was created.');
         app(ElectricityPurchaseRuntime::class)->verifyBeforePurchase(
             $product,
