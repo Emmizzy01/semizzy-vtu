@@ -397,56 +397,10 @@ class VtuOrderService
      */
     private function assertMappedProviderPurchaseApproved(VtuProduct $product): void
     {
-        $metadata = is_array($product->metadata) ? $product->metadata : [];
-        $provider = in_array($product->provider_key, ['sogo', 'gsubz', 'dataway'], true)
-            ? $product->provider_key
-            : ($metadata['catalog_source'] ?? null);
-
-        if (in_array($provider, ['sogo', 'gsubz', 'dataway'], true)
-            && ($metadata['purchase_approved'] ?? false) !== true) {
-            throw new InvalidArgumentException('This provider product is not approved for customer purchases.');
-        }
-    }
-
-    /**
-     * Enforce Core add-on lifecycle admission for catalogue products explicitly
-     * bound to a registered add-on. Legacy/unmapped products retain their
-     * existing feature/provider gates; a declared mapping fails closed.
-     */
-    private function assertMappedAddonAdmission(VtuProduct $product): void
-    {
-        $metadata = is_array($product->metadata) ? $product->metadata : [];
-        // Prefer an explicit reviewed mapping, but never let a legacy catalogue
-        // row bypass lifecycle admission merely because its metadata predates addons.
-        $addonKey = trim((string) ($metadata['addon_key'] ?? ''));
-        if ($addonKey === '') {
-            $addonKey = match ($product->service_type) {
-                'airtime' => 'service.airtime',
-                'data' => 'service.data',
-                'electricity-bill' => 'service.electricity',
-                'tv-subscription' => 'service.tv',
-                default => '',
-            };
-        }
-        if ($addonKey === '') {
-            throw new InvalidArgumentException('This service has no registered add-on mapping for new purchases.');
-        }
-
+        $mapping = app(\App\Services\Addons\ServicePurchaseAdmissionPolicy::class)->mappingForProduct($product);
+        $addonKey = $mapping['addon_key'];
+        $operation = $mapping['operation'];
         $implementation = app(AddonImplementationRegistry::class)->find($addonKey);
-        // Each independently mapped service uses its own purchase operation.
-        // Aggregate legacy addons retain route-operation compatibility only for
-        // the service families they historically own during the conversion window.
-        $operation = match (true) {
-            $addonKey === 'service.airtime' && $product->service_type === 'airtime' => 'service.airtime.purchase',
-            $addonKey === 'service.data' && $product->service_type === 'data' => 'service.data.purchase',
-            $addonKey === 'service.electricity' && $product->service_type === 'electricity-bill' => 'service.electricity.purchase',
-            $addonKey === 'service.tv' && $product->service_type === 'tv-subscription' => 'service.tv.purchase',
-            in_array($addonKey, ['service.vtu', 'service.airtime_data'], true)
-                && in_array($product->service_type, ['airtime', 'data'], true) => 'wallet.vtu.orders.create',
-            in_array($addonKey, ['service.vtu', 'service.bills'], true)
-                && in_array($product->service_type, ['electricity-bill', 'tv-subscription'], true) => 'wallet.vtu.orders.create',
-            default => null,
-        };
         $addon = PlatformAddon::query()->where('addon_key', $addonKey)->first();
 
         $assessment = app(AddonLifecyclePolicy::class)->assessAdmission(
