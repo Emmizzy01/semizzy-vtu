@@ -125,6 +125,20 @@ class PaymentReconciliationService
                     }
 
                     if (in_array($providerStatus, ['failed', 'abandoned'], true)) {
+                        // A terminal failure is still provider evidence and must identify
+                        // this exact intent. Do not fail a local payment from a malformed
+                        // or mismatched verification response.
+                        if (! $referenceMatches
+                            || $amount !== $intent->amount_minor
+                            || $currency !== $intent->currency
+                            || $transactionId === null) {
+                            $this->recordCase($intent, 'failed_payment_mismatch', $transaction, [
+                                'reason' => 'Verified provider failure does not match the payment intent reference, amount, currency, or transaction ID.',
+                            ]);
+                            $stats['exceptions']++;
+                            return;
+                        }
+
                         $settledByThisWorker = false;
 
                         if ($intent->status === 'pending') {
