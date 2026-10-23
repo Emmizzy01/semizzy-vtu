@@ -403,6 +403,26 @@ class VtuOrderService
         $implementation = app(AddonImplementationRegistry::class)->find($addonKey);
         $addon = PlatformAddon::query()->where('addon_key', $addonKey)->first();
 
+        // Keep the legacy aggregate gate as defence in depth, while also
+        // enforcing independent feature controls for converted service addons.
+        $featureKey = match (true) {
+            $addonKey === 'service.airtime' && $product->service_type === 'airtime' => 'service.airtime',
+            $addonKey === 'service.data' && $product->service_type === 'data' => 'service.data',
+            $addonKey === 'service.electricity' && $product->service_type === 'electricity-bill' => 'service.electricity',
+            $addonKey === 'service.tv' && $product->service_type === 'tv-subscription' => 'service.tv',
+            in_array($addonKey, ['service.vtu', 'service.airtime_data'], true)
+                && in_array($product->service_type, ['airtime', 'data'], true) => 'service.airtime_data',
+            $addonKey === 'service.vtu' && $product->service_type === 'electricity-bill' => 'service.electricity',
+            $addonKey === 'service.vtu' && $product->service_type === 'tv-subscription' => 'service.tv',
+            default => '',
+        };
+        $feature = $featureKey === ''
+            ? null
+            : \App\Models\PlatformFeatureControl::query()->where('feature_key', $featureKey)->first();
+        $featureEnabled = $feature !== null
+            && (bool) $feature->is_enabled
+            && (bool) $feature->is_implemented;
+
         $assessment = app(AddonLifecyclePolicy::class)->assessAdmission(
             (string) ($addon?->status ?? 'missing'),
             (string) ($addon?->compatibility_status ?? 'unchecked'),
@@ -410,7 +430,7 @@ class VtuOrderService
                 && app(\App\Services\Addons\ServicePurchaseAdmissionPolicy::class)
                     ->isRegistered($implementation, $operation),
             true, // assertProductConfigured() has already passed for this locked product.
-            true, // assertServiceFeatureEnabled() has already passed.
+            $featureEnabled,
         );
 
         if (! $assessment['available']) {
