@@ -50,6 +50,41 @@ class VtuProviderWebhookRecoveryTest extends TestCase
         $this->assertSame('processing', $order->fresh()->status);
     }
 
+    public function test_unmatched_webhook_is_retried_after_order_provider_reference_is_persisted(): void
+    {
+        $event = $this->createEvent('evt-late-provider-reference-1', 'SOGO-LATE-REFERENCE-1');
+
+        $first = app(VtuProviderWebhookService::class)->process();
+
+        $this->assertSame(1, $first['unmatched']);
+        $this->assertNull($event->fresh()->processed_at);
+
+        $order = $this->createMatchedOrder('SOGO-LATE-REFERENCE-1');
+        $this->mock(VtuOrderService::class, function ($mock) use ($order): void {
+            $mock->shouldReceive('applyVerifiedWebhookResult')
+                ->once()
+                ->withArgs(fn (VtuOrder $actual, string $provider, string $reference, array $result): bool =>
+                    $actual->is($order)
+                    && $provider === 'sogo'
+                    && $reference === 'SOGO-LATE-REFERENCE-1'
+                    && $result['status'] === 'success'
+                )
+                ->andReturnUsing(fn (VtuOrder $actual): VtuOrder => $actual);
+        });
+
+        try {
+            Carbon::setTestNow(now()->addMinutes(6));
+            $second = app(VtuProviderWebhookService::class)->process();
+
+            $this->assertSame(1, $second['checked']);
+            $this->assertSame(1, $second['processed']);
+            $this->assertNotNull($event->fresh()->processed_at);
+            $this->assertNull($event->fresh()->processing_error);
+        } finally {
+            Carbon::setTestNow();
+        }
+    }
+
     public function test_sogo_event_and_embedded_status_must_agree_before_order_update(): void
     {
         $order = $this->createMatchedOrder('SOGO-CONTRADICTORY-1');
