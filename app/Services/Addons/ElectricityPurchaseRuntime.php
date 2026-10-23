@@ -38,18 +38,18 @@ final class ElectricityPurchaseRuntime implements ServicePurchaseRuntimeContract
     }
 
 
-    public function verifyBeforePurchase(VtuProduct $product, string $recipient, array $serviceDetails, \\App\\Services\\Vtu\\VtuProvider $provider): void
+    public function verifyBeforePurchase(VtuProduct $product, string $recipient, array $serviceDetails, \App\Services\Vtu\VtuProvider $provider): void
     {
-        if ($provider instanceof \\App\\Services\\Vtu\\MultiProviderVtuRouter) {
+        if ($provider instanceof \App\Services\Vtu\MultiProviderVtuRouter) {
             $result = $provider->verifyElectricityMeter($product, $recipient, (string) ($serviceDetails['meter_type'] ?? ''));
-        } elseif ($provider instanceof \\App\\Services\\Vtu\\BillerVerificationProvider) {
+        } elseif ($provider instanceof \App\Services\Vtu\BillerVerificationProvider) {
             $result = $provider->verifyElectricityMeter($product, $recipient, (string) ($serviceDetails['meter_type'] ?? ''));
         } else {
-            throw new \\LogicException('This service requires a provider with the reviewed biller-verification contract.');
+            throw new \LogicException('This service requires a provider with the reviewed biller-verification contract.');
         }
 
         if (($result['status'] ?? null) !== 'verified') {
-            throw new \\InvalidArgumentException('The provider could not confirm this meter. No purchase was created.');
+            throw new \InvalidArgumentException('The provider could not confirm this meter. No purchase was created.');
         }
     }
 

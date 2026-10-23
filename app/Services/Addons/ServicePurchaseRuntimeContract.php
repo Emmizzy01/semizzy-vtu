@@ -18,7 +18,7 @@ interface ServicePurchaseRuntimeContract
      * Implementations must not create orders or mutate wallets.
      * @param array<string, mixed> $serviceDetails
      */
-    public function verifyBeforePurchase(VtuProduct $product, string $recipient, array $serviceDetails, \\App\\Services\\Vtu\\VtuProvider $provider): void;
+    public function verifyBeforePurchase(VtuProduct $product, string $recipient, array $serviceDetails, \App\Services\Vtu\VtuProvider $provider): void;
 
     /** @param array<string, mixed> $validated
      *  @return array{message: string, status: int}|null
