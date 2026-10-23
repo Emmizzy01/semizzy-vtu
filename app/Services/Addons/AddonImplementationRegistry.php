@@ -38,15 +38,15 @@ class AddonImplementationRegistry
         ],
         'service.electricity' => [
             'handler' => VtuOrderController::class,
-            'operations' => ['service.electricity.purchase', 'wallet.vtu.products', 'wallet.vtu.orders.create', 'wallet.vtu.orders.bulk', 'wallet.vtu.billers.verify'],
+            'operations' => ['service.electricity.purchase', 'service.electricity.verify', 'wallet.vtu.products', 'wallet.vtu.orders.create', 'wallet.vtu.orders.bulk', 'wallet.vtu.billers.verify'],
         ],
         'service.tv' => [
             'handler' => VtuOrderController::class,
-            'operations' => ['service.tv.purchase', 'wallet.vtu.products', 'wallet.vtu.orders.create', 'wallet.vtu.orders.bulk', 'wallet.vtu.billers.verify'],
+            'operations' => ['service.tv.purchase', 'service.tv.verify', 'wallet.vtu.products', 'wallet.vtu.orders.create', 'wallet.vtu.orders.bulk', 'wallet.vtu.billers.verify'],
         ],
         'service.bills' => [
             'handler' => VtuOrderController::class,
-            'operations' => ['service.electricity.purchase', 'service.tv.purchase', 'wallet.vtu.products', 'wallet.vtu.orders.create', 'wallet.vtu.orders.bulk', 'wallet.vtu.billers.verify'],
+            'operations' => ['service.electricity.purchase', 'service.electricity.verify', 'service.tv.purchase', 'service.tv.verify', 'wallet.vtu.products', 'wallet.vtu.orders.create', 'wallet.vtu.orders.bulk', 'wallet.vtu.billers.verify'],
         ],
         'service.education' => [
             'handler' => EducationServiceController::class,

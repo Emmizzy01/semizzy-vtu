@@ -67,7 +67,9 @@ class VtuBillerVerificationController extends Controller
             $feature = PlatformFeatureControl::query()->where('feature_key', $featureKey)->first();
             $addon = PlatformAddon::query()->where('addon_key', $addonKey)->first();
             $implementation = app(AddonImplementationRegistry::class)->find($addonKey);
-            $operation = 'wallet.vtu.billers.verify';
+            $operation = $product->service_type === 'electricity-bill'
+                ? 'service.electricity.verify'
+                : 'service.tv.verify';
             $assessment = $addon === null || $feature === null
                 ? ['available' => false, 'reason' => 'addon_or_feature_control_missing']
                 : app(AddonLifecyclePolicy::class)->assessAdmission(
