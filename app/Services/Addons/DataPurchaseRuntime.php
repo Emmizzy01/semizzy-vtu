@@ -19,9 +19,9 @@ final class DataPurchaseRuntime
     public function unavailableError(IntegrationSettings $settings): ?array
     {
         $independent = $settings->get('service.data.enabled', null);
-        $legacy = $settings->get('service.airtime_data.enabled', false);
+        $enabled = $independent ?? $settings->get('service.airtime_data.enabled', false);
 
-        return filter_var($independent ?? $legacy, FILTER_VALIDATE_BOOLEAN)
+        return filter_var($enabled, FILTER_VALIDATE_BOOLEAN)
             ? null
             : ['message' => 'Airtime and data purchases are temporarily unavailable.', 'status' => 503];
     }

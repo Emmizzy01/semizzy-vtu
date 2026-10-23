@@ -52,6 +52,16 @@ class ServicePurchaseRuntimeRegistryTest extends TestCase
         $this->assertNull(app(DataPurchaseRuntime::class)->missingAmountError([]));
     }
 
+    public function test_data_runtime_falls_back_to_legacy_setting_only_when_independent_setting_is_absent(): void
+    {
+        $runtime = app(DataPurchaseRuntime::class);
+        $settings = Mockery::mock(IntegrationSettings::class);
+        $settings->shouldReceive('get')->with('service.data.enabled', null)->once()->andReturn(null);
+        $settings->shouldReceive('get')->with('service.airtime_data.enabled', false)->once()->andReturn(false);
+
+        $this->assertSame(503, $runtime->unavailableError($settings)['status']);
+    }
+
     public function test_data_runtime_uses_its_own_setting_before_legacy_fallback(): void
     {
         $runtime = app(DataPurchaseRuntime::class);
