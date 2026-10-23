@@ -382,7 +382,7 @@ class PaymentFundingService
                             ]));
 
                             DB::transaction(function () use (
-                                $provider, $reference, $transactionId, $eventId, $payloadHash, $exception, $intent, $caseKey
+                                $provider, $reference, $transactionId, $eventId, $payloadHash, $exception, $intent, $caseKey, $data
                             ): void {
                                 PaymentReconciliationCase::query()->firstOrCreate(
                                     ['case_key' => $caseKey],
@@ -394,7 +394,7 @@ class PaymentFundingService
                                         'provider_status' => 'success',
                                         'provider_transaction_id' => $transactionId,
                                         'expected_amount_minor' => $intent->amount_minor,
-                                        'observed_amount_minor' => is_int($intent->amount_minor) ? $intent->amount_minor : null,
+                                        'observed_amount_minor' => is_int($data['amount_minor'] ?? null) ? $data['amount_minor'] : null,
                                         'expected_currency' => $intent->currency,
                                         'observed_currency' => is_string($data['currency'] ?? null) ? strtoupper($data['currency']) : null,
                                         'details' => [
