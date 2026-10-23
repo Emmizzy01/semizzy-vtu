@@ -31,7 +31,10 @@ final class AddonOperationAdmissionPolicy
         $addon = PlatformAddon::query()->where('addon_key', $addonKey)->first();
         $implementation = app(AddonImplementationRegistry::class)->find($addonKey);
         $operations = $implementation['operations'] ?? [];
-        $registered = in_array($operation, $operations, true);
+        $registered = str_starts_with($operation, 'service.')
+            && str_ends_with($operation, '.purchase')
+                ? app(ServicePurchaseAdmissionPolicy::class)->isRegistered($implementation, $operation)
+                : in_array($operation, $operations, true);
         $featureEnabled = $feature !== null
             && (bool) $feature->is_enabled
             && (bool) $feature->is_implemented;
