@@ -38,6 +38,49 @@ class EducationServiceController extends Controller
     }
 
     /**
+     * Purchase endpoint for the education addon. The shared admission policy
+     * fails closed until provider submission, lookup and recovery are reviewed.
+     */
+    public function purchase(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'product_code' => ['required', 'string', 'max:100'],
+            'idempotency_key' => ['required', 'string', 'min:1', 'max:128'],
+            'candidate' => ['nullable', 'array'],
+            'candidate.*' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $admission = app(\App\Services\Addons\AddonOperationAdmissionPolicy::class)->assess(
+            'service.education',
+            'service.education',
+            'education-services.purchase',
+            false,
+        );
+
+        if (! $admission['available']) {
+            return response()->json([
+                'message' => 'Education purchases are temporarily unavailable until provider fulfilment and recovery are verified.',
+                'reason' => $admission['reason'],
+            ], 503)->header('Cache-Control', 'no-store');
+        }
+
+        $order = app(\App\Services\Education\EducationOrderCoordinator::class)->purchase(
+            $request->user(),
+            $data['product_code'],
+            $data['idempotency_key'],
+            $data['candidate'] ?? [],
+        );
+
+        return response()->json([
+            'order_id' => $order->public_id,
+            'status' => $order->status,
+            'amount_minor' => $order->amount_minor,
+            'currency' => $order->currency,
+        ], in_array($order->status, ['processing', 'pending', 'unknown'], true) ? 202 : 200)
+            ->header('Cache-Control', 'no-store, private, max-age=0');
+    }
+
+    /**
      * Return an already-fulfilled exam PIN only to the owning authenticated user.
      * This endpoint intentionally does not create, submit, or reconcile purchases.
      */
@@ -97,7 +140,7 @@ class EducationServiceController extends Controller
                 'purchase_operation_registered' => in_array('education-services.purchase', $operations, true),
             ],
             'purchaseGate' => false,
-            'gateReason' => 'Catalogue management only: provider candidate validation, transaction lookup and accepted-order recovery are not verified; no education purchase operation is registered.',
+            'gateReason' => 'Catalogue management only: the purchase endpoint is wired, but provider fulfilment, transaction lookup and accepted-order recovery are not yet verified; purchase admission remains closed.',
         ]);
     }
 
