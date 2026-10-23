@@ -340,4 +340,5 @@ class PaymentReconciliationService
                 'last_checked_at' => $observedAt,
             ])->save();
         }, attempts: 3);
-    }}
+     }
+}
