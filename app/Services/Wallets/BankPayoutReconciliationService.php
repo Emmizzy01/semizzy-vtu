@@ -57,11 +57,24 @@ class BankPayoutReconciliationService
             );
         }
 
+        $verifiedAmount = $verified['amount'] ?? null;
+        $verifiedAmount = is_int($verifiedAmount)
+            ? $verifiedAmount
+            : (is_string($verifiedAmount) && ctype_digit($verifiedAmount) ? (int) $verifiedAmount : null);
+        $verifiedCurrency = is_string($verified['currency'] ?? null)
+            ? strtoupper($verified['currency'])
+            : null;
+
+        // Reference/code alone do not prove this is the transfer reserved for this
+        // payout. Require the provider's amount and currency to match before any
+        // success transition or wallet compensation is permitted.
         if (($verified['reference'] ?? null) !== $payout->provider_reference
-            || (string) ($verified['transfer_code'] ?? $transferCode) !== $transferCode) {
+            || (string) ($verified['transfer_code'] ?? $transferCode) !== $transferCode
+            || $verifiedAmount !== (int) $payout->amount_minor
+            || $verifiedCurrency !== strtoupper((string) $payout->currency)) {
             return $this->markReconciliationRequired(
                 $payout->id,
-                'Verified provider transfer did not match the payout reference.',
+                'Verified provider transfer did not match the payout reference, amount, or currency.',
             );
         }
 
