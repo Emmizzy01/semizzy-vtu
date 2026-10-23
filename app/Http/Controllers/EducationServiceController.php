@@ -4,10 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\EducationOrder;
 use App\Models\EducationServiceProduct;
-use App\Models\PlatformAddon;
-use App\Models\PlatformFeatureControl;
-use App\Services\Addons\AddonImplementationRegistry;
-use App\Services\Addons\AddonLifecyclePolicy;
+use App\Services\Addons\EducationServiceAdmissionPolicy;
 use App\Models\PlatformSettingAudit;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -21,17 +18,8 @@ class EducationServiceController extends Controller
 {
     public function index(): InertiaResponse
     {
-        $feature = PlatformFeatureControl::query()->where('feature_key', 'service.education')->first();
-        $addon = PlatformAddon::query()->where('addon_key', 'service.education')->first();
-        $implementation = app(AddonImplementationRegistry::class)->find('service.education');
-        $registered = $implementation !== null && in_array('education-services.index', $implementation['operations'], true);
-        $available = $addon !== null && app(AddonLifecyclePolicy::class)->assessAdmission(
-            (string) $addon->status,
-            (string) $addon->compatibility_status,
-            $registered,
-            true,
-            $feature !== null && $feature->is_enabled && $feature->is_implemented,
-        )['available'];
+        $admission = app(EducationServiceAdmissionPolicy::class)->snapshot('education-services.index');
+        $available = $admission['available'];
         $products = $available
             ? EducationServiceProduct::query()->where('is_active', true)->where('purchase_approved', true)
                 ->orderBy('exam_body')->orderBy('price_minor')->get()
@@ -85,10 +73,8 @@ class EducationServiceController extends Controller
             ->when($type !== 'all', fn ($q) => $q->where('service_type', $type))
             ->orderBy('exam_body')->orderBy('name')->paginate(30)->withQueryString();
 
-        $feature = PlatformFeatureControl::query()->where('feature_key', 'service.education')->first();
-        $addon = PlatformAddon::query()->where('addon_key', 'service.education')->first();
-        $implementation = app(AddonImplementationRegistry::class)->find('service.education');
-        $operations = $implementation['operations'] ?? [];
+        $admission = app(EducationServiceAdmissionPolicy::class)->snapshot('education-services.index');
+        $operations = $admission['operations'];
 
         return Inertia::render('Admin/EducationServices/Index', [
             'products' => $products->getCollection()->map(fn (EducationServiceProduct $p): array => [
@@ -101,11 +87,11 @@ class EducationServiceController extends Controller
             ])->values(),
             'pagination' => ['currentPage' => $products->currentPage(), 'lastPage' => $products->lastPage(), 'total' => $products->total()],
             'filters' => ['search' => $search, 'service_type' => $type],
-            'feature' => $feature ? ['is_enabled' => $feature->is_enabled, 'is_implemented' => $feature->is_implemented] : ['is_enabled' => false, 'is_implemented' => false],
+            'feature' => $admission['feature'],
             'addonLifecycle' => [
-                'status' => $addon?->status ?? 'not_installed',
-                'compatibility_status' => $addon?->compatibility_status ?? 'unknown',
-                'implementation_registered' => $implementation !== null,
+                'status' => $admission['addon_lifecycle']['status'],
+                'compatibility_status' => $admission['addon_lifecycle']['compatibility_status'],
+                'implementation_registered' => $admission['addon_lifecycle']['implementation_registered'],
                 'catalogue_operation_registered' => in_array('education-services.index', $operations, true),
                 'delivery_operation_registered' => in_array('education-services.delivery', $operations, true),
                 'purchase_operation_registered' => in_array('education-services.purchase', $operations, true),
