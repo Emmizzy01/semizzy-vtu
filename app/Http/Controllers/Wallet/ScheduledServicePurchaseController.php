@@ -194,9 +194,20 @@ class ScheduledServicePurchaseController extends Controller
 
         $addon = PlatformAddon::query()->where('addon_key', $addonKey)->first();
         $implementation = app(AddonImplementationRegistry::class)->find($addonKey);
+        $serviceOperation = match ($product->service_type) {
+            'airtime' => 'service.airtime.purchase',
+            'data' => 'service.data.purchase',
+            'electricity-bill' => 'service.electricity.purchase',
+            'tv-subscription' => 'service.tv.purchase',
+            default => null,
+        };
+        // Scheduled orders are a separate entry point: require both the
+        // service-owned purchase operation and Core's shared order operation.
         $registered = $implementation !== null
+            && $serviceOperation !== null
+            && in_array($serviceOperation, $implementation['operations'], true)
             && in_array('wallet.vtu.orders.create', $implementation['operations'], true);
-        if ($addon === null) return false;
+        if ($addon === null || ! $registered) return false;
 
         if (in_array($product->service_type, ['airtime', 'data'], true)) {
             $settings = app(IntegrationSettings::class);
