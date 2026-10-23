@@ -111,6 +111,19 @@ class PaymentReconciliationService
                                     'exception' => $exception::class,
                                 ]);
                                 $stats['exceptions']++;
+                            } catch (ConflictHttpException $exception) {
+                                $this->recordCase($intent, 'successful_payment_mismatch', $transaction, [
+                                    'reason' => 'Verified provider success conflicts with the current locked payment-intent state or its settled provider transaction ID; no second wallet credit was attempted.',
+                                    'exception' => $exception::class,
+                                    'exception_message' => $exception->getMessage(),
+                                    'observed_provider_transaction_id' => $transactionId,
+                                ]);
+                                Log::critical('Paystack recovery encountered a verified transaction/state conflict.', [
+                                    'reference' => $intent->reference,
+                                    'provider_transaction_id' => $transactionId,
+                                    'exception' => $exception::class,
+                                ]);
+                                $stats['exceptions']++;
                             } catch (Throwable $exception) {
                                 $this->recordCase($intent, 'settlement_error', $transaction, [
                                     'reason' => 'Canonical provider success could not complete guarded wallet-limit recovery.',
@@ -164,6 +177,19 @@ class PaymentReconciliationService
                                 'exception' => $exception::class,
                             ]);
                             Log::critical('Paystack settlement blocked by ledger idempotency conflict.', [
+                                'reference' => $intent->reference,
+                                'provider_transaction_id' => $transactionId,
+                                'exception' => $exception::class,
+                            ]);
+                            $stats['exceptions']++;
+                        } catch (ConflictHttpException $exception) {
+                            $this->recordCase($intent, 'successful_payment_mismatch', $transaction, [
+                                'reason' => 'Verified provider success conflicts with the current payment-intent state or settled provider transaction ID; no second wallet credit was attempted.',
+                                'exception' => $exception::class,
+                                'exception_message' => $exception->getMessage(),
+                                'observed_provider_transaction_id' => $transactionId,
+                            ]);
+                            Log::critical('Paystack settlement encountered a verified transaction/state conflict.', [
                                 'reference' => $intent->reference,
                                 'provider_transaction_id' => $transactionId,
                                 'exception' => $exception::class,
