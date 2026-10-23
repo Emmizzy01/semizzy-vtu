@@ -5,6 +5,7 @@ namespace App\Services\Payments;
 use App\Models\PaymentIntent;
 use App\Models\PaymentReconciliationCase;
 use App\Models\PaymentWebhookEvent;
+use App\Exceptions\Wallet\IdempotencyConflict;
 use App\Services\Wallets\WalletLedgerService;
 use DomainException;
 use Illuminate\Database\QueryException;
@@ -280,6 +281,45 @@ class PaymentFundingService
                         ],
                         correlationId: (string) Str::uuid(),
                     );
+                } catch (IdempotencyConflict $exception) {
+                    // Keep the webhook event, payment-intent lock, and reconciliation
+                    // evidence in this transaction. Throwing would roll back the case
+                    // along with the event, forcing the conflict to be rediscovered later.
+                    $caseKey = hash('sha256', implode('|', [
+                        $provider,
+                        $intent->reference,
+                        'idempotency_conflict',
+                        $providerTransactionId,
+                    ]));
+                    PaymentReconciliationCase::query()->firstOrCreate(
+                        ['case_key' => $caseKey],
+                        [
+                            'provider' => $provider,
+                            'reference' => $intent->reference,
+                            'payment_intent_id' => $intent->id,
+                            'case_type' => 'idempotency_conflict',
+                            'provider_status' => 'success',
+                            'provider_transaction_id' => $providerTransactionId,
+                            'expected_amount_minor' => $intent->amount_minor,
+                            'observed_amount_minor' => $amount,
+                            'expected_currency' => $intent->currency,
+                            'observed_currency' => strtoupper($currency),
+                            'details' => [
+                                'reason' => 'Verified funding could not be posted because the existing wallet idempotency record conflicts or is incomplete. No alternate credit key was attempted.',
+                                'exception' => $exception::class,
+                                'requires_manual_review' => true,
+                            ],
+                            'status' => 'open',
+                            'last_checked_at' => now(),
+                        ],
+                    );
+                    $event->forceFill([
+                        'outcome' => 'idempotency_conflict',
+                        'payment_intent_id' => $intent->id,
+                        'processed_at' => now(),
+                    ])->save();
+
+                    return ['outcome' => 'idempotency_conflict', 'duplicate' => false];
                 } catch (DomainException $exception) {
                     if (! str_contains($exception->getMessage(), 'account level would be exceeded')) {
                         throw $exception;
