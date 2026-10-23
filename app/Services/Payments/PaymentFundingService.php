@@ -352,6 +352,11 @@ class PaymentFundingService
                     'processed_at' => now(),
                 ])->save();
 
+                // Resolve only retry breadcrumbs that describe this exact provider
+                // transaction. Keep this in the same transaction as ledger posting,
+                // intent settlement, and event outcome persistence.
+                $this->resolveWebhookProcessingRetryCases($intent, $providerTransactionId);
+
                 return ['outcome' => 'credited', 'duplicate' => false];
             }, attempts: 3);
         } catch (QueryException $exception) {
@@ -596,6 +601,7 @@ class PaymentFundingService
             // Case resolution shares the settlement transaction. A process interruption
             // cannot leave a successfully recovered wallet credit with stale open cases.
             $this->resolveLateSuccessCases($intent, $transactionId);
+            $this->resolveWebhookProcessingRetryCases($intent, $transactionId);
 
             return ['outcome' => 'credited', 'duplicate' => false];
         }, attempts: 3);
@@ -616,6 +622,30 @@ class PaymentFundingService
                 $details['resolution'] = 'Canonical Paystack verification matched and wallet settlement is confirmed.';
                 $details['resolved_at'] = now()->toISOString();
                 $case->forceFill(['status' => 'resolved', 'details' => $details])->save();
+            });
+    }
+
+    private function resolveWebhookProcessingRetryCases(PaymentIntent $intent, string $transactionId): void
+    {
+        PaymentReconciliationCase::query()
+            ->where('provider', 'paystack')
+            ->where('payment_intent_id', $intent->id)
+            ->where('reference', $intent->reference)
+            ->where('case_type', 'webhook_processing_retry')
+            ->where('provider_transaction_id', $transactionId)
+            ->where('status', 'open')
+            ->lockForUpdate()
+            ->get()
+            ->each(function (PaymentReconciliationCase $case): void {
+                $details = is_array($case->details) ? $case->details : [];
+                $details['resolution'] = 'The same provider transaction was authoritatively settled; retry evidence is retained for audit.';
+                $details['resolved_at'] = now()->toISOString();
+                $details['resolved_after_settlement'] = true;
+                $case->forceFill([
+                    'status' => 'resolved',
+                    'details' => $details,
+                    'last_checked_at' => now(),
+                ])->save();
             });
     }
 
