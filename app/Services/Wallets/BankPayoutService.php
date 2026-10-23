@@ -378,30 +378,55 @@ class BankPayoutService
             );
             $providerStatus = strtolower((string) ($response['status'] ?? 'pending'));
             if (! is_string($response['transfer_code'] ?? null) || $response['transfer_code'] === '') {
-                $payout->forceFill(['status' => 'reconciliation_required', 'failure_reason' => 'Provider accepted no usable transfer identifier; manual reconciliation is required.'])->save();
+                $this->recordSubmissionOutcome($payout->id, [
+                    'status' => 'reconciliation_required',
+                    'failure_reason' => 'Provider accepted no usable transfer identifier; manual reconciliation is required.',
+                ]);
                 return $payout->fresh(['beneficiary']);
             }
-            $payout->forceFill([
+            $this->recordSubmissionOutcome($payout->id, [
                 'status' => $providerStatus === 'failed' ? 'reconciliation_required' : 'provider_pending',
-                'provider_transfer_code' => is_string($response['transfer_code'] ?? null) ? $response['transfer_code'] : null,
+                'provider_transfer_code' => $response['transfer_code'],
                 'metadata' => array_merge($payout->metadata ?? [], ['provider_status' => $providerStatus]),
-            ])->save();
+            ]);
         } catch (\Throwable $exception) {
             // Any exception after the request may have reached the provider is
             // an uncertain outcome. Persist a reconciliation state and never
             // automatically submit this payout again on an idempotent retry.
             report($exception);
-            $payout->forceFill([
+            $this->recordSubmissionOutcome($payout->id, [
                 'status' => 'reconciliation_required',
                 'failure_reason' => 'Provider outcome is not confirmed. Do not retry automatically.',
                 'metadata' => array_merge($payout->metadata ?? [], [
                     'provider_outcome' => 'unknown',
                     'provider_exception_class' => $exception::class,
                 ]),
-            ])->save();
+            ]);
         }
 
         return $payout->fresh(['beneficiary']);
+    }
+
+    /**
+     * Persist the submission response under the payout row lock. A provider webhook
+     * may settle the transfer before the initiating HTTP request returns; a stale
+     * response or exception must never downgrade that terminal settlement.
+     *
+     * @param array<string, mixed> $attributes
+     */
+    private function recordSubmissionOutcome(int $payoutId, array $attributes): BankPayout
+    {
+        return DB::transaction(function () use ($payoutId, $attributes): BankPayout {
+            $locked = BankPayout::query()->whereKey($payoutId)->lockForUpdate()->firstOrFail();
+
+            if (in_array($locked->status, ['succeeded', 'failed_refunded'], true)) {
+                return $locked;
+            }
+
+            $locked->forceFill($attributes)->save();
+
+            return $locked->fresh();
+        }, attempts: 3);
     }
 
     private function assertPayoutProviderAdmission(): void
