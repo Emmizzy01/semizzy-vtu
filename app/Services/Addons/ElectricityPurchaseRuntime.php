@@ -12,7 +12,7 @@ final class ElectricityPurchaseRuntime implements ServicePurchaseRuntimeContract
     {
         $feature = PlatformFeatureControl::query()->where('feature_key', 'service.electricity')->first();
         if ($feature === null || ! $feature->is_enabled || ! $feature->is_implemented) {
-            throw new \\InvalidArgumentException('This service is not yet enabled for customer purchases.');
+            throw new \InvalidArgumentException('This service is not yet enabled for customer purchases.');
         }
     }
 

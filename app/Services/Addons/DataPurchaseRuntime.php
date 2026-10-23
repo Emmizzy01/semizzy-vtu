@@ -15,7 +15,7 @@ final class DataPurchaseRuntime implements ServicePurchaseRuntimeContract, Purch
         $enabled = $independent ?? $settings->get('service.airtime_data.enabled', false);
 
         if (! filter_var($enabled, FILTER_VALIDATE_BOOLEAN)) {
-            throw new \\InvalidArgumentException('This service is not yet enabled for customer purchases.');
+            throw new \InvalidArgumentException('This service is not yet enabled for customer purchases.');
         }
     }
 
