@@ -50,12 +50,7 @@ class EducationServiceController extends Controller
             'candidate.*' => ['nullable', 'string', 'max:255'],
         ]);
 
-        $admission = app(\App\Services\Addons\AddonOperationAdmissionPolicy::class)->assess(
-            'service.education',
-            'service.education',
-            'education-services.purchase',
-            false,
-        );
+        $admission = app(\App\Services\Addons\EducationPurchaseAdmissionPolicy::class)->snapshot();
 
         if (! $admission['available']) {
             return response()->json([

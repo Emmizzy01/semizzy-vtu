@@ -10,14 +10,20 @@ use LogicException;
  */
 final class EducationPurchaseAdmissionPolicy
 {
-    public function assertAvailable(): void
+    /** @return array{available:bool,reason:string,operations:list<string>,feature:array,addon_lifecycle:array} */
+    public function snapshot(): array
     {
-        $assessment = app(AddonOperationAdmissionPolicy::class)->assess(
+        return app(AddonOperationAdmissionPolicy::class)->assess(
             'service.education',
             'service.education',
             'education-services.purchase',
             false,
         );
+    }
+
+    public function assertAvailable(): void
+    {
+        $assessment = $this->snapshot();
 
         if (! $assessment['available']) {
             throw new LogicException(
