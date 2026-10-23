@@ -5,8 +5,16 @@ namespace App\Services\Addons;
 use App\Models\VtuProduct;
 use App\Services\IntegrationSettings;
 
-final class ElectricityPurchaseRuntime implements ServicePurchaseRuntimeContract, PurchaseRequestIdentityPolicy
+final class ElectricityPurchaseRuntime implements ServicePurchaseRuntimeContract, PurchaseRequestIdentityPolicy, ServiceFeatureAdmissionPolicy
 {
+    public function assertFeatureEnabled(VtuProduct $product): void
+    {
+        $feature = PlatformFeatureControl::query()->where('feature_key', 'service.electricity')->first();
+        if ($feature === null || ! $feature->is_enabled || ! $feature->is_implemented) {
+            throw new \\InvalidArgumentException('This service is not yet enabled for customer purchases.');
+        }
+    }
+
     /** @return array<string, mixed> */
     public function requestIdentity(
         VtuProduct $product,

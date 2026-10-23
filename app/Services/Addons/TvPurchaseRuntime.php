@@ -50,6 +50,14 @@ final class TvPurchaseRuntime implements ServicePurchaseRuntimeContract, LockedP
     }
 
 
+    public function assertFeatureEnabled(VtuProduct $product): void
+    {
+        $feature = PlatformFeatureControl::query()->where('feature_key', 'service.tv')->first();
+        if ($feature === null || ! $feature->is_enabled || ! $feature->is_implemented) {
+            throw new \\InvalidArgumentException('This service is not yet enabled for customer purchases.');
+        }
+    }
+
     /** @return array<string, mixed> */
     public function requestIdentity(
         VtuProduct $product,

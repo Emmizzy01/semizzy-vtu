@@ -5,8 +5,19 @@ namespace App\Services\Addons;
 use App\Models\VtuProduct;
 use App\Services\IntegrationSettings;
 
-final class DataPurchaseRuntime implements ServicePurchaseRuntimeContract, PurchaseRequestIdentityPolicy
+final class DataPurchaseRuntime implements ServicePurchaseRuntimeContract, PurchaseRequestIdentityPolicy, ServiceFeatureAdmissionPolicy
 {
+
+    public function assertFeatureEnabled(VtuProduct $product): void
+    {
+        $settings = app(IntegrationSettings::class);
+        $independent = $settings->get('service.data.enabled', null);
+        $enabled = $independent ?? $settings->get('service.airtime_data.enabled', false);
+
+        if (! filter_var($enabled, FILTER_VALIDATE_BOOLEAN)) {
+            throw new \\InvalidArgumentException('This service is not yet enabled for customer purchases.');
+        }
+    }
 
     /** @return array<string, mixed> */
     public function requestIdentity(

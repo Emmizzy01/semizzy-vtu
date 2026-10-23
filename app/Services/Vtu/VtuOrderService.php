@@ -467,58 +467,14 @@ class VtuOrderService
 
     private function assertServiceFeatureEnabled(VtuProduct $product): void
     {
-        $integrationSettings = app(IntegrationSettings::class);
-        if (in_array($product->service_type, ['airtime', 'data'], true)) {
-            // Prefer independent per-service settings. The legacy combined
-            // setting remains a fallback for existing installations only.
-            $serviceSettingKey = 'service.'.$product->service_type.'.enabled';
-            $serviceSetting = $integrationSettings->get($serviceSettingKey, null);
-            $legacySetting = $integrationSettings->get('service.airtime_data.enabled', false);
-            if (! filter_var($serviceSetting ?? $legacySetting, FILTER_VALIDATE_BOOLEAN)) {
-                throw new InvalidArgumentException('This service is not yet enabled for customer purchases.');
-            }
-        } else {
-            $featureKey = match ($product->service_type) {
-                'electricity-bill' => 'service.electricity',
-                'tv-subscription' => 'service.tv',
-                default => null,
-            };
-            if ($featureKey === null) {
-                return;
-            }
-            $feature = PlatformFeatureControl::query()->where('feature_key', $featureKey)->first();
-            if ($feature === null || ! $feature->is_enabled || ! $feature->is_implemented) {
-                throw new InvalidArgumentException('This service is not yet enabled for customer purchases.');
-            }
+        $runtime = app(\\App\\Services\\Addons\\ServicePurchaseRuntimeRegistry::class)
+            ->forService($product->service_type);
+
+        if (! $runtime instanceof \\App\\Services\\Addons\\ServiceFeatureAdmissionPolicy) {
+            throw new InvalidArgumentException('This service has no registered feature-admission policy.');
         }
 
-        // Admission gates only new orders. Idempotent existing orders are
-        // returned before this method; reconciliation remains Core-owned.
-        $addonKey = match ($product->service_type) {
-            'airtime' => 'service.airtime',
-            'data' => 'service.data',
-            'electricity-bill' => 'service.electricity',
-            'tv-subscription' => 'service.tv',
-            default => null,
-        };
-        if ($addonKey !== null) {
-            $addon = PlatformAddon::query()->where('addon_key', $addonKey)->first();
-            $implementation = app(AddonImplementationRegistry::class)->find($addonKey);
-            $operation = 'wallet.vtu.orders.create';
-            $assessment = $addon === null
-                ? ['available' => false, 'reason' => 'addon_manifest_missing']
-                : app(AddonLifecyclePolicy::class)->assessAdmission(
-                    (string) $addon->status,
-                    (string) $addon->compatibility_status,
-                    $implementation !== null && in_array($operation, $implementation['operations'], true),
-                    true,
-                    true,
-                );
-
-            if (! ($assessment['available'] ?? false)) {
-                throw new InvalidArgumentException('This service add-on is disabled or unavailable for new purchases.');
-            }
-        }
+        $runtime->assertFeatureEnabled($product);
     }
 
     /** Re-verify biller details immediately before debiting the wallet. */
