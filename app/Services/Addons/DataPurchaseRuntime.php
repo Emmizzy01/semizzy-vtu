@@ -15,6 +15,12 @@ final class DataPurchaseRuntime implements ServicePurchaseRuntimeContract
         return ['service_details' => $serviceDetails, 'amount_minor' => (int) $product->price_minor];
     }
 
+
+    public function verifyBeforePurchase(\\App\\Models\\VtuProduct $product, string $recipient, array $serviceDetails, \\App\\Services\\Vtu\\VtuProvider $provider): void
+    {
+        // Airtime/data do not require a biller identity lookup.
+    }
+
     /** @param array<string, mixed> $validated
      *  @return array{message: string, status: int}|null
      */

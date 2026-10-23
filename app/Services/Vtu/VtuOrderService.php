@@ -134,7 +134,7 @@ class VtuOrderService
         $this->assertMappedAddonAdmission($product);
         $this->provider->assertConfigured();
         $this->provider->assertProductConfigured($product);
-        $this->verifyBillerBeforePurchase($product, $recipient, $serviceDetails);
+        $runtime->verifyBeforePurchase($product, $recipient, $serviceDetails, $this->provider);
 
         $wallet = Wallet::query()
             ->where('user_id', $user->getKey())
@@ -531,28 +531,6 @@ class VtuOrderService
     }
 
     /** Re-verify biller details immediately before debiting the wallet. */
-    private function verifyBillerBeforePurchase(VtuProduct $product, string $recipient, array $details): void
-    {
-        if (in_array($product->service_type, ['airtime', 'data'], true)) {
-            return;
-        }
-
-        if ($this->provider instanceof MultiProviderVtuRouter) {
-            $result = $product->service_type === 'electricity-bill'
-                ? $this->provider->verifyElectricityMeter($product, $recipient, (string) ($details['meter_type'] ?? ''))
-                : $this->provider->verifyTvSmartcard($product, $recipient);
-        } elseif ($this->provider instanceof VtpassProviderClient) {
-            $result = $product->service_type === 'electricity-bill'
-                ? $this->provider->verifyElectricityMeter($product, $recipient, (string) ($details['meter_type'] ?? ''))
-                : $this->provider->verifyTvSmartcard($product, $recipient);
-        } else {
-            throw new LogicException('Electricity and TV purchases require the VTpass verification adapter.');
-        }
-
-        if (($result['status'] ?? null) !== 'verified') {
-            throw new InvalidArgumentException('The provider could not confirm this meter or smartcard. No purchase was created.');
-        }
-    }
 
     public function reconcile(VtuOrder $order): VtuOrder
     {

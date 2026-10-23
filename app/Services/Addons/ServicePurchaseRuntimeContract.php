@@ -12,6 +12,14 @@ interface ServicePurchaseRuntimeContract
      */
     public function prepareOrder(VtuProduct $product, array $serviceDetails, ?int $amountMinor): array;
 
+
+    /**
+     * Run service-owned identity/biller verification before Core creates or debits an order.
+     * Implementations must not create orders or mutate wallets.
+     * @param array<string, mixed> $serviceDetails
+     */
+    public function verifyBeforePurchase(VtuProduct $product, string $recipient, array $serviceDetails, \\App\\Services\\Vtu\\VtuProvider $provider): void;
+
     /** @param array<string, mixed> $validated
      *  @return array{message: string, status: int}|null
      */
