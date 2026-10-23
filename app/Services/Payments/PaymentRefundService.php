@@ -262,6 +262,12 @@ class PaymentRefundService
                 return ['outcome' => 'skipped', 'status' => $current->status];
             }
 
+            // Record the attempt without changing the business status timestamp.
+            // The scheduler can then prioritize refunds not recently attempted,
+            // preventing a batch of repeatedly unavailable provider lookups from
+            // monopolizing every limited reconciliation run.
+            $current->touch();
+
             return ['outcome' => 'unavailable', 'status' => $current->status];
         }
 
