@@ -52,17 +52,17 @@ class ServicePurchaseAdmissionPolicyTest extends TestCase
         $policy = app(ServicePurchaseAdmissionPolicy::class);
 
         $this->assertTrue($policy->isRegistered([
-            'handler' => \\App\\Http\\Controllers\\Vtu\\VtuOrderController::class,
+            'handler' => \App\Http\Controllers\Vtu\VtuOrderController::class,
             'operations' => ['service.data.purchase', 'wallet.vtu.orders.create'],
         ], 'service.data.purchase'));
 
         $this->assertFalse($policy->isRegistered([
-            'handler' => \\App\\Http\\Controllers\\Vtu\\VtuOrderController::class,
+            'handler' => \App\Http\Controllers\Vtu\VtuOrderController::class,
             'operations' => ['service.data.purchase'],
         ], 'service.data.purchase'));
 
         $this->assertFalse($policy->isRegistered([
-            'handler' => \\App\\Http\\Controllers\\Vtu\\VtuOrderController::class,
+            'handler' => \App\Http\Controllers\Vtu\VtuOrderController::class,
             'operations' => ['wallet.vtu.orders.create'],
         ], 'service.data.purchase'));
     }
