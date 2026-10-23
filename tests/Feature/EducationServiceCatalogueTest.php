@@ -48,6 +48,22 @@ class EducationServiceCatalogueTest extends TestCase
             'password' => 'not-a-real-password',
         ]);
 
+        PlatformFeatureControl::query()->where('feature_key', 'service.education')->update([
+            'is_enabled' => true,
+            'is_implemented' => true,
+        ]);
+        \\App\\Models\\PlatformAddon::query()->updateOrCreate(
+            ['addon_key' => 'service.education'],
+            [
+                'name' => 'Education and exam services',
+                'version' => '1.0.0',
+                'minimum_core_version' => '1.0.0',
+                'status' => 'enabled',
+                'is_core_owned' => false,
+                'compatibility_status' => 'compatible',
+            ],
+        );
+
         $implementation = app(AddonImplementationRegistry::class)->find('service.education');
 
         $this->assertNotNull($implementation);
@@ -65,7 +81,8 @@ class EducationServiceCatalogueTest extends TestCase
             'idempotency_key' => 'education-gate-test-001',
             'candidate' => [],
         ])->assertStatus(503)
-          ->assertJsonPath('message', 'Education purchases are temporarily unavailable until provider fulfilment and recovery are verified.');
+          ->assertJsonPath('message', 'Education purchases are temporarily unavailable until provider fulfilment and recovery are verified.')
+          ->assertJsonPath('reason', 'provider_unavailable');
 
         $deliveryRoute = collect(app('router')->getRoutes()->getRoutes())
             ->first(fn ($route) => $route->getName() === 'education-services.delivery');
