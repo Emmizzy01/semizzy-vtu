@@ -4,7 +4,6 @@ namespace App\Services\Addons;
 
 use App\Models\PlatformAddon;
 use App\Models\PlatformFeatureControl;
-use Symfony\Component\HttpKernel\Exception\HttpException;
 
 /**
  * Service-owned admission policy for VTU website-service requests.
