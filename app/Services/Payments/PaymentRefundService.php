@@ -401,7 +401,7 @@ class PaymentRefundService
             ])->save();
 
             return $refund->fresh();
-        });
+        }, attempts: 3);
     }
 
     /**
