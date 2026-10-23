@@ -145,6 +145,7 @@ class VirtualAccountDepositService
 
             if ($existing && $matchingAccount
                 && (int) $existing->user_virtual_account_id === (int) $matchingAccount->id
+                && (int) $existing->user_id === (int) $matchingAccount->user_id
                 && hash_equals($existing->payload_hash, $payloadHash)
                 && $existing->amount_minor === $amount
                 && $existing->currency === $currency
