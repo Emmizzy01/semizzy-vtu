@@ -5,8 +5,25 @@ namespace App\Services\Addons;
 use App\Models\VtuProduct;
 use App\Services\IntegrationSettings;
 
-final class ElectricityPurchaseRuntime implements ServicePurchaseRuntimeContract
+final class ElectricityPurchaseRuntime implements ServicePurchaseRuntimeContract, PurchaseRequestIdentityPolicy
 {
+    /** @return array<string, mixed> */
+    public function requestIdentity(
+        VtuProduct $product,
+        int $userId,
+        string $recipient,
+        array $serviceDetails,
+        ?int $amountMinor,
+    ): array {
+        return [
+            'user_id' => $userId,
+            'product_code' => $product->code,
+            'recipient' => $recipient,
+            'service_details' => $serviceDetails,
+            'amount_minor' => $amountMinor,
+        ];
+    }
+
     /** @param array<string, mixed> $serviceDetails
      *  @return array{service_details: array<string, mixed>, amount_minor: int|null}
      */

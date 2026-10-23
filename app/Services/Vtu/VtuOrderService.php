@@ -79,8 +79,9 @@ class VtuOrderService
             throw new InvalidArgumentException('Recipient must be a valid phone number.');
         }
 
-        $requestHash = hash('sha256', json_encode(
-            $product->service_type === 'airtime'
+        $identityPayload = $runtime instanceof PurchaseRequestIdentityPolicy
+            ? $runtime->requestIdentity($product, (int) $user->getKey(), $recipient, $serviceDetails, $amountMinor)
+            : ($product->service_type === 'airtime'
                 ? [
                     'user_id' => $user->getKey(),
                     'product_code' => $product->code,
@@ -97,7 +98,9 @@ class VtuOrderService
                     'recipient' => $recipient,
                     'service_details' => $serviceDetails,
                     'amount_minor' => $amountMinor,
-                ]),
+                ]));
+        $requestHash = hash('sha256', json_encode(
+            $identityPayload,
             JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES
         ));
 

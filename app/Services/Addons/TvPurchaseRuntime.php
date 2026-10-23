@@ -5,7 +5,7 @@ namespace App\Services\Addons;
 use App\Models\VtuProduct;
 use App\Services\IntegrationSettings;
 
-final class TvPurchaseRuntime implements ServicePurchaseRuntimeContract, LockedPurchasePricePolicy
+final class TvPurchaseRuntime implements ServicePurchaseRuntimeContract, LockedPurchasePricePolicy, PurchaseRequestIdentityPolicy
 {
     /** @param array<string, mixed> $serviceDetails
      *  @return array{service_details: array<string, mixed>, amount_minor: int|null}
@@ -49,6 +49,23 @@ final class TvPurchaseRuntime implements ServicePurchaseRuntimeContract, LockedP
         }
     }
 
+
+    /** @return array<string, mixed> */
+    public function requestIdentity(
+        VtuProduct $product,
+        int $userId,
+        string $recipient,
+        array $serviceDetails,
+        ?int $amountMinor,
+    ): array {
+        return [
+            'user_id' => $userId,
+            'product_code' => $product->code,
+            'recipient' => $recipient,
+            'service_details' => $serviceDetails,
+            'amount_minor' => $amountMinor,
+        ];
+    }
 
     /**
      * Keep the catalogue-price race policy owned by the TV addon.
