@@ -120,7 +120,7 @@ class VtuBillerVerificationController extends Controller
     /** Resolve a signed public selection key; legacy internal codes remain accepted for compatibility. */
     private function resolveCustomerSelectionCode(string $code): ?VtuProduct
     {
-        if (preg_match('/^p([0-9a-z]+)\\.([a-f0-9]{32})$/D', $code, $matches) === 1) {
+        if (preg_match('/^p([0-9a-z]+)\.([a-f0-9]{32})$/D', $code, $matches) === 1) {
             $id = base_convert($matches[1], 36, 10);
             if (! ctype_digit($id) || (int) $id < 1) {
                 return null;
