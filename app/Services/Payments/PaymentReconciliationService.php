@@ -58,7 +58,7 @@ class PaymentReconciliationService
 
         PaymentIntent::query()
             ->where('provider', 'paystack')
-            ->whereIn('status', ['pending', 'failed', 'review_required'])
+            ->whereIn('status', ['pending', 'failed', 'review_required', 'paid'])
             ->whereIn('id', $intentIds)
             ->orderBy('updated_at')
             ->orderBy('id')
@@ -106,6 +106,26 @@ class PaymentReconciliationService
                                 'reason' => 'Verified provider success does not match the payment intent.',
                             ]);
                             $stats['exceptions']++;
+                            return;
+                        }
+
+                        // A retry case may outlive a successful settlement if an earlier
+                        // process crashed before it could mark the case resolved. Canonical
+                        // provider verification plus the already-paid intent's matching
+                        // transaction ID is sufficient to resolve that exact breadcrumb;
+                        // this path never posts a wallet credit.
+                        if ($intent->status === 'paid') {
+                            if ($intent->provider_transaction_id === $transactionId) {
+                                $this->resolveWebhookProcessingRetryCases($intent, $transactionId);
+                            } else {
+                                $this->recordCase($intent, 'successful_payment_mismatch', $transaction, [
+                                    'reason' => 'Canonical provider success does not match the transaction that already settled this intent.',
+                                    'local_provider_transaction_id' => $intent->provider_transaction_id,
+                                    'observed_provider_transaction_id' => $transactionId,
+                                ]);
+                                $stats['exceptions']++;
+                            }
+
                             return;
                         }
 
@@ -304,6 +324,40 @@ class PaymentReconciliationService
             });
 
         return $stats;
+    }
+
+    private function resolveWebhookProcessingRetryCases(PaymentIntent $intent, string $transactionId): void
+    {
+        DB::transaction(function () use ($intent, $transactionId): void {
+            $current = PaymentIntent::query()->whereKey($intent->id)->lockForUpdate()->first();
+            if ($current === null
+                || $current->status !== 'paid'
+                || $current->provider_transaction_id !== $transactionId) {
+                return;
+            }
+
+            $cases = PaymentReconciliationCase::query()
+                ->where('provider', 'paystack')
+                ->where('payment_intent_id', $current->id)
+                ->where('reference', $current->reference)
+                ->where('case_type', 'webhook_processing_retry')
+                ->where('provider_transaction_id', $transactionId)
+                ->where('status', 'open')
+                ->lockForUpdate()
+                ->get();
+
+            foreach ($cases as $case) {
+                $details = is_array($case->details) ? $case->details : [];
+                $details['resolution'] = 'Canonical provider verification matches the already-settled payment transaction; no additional wallet credit was posted.';
+                $details['resolved_at'] = now()->toISOString();
+                $details['resolved_after_settlement'] = true;
+                $case->forceFill([
+                    'status' => 'resolved',
+                    'details' => $details,
+                    'last_checked_at' => now(),
+                ])->save();
+            }
+        }, attempts: 3);
     }
 
     /** @param array<string, mixed> $transaction @param array<string, mixed> $details */
