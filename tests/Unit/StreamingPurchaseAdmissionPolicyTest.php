@@ -16,11 +16,17 @@ class StreamingPurchaseAdmissionPolicyTest extends TestCase
     {
         PlatformFeatureControl::query()->create([
             'feature_key' => 'service.streaming_subscriptions',
+            'label' => 'Streaming subscriptions',
+            'category' => 'Entertainment',
+            'owner' => 'Streaming operations',
+            'description' => 'Streaming subscription purchase gate regression fixture.',
             'is_enabled' => true,
             'is_implemented' => true,
         ]);
         PlatformAddon::query()->create([
             'addon_key' => 'service.streaming',
+            'name' => 'Streaming subscriptions',
+            'version' => '1.0.0',
             'status' => 'enabled',
             'compatibility_status' => 'compatible',
         ]);
