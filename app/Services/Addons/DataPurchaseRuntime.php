@@ -16,7 +16,7 @@ final class DataPurchaseRuntime implements ServicePurchaseRuntimeContract
     }
 
 
-    public function verifyBeforePurchase(\\App\\Models\\VtuProduct $product, string $recipient, array $serviceDetails, \\App\\Services\\Vtu\\VtuProvider $provider): void
+    public function verifyBeforePurchase(\App\Models\VtuProduct $product, string $recipient, array $serviceDetails, \App\Services\Vtu\VtuProvider $provider): void
     {
         // Airtime/data do not require a biller identity lookup.
     }
