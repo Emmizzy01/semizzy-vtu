@@ -5,8 +5,26 @@ namespace App\Services\Addons;
 use App\Models\VtuProduct;
 use App\Services\IntegrationSettings;
 
-final class AirtimePurchaseRuntime implements ServicePurchaseRuntimeContract
+final class AirtimePurchaseRuntime implements ServicePurchaseRuntimeContract, PurchaseRequestIdentityPolicy
 {
+
+    /** @return array<string, mixed> */
+    public function requestIdentity(
+        VtuProduct $product,
+        int $userId,
+        string $recipient,
+        array $serviceDetails,
+        ?int $amountMinor,
+    ): array {
+        // Keep the legacy airtime idempotency payload stable during conversion.
+        return [
+            'user_id' => $userId,
+            'product_code' => $product->code,
+            'recipient' => $recipient,
+            'amount_minor' => $amountMinor,
+        ];
+    }
+
     /** @param array<string, mixed> $serviceDetails
      *  @return array{service_details: array<string, mixed>, amount_minor: int|null}
      */

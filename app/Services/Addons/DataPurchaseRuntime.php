@@ -5,8 +5,26 @@ namespace App\Services\Addons;
 use App\Models\VtuProduct;
 use App\Services\IntegrationSettings;
 
-final class DataPurchaseRuntime implements ServicePurchaseRuntimeContract
+final class DataPurchaseRuntime implements ServicePurchaseRuntimeContract, PurchaseRequestIdentityPolicy
 {
+
+    /** @return array<string, mixed> */
+    public function requestIdentity(
+        VtuProduct $product,
+        int $userId,
+        string $recipient,
+        array $serviceDetails,
+        ?int $amountMinor,
+    ): array {
+        // Data plans are identified by the selected catalogue product and recipient.
+        // Keep the existing payload shape so accepted retries remain idempotent.
+        return [
+            'user_id' => $userId,
+            'product_code' => $product->code,
+            'recipient' => $recipient,
+        ];
+    }
+
     /** @param array<string, mixed> $serviceDetails
      *  @return array{service_details: array<string, mixed>, amount_minor: int|null}
      */

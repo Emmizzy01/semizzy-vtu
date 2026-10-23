@@ -210,4 +210,29 @@ class ServicePurchaseRuntimeRegistryTest extends TestCase
         );
     }
 
+
+    public function test_airtime_and_data_addons_own_their_stable_request_identity_payloads(): void
+    {
+        $product = new VtuProduct(['code' => 'catalogue-plan']);
+
+        $airtimeIdentity = app(AirtimePurchaseRuntime::class)->requestIdentity(
+            $product, 7, '08012345678', ['unused' => true], 25000
+        );
+        $this->assertSame([
+            'user_id' => 7,
+            'product_code' => 'catalogue-plan',
+            'recipient' => '08012345678',
+            'amount_minor' => 25000,
+        ], $airtimeIdentity);
+
+        $dataIdentity = app(DataPurchaseRuntime::class)->requestIdentity(
+            $product, 7, '08012345678', ['unused' => true], 25000
+        );
+        $this->assertSame([
+            'user_id' => 7,
+            'product_code' => 'catalogue-plan',
+            'recipient' => '08012345678',
+        ], $dataIdentity);
+    }
+
 }
