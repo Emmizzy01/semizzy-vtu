@@ -80,7 +80,8 @@ class BankPayoutReconciliationService
         // payout. Require the provider's amount and currency to match before any
         // success transition or wallet compensation is permitted.
         if (($verified['reference'] ?? null) !== $payout->provider_reference
-            || (string) ($verified['transfer_code'] ?? $transferCode) !== $transferCode
+            || ! is_string($verified['transfer_code'] ?? null)
+            || ! hash_equals($transferCode, $verified['transfer_code'])
             || $verifiedAmount !== (int) $payout->amount_minor
             || $verifiedCurrency !== strtoupper((string) $payout->currency)) {
             return $this->markReconciliationRequired(
