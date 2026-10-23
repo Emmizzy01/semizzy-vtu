@@ -29,13 +29,39 @@ class PaymentReconciliationService
         $stats = ['checked' => 0, 'credited' => 0, 'failed' => 0, 'exceptions' => 0, 'unavailable' => 0];
         $graceMinutes = max(1, min(60, (int) config('services.payments.reconciliation_grace_minutes', 5)));
 
-        PaymentIntent::query()
+        $batchLimit = max(1, min(500, $limit));
+
+        // Retry cases bypass the ordinary age grace period: an earlier verified
+        // success already failed to persist settlement, so it must remain discoverable
+        // even if the webhook provider never retries delivery.
+        $retryIntentIds = PaymentReconciliationCase::query()
+            ->where('provider', 'paystack')
+            ->where('case_type', 'webhook_processing_retry')
+            ->where('status', 'open')
+            ->whereNotNull('payment_intent_id')
+            ->orderBy('last_checked_at')
+            ->limit($batchLimit)
+            ->pluck('payment_intent_id')
+            ->all();
+
+        $agedIntentIds = PaymentIntent::query()
             ->where('provider', 'paystack')
             ->whereIn('status', ['pending', 'failed', 'review_required'])
             ->where('created_at', '<=', now()->subMinutes($graceMinutes))
             ->orderBy('updated_at')
             ->orderBy('id')
-            ->limit(max(1, min(500, $limit)))
+            ->limit($batchLimit)
+            ->pluck('id')
+            ->all();
+
+        $intentIds = array_slice(array_values(array_unique(array_merge($retryIntentIds, $agedIntentIds))), 0, $batchLimit);
+
+        PaymentIntent::query()
+            ->where('provider', 'paystack')
+            ->whereIn('status', ['pending', 'failed', 'review_required'])
+            ->whereIn('id', $intentIds)
+            ->orderBy('updated_at')
+            ->orderBy('id')
             ->get()
             ->each(function (PaymentIntent $intent) use (&$stats): void {
                     $stats['checked']++;
