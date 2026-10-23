@@ -363,6 +363,9 @@ Route::middleware(['auth', 'can:staff.permissions.manage'])->prefix('admin')->na
 Route::middleware(['auth', 'throttle:30,1'])->get('/services/streaming-subscriptions', [StreamingSubscriptionController::class, 'index'])
     ->name('streaming-subscriptions.index');
 
+Route::middleware(['auth', 'throttle:5,1'])->post('/services/streaming-subscriptions/purchases', [StreamingSubscriptionController::class, 'purchase'])
+    ->name('streaming-subscriptions.purchase');
+
 Route::middleware(['auth', 'can:staff.permissions.manage', 'throttle:30,1'])->get('/admin/streaming-subscriptions', [StreamingSubscriptionController::class, 'adminIndex'])
     ->name('admin.streaming-subscriptions.index');
 
