@@ -53,11 +53,6 @@ class EducationOrderCoordinator
             return $this->returnExisting($existing, $requestHash);
         }
 
-        // Reject a new purchase before preflight can call a provider for
-        // candidate validation. Keep the in-transaction check below as well,
-        // because admission may change while preflight is in flight.
-        app(EducationPurchaseAdmissionPolicy::class)->assertAvailable();
-
         $product = $this->preflight->preflight($user, $productCode, $idempotencyKey, $candidate);
         $provider = $this->providers->forProduct($product);
         $wallet = $this->walletAccounts->openForUser($user, 'NGN');
