@@ -186,12 +186,10 @@ class VtuOrderService
                 if (! is_int($lockedAmountMinor) || $lockedAmountMinor < 1) {
                     throw new InvalidArgumentException('The locked product price or purchase amount is invalid.');
                 }
-                // A TV price change between preflight and the locked debit would
-                // make the request hash disagree with the amount being charged.
-                // Fail closed and require a fresh request instead of charging a
-                // different bouquet price under the original idempotency key.
-                if ($lockedProduct->service_type === 'tv-subscription' && $lockedAmountMinor !== $amountMinor) {
-                    throw new InvalidArgumentException('The TV subscription price changed. Please review the price and try again.');
+                // Delegate addon-specific locked-price policies before debit.
+                // Core still owns the product/wallet locks, idempotency and ledger.
+                if ($lockedRuntime instanceof LockedPurchasePricePolicy) {
+                    $lockedRuntime->assertLockedPriceUnchanged($lockedProduct, (int) $amountMinor, $lockedAmountMinor);
                 }
                 $lockedWallet = Wallet::query()->whereKey($wallet->getKey())->lockForUpdate()->firstOrFail();
                 $policyRejection = $this->levelPolicies->rejectionReason($user, $lockedProduct, (int) $lockedWallet->getKey(), $lockedAmountMinor);

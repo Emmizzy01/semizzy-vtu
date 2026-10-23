@@ -5,7 +5,7 @@ namespace App\Services\Addons;
 use App\Models\VtuProduct;
 use App\Services\IntegrationSettings;
 
-final class TvPurchaseRuntime implements ServicePurchaseRuntimeContract
+final class TvPurchaseRuntime implements ServicePurchaseRuntimeContract, LockedPurchasePricePolicy
 {
     /** @param array<string, mixed> $serviceDetails
      *  @return array{service_details: array<string, mixed>, amount_minor: int|null}
@@ -46,6 +46,18 @@ final class TvPurchaseRuntime implements ServicePurchaseRuntimeContract
 
         if (($result['status'] ?? null) !== 'verified') {
             throw new \InvalidArgumentException('The provider could not confirm this smartcard. No purchase was created.');
+        }
+    }
+
+
+    /**
+     * Keep the catalogue-price race policy owned by the TV addon.
+     * Core calls this while holding the product lock and before wallet debit.
+     */
+    public function assertLockedPriceUnchanged(VtuProduct $product, int $requestedAmountMinor, int $lockedAmountMinor): void
+    {
+        if ($requestedAmountMinor !== $lockedAmountMinor) {
+            throw new \\InvalidArgumentException('The TV subscription price changed. Please review the price and try again.');
         }
     }
 
