@@ -93,6 +93,26 @@ class WalletLedgerService
                         );
                     }
 
+                    // A matching idempotency hash is not enough to prove that money
+                    // was posted: never treat an incomplete transaction as a successful
+                    // credit. The original post is atomic, so an incomplete record needs
+                    // manual reconciliation rather than an automatic retry or new key.
+                    $ledgerEntry = WalletLedgerEntry::query()
+                        ->where('wallet_transaction_id', $existing->id)
+                        ->first();
+
+                    if ($existing->status !== 'posted'
+                        || $existing->posted_at === null
+                        || $ledgerEntry === null
+                        || (int) $ledgerEntry->wallet_id !== (int) $existing->wallet_id
+                        || $ledgerEntry->entry_type !== $existing->type
+                        || (int) $ledgerEntry->amount_minor !== (int) $existing->amount_minor
+                        || $ledgerEntry->currency !== $existing->currency) {
+                        throw new IdempotencyConflict(
+                            'The existing idempotent wallet transaction is not a complete, consistent posted ledger credit.'
+                        );
+                    }
+
                     return $existing;
                 }
 
