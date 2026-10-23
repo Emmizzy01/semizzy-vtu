@@ -10,14 +10,14 @@ These rules apply to all future implementation, maintenance, database evolution,
 
 **SEMIZZY ONE is a real production platform, not a mock/demo.** All production code paths must perform real, durable, auditable work through verified integrations and persisted state. Mocks, fakes, fixtures, simulated provider outcomes, fabricated transaction states, and in-memory substitutes are permitted only in isolated automated tests or explicitly identified provider sandbox environments. They must never be represented as live functionality or silently substitute for unavailable production integrations.
 
-- Every enabled action must have end-to-end implementation: UI, server-side validation and authorization, durable persistence, safe state transitions, failure/recovery handling, auditability where appropriate, automated tests, and deployment/configuration instructions.
+- Every enabled action must have end-to-end implementation: UI, server-side validation and authorization, durable persistence, safe state transitions, failure/recovery handling, auditability where appropriate, and deployment/configuration instructions. Per owner instruction, do not execute tests during the implementation phase; platform-wide testing is reserved until the full platform build is complete.
 - No placeholder control may be presented as operational. If credentials, provider support, or required configuration is missing, return a truthful unavailable state and keep the affected capability disabled rather than fabricating success.
 - Automated tests and sandbox checks must not send real money or real provider transactions. Live verification belongs to controlled deployment tasks under Section 7A.
 - Production-grade implementation does not bypass safety gates: unverified integrations, ambiguous outcomes, missing credentials, or incomplete reconciliation remain gated. The code can be implemented while live activation awaits deployment verification.
 - This standard applies to Core and every approved addon, including funding, wallet movements, purchases, refunds, payouts, OTP, passkeys, admin controls, background jobs, catalogue sync, and recovery.
 
 - Build and maintain the application as a real production product, not a demo. Do not substitute simulated balances, fake provider results, fabricated delivery/status progress, or placeholder controls for real functionality.
-- A feature is not complete until its end-to-end flow exists: UI, server-side validation, authorization, persistence, failure states, auditability where appropriate, automated tests, and deployment/configuration notes.
+- A feature's implementation milestone is tracked when its end-to-end flow exists: UI, server-side validation, authorization, persistence, failure states, auditability where appropriate, and deployment/configuration notes. Do not run tests while building; do not claim tested/verified status. Overall acceptance follows the single comprehensive platform-wide testing phase after the full build.
 - Keep production-safe configuration and real integrations separate from test/sandbox mode. Never send a real payment, purchase, refund, or provider request as part of routine verification.
 - Never claim a specific capability or release is verified when its required development/CI checks have not passed. Classify live-server-only checks as deployment-stage items under Section 7A; they do not block unrelated development, but must be run at deployment before enabling the affected live capability.
 - Preserve the existing project blueprint and working features. Do not remove agreed functionality just to simplify or consolidate implementation.
@@ -61,7 +61,7 @@ These rules apply to all future implementation, maintenance, database evolution,
 
 - Keep provider adapters and service catalogues modular; validate product/service availability, customer inputs, price/limits, and provider response before debiting or fulfilling an order.
 - Use explicit order state transitions and reconciliation. Do not blindly resubmit an order after an uncertain provider outcome; provide safe status recovery.
-- Keep high-risk, regulated, or unverified services disabled until the specific service flow, provider integration, permissions, reconciliation, and tests have been reviewed.
+- Keep high-risk, regulated, or unverified services disabled until the specific service flow, provider integration, permissions, and reconciliation safeguards are implemented. Testing/review occurs in the final platform-wide acceptance phase.
 - Do not describe a provider integration as live unless credentials/configuration and a safe, authorised end-to-end verification establish that it is live.
 
 ## 7. Deployment and hosting compatibility
@@ -77,7 +77,7 @@ These rules apply to all future implementation, maintenance, database evolution,
 **Owner's explicit rule: anything that requires the live server, cPanel, or the deployed environment to test, inspect, or verify is a deployment matter. It is not an unfinished development task and must not keep a development phase or bulk action open.** Apply this classification consistently across every phase, audit, checklist, status report, and acceptance register.
 
 - Examples include cPanel deployment configuration, production PHP/extensions and permissions, deployed code/assets/routes, production database connectivity/schema/migration status, live logs, HTTPS/browser passkeys, authorised real-device SMS/WhatsApp delivery, cron/scheduler/queue operation, backups/restore validation, production smoke tests, and authorised live-provider checks.
-- During development, complete everything verifiable without live-server access: code, tests, static/security analysis, builds, sandbox/mock contracts, migration review, recovery logic, documentation, and a precise deployment checklist.
+- During implementation, focus on code, static source inspection, safe architecture, migration review, recovery logic, documentation, and a precise deployment checklist. Do not run tests, CI test workflows, builds, or verification suites while the platform is still being built. Run the comprehensive test/build/acceptance campaign only after the entire platform implementation is complete.
 - Record live-only checks under **Deployment checklist — execute during deployment** as **Deferred to deployment / not yet run** until actual evidence exists. Never call them development failures, and never claim them passed before execution.
 - Do not reopen or block unrelated development phases because a deployment-only check is pending. A particular capability can nevertheless remain disabled at deployment until its own safety gate is satisfied.
 - Do not access/change production, run migrations, alter production data, or trigger real financial/provider transactions just to change a checklist status. Follow backup, review, approval, and financial-safety requirements.

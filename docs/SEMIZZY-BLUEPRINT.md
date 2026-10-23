@@ -2,13 +2,13 @@
 
 **Canonical repository:** https://github.com/Emmizzy01/semizzy-vtu  
 **Canonical branch:** `main` only. Do not create or use feature branches.  
-**Status:** Living specification; a capability is development-complete when its implementation, authorization, UI, failure handling, automated tests, and documentation are verified. Checks that require the live server are recorded separately for execution during deployment and do not block unrelated development.
+**Status:** Living specification. During implementation, complete the code, authorization, UI, failure handling, and documentation without running tests. Per the owner's explicit build-first rule, the comprehensive platform-wide test/verification/acceptance phase happens only after the entire platform is built. Checks requiring the live server are tracked separately for deployment.
 
 ## 1A. Production implementation standard — binding owner rule
 
 SEMIZZY ONE is a real production platform, not a mock/demo. All Core functions and approved service addons must be implemented as real, durable, auditable production workflows. Mocks, fakes, simulated outcomes, and fixtures are permitted only in isolated automated tests or explicitly identified provider sandboxes; never present them as live functionality or substitute them into production code paths.
 
-Every enabled action must have server-side validation and authorization, persistence, safe transaction handling where relevant, truthful failure states, idempotency/recovery for financial and provider operations, appropriate audit records, tests, and deployment/configuration instructions. Missing credentials or unverified integrations must produce a truthful unavailable state and keep the affected capability gated—not fabricated success. Do not send real transactions during development verification. Actual live verification is a controlled deployment matter. A pending deployment check must not be misreported as a development failure, and a green build alone does not prove live activation.
+Every enabled action must have server-side validation and authorization, persistence, safe transaction handling where relevant, truthful failure states, idempotency/recovery for financial and provider operations, appropriate audit records, and deployment/configuration instructions. Do not run tests during implementation; test the whole platform after the full build. Missing credentials or unverified integrations must produce a truthful unavailable state and keep the affected capability gated—not fabricated success. Do not send real transactions during development verification. Actual live verification is a controlled deployment matter. A pending deployment check must not be misreported as a development failure, and a green build alone does not prove live activation.
 
 ## 1. Product direction
 
@@ -17,11 +17,11 @@ Semizzy is a modular Nigerian VTU and fintech platform for customers, resellers,
 ### Non-negotiable engineering rules
 - Work only in `Emmizzy01/semizzy-vtu`, on `main`. Never create another branch.
 - Preserve existing working functionality; inspect the real code and tests before changing it.
-- Use meaningful, coherent multi-file batches; verify changes with available tests/build checks and report checks honestly.
+- Use meaningful, coherent multi-file implementation batches. Do not run tests/build/CI checks during the build; comprehensive verification is reserved for after the full platform implementation.
 - Enforce permissions on the server, not only by hiding UI links. Record sensitive administrative changes in audit trails.
 - Wallet changes must be ledger-backed, idempotent, referenceable, reconcilable, and auditable. Never silently edit a wallet balance or credit funds solely because a receipt was uploaded.
 - Never commit secrets, production credentials, customer data, database dumps, or private payment evidence.
-- Treat a feature as implemented only when its backend, UI, authorization, failure handling, tests, and docs are actually present.
+- Track implementation separately from final verification. During the build, implement the backend, UI, authorization, failure handling, and docs without running tests. Final platform acceptance is after the complete build.
 - Keep integrations modular and compatible with shared hosting; do not require an always-running worker unless documented as optional.
 - No loans, forex, investment products, or unapproved escrow. Do not build unlawful OTP/account-access services.
 
