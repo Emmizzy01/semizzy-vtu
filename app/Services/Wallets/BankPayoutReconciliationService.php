@@ -43,6 +43,19 @@ class BankPayoutReconciliationService
             );
         }
 
+        // Once a transfer code has been persisted, a webhook must refer to that
+        // same transfer. Do not verify or settle a different transfer merely
+        // because its payload repeats this payout's reference.
+        $storedTransferCode = $payout->provider_transfer_code;
+        if (is_string($storedTransferCode)
+            && $storedTransferCode !== ''
+            && ! hash_equals($storedTransferCode, $transferCode)) {
+            return $this->markReconciliationRequired(
+                $payout->id,
+                'Transfer webhook code did not match the transfer already recorded for this payout.',
+            );
+        }
+
         try {
             $verified = $this->paystack->fetchBankTransfer($transferCode);
         } catch (\Throwable $exception) {
