@@ -271,12 +271,27 @@ class EducationOrderCoordinator
                     // must not repeatedly replace the conflict evidence on a completed order.
                     // Never issue a second refund or rewrite a completed order from a stale lookup.
                     $safeResponse = is_array($locked->safe_provider_response) ? $locked->safe_provider_response : [];
-                    $safeResponse['terminal_status_conflict'] = [
+                    $conflict = [
                         'stored_status' => $terminalStatus,
                         'observed_status' => $status,
                         'observed_at' => now()->toIso8601String(),
                         'message_code' => $messageCode,
                     ];
+                    $history = is_array($safeResponse['terminal_status_conflicts'] ?? null)
+                        ? $safeResponse['terminal_status_conflicts']
+                        : [];
+
+                    // Keep a bounded audit trail rather than letting a later
+                    // contradictory lookup erase an earlier provider disagreement.
+                    $lastConflict = $history === [] ? null : $history[array_key_last($history)];
+                    if (! is_array($lastConflict)
+                        || ($lastConflict['stored_status'] ?? null) !== $terminalStatus
+                        || ($lastConflict['observed_status'] ?? null) !== $status
+                        || ($lastConflict['message_code'] ?? null) !== $messageCode) {
+                        $history[] = $conflict;
+                    }
+                    $safeResponse['terminal_status_conflicts'] = array_slice($history, -10);
+                    $safeResponse['terminal_status_conflict'] = $conflict;
                     $locked->forceFill(['safe_provider_response' => $safeResponse])->save();
                 }
 
